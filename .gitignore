@@ -10,6 +10,12 @@
 !.vscode/settings.json
 !.vscode/extensions.json
 
+# VSCode
+.vscode/
+
 # Sistema
 .DS_Store
 Thumbs.db
+
+# README 
+README.md
