@@ -1,0 +1,15 @@
+# PlatformIO
+.pio/
+
+# VSCode (arquivos gerados automaticamente)
+.vscode/.browse.c_cpp.db*
+.vscode/ipch/
+.vscode/launch.json
+
+# Manter as configurações do projeto
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# Sistema
+.DS_Store
+Thumbs.db
