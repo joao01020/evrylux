@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/activity_timer.dart';
 import '../widgets/week_tracker.dart';
 
 class TrainingScreen
@@ -21,22 +22,16 @@ class _TrainingScreenState
         State<
           TrainingScreen
         > {
-  List<
+  final List<
     bool
   >
   completedDays = [
     false,
-
     false,
-
     false,
-
     false,
-
     false,
-
     false,
-
     false,
   ];
 
@@ -45,17 +40,14 @@ class _TrainingScreenState
   >
   trainingOptions = [
     "🏋️ Peito",
-
     "🦵 Pernas",
-
     "🏃 Corrida",
-
     "🔥 Full Body",
   ];
 
   String? selectedTraining;
 
-  List<
+  final List<
     String
   >
   completedWorkouts = [];
@@ -91,7 +83,6 @@ class _TrainingScreenState
         completedWorkouts.add(
           selectedTraining!,
         );
-
         selectedTraining = null;
       },
     );
@@ -107,23 +98,18 @@ class _TrainingScreenState
           "Treino 💪",
         ),
       ),
-
       body: Padding(
         padding: const EdgeInsets.all(
           24,
         ),
-
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-
             children: [
               const Text(
                 "Sua evolução física começa aqui.",
-
                 style: TextStyle(
                   fontSize: 28,
-
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -134,7 +120,6 @@ class _TrainingScreenState
 
               const Text(
                 "Escolha seu treino de hoje e mantenha sua evolução.",
-
                 style: TextStyle(
                   fontSize: 18,
                 ),
@@ -146,8 +131,15 @@ class _TrainingScreenState
 
               WeekTracker(
                 completedDays: completedDays,
-
                 onDayTap: toggleDay,
+              ),
+
+              const SizedBox(
+                height: 35,
+              ),
+
+              const ActivityTimer(
+                title: "Tempo de treino",
               ),
 
               const SizedBox(
@@ -156,10 +148,8 @@ class _TrainingScreenState
 
               const Text(
                 "Hoje:",
-
                 style: TextStyle(
                   fontSize: 22,
-
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -177,17 +167,14 @@ class _TrainingScreenState
                       title: Text(
                         training,
                       ),
-
                       trailing:
                           selectedTraining ==
                               training
                           ? const Icon(
                               Icons.check_circle,
-
                               color: Colors.green,
                             )
                           : null,
-
                       onTap: () {
                         setState(
                           () {
@@ -206,10 +193,8 @@ class _TrainingScreenState
 
               SizedBox(
                 width: double.infinity,
-
                 child: ElevatedButton(
                   onPressed: completeTraining,
-
                   child: const Text(
                     "Concluir treino",
                   ),
@@ -224,20 +209,16 @@ class _TrainingScreenState
                 child: ListTile(
                   leading: const Text(
                     "🔥",
-
                     style: TextStyle(
                       fontSize: 30,
                     ),
                   ),
-
                   title: const Text(
                     "Sequência",
-
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-
                   subtitle: Text(
                     "$streak dias de evolução",
                   ),
@@ -250,10 +231,8 @@ class _TrainingScreenState
 
               const Text(
                 "Treinos realizados",
-
                 style: TextStyle(
                   fontSize: 22,
-
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -275,16 +254,13 @@ class _TrainingScreenState
                     child: ListTile(
                       leading: const Text(
                         "✅",
-
                         style: TextStyle(
                           fontSize: 25,
                         ),
                       ),
-
                       title: Text(
                         workout,
                       ),
-
                       subtitle: const Text(
                         "Treino concluído",
                       ),

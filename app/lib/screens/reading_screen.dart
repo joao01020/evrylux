@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../widgets/week_tracker.dart';
+import '../widgets/activity_timer.dart';
 import '../widgets/progress_bar.dart';
+import '../widgets/week_tracker.dart';
 
 class ReadingScreen
     extends
@@ -22,22 +23,16 @@ class _ReadingScreenState
         State<
           ReadingScreen
         > {
-  List<
+  final List<
     bool
   >
   completedDays = [
     false,
-
     false,
-
     false,
-
     false,
-
     false,
-
     false,
-
     false,
   ];
 
@@ -120,9 +115,7 @@ class _ReadingScreenState
   @override
   void dispose() {
     bookController.dispose();
-
     pagesController.dispose();
-
     super.dispose();
   }
 
@@ -136,23 +129,18 @@ class _ReadingScreenState
           "Leitura 📖",
         ),
       ),
-
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(
             24,
           ),
-
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-
             children: [
               const Text(
                 "Sua evolução através dos livros.",
-
                 style: TextStyle(
                   fontSize: 28,
-
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -163,7 +151,6 @@ class _ReadingScreenState
 
               const Text(
                 "Cada página é um passo na sua evolução.",
-
                 style: TextStyle(
                   fontSize: 18,
                 ),
@@ -175,8 +162,15 @@ class _ReadingScreenState
 
               WeekTracker(
                 completedDays: completedDays,
-
                 onDayTap: toggleDay,
+              ),
+
+              const SizedBox(
+                height: 30,
+              ),
+
+              const ActivityTimer(
+                title: "Tempo de leitura",
               ),
 
               const SizedBox(
@@ -188,17 +182,13 @@ class _ReadingScreenState
                   padding: const EdgeInsets.all(
                     16,
                   ),
-
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-
                     children: [
                       const Text(
                         "📘 Livro atual",
-
                         style: TextStyle(
                           fontSize: 18,
-
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -209,7 +199,6 @@ class _ReadingScreenState
 
                       TextField(
                         controller: bookController,
-
                         decoration: const InputDecoration(
                           labelText: "Nome do livro",
                         ),
@@ -221,9 +210,7 @@ class _ReadingScreenState
 
                       TextField(
                         controller: pagesController,
-
                         keyboardType: TextInputType.number,
-
                         decoration: const InputDecoration(
                           labelText: "Quantidade de páginas",
                         ),
@@ -235,10 +222,8 @@ class _ReadingScreenState
 
                       SizedBox(
                         width: double.infinity,
-
                         child: ElevatedButton(
                           onPressed: saveBook,
-
                           child: const Text(
                             "Salvar livro",
                           ),
@@ -251,7 +236,6 @@ class _ReadingScreenState
 
                       Text(
                         book,
-
                         style: const TextStyle(
                           fontSize: 16,
                         ),
@@ -269,29 +253,23 @@ class _ReadingScreenState
                 child: ListTile(
                   leading: const Text(
                     "📄",
-
                     style: TextStyle(
                       fontSize: 30,
                     ),
                   ),
-
                   title: const Text(
                     "Páginas lidas",
-
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-
                   subtitle: Text(
                     "$pagesRead / $totalPages páginas",
                   ),
-
                   trailing: IconButton(
                     icon: const Icon(
                       Icons.add,
                     ),
-
                     onPressed: addPages,
                   ),
                 ),
@@ -303,9 +281,7 @@ class _ReadingScreenState
 
               ProgressBar(
                 title: "Progresso do livro",
-
                 current: pagesRead.toDouble(),
-
                 goal:
                     totalPages ==
                         0
@@ -321,20 +297,16 @@ class _ReadingScreenState
                 child: ListTile(
                   leading: const Text(
                     "🔥",
-
                     style: TextStyle(
                       fontSize: 30,
                     ),
                   ),
-
                   title: const Text(
                     "Sequência",
-
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-
                   subtitle: Text(
                     "$streak dias lendo",
                   ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/activity_timer.dart';
 import '../widgets/week_tracker.dart';
 
 class WalkingScreen
@@ -27,22 +28,16 @@ class _WalkingScreenState
 
   int streak = 0;
 
-  List<
+  final List<
     bool
   >
   completedDays = [
     false,
-
     false,
-
     false,
-
     false,
-
     false,
-
     false,
-
     false,
   ];
 
@@ -68,7 +63,6 @@ class _WalkingScreenState
     setState(
       () {
         steps += 500;
-
         distance += 0.4;
       },
     );
@@ -84,141 +78,135 @@ class _WalkingScreenState
           "Caminhada 🚶",
         ),
       ),
-
-      body: Padding(
-        padding: const EdgeInsets.all(
-          24,
-        ),
-
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-
-          children: [
-            const Text(
-              "Sua jornada começa aqui.",
-
-              style: TextStyle(
-                fontSize: 28,
-
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-
-            const SizedBox(
-              height: 20,
-            ),
-
-            const Text(
-              "Caminhar é o primeiro passo para evoluir "
-              "seu corpo e sua mente.",
-
-              style: TextStyle(
-                fontSize: 18,
-              ),
-            ),
-
-            const SizedBox(
-              height: 35,
-            ),
-
-            WeekTracker(
-              completedDays: completedDays,
-
-              onDayTap: toggleDay,
-            ),
-
-            const SizedBox(
-              height: 35,
-            ),
-
-            Card(
-              child: ListTile(
-                leading: const Text(
-                  "🚶",
-
-                  style: TextStyle(
-                    fontSize: 30,
-                  ),
-                ),
-
-                title: const Text(
-                  "Passos",
-
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-
-                subtitle: Text(
-                  "$steps passos hoje",
-                ),
-
-                trailing: IconButton(
-                  icon: const Icon(
-                    Icons.add,
-                  ),
-
-                  onPressed: addWalking,
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(
+            24,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Sua jornada começa aqui.",
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            ),
 
-            Card(
-              child: ListTile(
-                leading: const Text(
-                  "📍",
+              const SizedBox(
+                height: 20,
+              ),
 
-                  style: TextStyle(
-                    fontSize: 30,
-                  ),
-                ),
-
-                title: const Text(
-                  "Distância",
-
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-
-                subtitle: Text(
-                  "${distance.toStringAsFixed(1)} km percorridos",
-                ),
-
-                trailing: IconButton(
-                  icon: const Icon(
-                    Icons.add,
-                  ),
-
-                  onPressed: addWalking,
+              const Text(
+                "Caminhar é o primeiro passo para evoluir seu corpo e sua mente.",
+                style: TextStyle(
+                  fontSize: 18,
                 ),
               ),
-            ),
 
-            Card(
-              child: ListTile(
-                leading: const Text(
-                  "🔥",
+              const SizedBox(
+                height: 35,
+              ),
 
-                  style: TextStyle(
-                    fontSize: 30,
+              WeekTracker(
+                completedDays: completedDays,
+                onDayTap: toggleDay,
+              ),
+
+              const SizedBox(
+                height: 35,
+              ),
+
+              const ActivityTimer(
+                title: "Tempo de caminhada",
+              ),
+
+              const SizedBox(
+                height: 25,
+              ),
+
+              Card(
+                child: ListTile(
+                  leading: const Text(
+                    "🚶",
+                    style: TextStyle(
+                      fontSize: 30,
+                    ),
                   ),
-                ),
-
-                title: const Text(
-                  "Sequência",
-
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
+                  title: const Text(
+                    "Passos",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-
-                subtitle: Text(
-                  "$streak dias marcados",
+                  subtitle: Text(
+                    "$steps passos hoje",
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(
+                      Icons.add,
+                    ),
+                    onPressed: addWalking,
+                  ),
                 ),
               ),
-            ),
-          ],
+
+              const SizedBox(
+                height: 15,
+              ),
+
+              Card(
+                child: ListTile(
+                  leading: const Text(
+                    "📍",
+                    style: TextStyle(
+                      fontSize: 30,
+                    ),
+                  ),
+                  title: const Text(
+                    "Distância",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  subtitle: Text(
+                    "${distance.toStringAsFixed(1)} km percorridos",
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(
+                      Icons.add,
+                    ),
+                    onPressed: addWalking,
+                  ),
+                ),
+              ),
+
+              const SizedBox(
+                height: 15,
+              ),
+
+              Card(
+                child: ListTile(
+                  leading: const Text(
+                    "🔥",
+                    style: TextStyle(
+                      fontSize: 30,
+                    ),
+                  ),
+                  title: const Text(
+                    "Sequência",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  subtitle: Text(
+                    "$streak dias marcados",
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
