@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../models/objective.dart';
-import '../widgets/objective_card.dart';
-import 'objective_screen.dart';
+import 'evolution_screen.dart';
+import 'finance_screen.dart';
+import 'training_screen.dart';
+import 'study_screen.dart';
 
 class WelcomeScreen
     extends
@@ -24,62 +25,95 @@ class _WelcomeScreenState
           WelcomeScreen
         > {
   final List<
-    Objective
+    Map<
+      String,
+      String
+    >
   >
-  objectives = const [
-    Objective(
-      name: "Caminhada",
+  objectives = [
+    {
+      "name": "Conhecimento",
+      "emoji": "🧠",
+      "description": "Evolua sua mente através dos estudos e aprendizado.",
+    },
 
-      emoji: "🚶",
+    {
+      "name": "Saúde",
+      "emoji": "❤️",
+      "description": "Cuide do seu corpo através de movimento e hábitos saudáveis.",
+    },
 
-      description: "Melhore sua resistência e conexão com o corpo.",
-    ),
+    {
+      "name": "Financeiro",
+      "emoji": "💰",
+      "description": "Organize suas finanças e acompanhe sua evolução financeira.",
+    },
 
-    Objective(
-      name: "Estudos",
-
-      emoji: "📚",
-
-      description: "Construa conhecimento e evolução mental todos os dias.",
-    ),
-
-    Objective(
-      name: "Treino",
-
-      emoji: "💪",
-
-      description: "Desenvolva força, disciplina e evolução física.",
-    ),
-
-    Objective(
-      name: "Leitura",
-
-      emoji: "📖",
-
-      description: "Expanda sua mente através dos livros.",
-    ),
+    {
+      "name": "Evolução",
+      "emoji": "📈",
+      "description": "Veja seu progresso e acompanhe sua transformação.",
+    },
   ];
 
-  Objective? selectedObjective;
+  bool showOptions = false;
 
-  void startObjective() {
-    if (selectedObjective ==
-        null) {
-      return;
+  @override
+  void initState() {
+    super.initState();
+
+    Future.delayed(
+      const Duration(
+        milliseconds: 1200,
+      ),
+      () {
+        if (!mounted) return;
+
+        setState(
+          () {
+            showOptions = true;
+          },
+        );
+      },
+    );
+  }
+
+  void openObjective(
+    String name,
+  ) {
+    Widget? page;
+
+    switch (name) {
+      case "Conhecimento":
+        page = const StudyScreen();
+        break;
+
+      case "Saúde":
+        page = const TrainingScreen();
+        break;
+
+      case "Financeiro":
+        page = const FinanceScreen();
+        break;
+
+      case "Evolução":
+        page = const EvolutionScreen();
+        break;
     }
 
-    Navigator.push(
-      context,
+    if (page !=
+        null) {
+      Navigator.push(
+        context,
 
-      MaterialPageRoute(
-        builder:
-            (
-              context,
-            ) => ObjectiveScreen(
-              objective: selectedObjective!,
-            ),
-      ),
-    );
+        MaterialPageRoute(
+          builder:
+              (
+                _,
+              ) => page!,
+        ),
+      );
+    }
   }
 
   @override
@@ -88,104 +122,123 @@ class _WelcomeScreenState
   ) {
     return Scaffold(
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            const SizedBox(
-              height: 60,
-            ),
-
-            const Text(
-              "Olá 👋",
-
-              style: TextStyle(
-                fontSize: 32,
-
-                fontWeight: FontWeight.bold,
+            AnimatedAlign(
+              duration: const Duration(
+                milliseconds: 900,
               ),
-            ),
 
-            const SizedBox(
-              height: 30,
-            ),
+              curve: Curves.easeInOutCubic,
 
-            const Text(
-              "Qual objetivo deseja iniciar?",
-
-              style: TextStyle(
-                fontSize: 20,
-              ),
-            ),
-
-            const SizedBox(
-              height: 40,
-            ),
-
-            ...objectives.map(
-              (
-                item,
-              ) => ObjectiveCard(
-                objective: item,
-
-                selected:
-                    selectedObjective ==
-                    item,
-
-                onTap: () {
-                  setState(
-                    () {
-                      selectedObjective = item;
-                    },
-                  );
-                },
-              ),
-            ),
-
-            const Spacer(),
-
-            SizedBox(
-              width: double.infinity,
+              alignment: showOptions
+                  ? Alignment.topCenter
+                  : Alignment.center,
 
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 40,
+                padding: EdgeInsets.only(
+                  top: showOptions
+                      ? 70
+                      : 0,
                 ),
 
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green.shade700,
+                child: const Text(
+                  "Olá, 👋 João Vitor",
 
-                    foregroundColor: Colors.white,
+                  style: TextStyle(
+                    fontSize: 36,
 
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 15,
-                    ),
-
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                        30,
-                      ),
-                    ),
-                  ),
-
-                  onPressed:
-                      selectedObjective ==
-                          null
-                      ? null
-                      : startObjective,
-
-                  child: const Text(
-                    "Começar",
-
-                    style: TextStyle(
-                      fontSize: 18,
-                    ),
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
             ),
 
-            const SizedBox(
-              height: 40,
+            AnimatedOpacity(
+              duration: const Duration(
+                milliseconds: 700,
+              ),
+
+              opacity: showOptions
+                  ? 1
+                  : 0,
+
+              child: AnimatedSlide(
+                duration: const Duration(
+                  milliseconds: 900,
+                ),
+
+                curve: Curves.easeOutCubic,
+
+                offset: showOptions
+                    ? Offset.zero
+                    : const Offset(
+                        0,
+                        0.25,
+                      ),
+
+                child: Column(
+                  children: [
+                    const SizedBox(
+                      height: 150,
+                    ),
+
+                    const Text(
+                      "Qual evolução deseja iniciar?",
+
+                      style: TextStyle(
+                        fontSize: 20,
+                      ),
+                    ),
+
+                    const SizedBox(
+                      height: 40,
+                    ),
+
+                    ...objectives.map(
+                      (
+                        objective,
+                      ) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                          ),
+
+                          child: Card(
+                            child: ListTile(
+                              leading: Text(
+                                objective["emoji"]!,
+
+                                style: const TextStyle(
+                                  fontSize: 30,
+                                ),
+                              ),
+
+                              title: Text(
+                                objective["name"]!,
+
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+
+                              subtitle: Text(
+                                objective["description"]!,
+                              ),
+
+                              onTap: () {
+                                openObjective(
+                                  objective["name"]!,
+                                );
+                              },
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),

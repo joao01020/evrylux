@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import 'screens/welcome_screen.dart';
-import 'screens/walking_screen.dart';
+
 import 'screens/study_screen.dart';
+
 import 'screens/training_screen.dart';
-import 'screens/reading_screen.dart';
 
 import 'theme/app_theme.dart';
 
@@ -24,28 +24,18 @@ class GhostApp
 
       theme: AppTheme.theme,
 
-      home: WelcomeScreen(),
+      home: const WelcomeScreen(),
 
       routes: {
-        '/walking':
-            (
-              context,
-            ) => WalkingScreen(),
-
         '/study':
             (
               context,
-            ) => StudyScreen(),
+            ) => const StudyScreen(),
 
         '/training':
             (
               context,
-            ) => TrainingScreen(),
-
-        '/reading':
-            (
-              context,
-            ) => ReadingScreen(),
+            ) => const TrainingScreen(),
       },
     );
   }

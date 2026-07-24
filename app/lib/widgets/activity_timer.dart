@@ -7,10 +7,18 @@ class ActivityTimer
         StatefulWidget {
   const ActivityTimer({
     super.key,
+
     this.title = "Tempo",
+
+    required this.onTimeChanged,
   });
 
   final String title;
+
+  final Function(
+    int seconds,
+  )
+  onTimeChanged;
 
   @override
   State<
@@ -43,6 +51,7 @@ class _ActivityTimerState
       const Duration(
         seconds: 1,
       ),
+
       (
         _,
       ) {
@@ -50,6 +59,10 @@ class _ActivityTimerState
           () {
             seconds++;
           },
+        );
+
+        widget.onTimeChanged(
+          seconds,
         );
       },
     );
@@ -71,31 +84,33 @@ class _ActivityTimerState
     setState(
       () {
         running = false;
+
         seconds = 0;
       },
+    );
+
+    widget.onTimeChanged(
+      seconds,
     );
   }
 
   String formatTime() {
-    final hours =
-        seconds ~/
-        3600;
     final minutes =
-        (seconds %
-            3600) ~/
+        seconds ~/
         60;
+
     final secs =
         seconds %
         60;
 
-    return "${hours.toString().padLeft(2, '0')}:"
-        "${minutes.toString().padLeft(2, '0')}:"
+    return "${minutes.toString().padLeft(2, '0')}:"
         "${secs.toString().padLeft(2, '0')}";
   }
 
   @override
   void dispose() {
     timer?.cancel();
+
     super.dispose();
   }
 
@@ -108,12 +123,15 @@ class _ActivityTimerState
         padding: const EdgeInsets.all(
           20,
         ),
+
         child: Column(
           children: [
             Text(
               widget.title,
+
               style: const TextStyle(
                 fontSize: 18,
+
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -124,18 +142,17 @@ class _ActivityTimerState
 
             Text(
               formatTime(),
+
               style: const TextStyle(
                 fontSize: 40,
+
                 fontWeight: FontWeight.bold,
               ),
             ),
 
-            const SizedBox(
-              height: 20,
-            ),
-
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
+
               children: [
                 IconButton(
                   icon: Icon(
@@ -143,16 +160,19 @@ class _ActivityTimerState
                         ? Icons.pause
                         : Icons.play_arrow,
                   ),
+
                   iconSize: 40,
+
                   onPressed: running
                       ? pauseTimer
                       : startTimer,
                 ),
+
                 IconButton(
                   icon: const Icon(
                     Icons.restart_alt,
                   ),
-                  iconSize: 35,
+
                   onPressed: resetTimer,
                 ),
               ],

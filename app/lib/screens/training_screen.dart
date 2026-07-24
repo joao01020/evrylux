@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/storage/storage_service.dart';
 import '../widgets/activity_timer.dart';
 import '../widgets/week_tracker.dart';
 
@@ -25,66 +26,239 @@ class _TrainingScreenState
   final List<
     bool
   >
-  completedDays = [
+  completedDays = List.filled(
+    7,
     false,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
+  );
+
+  final List<
+    String
+  >
+  days = [
+    "segunda",
+    "terça",
+    "quarta",
+    "quinta",
+    "sexta",
+    "sábado",
+    "domingo",
   ];
 
   final List<
     String
   >
-  trainingOptions = [
+  activityOptions = [
     "🏋️ Peito",
     "🦵 Pernas",
-    "🏃 Corrida",
-    "🔥 Full Body",
+    "💪 Braço",
+    "🔥 Corrida",
+    "🚶 Caminhada",
   ];
 
-  String? selectedTraining;
+  String? selectedActivity;
 
-  final List<
-    String
-  >
-  completedWorkouts = [];
+  String? selectedDay;
 
   int streak = 0;
 
-  void toggleDay(
-    int index,
-  ) {
+  int currentSeconds = 0;
+
+  final List<
+    String
+  >
+  completedActivities = [];
+
+  @override
+  void initState() {
+    super.initState();
+
+    loadActivities();
+  }
+
+  Future<
+    void
+  >
+  loadActivities() async {
+    final data = await StorageService.getTraining();
+
+    final List<
+      String
+    >
+    history = [];
+
+    int newStreak = 0;
+
+    data.forEach(
+      (
+        day,
+        value,
+      ) {
+        if (value
+            is List) {
+          for (final item in value) {
+            history.add(
+              "$day - ${item["training"]} - ${item["minutes"]} min",
+            );
+          }
+
+          newStreak++;
+        } else if (value
+            is Map) {
+          history.add(
+            "$day - ${value["training"]} - ${value["minutes"]} min",
+          );
+
+          newStreak++;
+        }
+      },
+    );
+
+    if (!mounted) return;
+
     setState(
       () {
-        completedDays[index] = !completedDays[index];
+        completedActivities
+          ..clear()
+          ..addAll(
+            history,
+          );
 
-        streak = completedDays
-            .where(
-              (
-                day,
-              ) => day,
-            )
-            .length;
+        streak = newStreak;
+
+        for (
+          int i = 0;
+          i <
+              days.length;
+          i++
+        ) {
+          completedDays[i] = data.containsKey(
+            days[i],
+          );
+        }
       },
     );
   }
 
-  void completeTraining() {
-    if (selectedTraining ==
-        null) {
+  void selectDay(
+    int index,
+  ) {
+    setState(
+      () {
+        selectedDay = days[index];
+      },
+    );
+  }
+
+  void updateTimer(
+    int seconds,
+  ) {
+    setState(
+      () {
+        currentSeconds = seconds;
+      },
+    );
+  }
+
+  Future<
+    void
+  >
+  completeActivity() async {
+    if (selectedActivity ==
+            null ||
+        selectedDay ==
+            null) {
       return;
     }
 
+    final minutes =
+        currentSeconds ~/
+        60;
+
+    await StorageService.saveTraining(
+      selectedDay!,
+      selectedActivity!,
+      minutes,
+    );
+
+    await loadActivities();
+
+    if (!mounted) return;
+
     setState(
       () {
-        completedWorkouts.add(
-          selectedTraining!,
-        );
-        selectedTraining = null;
+        selectedActivity = null;
       },
+    );
+  }
+
+  void openHistory() {
+    showDialog(
+      context: context,
+
+      builder:
+          (
+            context,
+          ) {
+            return AlertDialog(
+              title: const Text(
+                "Histórico 📚",
+              ),
+
+              content: SizedBox(
+                width: 300,
+
+                height: 300,
+
+                child: completedActivities.isEmpty
+                    ? const Center(
+                        child: Text(
+                          "Nenhuma atividade concluída.",
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: completedActivities.length,
+
+                        itemBuilder:
+                            (
+                              context,
+                              index,
+                            ) {
+                              return Card(
+                                child: ListTile(
+                                  dense: true,
+
+                                  leading: const Text(
+                                    "✅",
+                                  ),
+
+                                  title: Text(
+                                    completedActivities[index],
+
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                      ),
+              ),
+
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(
+                      context,
+                    );
+                  },
+
+                  child: const Text(
+                    "Fechar",
+                  ),
+                ),
+              ],
+            );
+          },
     );
   }
 
@@ -92,184 +266,238 @@ class _TrainingScreenState
   Widget build(
     BuildContext context,
   ) {
+    final minutes =
+        currentSeconds ~/
+        60;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          "Treino 💪",
+          "Saúde 💪",
         ),
       ),
-      body: Padding(
+
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(
-          24,
+          20,
         ),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "Sua evolução física começa aqui.",
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
 
-              const SizedBox(
-                height: 20,
-              ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
 
-              const Text(
-                "Escolha seu treino de hoje e mantenha sua evolução.",
-                style: TextStyle(
-                  fontSize: 18,
-                ),
-              ),
+          children: [
+            const Text(
+              "Sua evolução física começa aqui.",
 
-              const SizedBox(
-                height: 35,
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
               ),
+            ),
 
-              WeekTracker(
-                completedDays: completedDays,
-                onDayTap: toggleDay,
-              ),
+            const SizedBox(
+              height: 12,
+            ),
 
-              const SizedBox(
-                height: 35,
-              ),
-
-              const ActivityTimer(
-                title: "Tempo de treino",
-              ),
-
-              const SizedBox(
-                height: 35,
-              ),
-
-              const Text(
-                "Hoje:",
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(
-                height: 15,
-              ),
-
-              ...trainingOptions.map(
-                (
-                  training,
-                ) {
-                  return Card(
-                    child: ListTile(
-                      title: Text(
-                        training,
-                      ),
-                      trailing:
-                          selectedTraining ==
-                              training
-                          ? const Icon(
-                              Icons.check_circle,
-                              color: Colors.green,
-                            )
-                          : null,
-                      onTap: () {
-                        setState(
-                          () {
-                            selectedTraining = training;
-                          },
-                        );
-                      },
-                    ),
-                  );
-                },
-              ),
-
-              const SizedBox(
-                height: 20,
-              ),
-
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: completeTraining,
-                  child: const Text(
-                    "Concluir treino",
-                  ),
-                ),
-              ),
-
-              const SizedBox(
-                height: 30,
-              ),
-
-              Card(
-                child: ListTile(
-                  leading: const Text(
-                    "🔥",
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Expanded(
+                  child: Text(
+                    "Escolha sua atividade de hoje e mantenha sua evolução.",
                     style: TextStyle(
-                      fontSize: 30,
+                      fontSize: 16,
                     ),
                   ),
-                  title: const Text(
-                    "Sequência",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
+                ),
+
+                const SizedBox(
+                  width: 12,
+                ),
+
+                Card(
+                  elevation: 1,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
                     ),
-                  ),
-                  subtitle: Text(
-                    "$streak dias de evolução",
-                  ),
-                ),
-              ),
-
-              const SizedBox(
-                height: 25,
-              ),
-
-              const Text(
-                "Treinos realizados",
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(
-                height: 10,
-              ),
-
-              if (completedWorkouts.isEmpty)
-                const Text(
-                  "Nenhum treino concluído ainda.",
-                ),
-
-              ...completedWorkouts.map(
-                (
-                  workout,
-                ) {
-                  return Card(
-                    child: ListTile(
-                      leading: const Text(
-                        "✅",
-                        style: TextStyle(
-                          fontSize: 25,
+                    child: Column(
+                      children: [
+                        const Text(
+                          "🔥",
+                          style: TextStyle(
+                            fontSize: 22,
+                          ),
                         ),
-                      ),
-                      title: Text(
-                        workout,
-                      ),
-                      subtitle: const Text(
-                        "Treino concluído",
+                        const SizedBox(
+                          height: 4,
+                        ),
+                        Text(
+                          "$streak",
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Text(
+                          "dias",
+                          style: TextStyle(
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(
+              height: 24,
+            ),
+
+            WeekTracker(
+              completedDays: completedDays,
+              days: days,
+              selectedDay: selectedDay,
+              onDayTap: selectDay,
+            ),
+
+            const SizedBox(
+              height: 20,
+            ),
+
+            ActivityTimer(
+              title: "Tempo de atividade",
+
+              onTimeChanged: updateTimer,
+            ),
+
+            const SizedBox(
+              height: 15,
+            ),
+
+            Card(
+              child: ListTile(
+                dense: true,
+
+                leading: const Text(
+                  "⏱️",
+                  style: TextStyle(
+                    fontSize: 24,
+                  ),
+                ),
+
+                title: const Text(
+                  "Tempo atual",
+                ),
+
+                subtitle: Text(
+                  "$minutes minutos registrados",
+                ),
+              ),
+            ),
+
+            const SizedBox(
+              height: 20,
+            ),
+
+            const Text(
+              "Hoje:",
+
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(
+              height: 8,
+            ),
+
+            ...activityOptions.map(
+              (
+                activity,
+              ) {
+                return Card(
+                  child: ListTile(
+                    dense: true,
+
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                    ),
+
+                    title: Text(
+                      activity,
+
+                      style: const TextStyle(
+                        fontSize: 15,
                       ),
                     ),
-                  );
-                },
+
+                    trailing:
+                        selectedActivity ==
+                            activity
+                        ? const Icon(
+                            Icons.check_circle,
+                            color: Colors.green,
+                            size: 20,
+                          )
+                        : null,
+
+                    onTap: () {
+                      setState(
+                        () {
+                          selectedActivity = activity;
+                        },
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+
+            const SizedBox(
+              height: 10,
+            ),
+
+            SizedBox(
+              width: double.infinity,
+
+              child: ElevatedButton(
+                onPressed: completeActivity,
+
+                child: const Text(
+                  "Salvar",
+                ),
               ),
-            ],
-          ),
+            ),
+
+            const SizedBox(
+              height: 20,
+            ),
+
+            const SizedBox(
+              height: 20,
+            ),
+
+            SizedBox(
+              width: double.infinity,
+
+              child: OutlinedButton.icon(
+                onPressed: openHistory,
+
+                icon: const Icon(
+                  Icons.history,
+                ),
+
+                label: const Text(
+                  "Histórico 📚",
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

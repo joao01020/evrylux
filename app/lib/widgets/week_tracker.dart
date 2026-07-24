@@ -8,69 +8,63 @@ class WeekTracker
   >
   completedDays;
 
+  final List<
+    String
+  >
+  days;
+
+  final String? selectedDay;
+
   final Function(
     int,
   )
   onDayTap;
+
+  final double scale;
 
   const WeekTracker({
     super.key,
 
     required this.completedDays,
 
+    required this.days,
+
+    required this.selectedDay,
+
     required this.onDayTap,
+
+    this.scale = 1.0,
   });
-
-  final List<
-    String
-  >
-  days = const [
-    "S",
-
-    "T",
-
-    "Q",
-
-    "Q",
-
-    "S",
-
-    "S",
-
-    "D",
-  ];
 
   @override
   Widget build(
     BuildContext context,
   ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Transform.scale(
+      scale: scale,
 
-      children: [
-        const Text(
-          "Esta semana",
+      child: SizedBox(
+        height:
+            75 *
+            scale,
 
-          style: TextStyle(
-            fontSize: 20,
-
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-
-        const SizedBox(
-          height: 15,
-        ),
-
-        Row(
+        child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
 
           children: List.generate(
-            7,
+            days.length,
 
             (
               index,
             ) {
+              final day = days[index];
+
+              final completed = completedDays[index];
+
+              final selected =
+                  selectedDay ==
+                  day;
+
               return GestureDetector(
                 onTap: () {
                   onDayTap(
@@ -79,26 +73,74 @@ class WeekTracker
                 },
 
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
+
                   children: [
-                    Text(
-                      days[index],
-                    ),
-
-                    const SizedBox(
-                      height: 8,
-                    ),
-
                     Container(
-                      width: 35,
+                      width:
+                          38 *
+                          scale,
 
-                      height: 35,
+                      height:
+                          38 *
+                          scale,
 
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
 
-                        color: completedDays[index]
+                        color: selected
+                            ? Colors.blue
+                            : completed
                             ? Colors.green
                             : Colors.grey.shade300,
+                      ),
+
+                      child: Center(
+                        child: Text(
+                          day
+                              .substring(
+                                0,
+                                1,
+                              )
+                              .toUpperCase(),
+
+                          style: TextStyle(
+                            fontSize:
+                                14 *
+                                scale,
+
+                            color:
+                                selected ||
+                                    completed
+                                ? Colors.white
+                                : Colors.black,
+
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    SizedBox(
+                      height:
+                          5 *
+                          scale,
+                    ),
+
+                    Text(
+                      day.substring(
+                        0,
+                        3,
+                      ),
+
+                      style: TextStyle(
+                        fontSize:
+                            12 *
+                            scale,
+
+                        fontWeight: selected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
                       ),
                     ),
                   ],
@@ -107,7 +149,7 @@ class WeekTracker
             },
           ),
         ),
-      ],
+      ),
     );
   }
 }
