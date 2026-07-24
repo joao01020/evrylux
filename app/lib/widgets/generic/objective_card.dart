@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../models/objective.dart';
+import '../../models/objective.dart';
 
 class ObjectiveCard
     extends

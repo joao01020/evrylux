@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/storage/storage_service.dart';
 
-import '../../widgets/activity_timer.dart';
-import '../../widgets/week_tracker.dart';
+import '../../widgets/generic/activity_timer.dart';
+import '../../widgets/generic/week_tracker.dart';
 
 import '../../widgets/training/training_header.dart';
 import '../../widgets/training/activity_card.dart';
