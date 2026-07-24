@@ -1,2 +1,0 @@
->> controla:
-    - movimento de respiração
