@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import 'screens/welcome_screen.dart';
+import 'screens/welcome/welcome_screen.dart';
 
-import 'screens/study_screen.dart';
+import 'screens/study/study_screen.dart';
 
-import 'screens/training_screen.dart';
+import 'screens/training/training_screen.dart';
 
 import 'theme/app_theme.dart';
 

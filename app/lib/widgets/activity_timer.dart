@@ -34,9 +34,13 @@ class _ActivityTimerState
         > {
   Timer? timer;
 
+  Timer? colorTimer;
+
   int seconds = 0;
 
   bool running = false;
+
+  bool minuteCompleted = false;
 
   void startTimer() {
     if (running) return;
@@ -58,11 +62,43 @@ class _ActivityTimerState
         setState(
           () {
             seconds++;
+
+            if (seconds %
+                    60 ==
+                0) {
+              showMinuteCompleted();
+            }
           },
         );
 
         widget.onTimeChanged(
           seconds,
+        );
+      },
+    );
+  }
+
+  void showMinuteCompleted() {
+    setState(
+      () {
+        minuteCompleted = true;
+      },
+    );
+
+    colorTimer?.cancel();
+
+    colorTimer = Timer(
+      const Duration(
+        seconds: 1,
+      ),
+
+      () {
+        if (!mounted) return;
+
+        setState(
+          () {
+            minuteCompleted = false;
+          },
         );
       },
     );
@@ -81,11 +117,15 @@ class _ActivityTimerState
   void resetTimer() {
     timer?.cancel();
 
+    colorTimer?.cancel();
+
     setState(
       () {
         running = false;
 
         seconds = 0;
+
+        minuteCompleted = false;
       },
     );
 
@@ -110,6 +150,8 @@ class _ActivityTimerState
   @override
   void dispose() {
     timer?.cancel();
+
+    colorTimer?.cancel();
 
     super.dispose();
   }
@@ -140,13 +182,23 @@ class _ActivityTimerState
               height: 15,
             ),
 
-            Text(
-              formatTime(),
+            AnimatedDefaultTextStyle(
+              duration: const Duration(
+                milliseconds: 300,
+              ),
 
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 40,
 
                 fontWeight: FontWeight.bold,
+
+                color: minuteCompleted
+                    ? Colors.green
+                    : Colors.black,
+              ),
+
+              child: Text(
+                formatTime(),
               ),
             ),
 

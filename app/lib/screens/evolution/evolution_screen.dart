@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'journey_screen.dart';
-import 'insights_screen.dart';
+import 'my_journey/journey_screen.dart';
+import 'insights/insights_screen.dart';
 
 class EvolutionScreen
     extends

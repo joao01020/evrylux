@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import 'evolution_screen.dart';
-import 'finance_screen.dart';
-import 'training_screen.dart';
-import 'study_screen.dart';
+import '../evolution/evolution_screen.dart';
+import '../finance/finance_screen.dart';
+import '../study/study_screen.dart';
+import '../training/training_screen.dart';
 
 class WelcomeScreen
     extends
@@ -32,23 +32,20 @@ class _WelcomeScreenState
   >
   objectives = [
     {
-      "name": "Conhecimento",
+      "name": "Estudar",
       "emoji": "🧠",
       "description": "Evolua sua mente através dos estudos e aprendizado.",
     },
-
     {
-      "name": "Saúde",
+      "name": "Treinar",
       "emoji": "❤️",
       "description": "Cuide do seu corpo através de movimento e hábitos saudáveis.",
     },
-
     {
       "name": "Financeiro",
       "emoji": "💰",
       "description": "Organize suas finanças e acompanhe sua evolução financeira.",
     },
-
     {
       "name": "Evolução",
       "emoji": "📈",
@@ -84,11 +81,11 @@ class _WelcomeScreenState
     Widget? page;
 
     switch (name) {
-      case "Conhecimento":
+      case "Estudar":
         page = const StudyScreen();
         break;
 
-      case "Saúde":
+      case "Treinar":
         page = const TrainingScreen();
         break;
 
@@ -105,7 +102,6 @@ class _WelcomeScreenState
         null) {
       Navigator.push(
         context,
-
         MaterialPageRoute(
           builder:
               (
@@ -128,73 +124,57 @@ class _WelcomeScreenState
               duration: const Duration(
                 milliseconds: 900,
               ),
-
               curve: Curves.easeInOutCubic,
-
               alignment: showOptions
                   ? Alignment.topCenter
                   : Alignment.center,
-
               child: Padding(
                 padding: EdgeInsets.only(
                   top: showOptions
                       ? 70
                       : 0,
                 ),
-
                 child: const Text(
                   "Olá, 👋 João Vitor",
-
                   style: TextStyle(
                     fontSize: 36,
-
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
             ),
-
             AnimatedOpacity(
               duration: const Duration(
                 milliseconds: 700,
               ),
-
               opacity: showOptions
                   ? 1
                   : 0,
-
               child: AnimatedSlide(
                 duration: const Duration(
                   milliseconds: 900,
                 ),
-
                 curve: Curves.easeOutCubic,
-
                 offset: showOptions
                     ? Offset.zero
                     : const Offset(
                         0,
                         0.25,
                       ),
-
                 child: Column(
                   children: [
                     const SizedBox(
                       height: 150,
                     ),
-
                     const Text(
                       "Qual evolução deseja iniciar?",
-
                       style: TextStyle(
                         fontSize: 20,
                       ),
                     ),
-
                     const SizedBox(
                       height: 40,
                     ),
-
                     ...objectives.map(
                       (
                         objective,
@@ -203,29 +183,23 @@ class _WelcomeScreenState
                           padding: const EdgeInsets.symmetric(
                             horizontal: 16,
                           ),
-
                           child: Card(
                             child: ListTile(
                               leading: Text(
                                 objective["emoji"]!,
-
                                 style: const TextStyle(
                                   fontSize: 30,
                                 ),
                               ),
-
                               title: Text(
                                 objective["name"]!,
-
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-
                               subtitle: Text(
                                 objective["description"]!,
                               ),
-
                               onTap: () {
                                 openObjective(
                                   objective["name"]!,

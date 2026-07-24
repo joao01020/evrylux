@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../app_dependencies.dart';
-import '../widgets/finance/wallet_card.dart';
-import '../widgets/finance/crypto_dialog.dart';
-import 'vault_screen.dart';
+import '../../app_dependencies.dart';
+import '../../widgets/finance/wallet_card.dart';
+import '../../widgets/finance/crypto_dialog.dart';
+import 'vault/vault_screen.dart';
 
 class FinanceScreen
     extends

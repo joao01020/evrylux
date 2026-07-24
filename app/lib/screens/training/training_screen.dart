@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../core/storage/storage_service.dart';
-import '../widgets/activity_timer.dart';
-import '../widgets/week_tracker.dart';
+import '../../core/storage/storage_service.dart';
+
+import '../../widgets/activity_timer.dart';
+import '../../widgets/week_tracker.dart';
+
+import '../../widgets/training/training_header.dart';
+import '../../widgets/training/activity_card.dart';
+import '../../widgets/training/history_dialog.dart';
 
 class TrainingScreen
     extends
@@ -81,10 +86,10 @@ class _TrainingScreenState
   loadActivities() async {
     final data = await StorageService.getTraining();
 
-    final List<
-      String
-    >
-    history = [];
+    final history =
+        <
+          String
+        >[];
 
     int newStreak = 0;
 
@@ -194,69 +199,12 @@ class _TrainingScreenState
   void openHistory() {
     showDialog(
       context: context,
-
       builder:
           (
-            context,
+            _,
           ) {
-            return AlertDialog(
-              title: const Text(
-                "Histórico 📚",
-              ),
-
-              content: SizedBox(
-                width: 300,
-
-                height: 300,
-
-                child: completedActivities.isEmpty
-                    ? const Center(
-                        child: Text(
-                          "Nenhuma atividade concluída.",
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: completedActivities.length,
-
-                        itemBuilder:
-                            (
-                              context,
-                              index,
-                            ) {
-                              return Card(
-                                child: ListTile(
-                                  dense: true,
-
-                                  leading: const Text(
-                                    "✅",
-                                  ),
-
-                                  title: Text(
-                                    completedActivities[index],
-
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                      ),
-              ),
-
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(
-                      context,
-                    );
-                  },
-
-                  child: const Text(
-                    "Fechar",
-                  ),
-                ),
-              ],
+            return HistoryDialog(
+              activities: completedActivities,
             );
           },
     );
@@ -269,7 +217,6 @@ class _TrainingScreenState
     final minutes =
         currentSeconds ~/
         60;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -286,71 +233,8 @@ class _TrainingScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
 
           children: [
-            const Text(
-              "Sua evolução física começa aqui.",
-
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-
-            const SizedBox(
-              height: 12,
-            ),
-
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Expanded(
-                  child: Text(
-                    "Escolha sua atividade de hoje e mantenha sua evolução.",
-                    style: TextStyle(
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-
-                const SizedBox(
-                  width: 12,
-                ),
-
-                Card(
-                  elevation: 1,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
-                    child: Column(
-                      children: [
-                        const Text(
-                          "🔥",
-                          style: TextStyle(
-                            fontSize: 22,
-                          ),
-                        ),
-                        const SizedBox(
-                          height: 4,
-                        ),
-                        Text(
-                          "$streak",
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Text(
-                          "dias",
-                          style: TextStyle(
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+            TrainingHeader(
+              streak: streak,
             ),
 
             const SizedBox(
@@ -370,7 +254,6 @@ class _TrainingScreenState
 
             ActivityTimer(
               title: "Tempo de atividade",
-
               onTimeChanged: updateTimer,
             ),
 
@@ -405,7 +288,6 @@ class _TrainingScreenState
 
             const Text(
               "Hoje:",
-
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -413,61 +295,44 @@ class _TrainingScreenState
             ),
 
             const SizedBox(
-              height: 8,
+              height: 10,
             ),
 
-            ...activityOptions.map(
-              (
-                activity,
-              ) {
-                return Card(
-                  child: ListTile(
-                    dense: true,
-
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: activityOptions.map(
+                (
+                  activity,
+                ) {
+                  return SizedBox(
+                    width: 105,
+                    child: ActivityCard(
+                      activity: activity,
+                      selected:
+                          selectedActivity ==
+                          activity,
+                      onTap: () {
+                        setState(
+                          () {
+                            selectedActivity = activity;
+                          },
+                        );
+                      },
                     ),
-
-                    title: Text(
-                      activity,
-
-                      style: const TextStyle(
-                        fontSize: 15,
-                      ),
-                    ),
-
-                    trailing:
-                        selectedActivity ==
-                            activity
-                        ? const Icon(
-                            Icons.check_circle,
-                            color: Colors.green,
-                            size: 20,
-                          )
-                        : null,
-
-                    onTap: () {
-                      setState(
-                        () {
-                          selectedActivity = activity;
-                        },
-                      );
-                    },
-                  ),
-                );
-              },
+                  );
+                },
+              ).toList(),
             ),
 
             const SizedBox(
-              height: 10,
+              height: 20,
             ),
 
             SizedBox(
               width: double.infinity,
-
               child: ElevatedButton(
                 onPressed: completeActivity,
-
                 child: const Text(
                   "Salvar",
                 ),
@@ -478,20 +343,13 @@ class _TrainingScreenState
               height: 20,
             ),
 
-            const SizedBox(
-              height: 20,
-            ),
-
             SizedBox(
               width: double.infinity,
-
               child: OutlinedButton.icon(
                 onPressed: openHistory,
-
                 icon: const Icon(
                   Icons.history,
                 ),
-
                 label: const Text(
                   "Histórico 📚",
                 ),

@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 
-import '../core/storage/storage_service.dart';
+import '../../core/storage/storage_service.dart';
 
-import '../widgets/activity_timer.dart';
-import '../widgets/week_tracker.dart';
+import '../../widgets/activity_timer.dart';
+import '../../widgets/week_tracker.dart';
 
-import 'study/history/history_screen.dart';
+import '../../widgets/study/study_header.dart';
+import '../../widgets/study/streak_card.dart';
+import '../../widgets/study/current_time_card.dart';
+import '../../widgets/study/history_button.dart';
+
+import 'history/history_screen.dart';
 
 class StudyScreen
     extends
@@ -29,15 +34,10 @@ class _StudyScreenState
   final List<
     bool
   >
-  completedDays = [
+  completedDays = List.filled(
+    7,
     false,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-  ];
+  );
 
   final List<
     String
@@ -89,7 +89,7 @@ class _StudyScreenState
 
     data.forEach(
       (
-        key,
+        day,
         value,
       ) {
         final minutes = int.parse(
@@ -99,7 +99,7 @@ class _StudyScreenState
         total += minutes;
 
         history.add(
-          "$key - $minutes minutos",
+          "$day - $minutes minutos",
         );
       },
     );
@@ -110,11 +110,11 @@ class _StudyScreenState
       () {
         totalStudyMinutes = total;
 
-        completedStudies.clear();
-
-        completedStudies.addAll(
-          history,
-        );
+        completedStudies
+          ..clear()
+          ..addAll(
+            history,
+          );
 
         streak = data.length;
 
@@ -155,7 +155,6 @@ class _StudyScreenState
   void openHistory() {
     Navigator.push(
       context,
-
       MaterialPageRoute(
         builder:
             (
@@ -179,36 +178,29 @@ class _StudyScreenState
           "Conhecimento 📚",
         ),
       ),
-
       body: Padding(
         padding: const EdgeInsets.all(
           24,
         ),
-
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-
             children: [
-              const Text(
-                "Sua evolução mental começa aqui.",
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Expanded(
+                    child: StudyHeader(),
+                  ),
 
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+                  const SizedBox(
+                    width: 12,
+                  ),
 
-              const SizedBox(
-                height: 20,
-              ),
-
-              const Text(
-                "Construa conhecimento um pouco todos os dias.",
-
-                style: TextStyle(
-                  fontSize: 18,
-                ),
+                  StreakCard(
+                    streak: streak,
+                  ),
+                ],
               ),
 
               const SizedBox(
@@ -217,14 +209,10 @@ class _StudyScreenState
 
               SizedBox(
                 height: 70,
-
                 child: WeekTracker(
                   completedDays: completedDays,
-
                   selectedDay: selectedDay,
-
                   days: days,
-
                   onDayTap: selectDay,
                 ),
               ),
@@ -235,10 +223,8 @@ class _StudyScreenState
 
               Transform.scale(
                 scale: timerScale,
-
                 child: ActivityTimer(
                   title: "Tempo estudado",
-
                   onTimeChanged: updateTimer,
                 ),
               ),
@@ -247,68 +233,16 @@ class _StudyScreenState
                 height: 10,
               ),
 
-              Card(
-                child: ListTile(
-                  leading: const Text(
-                    "⏱️",
-
-                    style: TextStyle(
-                      fontSize: 30,
-                    ),
-                  ),
-
-                  title: const Text(
-                    "Tempo atual",
-                  ),
-
-                  subtitle: Text(
-                    "$currentMinutes minutos",
-                  ),
-                ),
+              CurrentTimeCard(
+                minutes: currentMinutes,
               ),
 
               const SizedBox(
                 height: 30,
               ),
 
-              Card(
-                child: ListTile(
-                  leading: const Text(
-                    "🔥",
-
-                    style: TextStyle(
-                      fontSize: 30,
-                    ),
-                  ),
-
-                  title: const Text(
-                    "Sequência",
-                  ),
-
-                  subtitle: Text(
-                    "$streak dias estudados",
-                  ),
-                ),
-              ),
-
-              const SizedBox(
-                height: 30,
-              ),
-
-              SizedBox(
-                width: double.infinity,
-
-                child: OutlinedButton.icon(
-                  onPressed: openHistory,
-
-                  icon: const Icon(
-                    Icons.history,
-                  ),
-
-                  label: const Text(
-                    "Histórico 📚",
-                  ),
-                ),
+              HistoryButton(
+                onPressed: openHistory,
               ),
             ],
           ),
