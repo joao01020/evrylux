@@ -7,6 +7,8 @@ class StorageService {
 
   static const String studyKey = "study_data";
 
+  static const String financeKey = "finance_data";
+
   // =========================
   // TREINO
   // =========================
@@ -27,28 +29,31 @@ class StorageService {
     >
     data = {};
 
-    String? saved = prefs.getString(
+    final saved = prefs.getString(
       trainingKey,
     );
 
     if (saved !=
         null) {
-      data = jsonDecode(
-        saved,
-      );
+      data =
+          Map<
+            String,
+            dynamic
+          >.from(
+            jsonDecode(
+              saved,
+            ),
+          );
     }
 
     data[day] = {
       "activity": training,
-
       "minutes": minutes,
-
       "date": DateTime.now().toIso8601String(),
     };
 
     await prefs.setString(
       trainingKey,
-
       jsonEncode(
         data,
       ),
@@ -64,7 +69,7 @@ class StorageService {
   getTraining() async {
     final prefs = await SharedPreferences.getInstance();
 
-    String? saved = prefs.getString(
+    final saved = prefs.getString(
       trainingKey,
     );
 
@@ -102,26 +107,30 @@ class StorageService {
     >
     data = {};
 
-    String? saved = prefs.getString(
+    final saved = prefs.getString(
       studyKey,
     );
 
     if (saved !=
         null) {
-      data = jsonDecode(
-        saved,
-      );
+      data =
+          Map<
+            String,
+            dynamic
+          >.from(
+            jsonDecode(
+              saved,
+            ),
+          );
     }
 
     data[day] = {
       "minutes": minutes,
-
       "date": DateTime.now().toIso8601String(),
     };
 
     await prefs.setString(
       studyKey,
-
       jsonEncode(
         data,
       ),
@@ -137,8 +146,60 @@ class StorageService {
   getStudy() async {
     final prefs = await SharedPreferences.getInstance();
 
-    String? saved = prefs.getString(
+    final saved = prefs.getString(
       studyKey,
+    );
+
+    if (saved ==
+        null) {
+      return {};
+    }
+
+    return Map<
+      String,
+      dynamic
+    >.from(
+      jsonDecode(
+        saved,
+      ),
+    );
+  }
+
+  // =========================
+  // FINANÇAS
+  // =========================
+
+  static Future<
+    void
+  >
+  saveFinance(
+    Map<
+      String,
+      dynamic
+    >
+    data,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.setString(
+      financeKey,
+      jsonEncode(
+        data,
+      ),
+    );
+  }
+
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  getFinance() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final saved = prefs.getString(
+      financeKey,
     );
 
     if (saved ==
