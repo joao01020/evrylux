@@ -1,13 +1,20 @@
 import 'package:flutter/material.dart';
 
+import '../../controllers/evolution/evolution_controller.dart';
+
 import 'my_journey/journey_screen.dart';
+
 import 'insights/insights_screen.dart';
 
 class EvolutionScreen
     extends
         StatefulWidget {
+  final EvolutionController controller;
+
   const EvolutionScreen({
     super.key,
+
+    required this.controller,
   });
 
   @override
@@ -22,183 +29,182 @@ class _EvolutionScreenState
         State<
           EvolutionScreen
         > {
-  double knowledge = 0.0;
-
-  double health = 0.0;
-
-  double finance = 0.0;
-
   String? hovered;
+
+  @override
+  void initState() {
+    super.initState();
+
+    widget.controller.load();
+  }
 
   @override
   Widget build(
     BuildContext context,
   ) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          "Minha Evolução 📈",
-        ),
-      ),
+    return AnimatedBuilder(
+      animation: widget.controller,
 
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(
-          24,
-        ),
+      builder:
+          (
+            context,
+            _,
+          ) {
+            final data = widget.controller.evolution;
 
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-
-          children: [
-            const Text(
-              "Sua jornada",
-
-              style: TextStyle(
-                fontSize: 30,
-
-                fontWeight: FontWeight.bold,
+            return Scaffold(
+              appBar: AppBar(
+                title: const Text(
+                  "Minha Evolução 📈",
+                ),
               ),
-            ),
 
-            const SizedBox(
-              height: 10,
-            ),
+              body: SingleChildScrollView(
+                padding: const EdgeInsets.all(
+                  24,
+                ),
 
-            const Text(
-              "Acompanhe sua evolução em mente, corpo e patrimônio.",
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
 
-              style: TextStyle(
-                fontSize: 18,
-              ),
-            ),
+                  children: [
+                    const Text(
+                      "Sua jornada",
 
-            const SizedBox(
-              height: 35,
-            ),
+                      style: TextStyle(
+                        fontSize: 30,
 
-            const Text(
-              "Evolução dos pilares",
-
-              style: TextStyle(
-                fontSize: 22,
-
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-
-            const SizedBox(
-              height: 20,
-            ),
-
-            evolutionChart(),
-
-            const SizedBox(
-              height: 50,
-            ),
-
-            SizedBox(
-              width: double.infinity,
-
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-
-                    MaterialPageRoute(
-                      builder:
-                          (
-                            _,
-                          ) => const JourneyScreen(),
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  );
-                },
 
-                icon: const Icon(
-                  Icons.calendar_month,
-                ),
-
-                label: const Text(
-                  "Minha Jornada 📅",
-                ),
-              ),
-            ),
-
-            const SizedBox(
-              height: 15,
-            ),
-
-            SizedBox(
-              width: double.infinity,
-
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-
-                    MaterialPageRoute(
-                      builder:
-                          (
-                            _,
-                          ) => const InsightsScreen(),
+                    const SizedBox(
+                      height: 10,
                     ),
-                  );
-                },
 
-                icon: const Icon(
-                  Icons.bar_chart,
-                ),
+                    const Text(
+                      "Acompanhe sua evolução em mente, corpo e patrimônio.",
 
-                label: const Text(
-                  "Insights 📊",
+                      style: TextStyle(
+                        fontSize: 18,
+                      ),
+                    ),
+
+                    const SizedBox(
+                      height: 35,
+                    ),
+
+                    const Text(
+                      "Evolução dos pilares",
+
+                      style: TextStyle(
+                        fontSize: 22,
+
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+
+                    const SizedBox(
+                      height: 20,
+                    ),
+
+                    SizedBox(
+                      height: 250,
+
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+
+                        crossAxisAlignment: CrossAxisAlignment.end,
+
+                        children: [
+                          chartBar(
+                            data.knowledge,
+                            "🧠",
+                            "knowledge",
+                          ),
+
+                          chartBar(
+                            data.health,
+                            "❤️",
+                            "health",
+                          ),
+
+                          chartBar(
+                            data.finance,
+                            "💰",
+                            "finance",
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(
+                      height: 50,
+                    ),
+
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+
+                          MaterialPageRoute(
+                            builder:
+                                (
+                                  _,
+                                ) => const JourneyScreen(),
+                          ),
+                        );
+                      },
+
+                      icon: const Icon(
+                        Icons.calendar_month,
+                      ),
+
+                      label: const Text(
+                        "Minha Jornada 📅",
+                      ),
+                    ),
+
+                    const SizedBox(
+                      height: 15,
+                    ),
+
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+
+                          MaterialPageRoute(
+                            builder:
+                                (
+                                  _,
+                                ) => const InsightsScreen(),
+                          ),
+                        );
+                      },
+
+                      icon: const Icon(
+                        Icons.bar_chart,
+                      ),
+
+                      label: const Text(
+                        "Insights 📊",
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget evolutionChart() {
-    return SizedBox(
-      height: 250,
-
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-
-        crossAxisAlignment: CrossAxisAlignment.end,
-
-        children: [
-          chartBar(
-            knowledge,
-            "🧠",
-            "knowledge",
-          ),
-
-          chartBar(
-            health,
-            "❤️",
-            "health",
-          ),
-
-          chartBar(
-            finance,
-            "💰",
-            "finance",
-          ),
-        ],
-      ),
+            );
+          },
     );
   }
 
   Widget chartBar(
     double value,
-
     String icon,
-
     String id,
   ) {
-    bool active =
+    final active =
         hovered ==
         id;
 
@@ -229,28 +235,14 @@ class _EvolutionScreenState
         mainAxisAlignment: MainAxisAlignment.end,
 
         children: [
-          AnimatedOpacity(
-            duration: const Duration(
-              milliseconds: 200,
+          Text(
+            "${(value * 100).round()}%",
+
+            style: const TextStyle(
+              fontSize: 18,
+
+              fontWeight: FontWeight.bold,
             ),
-
-            opacity: active
-                ? 1
-                : 0,
-
-            child: Text(
-              "${(value * 100).round()}%",
-
-              style: const TextStyle(
-                fontSize: 18,
-
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-
-          const SizedBox(
-            height: 8,
           ),
 
           AnimatedContainer(
