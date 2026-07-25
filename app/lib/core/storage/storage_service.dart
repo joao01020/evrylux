@@ -97,6 +97,17 @@ class StorageService {
     );
   }
 
+  static Future<
+    void
+  >
+  clearEvolution() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.remove(
+      evolutionKey,
+    );
+  }
+
   // ======================================================
   // TREINO
   // ======================================================
@@ -135,6 +146,8 @@ class StorageService {
     }
 
     data[day] = {
+      "training": training,
+
       "activity": training,
 
       "minutes": minutes,
@@ -175,6 +188,19 @@ class StorageService {
       jsonDecode(
         saved,
       ),
+    );
+  }
+
+  // APAGAR TREINOS SALVOS
+
+  static Future<
+    void
+  >
+  clearTraining() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.remove(
+      trainingKey,
     );
   }
 
@@ -256,6 +282,17 @@ class StorageService {
     );
   }
 
+  static Future<
+    void
+  >
+  clearStudy() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.remove(
+      studyKey,
+    );
+  }
+
   // ======================================================
   // FINANÇAS
   // ======================================================
@@ -305,6 +342,17 @@ class StorageService {
       jsonDecode(
         saved,
       ),
+    );
+  }
+
+  static Future<
+    void
+  >
+  clearFinance() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.remove(
+      financeKey,
     );
   }
 }
