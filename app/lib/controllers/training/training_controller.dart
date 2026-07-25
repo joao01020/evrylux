@@ -57,11 +57,15 @@ class TrainingController
 
   int currentSeconds = 0;
 
+  // ==========================================
+  // CARREGAR TREINOS
+  // ==========================================
+
   Future<
     void
   >
   load() async {
-    final studies = await service.getTrainings();
+    final trainings = await service.getTrainings();
 
     history.clear();
 
@@ -76,24 +80,32 @@ class TrainingController
       completedDays[i] = false;
     }
 
-    for (final TrainingModel training in studies) {
+    for (final TrainingModel training in trainings) {
       history.add(
-        "${training.day} - ${training.training} - ${training.minutes} min",
+        "${training.day} - "
+        "${training.training} - "
+        "${training.minutes} min",
       );
 
-      if (!completedDays[days.indexOf(
+      final index = days.indexOf(
         training.day,
-      )]) {
-        completedDays[days.indexOf(
-              training.day,
-            )] =
-            true;
+      );
+
+      if (index >=
+              0 &&
+          !completedDays[index]) {
+        completedDays[index] = true;
+
         streak++;
       }
     }
 
     notifyListeners();
   }
+
+  // ==========================================
+  // SALVAR TREINO PELA TELA
+  // ==========================================
 
   Future<
     void
@@ -108,22 +120,58 @@ class TrainingController
 
     final model = TrainingModel(
       day: selectedDay!,
+
       training: selectedActivity!,
+
       minutes:
           currentSeconds ~/
           60,
     );
 
-    await service.saveTraining(
+    await saveTraining(
       model,
     );
 
     selectedActivity = null;
 
+    currentSeconds = 0;
+
     await load();
+  }
+
+  // ==========================================
+  // SALVAR DIRETO
+  // ==========================================
+
+  Future<
+    void
+  >
+  saveTraining(
+    TrainingModel model,
+  ) async {
+    await service.saveTraining(
+      model,
+    );
 
     notifyListeners();
   }
+
+  // ==========================================
+  // HISTÓRICO PARA TELAS
+  // ==========================================
+
+  Future<
+    List<
+      TrainingModel
+    >
+  >
+  loadHistory() async {
+    return await service.getTrainings();
+  }
+
+  // ==========================================
+  // CONTROLES UI
+  // ==========================================
 
   void selectDay(
     int index,
