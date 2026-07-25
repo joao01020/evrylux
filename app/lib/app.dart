@@ -3,16 +3,20 @@ import 'package:flutter/material.dart';
 import 'screens/welcome/welcome_screen.dart';
 
 import 'screens/study/study_screen.dart';
-
 import 'screens/training/training_screen.dart';
 
 import 'core/theme/app_theme.dart';
 
+import 'controllers/evolution/evolution_controller.dart';
+
 class GhostApp
     extends
         StatelessWidget {
+  final EvolutionController evolutionController;
+
   const GhostApp({
     super.key,
+    required this.evolutionController,
   });
 
   @override
@@ -24,7 +28,9 @@ class GhostApp
 
       theme: AppTheme.theme,
 
-      home: const WelcomeScreen(),
+      home: WelcomeScreen(
+        controller: evolutionController,
+      ),
 
       routes: {
         '/study':
