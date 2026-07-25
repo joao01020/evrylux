@@ -1,6 +1,6 @@
 import 'core/storage/local_storage.dart';
-import 'services/finance_service.dart';
-import 'controllers/finance_controller.dart';
+import 'services/finance/finance_service.dart';
+import 'controllers/finance/finance_controller.dart';
 
 final localStorage = LocalStorage();
 

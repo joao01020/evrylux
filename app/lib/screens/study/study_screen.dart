@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/storage/storage_service.dart';
+import '../../controllers/study/study_controller.dart';
 
 import '../../widgets/generic/activity_timer.dart';
 import '../../widgets/generic/week_tracker.dart';
@@ -31,39 +31,7 @@ class _StudyScreenState
         State<
           StudyScreen
         > {
-  final List<
-    bool
-  >
-  completedDays = List.filled(
-    7,
-    false,
-  );
-
-  final List<
-    String
-  >
-  days = [
-    "segunda",
-    "terça",
-    "quarta",
-    "quinta",
-    "sexta",
-    "sábado",
-    "domingo",
-  ];
-
-  String? selectedDay;
-
-  int streak = 0;
-
-  int currentSeconds = 0;
-
-  int totalStudyMinutes = 0;
-
-  final List<
-    String
-  >
-  completedStudies = [];
+  late StudyController controller;
 
   final double timerScale = 0.75;
 
@@ -71,90 +39,38 @@ class _StudyScreenState
   void initState() {
     super.initState();
 
-    loadStudies();
-  }
+    controller = StudyController();
 
-  Future<
-    void
-  >
-  loadStudies() async {
-    final data = await StorageService.getStudy();
-
-    int total = 0;
-
-    final List<
-      String
-    >
-    history = [];
-
-    data.forEach(
-      (
-        day,
-        value,
-      ) {
-        final minutes = int.parse(
-          value.toString(),
-        );
-
-        total += minutes;
-
-        history.add(
-          "$day - $minutes minutos",
-        );
-      },
+    controller.addListener(
+      refresh,
     );
 
+    controller.loadStudies();
+  }
+
+  void refresh() {
     if (!mounted) return;
 
     setState(
-      () {
-        totalStudyMinutes = total;
-
-        completedStudies
-          ..clear()
-          ..addAll(
-            history,
-          );
-
-        streak = data.length;
-
-        for (
-          int i = 0;
-          i <
-              days.length;
-          i++
-        ) {
-          completedDays[i] = data.containsKey(
-            days[i],
-          );
-        }
-      },
+      () {},
     );
   }
 
-  void selectDay(
-    int index,
-  ) {
-    setState(
-      () {
-        selectedDay = days[index];
-      },
+  @override
+  void dispose() {
+    controller.removeListener(
+      refresh,
     );
-  }
 
-  void updateTimer(
-    int seconds,
-  ) {
-    setState(
-      () {
-        currentSeconds = seconds;
-      },
-    );
+    controller.dispose();
+
+    super.dispose();
   }
 
   void openHistory() {
     Navigator.push(
       context,
+
       MaterialPageRoute(
         builder:
             (
@@ -169,7 +85,7 @@ class _StudyScreenState
     BuildContext context,
   ) {
     final currentMinutes =
-        currentSeconds ~/
+        controller.currentSeconds ~/
         60;
 
     return Scaffold(
@@ -178,16 +94,20 @@ class _StudyScreenState
           "Conhecimento 📚",
         ),
       ),
+
       body: Padding(
         padding: const EdgeInsets.all(
           24,
         ),
+
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+
             children: [
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
+
                 children: [
                   const Expanded(
                     child: StudyHeader(),
@@ -198,7 +118,7 @@ class _StudyScreenState
                   ),
 
                   StreakCard(
-                    streak: streak,
+                    streak: controller.streak,
                   ),
                 ],
               ),
@@ -209,11 +129,15 @@ class _StudyScreenState
 
               SizedBox(
                 height: 70,
+
                 child: WeekTracker(
-                  completedDays: completedDays,
-                  selectedDay: selectedDay,
-                  days: days,
-                  onDayTap: selectDay,
+                  completedDays: controller.completedDays,
+
+                  selectedDay: controller.selectedDay,
+
+                  days: controller.days,
+
+                  onDayTap: controller.selectDay,
                 ),
               ),
 
@@ -223,9 +147,11 @@ class _StudyScreenState
 
               Transform.scale(
                 scale: timerScale,
+
                 child: ActivityTimer(
                   title: "Tempo estudado",
-                  onTimeChanged: updateTimer,
+
+                  onTimeChanged: controller.updateTimer,
                 ),
               ),
 

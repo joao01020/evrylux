@@ -1,7 +1,7 @@
 import 'dart:convert';
 
-import '../models/finance_model.dart';
-import '../core/storage/local_storage.dart';
+import '../../models/finance/finance_model.dart';
+import '../../core/storage/local_storage.dart';
 
 class FinanceService {
   static const String financeKey = "finance_data";
