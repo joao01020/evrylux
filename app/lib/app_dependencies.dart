@@ -18,28 +18,40 @@
 |--------------------------------------------------------------------------
 */
 
-// Storage
+// ======================================================
+// STORAGE
+// ======================================================
 
 import 'core/storage/local_storage.dart';
 
-// Controllers
+// ======================================================
+// CONTROLLERS
+// ======================================================
 
 import 'controllers/finance/finance_controller.dart';
 import 'controllers/evolution/evolution_controller.dart';
 import 'controllers/training/training_controller.dart';
+import 'controllers/journey/journey_controller.dart';
+import 'controllers/study/study_controller.dart';
 
-// Repositories
+// ======================================================
+// REPOSITORIES
+// ======================================================
 
 import 'data/finance/finance_repository.dart';
 import 'data/evolution/evolution_repository.dart';
 import 'data/study/study_repository.dart';
 import 'data/training/training_repository.dart';
+import 'data/journey/journey_repository.dart';
 
-// Services
-
+// ======================================================
+// SERVICES
+// ======================================================
+import 'services/study/study_service.dart';
 import 'services/finance/finance_service.dart';
 import 'services/evolution/evolution_service.dart';
 import 'services/training/training_service.dart';
+import 'services/journey/journey_service.dart';
 
 // ======================================================
 // STORAGE
@@ -76,10 +88,22 @@ final trainingController = TrainingController(
 );
 
 // ======================================================
-// EVOLUTION
+// STUDY
 // ======================================================
 
 final studyRepository = StudyRepository();
+
+final studyService = StudyService(
+  repository: studyRepository,
+);
+
+final studyController = StudyController(
+  service: studyService,
+);
+
+// ======================================================
+// EVOLUTION
+// ======================================================
 
 final evolutionRepository = EvolutionRepository(
   studyRepository: studyRepository,
@@ -97,4 +121,20 @@ final evolutionService = EvolutionService(
 
 final evolutionController = EvolutionController(
   service: evolutionService,
+);
+
+// ======================================================
+// JOURNEY
+// ======================================================
+
+final journeyRepository = JourneyRepository(
+  storage: localStorage,
+);
+
+final journeyService = JourneyService(
+  repository: journeyRepository,
+);
+
+final journeyController = JourneyController(
+  service: journeyService,
 );
