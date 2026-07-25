@@ -44,10 +44,17 @@ class TrainingController
     "🚶 Caminhada",
   ];
 
+  // histórico visual antigo
   final List<
     String
   >
   history = [];
+
+  // novos dados completos
+  List<
+    TrainingModel
+  >
+  trainings = [];
 
   String? selectedActivity;
 
@@ -65,42 +72,50 @@ class TrainingController
     void
   >
   load() async {
-    final trainings = await service.getTrainings();
+    try {
+      trainings = await service.getTrainings();
 
-    history.clear();
+      history.clear();
 
-    streak = 0;
+      streak = 0;
 
-    for (
-      int i = 0;
-      i <
-          completedDays.length;
-      i++
-    ) {
-      completedDays[i] = false;
-    }
-
-    for (final TrainingModel training in trainings) {
-      history.add(
-        "${training.day} - "
-        "${training.training} - "
-        "${training.minutes} min",
-      );
-
-      final index = days.indexOf(
-        training.day,
-      );
-
-      if (index >=
-              0 &&
-          !completedDays[index]) {
-        completedDays[index] = true;
-
-        streak++;
+      for (
+        int i = 0;
+        i <
+            completedDays.length;
+        i++
+      ) {
+        completedDays[i] = false;
       }
-    }
 
-    notifyListeners();
+      for (final TrainingModel training in trainings) {
+        history.add(
+          "${training.day} - "
+          "${training.training} - "
+          "${training.minutes} min",
+        );
+
+        final index = days.indexOf(
+          training.day,
+        );
+
+        if (index >=
+                0 &&
+            !completedDays[index]) {
+          completedDays[index] = true;
+
+          streak++;
+        }
+      }
+
+      notifyListeners();
+    } catch (
+      error
+    ) {
+      debugPrint(
+        "Erro carregando treinos: $error",
+      );
+    }
   }
 
   // ==========================================
@@ -126,6 +141,8 @@ class TrainingController
       minutes:
           currentSeconds ~/
           60,
+
+      date: DateTime.now(),
     );
 
     await saveTraining(
@@ -149,15 +166,23 @@ class TrainingController
   saveTraining(
     TrainingModel model,
   ) async {
-    await service.saveTraining(
-      model,
-    );
+    try {
+      await service.saveTraining(
+        model,
+      );
 
-    notifyListeners();
+      notifyListeners();
+    } catch (
+      error
+    ) {
+      debugPrint(
+        "Erro salvando treino: $error",
+      );
+    }
   }
 
   // ==========================================
-  // HISTÓRICO PARA TELAS
+  // HISTÓRICO COMPLETO
   // ==========================================
 
   Future<
@@ -166,7 +191,41 @@ class TrainingController
     >
   >
   loadHistory() async {
-    return await service.getTrainings();
+    try {
+      return await service.getTrainings();
+    } catch (
+      error
+    ) {
+      debugPrint(
+        "Erro carregando histórico: $error",
+      );
+
+      return [];
+    }
+  }
+
+  // ==========================================
+  // BUSCAR TREINOS PELO DIA
+  // ==========================================
+
+  List<
+    TrainingModel
+  >
+  getDayTrainings(
+    DateTime date,
+  ) {
+    return trainings.where(
+      (
+        training,
+      ) {
+        return training.date.year ==
+                date.year &&
+            training.date.month ==
+                date.month &&
+            training.date.day ==
+                date.day;
+      },
+    ).toList();
   }
 
   // ==========================================
@@ -176,6 +235,13 @@ class TrainingController
   void selectDay(
     int index,
   ) {
+    if (index <
+            0 ||
+        index >=
+            days.length) {
+      return;
+    }
+
     selectedDay = days[index];
 
     notifyListeners();

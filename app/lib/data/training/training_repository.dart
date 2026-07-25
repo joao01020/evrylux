@@ -20,6 +20,10 @@ import '../../core/storage/storage_service.dart';
 */
 
 class TrainingRepository {
+  // ==========================================
+  // CARREGAR TREINOS
+  // ==========================================
+
   Future<
     Map<
       String,
@@ -30,18 +34,37 @@ class TrainingRepository {
     return await StorageService.getTraining();
   }
 
+  // ==========================================
+  // SALVAR TREINO
+  // ==========================================
+
   Future<
     void
   >
   save({
     required String day,
+
     required String training,
+
     required int minutes,
   }) async {
     await StorageService.saveTraining(
       day,
+
       training,
+
       minutes,
     );
+  }
+
+  // ==========================================
+  // LIMPAR DADOS ANTIGOS
+  // ==========================================
+
+  Future<
+    void
+  >
+  clear() async {
+    await StorageService.clearTraining();
   }
 }
