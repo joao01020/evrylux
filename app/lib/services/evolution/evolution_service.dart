@@ -1,6 +1,29 @@
 import '../../models/evolution/evolution_model.dart';
 import '../../data/evolution/evolution_repository.dart';
 
+/* repository.loadHistory()
+
+Para chamar para ter os dados 
+
+
+
+> StudyRepository
+       ↓
+TrainingRepository
+       ↓
+FinanceRepository
+       ↓
+Calcula evolução
+       ↓
+Cria EvolutionModel
+       ↓
+EvolutionRepository.save()
+       ↓
+Salva data no histórico
+
+
+*/
+
 class EvolutionService {
   final EvolutionRepository repository;
 
@@ -11,7 +34,7 @@ class EvolutionService {
   Future<
     EvolutionModel
   >
-  loadEvolution() async {
+  calculateEvolution() async {
     final study = await repository.loadStudy();
 
     final training = await repository.loadTraining();
@@ -57,8 +80,23 @@ class EvolutionService {
 
     return EvolutionModel(
       knowledge: knowledge,
+
       health: health,
+
       finance: financeProgress,
+
+      date: DateTime.now(),
+    );
+  }
+
+  Future<
+    void
+  >
+  saveTodayEvolution() async {
+    final evolution = await calculateEvolution();
+
+    await repository.save(
+      evolution,
     );
   }
 }

@@ -20,12 +20,25 @@ class EvolutionController
 
   EvolutionModel get evolution => _evolution;
 
+  // Carrega a evolução atual
+
   Future<
     void
   >
   load() async {
-    _evolution = await service.loadEvolution();
+    _evolution = await service.calculateEvolution();
 
     notifyListeners();
+  }
+
+  // Salva o registro do dia no histórico
+
+  Future<
+    void
+  >
+  saveToday() async {
+    await service.saveTodayEvolution();
+
+    await load();
   }
 }
