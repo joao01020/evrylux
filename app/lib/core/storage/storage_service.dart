@@ -9,9 +9,97 @@ class StorageService {
 
   static const String financeKey = "finance_data";
 
-  // =========================
+  static const String evolutionKey = "evolution_history";
+
+  // ======================================================
+  // EVOLUTION
+  // ======================================================
+
+  static Future<
+    void
+  >
+  saveEvolution(
+    String day,
+    Map<
+      String,
+      dynamic
+    >
+    evolution,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    Map<
+      String,
+      dynamic
+    >
+    data = {};
+
+    final saved = prefs.getString(
+      evolutionKey,
+    );
+
+    if (saved !=
+        null) {
+      data =
+          Map<
+            String,
+            dynamic
+          >.from(
+            jsonDecode(
+              saved,
+            ),
+          );
+    }
+
+    data[day] = {
+      "knowledge": evolution["knowledge"],
+
+      "health": evolution["health"],
+
+      "finance": evolution["finance"],
+
+      "date": DateTime.now().toIso8601String(),
+    };
+
+    await prefs.setString(
+      evolutionKey,
+      jsonEncode(
+        data,
+      ),
+    );
+  }
+
+  static Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  getEvolution() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final saved = prefs.getString(
+      evolutionKey,
+    );
+
+    if (saved ==
+        null) {
+      return {};
+    }
+
+    return Map<
+      String,
+      dynamic
+    >.from(
+      jsonDecode(
+        saved,
+      ),
+    );
+  }
+
+  // ======================================================
   // TREINO
-  // =========================
+  // ======================================================
 
   static Future<
     void
@@ -48,7 +136,9 @@ class StorageService {
 
     data[day] = {
       "activity": training,
+
       "minutes": minutes,
+
       "date": DateTime.now().toIso8601String(),
     };
 
@@ -88,9 +178,9 @@ class StorageService {
     );
   }
 
-  // =========================
+  // ======================================================
   // ESTUDOS
-  // =========================
+  // ======================================================
 
   static Future<
     void
@@ -126,6 +216,7 @@ class StorageService {
 
     data[day] = {
       "minutes": minutes,
+
       "date": DateTime.now().toIso8601String(),
     };
 
@@ -165,9 +256,9 @@ class StorageService {
     );
   }
 
-  // =========================
+  // ======================================================
   // FINANÇAS
-  // =========================
+  // ======================================================
 
   static Future<
     void
