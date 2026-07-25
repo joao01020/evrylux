@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../controllers/study/study_controller.dart';
+import '../../app_dependencies.dart';
 
 import '../../widgets/generic/activity_timer.dart';
 import '../../widgets/generic/week_tracker.dart';
@@ -31,21 +31,17 @@ class _StudyScreenState
         State<
           StudyScreen
         > {
-  late StudyController controller;
-
   final double timerScale = 0.75;
 
   @override
   void initState() {
     super.initState();
 
-    controller = StudyController();
-
-    controller.addListener(
+    studyController.addListener(
       refresh,
     );
 
-    controller.loadStudies();
+    studyController.loadStudies();
   }
 
   void refresh() {
@@ -58,11 +54,9 @@ class _StudyScreenState
 
   @override
   void dispose() {
-    controller.removeListener(
+    studyController.removeListener(
       refresh,
     );
-
-    controller.dispose();
 
     super.dispose();
   }
@@ -80,12 +74,33 @@ class _StudyScreenState
     );
   }
 
+  Future<
+    void
+  >
+  saveStudy() async {
+    await studyController.saveStudy();
+
+    // Corrige use_build_context_synchronously
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(
+      const SnackBar(
+        content: Text(
+          "Estudo salvo com sucesso 📚✅",
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(
     BuildContext context,
   ) {
     final currentMinutes =
-        controller.currentSeconds ~/
+        studyController.currentSeconds ~/
         60;
 
     return Scaffold(
@@ -118,7 +133,7 @@ class _StudyScreenState
                   ),
 
                   StreakCard(
-                    streak: controller.streak,
+                    streak: studyController.streak,
                   ),
                 ],
               ),
@@ -131,13 +146,13 @@ class _StudyScreenState
                 height: 70,
 
                 child: WeekTracker(
-                  completedDays: controller.completedDays,
+                  completedDays: studyController.completedDays,
 
-                  selectedDay: controller.selectedDay,
+                  selectedDay: studyController.selectedDay,
 
-                  days: controller.days,
+                  days: studyController.days,
 
-                  onDayTap: controller.selectDay,
+                  onDayTap: studyController.selectDay,
                 ),
               ),
 
@@ -151,7 +166,7 @@ class _StudyScreenState
                 child: ActivityTimer(
                   title: "Tempo estudado",
 
-                  onTimeChanged: controller.updateTimer,
+                  onTimeChanged: studyController.updateTimer,
                 ),
               ),
 
@@ -164,7 +179,27 @@ class _StudyScreenState
               ),
 
               const SizedBox(
-                height: 30,
+                height: 20,
+              ),
+
+              SizedBox(
+                width: double.infinity,
+
+                child: ElevatedButton.icon(
+                  onPressed: saveStudy,
+
+                  icon: const Icon(
+                    Icons.save,
+                  ),
+
+                  label: const Text(
+                    "Salvar estudo",
+                  ),
+                ),
+              ),
+
+              const SizedBox(
+                height: 20,
               ),
 
               HistoryButton(
