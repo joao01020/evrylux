@@ -6,7 +6,7 @@ import 'screens/study/study_screen.dart';
 
 import 'screens/training/training_screen.dart';
 
-import 'theme/app_theme.dart';
+import 'core/theme/app_theme.dart';
 
 class GhostApp
     extends
