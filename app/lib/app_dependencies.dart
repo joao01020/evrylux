@@ -13,15 +13,20 @@
 |      ↓
 | Repository
 |      ↓
-| StorageService
+| LocalStorage
 |
 |--------------------------------------------------------------------------
 */
+
+// Storage
+
+import 'core/storage/local_storage.dart';
 
 // Controllers
 
 import 'controllers/finance/finance_controller.dart';
 import 'controllers/evolution/evolution_controller.dart';
+import 'controllers/training/training_controller.dart';
 
 // Repositories
 
@@ -34,6 +39,13 @@ import 'data/training/training_repository.dart';
 
 import 'services/finance/finance_service.dart';
 import 'services/evolution/evolution_service.dart';
+import 'services/training/training_service.dart';
+
+// ======================================================
+// STORAGE
+// ======================================================
+
+final localStorage = LocalStorage();
 
 // ======================================================
 // FINANCE
@@ -50,17 +62,33 @@ final financeController = FinanceController(
 );
 
 // ======================================================
+// TRAINING
+// ======================================================
+
+final trainingRepository = TrainingRepository();
+
+final trainingService = TrainingService(
+  repository: trainingRepository,
+);
+
+final trainingController = TrainingController(
+  service: trainingService,
+);
+
+// ======================================================
 // EVOLUTION
 // ======================================================
 
 final studyRepository = StudyRepository();
 
-final trainingRepository = TrainingRepository();
-
 final evolutionRepository = EvolutionRepository(
   studyRepository: studyRepository,
+
   trainingRepository: trainingRepository,
+
   financeRepository: financeRepository,
+
+  storage: localStorage,
 );
 
 final evolutionService = EvolutionService(
