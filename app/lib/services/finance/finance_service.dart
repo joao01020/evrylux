@@ -1,15 +1,11 @@
-import 'dart:convert';
-
+import '../../data/finance/finance_repository.dart';
 import '../../models/finance/finance_model.dart';
-import '../../core/storage/local_storage.dart';
 
 class FinanceService {
-  static const String financeKey = "finance_data";
-
-  final LocalStorage storage;
+  final FinanceRepository repository;
 
   FinanceService({
-    required this.storage,
+    required this.repository,
   });
 
   static String calculateEstimate({
@@ -57,7 +53,7 @@ class FinanceService {
   saveFinance(
     FinanceModel model,
   ) async {
-    final data = jsonEncode(
+    await repository.save(
       {
         "invested": model.invested,
         "monthlyGoal": model.monthlyGoal,
@@ -70,58 +66,46 @@ class FinanceService {
         "completedDays": model.completedDays,
       },
     );
-
-    await storage.save(
-      financeKey,
-      data,
-    );
   }
 
   Future<
     FinanceModel
   >
   loadFinance() async {
-    final result = await storage.get(
-      financeKey,
-    );
+    final data = await repository.load();
 
-    if (result ==
-        null) {
+    if (data.isEmpty) {
       return FinanceModel();
     }
-
-    final data = jsonDecode(
-      result,
-    );
 
     return FinanceModel(
       invested:
           (data["invested"] ??
-                  0.0)
+                  0)
               .toDouble(),
       monthlyGoal:
           (data["monthlyGoal"] ??
-                  0.0)
+                  0)
               .toDouble(),
       investmentGoal:
           (data["investmentGoal"] ??
-                  0.0)
+                  0)
               .toDouble(),
       bitcoin:
           (data["bitcoin"] ??
-                  0.0)
+                  0)
               .toDouble(),
       ethereum:
           (data["ethereum"] ??
-                  0.0)
+                  0)
               .toDouble(),
       solana:
           (data["solana"] ??
-                  0.0)
+                  0)
               .toDouble(),
       usdt:
           (data["usdt"] ??
-                  0.0)
+                  0)
               .toDouble(),
       selectedDay: data["selectedDay"],
       completedDays:
@@ -143,8 +127,8 @@ class FinanceService {
     void
   >
   clearFinance() async {
-    await storage.remove(
-      financeKey,
+    await repository.save(
+      {},
     );
   }
 }
