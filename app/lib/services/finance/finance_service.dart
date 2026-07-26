@@ -55,13 +55,30 @@ class FinanceService {
   ) async {
     await repository.save(
       {
+        // Patrimônio
         "patrimony": model.patrimony,
         "invested": model.invested,
         "monthlyGoal": model.monthlyGoal,
+        "investmentGoal": model.investmentGoal,
+
+        // Planejamento
+        "minimumGoal": model.minimumGoal,
+        "mediumGoal": model.mediumGoal,
+        "maximumGoal": model.maximumGoal,
+        "projectionYears": model.projectionYears,
+
+        // Histórico
+        "totalInvested": model.totalInvested,
+        "investedMonths": model.investedMonths,
+        "averageContribution": model.averageContribution,
+
+        // Criptomoedas
         "bitcoin": model.bitcoin,
         "ethereum": model.ethereum,
         "solana": model.solana,
         "usdt": model.usdt,
+
+        // Outros
         "selectedDay": model.selectedDay,
         "completedDays": model.completedDays,
       },
@@ -79,6 +96,7 @@ class FinanceService {
     }
 
     return FinanceModel(
+      // Patrimônio
       patrimony:
           (data["patrimony"] ??
                   0)
@@ -91,6 +109,42 @@ class FinanceService {
           (data["monthlyGoal"] ??
                   0)
               .toDouble(),
+      investmentGoal:
+          (data["investmentGoal"] ??
+                  0)
+              .toDouble(),
+
+      // Planejamento
+      minimumGoal:
+          (data["minimumGoal"] ??
+                  0)
+              .toDouble(),
+      mediumGoal:
+          (data["mediumGoal"] ??
+                  0)
+              .toDouble(),
+      maximumGoal:
+          (data["maximumGoal"] ??
+                  0)
+              .toDouble(),
+      projectionYears:
+          data["projectionYears"] ??
+          10,
+
+      // Histórico
+      totalInvested:
+          (data["totalInvested"] ??
+                  0)
+              .toDouble(),
+      investedMonths:
+          data["investedMonths"] ??
+          0,
+      averageContribution:
+          (data["averageContribution"] ??
+                  0)
+              .toDouble(),
+
+      // Criptomoedas
       bitcoin:
           (data["bitcoin"] ??
                   0)
@@ -107,7 +161,10 @@ class FinanceService {
           (data["usdt"] ??
                   0)
               .toDouble(),
+
+      // Outros
       selectedDay: data["selectedDay"],
+
       completedDays:
           data["completedDays"] !=
               null
