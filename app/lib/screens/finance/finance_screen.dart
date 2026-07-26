@@ -2,9 +2,26 @@ import 'package:flutter/material.dart';
 
 import '../../app_dependencies.dart';
 
+import '../../core/utils/finance_projection.dart';
+
+import '../../models/finance/investment_history.dart';
+
+import '../../widgets/finance/investment_progress.dart';
+import '../../widgets/finance/investment_timeline.dart';
 import '../../widgets/finance/wallet_card.dart';
-import '../../widgets/finance/crypto_dialog.dart';
-import '../../widgets/finance/crypto_balance_dialog.dart';
+
+import '../../widgets/finance/crypto/crypto_balance_dialog.dart';
+import '../../widgets/finance/crypto/crypto_dialog.dart';
+
+import 'dialogs/contribution_dialog.dart';
+import 'dialogs/edit_finance_value_dialog.dart';
+import 'dialogs/finance_planning_dialog.dart';
+
+import 'utils/finance_screen_formatter.dart';
+
+import 'widgets/finance_intro.dart';
+import 'widgets/finance_section_header.dart';
+import 'widgets/finance_summary_section.dart';
 
 import 'vault/vault_screen.dart';
 
@@ -19,7 +36,9 @@ class FinanceScreen
   State<
     FinanceScreen
   >
-  createState() => _FinanceScreenState();
+  createState() {
+    return _FinanceScreenState();
+  }
 }
 
 class _FinanceScreenState
@@ -29,32 +48,54 @@ class _FinanceScreenState
         > {
   final _controller = financeController;
 
+  final List<
+    InvestmentHistory
+  >
+  investmentHistory = [];
+
   double bitcoin = 0;
-
   double ethereum = 0;
-
   double solana = 0;
-
   double usdt = 0;
+
+  bool _isLoading = true;
+
+  // =========================================================
+  // CICLO DE VIDA
+  // =========================================================
 
   @override
   void initState() {
     super.initState();
 
-    loadFinance();
-
-    loadCryptoBalances();
+    _loadScreen();
   }
+
+  // =========================================================
+  // CARREGAMENTO
+  // =========================================================
 
   Future<
     void
   >
-  loadFinance() async {
-    await _controller.loadData();
+  _loadScreen() async {
+    {
+      await Future.wait(
+        [
+          _controller.loadData(),
+          _loadCryptoBalances(),
+        ],
+      );
+    }
+    {
+      if (!mounted) {
+        return;
+      }
 
-    if (mounted) {
       setState(
-        () {},
+        () {
+          _isLoading = false;
+        },
       );
     }
   }
@@ -62,57 +103,95 @@ class _FinanceScreenState
   Future<
     void
   >
-  loadCryptoBalances() async {
-    await cryptoController.load(
-      "BTC",
+  _loadCryptoBalances() async {
+    bitcoin = await _loadCryptoQuantity(
+      'BTC',
     );
 
-    bitcoin = cryptoController.quantity;
-
-    await cryptoController.load(
-      "ETH",
+    ethereum = await _loadCryptoQuantity(
+      'ETH',
     );
 
-    ethereum = cryptoController.quantity;
-
-    await cryptoController.load(
-      "SOL",
+    solana = await _loadCryptoQuantity(
+      'SOL',
     );
 
-    solana = cryptoController.quantity;
-
-    await cryptoController.load(
-      "USDT",
+    usdt = await _loadCryptoQuantity(
+      'USDT',
     );
-
-    usdt = cryptoController.quantity;
-
-    if (mounted) {
-      setState(
-        () {},
-      );
-    }
   }
 
-  void openVault() {
+  Future<
+    double
+  >
+  _loadCryptoQuantity(
+    String symbol,
+  ) async {
+    await cryptoController.load(
+      symbol,
+    );
+
+    return cryptoController.quantity;
+  }
+
+  Future<
+    void
+  >
+  _refreshCryptoBalances() async {
+    await _loadCryptoBalances();
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(
+      () {},
+    );
+  }
+
+  // =========================================================
+  // PROJEÇÃO
+  // =========================================================
+
+  FinanceProjection get _projection {
+    return FinanceProjection(
+      model: _controller.model,
+      history: investmentHistory,
+    );
+  }
+
+  // =========================================================
+  // NAVEGAÇÃO
+  // =========================================================
+
+  void _openVault() {
     Navigator.push(
       context,
-
       MaterialPageRoute(
         builder:
             (
               _,
-            ) => const VaultScreen(),
+            ) {
+              return const VaultScreen();
+            },
       ),
     );
   }
 
-  void openCryptoDialog(
-    String symbol,
-  ) {
-    showDialog(
-      context: context,
+  // =========================================================
+  // CRIPTOMOEDAS
+  // =========================================================
 
+  Future<
+    void
+  >
+  _openCryptoDialog(
+    String symbol,
+  ) async {
+    await showDialog<
+      void
+    >(
+      context: context,
       builder:
           (
             _,
@@ -121,188 +200,303 @@ class _FinanceScreenState
               symbol: symbol,
             );
           },
-    ).then(
-      (
-        _,
-      ) {
-        loadCryptoBalances();
-      },
     );
+
+    await _refreshCryptoBalances();
   }
 
-  void openBalance() {
-    showDialog(
+  void _openCryptoBalance() {
+    showDialog<
+      void
+    >(
       context: context,
-
       builder:
           (
             _,
           ) {
             return CryptoBalanceDialog(
               bitcoin: bitcoin,
-
               ethereum: ethereum,
-
               solana: solana,
-
               usdt: usdt,
             );
           },
     );
   }
 
-  void editValue({
-    required String title,
+  // =========================================================
+  // PLANEJAMENTO
+  // =========================================================
 
-    required double currentValue,
+  Future<
+    void
+  >
+  _openPlanningDialog() async {
+    final model = _controller.model;
 
-    required Function(
-      double,
-    )
-    onSave,
-  }) {
-    final controller = TextEditingController(
-      text: currentValue.toString(),
+    final result = await showFinancePlanningDialog(
+      context: context,
+      invested: model.invested,
+      minimumGoal: model.minimumGoal,
+      mediumGoal: model.mediumGoal,
+      maximumGoal: model.maximumGoal,
+      projectionYears: model.projectionYears,
     );
 
-    showDialog(
-      context: context,
+    if (result ==
+            null ||
+        !mounted) {
+      return;
+    }
 
-      builder:
-          (
-            _,
-          ) {
-            return AlertDialog(
-              title: Text(
-                title,
-              ),
+    model.invested = result.invested;
+    model.minimumGoal = result.minimumGoal;
+    model.mediumGoal = result.mediumGoal;
+    model.maximumGoal = result.maximumGoal;
+    model.projectionYears = result.projectionYears;
+    model.monthlyGoal = result.mediumGoal;
 
-              content: TextField(
-                controller: controller,
+    await _controller.saveData();
 
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
+    if (!mounted) {
+      return;
+    }
 
-                decoration: const InputDecoration(
-                  labelText: "Valor",
-                ),
-              ),
+    setState(
+      () {},
+    );
 
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(
-                      context,
-                    );
-                  },
-
-                  child: const Text(
-                    "Cancelar",
-                  ),
-                ),
-
-                ElevatedButton(
-                  onPressed: () {
-                    final value =
-                        double.tryParse(
-                          controller.text.replaceAll(
-                            ",",
-                            ".",
-                          ),
-                        ) ??
-                        currentValue;
-
-                    setState(
-                      () {
-                        onSave(
-                          value,
-                        );
-
-                        _controller.saveData();
-                      },
-                    );
-
-                    Navigator.pop(
-                      context,
-                    );
-                  },
-
-                  child: const Text(
-                    "Salvar",
-                  ),
-                ),
-              ],
-            );
-          },
+    _showMessage(
+      'Planejamento salvo.',
     );
   }
 
-  Widget financeMiniCard({
-    required String icon,
+  // =========================================================
+  // APORTES
+  // =========================================================
 
-    required String title,
+  Future<
+    void
+  >
+  _openContributionDialog() async {
+    final contribution = await showContributionDialog(
+      context: context,
+    );
 
-    required String value,
+    if (contribution ==
+            null ||
+        !mounted) {
+      return;
+    }
 
-    required VoidCallback onTap,
-  }) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
+    final model = _controller.model;
 
-        child: Card(
-          child: Padding(
-            padding: const EdgeInsets.all(
-              10,
-            ),
+    final historyEntry = _projection.createHistoryEntry(
+      contribution: contribution,
+    );
 
-            child: Column(
-              children: [
-                Text(
-                  icon,
+    setState(
+      () {
+        investmentHistory.add(
+          historyEntry,
+        );
 
-                  style: const TextStyle(
-                    fontSize: 20,
-                  ),
-                ),
+        model.invested += contribution;
+        model.totalInvested += contribution;
+        model.investedMonths += 1;
+        model.patrimony += contribution;
 
-                const SizedBox(
-                  height: 5,
-                ),
+        model.averageContribution =
+            model.investedMonths >
+                0
+            ? model.totalInvested /
+                  model.investedMonths
+            : 0;
+      },
+    );
 
-                Text(
-                  title,
+    await _controller.saveData();
 
-                  textAlign: TextAlign.center,
+    if (!mounted) {
+      return;
+    }
 
-                  style: const TextStyle(
-                    fontSize: 11,
+    _showMessage(
+      'Aporte de '
+      '${FinanceScreenFormatter.currency(contribution)} '
+      'registrado.',
+    );
+  }
 
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+  Future<
+    void
+  >
+  _deleteContribution(
+    InvestmentHistory item,
+  ) async {
+    final model = _controller.model;
 
-                const SizedBox(
-                  height: 5,
-                ),
+    setState(
+      () {
+        investmentHistory.remove(
+          item,
+        );
 
-                Text(
-                  value,
+        model.invested = _subtractWithoutNegative(
+          model.invested,
+          item.safeValue,
+        );
 
-                  textAlign: TextAlign.center,
+        model.totalInvested = _subtractWithoutNegative(
+          model.totalInvested,
+          item.safeValue,
+        );
 
-                  style: const TextStyle(
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ),
+        model.patrimony = _subtractWithoutNegative(
+          model.patrimony,
+          item.safeValue,
+        );
+
+        if (model.investedMonths >
+            0) {
+          model.investedMonths -= 1;
+        }
+
+        model.averageContribution =
+            model.investedMonths >
+                0
+            ? model.totalInvested /
+                  model.investedMonths
+            : 0;
+      },
+    );
+
+    await _controller.saveData();
+
+    if (!mounted) {
+      return;
+    }
+
+    _showMessage(
+      'Aporte de '
+      '${FinanceScreenFormatter.currency(item.safeValue)} '
+      'excluído.',
+    );
+  }
+
+  double _subtractWithoutNegative(
+    double currentValue,
+    double valueToRemove,
+  ) {
+    return (currentValue -
+            valueToRemove)
+        .clamp(
+          0.0,
+          double.infinity,
+        );
+  }
+
+  // =========================================================
+  // EDIÇÃO
+  // =========================================================
+
+  Future<
+    void
+  >
+  _editPatrimony() async {
+    final model = _controller.model;
+
+    final value = await showEditFinanceValueDialog(
+      context: context,
+      title: 'Editar patrimônio',
+      label: 'Patrimônio atual',
+      currentValue: model.patrimony,
+    );
+
+    if (value ==
+            null ||
+        !mounted) {
+      return;
+    }
+
+    model.patrimony = value;
+
+    await _saveEditedValue();
+  }
+
+  Future<
+    void
+  >
+  _editInvestmentGoal() async {
+    final model = _controller.model;
+
+    final value = await showEditFinanceValueDialog(
+      context: context,
+      title: 'Editar objetivo financeiro',
+      label: 'Objetivo final',
+      currentValue: model.investmentGoal,
+    );
+
+    if (value ==
+            null ||
+        !mounted) {
+      return;
+    }
+
+    model.investmentGoal = value;
+
+    await _saveEditedValue();
+  }
+
+  Future<
+    void
+  >
+  _saveEditedValue() async {
+    await _controller.saveData();
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(
+      () {},
+    );
+
+    _showMessage(
+      'Valor atualizado.',
+    );
+  }
+
+  // =========================================================
+  // MENSAGENS
+  // =========================================================
+
+  void _showMessage(
+    String message,
+  ) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
         ),
       ),
     );
   }
+
+  void _showHistoryItem(
+    InvestmentHistory item,
+  ) {
+    _showMessage(
+      '${FinanceScreenFormatter.currency(item.safeValue)} • '
+      '${item.normalizedRhythm}',
+    );
+  }
+
+  // =========================================================
+  // TELA
+  // =========================================================
 
   @override
   Widget build(
@@ -313,166 +507,145 @@ class _FinanceScreenState
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          "Financeiro 💰",
+          'Financeiro 💰',
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Planejamento',
+            onPressed: _openPlanningDialog,
+            icon: const Icon(
+              Icons.tune_outlined,
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _openContributionDialog,
+        icon: const Icon(
+          Icons.add,
+        ),
+        label: const Text(
+          'Registrar aporte',
         ),
       ),
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(
+                20,
+                20,
+                20,
+                110,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const FinanceIntro(),
 
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(
-          24,
-        ),
+                  const SizedBox(
+                    height: 28,
+                  ),
 
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+                  WalletCard(
+                    patrimony: model.patrimony,
+                    invested: model.invested,
+                    bitcoin: bitcoin,
+                    ethereum: ethereum,
+                    solana: solana,
+                    usdt: usdt,
+                    onBalance: _openCryptoBalance,
+                    onBitcoin: () {
+                      _openCryptoDialog(
+                        'BTC',
+                      );
+                    },
+                    onEthereum: () {
+                      _openCryptoDialog(
+                        'ETH',
+                      );
+                    },
+                    onSolana: () {
+                      _openCryptoDialog(
+                        'SOL',
+                      );
+                    },
+                    onUsdt: () {
+                      _openCryptoDialog(
+                        'USDT',
+                      );
+                    },
+                    onVault: _openVault,
+                  ),
 
-          children: [
-            const Text(
-              "Sua liberdade financeira começa aqui.",
+                  const SizedBox(
+                    height: 20,
+                  ),
 
-              style: TextStyle(
-                fontSize: 28,
+                  FinanceSummarySection(
+                    patrimony: model.patrimony,
+                    investmentGoal: model.investmentGoal,
+                    minimumGoal: model.minimumGoal,
+                    mediumGoal: model.mediumGoal,
+                    maximumGoal: model.maximumGoal,
+                    onPatrimonyTap: _editPatrimony,
+                    onObjectiveTap: _editInvestmentGoal,
+                    onRhythmsTap: _openPlanningDialog,
+                  ),
 
-                fontWeight: FontWeight.bold,
+                  const SizedBox(
+                    height: 32,
+                  ),
+
+                  const FinanceSectionHeader(
+                    title: 'Sua evolução',
+                    subtitle: 'O objetivo cresce enquanto o tempo restante diminui.',
+                  ),
+
+                  const SizedBox(
+                    height: 14,
+                  ),
+
+                  InvestmentProgress(
+                    projection: _projection,
+                    showPatrimony: true,
+                    showAverageContribution: true,
+                    showEstimatedTime: true,
+                  ),
+
+                  const SizedBox(
+                    height: 32,
+                  ),
+
+                  FinanceSectionHeader(
+                    title: 'Histórico',
+                    subtitle: 'Cada aporte representa um avanço no seu caminho.',
+                    trailing: FilledButton.icon(
+                      onPressed: _openContributionDialog,
+                      icon: const Icon(
+                        Icons.add,
+                        size: 18,
+                      ),
+                      label: const Text(
+                        'Aporte',
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(
+                    height: 14,
+                  ),
+
+                  InvestmentTimeline(
+                    history: investmentHistory,
+                    showHeader: false,
+                    onDelete: _deleteContribution,
+                    onTap: _showHistoryItem,
+                  ),
+                ],
               ),
             ),
-
-            const SizedBox(
-              height: 16,
-            ),
-
-            const Text(
-              "Construa patrimônio investindo um pouco toda semana.",
-
-              style: TextStyle(
-                fontSize: 18,
-              ),
-            ),
-
-            const SizedBox(
-              height: 32,
-            ),
-
-            WalletCard(
-              patrimony: model.patrimony,
-
-              invested: model.invested,
-
-              bitcoin: bitcoin,
-
-              ethereum: ethereum,
-
-              solana: solana,
-
-              usdt: usdt,
-
-              onBalance: openBalance,
-
-              onBitcoin: () {
-                openCryptoDialog(
-                  "BTC",
-                );
-              },
-
-              onEthereum: () {
-                openCryptoDialog(
-                  "ETH",
-                );
-              },
-
-              onSolana: () {
-                openCryptoDialog(
-                  "SOL",
-                );
-              },
-
-              onUsdt: () {
-                openCryptoDialog(
-                  "USDT",
-                );
-              },
-
-              onVault: openVault,
-            ),
-
-            const SizedBox(
-              height: 24,
-            ),
-
-            Row(
-              children: [
-                financeMiniCard(
-                  icon: "💼",
-
-                  title: "Patrimônio",
-
-                  value: "R\$ ${model.patrimony.toStringAsFixed(2)}",
-
-                  onTap: () {
-                    editValue(
-                      title: "Editar patrimônio",
-
-                      currentValue: model.patrimony,
-
-                      onSave:
-                          (
-                            value,
-                          ) {
-                            model.patrimony = value;
-                          },
-                    );
-                  },
-                ),
-
-                financeMiniCard(
-                  icon: "💰",
-
-                  title: "Investido",
-
-                  value: "R\$ ${model.invested.toStringAsFixed(2)}",
-
-                  onTap: () {
-                    editValue(
-                      title: "Editar investimento",
-
-                      currentValue: model.invested,
-
-                      onSave:
-                          (
-                            value,
-                          ) {
-                            model.invested = value;
-                          },
-                    );
-                  },
-                ),
-
-                financeMiniCard(
-                  icon: "🎯",
-
-                  title: "Meta mensal",
-
-                  value: "R\$ ${model.monthlyGoal.toStringAsFixed(2)}",
-
-                  onTap: () {
-                    editValue(
-                      title: "Editar meta mensal",
-
-                      currentValue: model.monthlyGoal,
-
-                      onSave:
-                          (
-                            value,
-                          ) {
-                            model.monthlyGoal = value;
-                          },
-                    );
-                  },
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
