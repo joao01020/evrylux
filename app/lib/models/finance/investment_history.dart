@@ -9,11 +9,11 @@ class InvestmentHistory {
   ///
   /// Valores esperados:
   ///
-  /// Tranquilo
-  /// Normal
-  /// Forte
-  /// Personalizado
-  /// Sem aporte
+  /// - Tranquilo
+  /// - Normal
+  /// - Forte
+  /// - Personalizado
+  /// - Sem aporte
   final String rhythm;
 
   /// Quanto a barra de objetivo subiu.
@@ -67,10 +67,12 @@ class InvestmentHistory {
       return 0;
     }
 
-    return objectiveProgress.clamp(
-      0.0,
-      1.0,
-    );
+    return objectiveProgress
+        .clamp(
+          0.0,
+          1.0,
+        )
+        .toDouble();
   }
 
   double get normalizedTimeProgress {
@@ -78,10 +80,12 @@ class InvestmentHistory {
       return 0;
     }
 
-    return timeProgress.clamp(
-      0.0,
-      1.0,
-    );
+    return timeProgress
+        .clamp(
+          0.0,
+          1.0,
+        )
+        .toDouble();
   }
 
   bool get hasContribution {
@@ -201,27 +205,37 @@ class InvestmentHistory {
         json['rhythm']?.toString().trim() ??
         '';
 
+    final safeParsedValue =
+        parsedValue <
+            0
+        ? 0.0
+        : parsedValue;
+
+    final safeObjectiveProgress = parsedObjectiveProgress
+        .clamp(
+          0.0,
+          1.0,
+        )
+        .toDouble();
+
+    final safeTimeProgress = parsedTimeProgress
+        .clamp(
+          0.0,
+          1.0,
+        )
+        .toDouble();
+
     return InvestmentHistory(
-      value:
-          parsedValue <
-              0
-          ? 0
-          : parsedValue,
+      value: safeParsedValue,
       date: parsedDate,
       rhythm: parsedRhythm.isEmpty
-          ? parsedValue >
+          ? safeParsedValue >
                     0
                 ? 'Personalizado'
                 : 'Sem aporte'
           : parsedRhythm,
-      objectiveProgress: parsedObjectiveProgress.clamp(
-        0.0,
-        1.0,
-      ),
-      timeProgress: parsedTimeProgress.clamp(
-        0.0,
-        1.0,
-      ),
+      objectiveProgress: safeObjectiveProgress,
+      timeProgress: safeTimeProgress,
     );
   }
 

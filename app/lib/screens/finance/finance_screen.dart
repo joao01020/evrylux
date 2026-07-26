@@ -17,6 +17,10 @@ import 'dialogs/contribution_dialog.dart';
 import 'dialogs/edit_finance_value_dialog.dart';
 import 'dialogs/finance_planning_dialog.dart';
 
+import 'history/finance_history_screen.dart';
+
+import 'services/history/finance_history_storage.dart';
+
 import 'utils/finance_screen_formatter.dart';
 
 import 'widgets/finance_intro.dart';
@@ -47,6 +51,8 @@ class _FinanceScreenState
           FinanceScreen
         > {
   final _controller = financeController;
+
+  final FinanceHistoryStorage _historyStorage = const FinanceHistoryStorage();
 
   final List<
     InvestmentHistory
@@ -79,15 +85,36 @@ class _FinanceScreenState
     void
   >
   _loadScreen() async {
-    {
+    try {
+      final historyFuture = _historyStorage.load();
+
       await Future.wait(
         [
           _controller.loadData(),
           _loadCryptoBalances(),
         ],
       );
-    }
-    {
+
+      final loadedHistory = await historyFuture;
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(
+        () {
+          investmentHistory
+            ..clear()
+            ..addAll(
+              loadedHistory,
+            );
+
+          _isLoading = false;
+        },
+      );
+    } catch (
+      _
+    ) {
       if (!mounted) {
         return;
       }
@@ -96,6 +123,10 @@ class _FinanceScreenState
         () {
           _isLoading = false;
         },
+      );
+
+      _showMessage(
+        'Não foi possível carregar todos os dados financeiros.',
       );
     }
   }
@@ -150,6 +181,62 @@ class _FinanceScreenState
   }
 
   // =========================================================
+  // HISTÓRICO
+  // =========================================================
+
+  List<
+    InvestmentHistory
+  >
+  get _latestContribution {
+    if (investmentHistory.isEmpty) {
+      return [];
+    }
+
+    return [
+      investmentHistory.last,
+    ];
+  }
+
+  Future<
+    void
+  >
+  _saveHistory() async {
+    await _historyStorage.save(
+      investmentHistory,
+    );
+  }
+
+  Future<
+    void
+  >
+  _openHistory() async {
+    await Navigator.push<
+      void
+    >(
+      context,
+      MaterialPageRoute(
+        builder:
+            (
+              _,
+            ) {
+              return FinanceHistoryScreen(
+                history: investmentHistory,
+                onDelete: _deleteContribution,
+              );
+            },
+      ),
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(
+      () {},
+    );
+  }
+
+  // =========================================================
   // PROJEÇÃO
   // =========================================================
 
@@ -165,7 +252,9 @@ class _FinanceScreenState
   // =========================================================
 
   void _openVault() {
-    Navigator.push(
+    Navigator.push<
+      void
+    >(
       context,
       MaterialPageRoute(
         builder:
@@ -301,6 +390,17 @@ class _FinanceScreenState
           historyEntry,
         );
 
+        investmentHistory.sort(
+          (
+            first,
+            second,
+          ) {
+            return first.date.compareTo(
+              second.date,
+            );
+          },
+        );
+
         model.invested += contribution;
         model.totalInvested += contribution;
         model.investedMonths += 1;
@@ -315,7 +415,26 @@ class _FinanceScreenState
       },
     );
 
-    await _controller.saveData();
+    try {
+      await Future.wait(
+        [
+          _controller.saveData(),
+          _saveHistory(),
+        ],
+      );
+    } catch (
+      _
+    ) {
+      if (!mounted) {
+        return;
+      }
+
+      _showMessage(
+        'O aporte foi registrado, mas ocorreu um erro ao salvar.',
+      );
+
+      return;
+    }
 
     if (!mounted) {
       return;
@@ -336,12 +455,16 @@ class _FinanceScreenState
   ) async {
     final model = _controller.model;
 
+    final removed = investmentHistory.remove(
+      item,
+    );
+
+    if (!removed) {
+      return;
+    }
+
     setState(
       () {
-        investmentHistory.remove(
-          item,
-        );
-
         model.invested = _subtractWithoutNegative(
           model.invested,
           item.safeValue,
@@ -371,7 +494,26 @@ class _FinanceScreenState
       },
     );
 
-    await _controller.saveData();
+    try {
+      await Future.wait(
+        [
+          _controller.saveData(),
+          _saveHistory(),
+        ],
+      );
+    } catch (
+      _
+    ) {
+      if (!mounted) {
+        return;
+      }
+
+      _showMessage(
+        'O aporte foi removido, mas ocorreu um erro ao salvar.',
+      );
+
+      return;
+    }
 
     if (!mounted) {
       return;
@@ -393,7 +535,8 @@ class _FinanceScreenState
         .clamp(
           0.0,
           double.infinity,
-        );
+        )
+        .toDouble();
   }
 
   // =========================================================
@@ -619,16 +762,18 @@ class _FinanceScreenState
                   ),
 
                   FinanceSectionHeader(
-                    title: 'Histórico',
-                    subtitle: 'Cada aporte representa um avanço no seu caminho.',
-                    trailing: FilledButton.icon(
-                      onPressed: _openContributionDialog,
+                    title: 'Último aporte',
+                    subtitle: investmentHistory.isEmpty
+                        ? 'Nenhum aporte registrado.'
+                        : 'Seu aporte mais recente.',
+                    trailing: TextButton.icon(
+                      onPressed: _openHistory,
                       icon: const Icon(
-                        Icons.add,
+                        Icons.history,
                         size: 18,
                       ),
                       label: const Text(
-                        'Aporte',
+                        'Ver todos',
                       ),
                     ),
                   ),
@@ -637,15 +782,64 @@ class _FinanceScreenState
                     height: 14,
                   ),
 
-                  InvestmentTimeline(
-                    history: investmentHistory,
-                    showHeader: false,
-                    onDelete: _deleteContribution,
-                    onTap: _showHistoryItem,
-                  ),
+                  if (investmentHistory.isEmpty)
+                    const _EmptyLastContribution()
+                  else
+                    InvestmentTimeline(
+                      history: _latestContribution,
+                      showHeader: false,
+                      onDelete: _deleteContribution,
+                      onTap: _showHistoryItem,
+                    ),
                 ],
               ),
             ),
+    );
+  }
+}
+
+class _EmptyLastContribution
+    extends
+        StatelessWidget {
+  const _EmptyLastContribution();
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(
+        20,
+      ),
+      decoration: BoxDecoration(
+        color: Theme.of(
+          context,
+        ).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(
+          16,
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.savings_outlined,
+            size: 38,
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurfaceVariant,
+          ),
+
+          const SizedBox(
+            height: 10,
+          ),
+
+          const Text(
+            'Registre seu primeiro aporte para começar o histórico.',
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 }
