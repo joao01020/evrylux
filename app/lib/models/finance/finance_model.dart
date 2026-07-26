@@ -2,14 +2,47 @@ class FinanceModel {
   /// Patrimônio atual
   double patrimony;
 
-  /// Valor investido
+  /// Valor investido atualmente
   double invested;
 
-  /// Meta mensal de investimento
+  /// Mantido por compatibilidade
   double monthlyGoal;
 
-  /// Meta de patrimônio
+  /// Objetivo final de patrimônio
   double investmentGoal;
+
+  // ===============================
+  // Planejamento
+  // ===============================
+
+  /// Meta mensal mínima
+  double minimumGoal;
+
+  /// Meta mensal média
+  double mediumGoal;
+
+  /// Meta mensal máxima
+  double maximumGoal;
+
+  /// Tempo desejado para atingir o objetivo
+  int projectionYears;
+
+  // ===============================
+  // Evolução
+  // ===============================
+
+  /// Quanto foi aportado até hoje
+  double totalInvested;
+
+  /// Quantos meses possuem aporte registrado
+  int investedMonths;
+
+  /// Média real dos aportes
+  double averageContribution;
+
+  // ===============================
+  // Criptomoedas
+  // ===============================
 
   double bitcoin;
 
@@ -19,6 +52,10 @@ class FinanceModel {
 
   double usdt;
 
+  // ===============================
+  // Outros
+  // ===============================
+
   List<
     bool
   >
@@ -27,14 +64,26 @@ class FinanceModel {
   String? selectedDay;
 
   FinanceModel({
-    this.patrimony = 0.0,
-    this.invested = 0.0,
-    this.monthlyGoal = 0.0,
-    this.investmentGoal = 0.0,
-    this.bitcoin = 0.0,
-    this.ethereum = 0.0,
-    this.solana = 0.0,
-    this.usdt = 0.0,
+    this.patrimony = 0,
+    this.invested = 0,
+    this.monthlyGoal = 0,
+    this.investmentGoal = 0,
+
+    this.minimumGoal = 0,
+    this.mediumGoal = 0,
+    this.maximumGoal = 0,
+
+    this.projectionYears = 10,
+
+    this.totalInvested = 0,
+    this.investedMonths = 0,
+    this.averageContribution = 0,
+
+    this.bitcoin = 0,
+    this.ethereum = 0,
+    this.solana = 0,
+    this.usdt = 0,
+
     List<
       bool
     >?
@@ -42,9 +91,11 @@ class FinanceModel {
     this.selectedDay,
   }) : completedDays =
            completedDays ??
-           List.filled(
+           List.generate(
              7,
-             false,
+             (
+               _,
+             ) => false,
            );
 
   Map<
@@ -57,10 +108,22 @@ class FinanceModel {
       "invested": invested,
       "monthlyGoal": monthlyGoal,
       "investmentGoal": investmentGoal,
+
+      "minimumGoal": minimumGoal,
+      "mediumGoal": mediumGoal,
+      "maximumGoal": maximumGoal,
+
+      "projectionYears": projectionYears,
+
+      "totalInvested": totalInvested,
+      "investedMonths": investedMonths,
+      "averageContribution": averageContribution,
+
       "bitcoin": bitcoin,
       "ethereum": ethereum,
       "solana": solana,
       "usdt": usdt,
+
       "completedDays": completedDays,
       "selectedDay": selectedDay,
     };
@@ -91,6 +154,39 @@ class FinanceModel {
 
       investmentGoal:
           (json["investmentGoal"] ??
+                  0)
+              .toDouble(),
+
+      minimumGoal:
+          (json["minimumGoal"] ??
+                  0)
+              .toDouble(),
+
+      mediumGoal:
+          (json["mediumGoal"] ??
+                  0)
+              .toDouble(),
+
+      maximumGoal:
+          (json["maximumGoal"] ??
+                  0)
+              .toDouble(),
+
+      projectionYears:
+          json["projectionYears"] ??
+          10,
+
+      totalInvested:
+          (json["totalInvested"] ??
+                  0)
+              .toDouble(),
+
+      investedMonths:
+          json["investedMonths"] ??
+          0,
+
+      averageContribution:
+          (json["averageContribution"] ??
                   0)
               .toDouble(),
 
@@ -125,9 +221,11 @@ class FinanceModel {
                         as bool,
               )
               .toList() ??
-          List.filled(
+          List.generate(
             7,
-            false,
+            (
+              _,
+            ) => false,
           ),
 
       selectedDay: json["selectedDay"],
