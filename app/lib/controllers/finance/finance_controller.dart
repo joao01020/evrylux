@@ -26,6 +26,12 @@ class FinanceController {
     );
   }
 
+  void updatePatrimony(
+    double value,
+  ) {
+    model.patrimony = value;
+  }
+
   void updateInvested(
     double value,
   ) {
@@ -36,12 +42,6 @@ class FinanceController {
     double value,
   ) {
     model.monthlyGoal = value;
-  }
-
-  void updateInvestmentGoal(
-    double value,
-  ) {
-    model.investmentGoal = value;
   }
 
   void updateBitcoin(

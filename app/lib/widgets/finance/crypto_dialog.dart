@@ -1,33 +1,191 @@
 import 'package:flutter/material.dart';
 
+import '../../app_dependencies.dart';
+
+import '../../models/finance/crypto_transaction_model.dart';
+
+import 'crypto_history_card.dart';
+import 'add_crypto_dialog.dart';
+import 'edit_crypto_dialog.dart';
+
 class CryptoDialog
     extends
-        StatelessWidget {
-  final String name;
-
+        StatefulWidget {
   final String symbol;
-
-  final Function(
-    double,
-  )
-  onSave;
 
   const CryptoDialog({
     super.key,
 
-    required this.name,
-
     required this.symbol,
-
-    required this.onSave,
   });
+
+  @override
+  State<
+    CryptoDialog
+  >
+  createState() => _CryptoDialogState();
+}
+
+class _CryptoDialogState
+    extends
+        State<
+          CryptoDialog
+        > {
+  List<
+    CryptoTransactionModel
+  >
+  transactions = [];
+
+  @override
+  void initState() {
+    super.initState();
+
+    load();
+  }
+
+  Future<
+    void
+  >
+  load() async {
+    final result = await cryptoController.getBySymbol(
+      widget.symbol,
+    );
+
+    if (!mounted) return;
+
+    setState(
+      () {
+        transactions = result;
+      },
+    );
+  }
+
+  double get totalQuantity {
+    return transactions.fold(
+      0.0,
+
+      (
+        total,
+
+        item,
+      ) {
+        return total +
+            item.quantity;
+      },
+    );
+  }
+
+  double get totalInvested {
+    return transactions.fold(
+      0.0,
+
+      (
+        total,
+
+        item,
+      ) {
+        return total +
+            item.invested;
+      },
+    );
+  }
+
+  String title() {
+    switch (widget.symbol) {
+      case "BTC":
+        return "Bitcoin";
+
+      case "ETH":
+        return "Ethereum";
+
+      case "SOL":
+        return "Solana";
+
+      case "USDT":
+        return "USDT";
+
+      default:
+        return widget.symbol;
+    }
+  }
+
+  Future<
+    void
+  >
+  add() async {
+    await showDialog(
+      context: context,
+
+      builder:
+          (
+            context,
+          ) {
+            return AddCryptoDialog(
+              symbol: widget.symbol,
+
+              onSave:
+                  (
+                    transaction,
+                  ) {
+                    return cryptoController.add(
+                      transaction,
+                    );
+                  },
+            );
+          },
+    );
+
+    load();
+  }
+
+  Future<
+    void
+  >
+  edit(
+    CryptoTransactionModel transaction,
+  ) async {
+    await showDialog(
+      context: context,
+
+      builder:
+          (
+            context,
+          ) {
+            return EditCryptoDialog(
+              transaction: transaction,
+
+              onSave:
+                  (
+                    updated,
+                  ) {
+                    return cryptoController.update(
+                      updated,
+                    );
+                  },
+            );
+          },
+    );
+
+    load();
+  }
+
+  Future<
+    void
+  >
+  remove(
+    CryptoTransactionModel transaction,
+  ) async {
+    await cryptoController.delete(
+      transaction.id,
+    );
+
+    load();
+  }
 
   @override
   Widget build(
     BuildContext context,
   ) {
-    final controller = TextEditingController();
-
     return Dialog(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(
@@ -37,90 +195,143 @@ class CryptoDialog
 
       child: Padding(
         padding: const EdgeInsets.all(
-          24,
+          20,
         ),
 
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
 
-          children: [
-            Text(
-              symbol,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
 
-              style: const TextStyle(
-                fontSize: 42,
+                children: [
+                  Text(
+                    title(),
 
-                fontWeight: FontWeight.bold,
+                    style: const TextStyle(
+                      fontSize: 26,
+
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+
+                  IconButton(
+                    onPressed: () {
+                      Navigator.pop(
+                        context,
+                      );
+                    },
+
+                    icon: const Icon(
+                      Icons.close,
+                    ),
+                  ),
+                ],
               ),
-            ),
 
-            const SizedBox(
-              height: 10,
-            ),
-
-            Text(
-              "Adicionar $name",
-
-              style: const TextStyle(
-                fontSize: 18,
-
-                fontWeight: FontWeight.bold,
+              const SizedBox(
+                height: 20,
               ),
-            ),
 
-            const SizedBox(
-              height: 20,
-            ),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(
+                    16,
+                  ),
 
-            TextField(
-              controller: controller,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
 
-              keyboardType: TextInputType.number,
+                    children: [
+                      const Text(
+                        "Saldo",
 
-              decoration: InputDecoration(
-                labelText: "Quantidade $symbol",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
 
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(
-                    12,
+                      Text(
+                        "${totalQuantity.toStringAsFixed(8)} ${widget.symbol}",
+
+                        style: const TextStyle(
+                          fontSize: 24,
+
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                      const Divider(),
+
+                      const Text(
+                        "Investido",
+
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                      Text(
+                        "R\$ ${totalInvested.toStringAsFixed(2)}",
+
+                        style: const TextStyle(
+                          fontSize: 20,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-            ),
 
-            const SizedBox(
-              height: 20,
-            ),
+              const SizedBox(
+                height: 20,
+              ),
 
-            SizedBox(
-              width: double.infinity,
+              SizedBox(
+                width: double.infinity,
 
-              child: ElevatedButton(
-                onPressed: () {
-                  final value =
-                      double.tryParse(
-                        controller.text.replaceAll(
-                          ",",
-                          ".",
-                        ),
-                      ) ??
-                      0.0;
+                child: ElevatedButton.icon(
+                  onPressed: add,
 
-                  onSave(
-                    value,
-                  );
+                  icon: const Icon(
+                    Icons.add,
+                  ),
 
-                  Navigator.pop(
-                    context,
-                  );
-                },
-
-                child: const Text(
-                  "Salvar",
+                  label: const Text(
+                    "Adicionar compra",
+                  ),
                 ),
               ),
-            ),
-          ],
+
+              const SizedBox(
+                height: 20,
+              ),
+
+              const Text(
+                "Histórico",
+
+                style: TextStyle(
+                  fontSize: 20,
+
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+              const SizedBox(
+                height: 10,
+              ),
+
+              CryptoHistoryCard(
+                transactions: transactions,
+
+                onDelete: remove,
+
+                onEdit: edit,
+              ),
+            ],
+          ),
         ),
       ),
     );

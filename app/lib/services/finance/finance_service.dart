@@ -55,9 +55,9 @@ class FinanceService {
   ) async {
     await repository.save(
       {
+        "patrimony": model.patrimony,
         "invested": model.invested,
         "monthlyGoal": model.monthlyGoal,
-        "investmentGoal": model.investmentGoal,
         "bitcoin": model.bitcoin,
         "ethereum": model.ethereum,
         "solana": model.solana,
@@ -79,16 +79,16 @@ class FinanceService {
     }
 
     return FinanceModel(
+      patrimony:
+          (data["patrimony"] ??
+                  0)
+              .toDouble(),
       invested:
           (data["invested"] ??
                   0)
               .toDouble(),
       monthlyGoal:
           (data["monthlyGoal"] ??
-                  0)
-              .toDouble(),
-      investmentGoal:
-          (data["investmentGoal"] ??
                   0)
               .toDouble(),
       bitcoin:

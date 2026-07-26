@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../app_dependencies.dart';
+
 import '../../widgets/finance/wallet_card.dart';
 import '../../widgets/finance/crypto_dialog.dart';
+import '../../widgets/finance/crypto_balance_dialog.dart';
+
 import 'vault/vault_screen.dart';
 
 class FinanceScreen
@@ -26,26 +29,75 @@ class _FinanceScreenState
         > {
   final _controller = financeController;
 
+  double bitcoin = 0;
+
+  double ethereum = 0;
+
+  double solana = 0;
+
+  double usdt = 0;
+
   @override
   void initState() {
     super.initState();
 
-    _controller.loadData().then(
-      (
-        _,
-      ) {
-        if (mounted) {
-          setState(
-            () {},
-          );
-        }
-      },
+    loadFinance();
+
+    loadCryptoBalances();
+  }
+
+  Future<
+    void
+  >
+  loadFinance() async {
+    await _controller.loadData();
+
+    if (mounted) {
+      setState(
+        () {},
+      );
+    }
+  }
+
+  Future<
+    void
+  >
+  loadCryptoBalances() async {
+    await cryptoController.load(
+      "BTC",
     );
+
+    bitcoin = cryptoController.quantity;
+
+    await cryptoController.load(
+      "ETH",
+    );
+
+    ethereum = cryptoController.quantity;
+
+    await cryptoController.load(
+      "SOL",
+    );
+
+    solana = cryptoController.quantity;
+
+    await cryptoController.load(
+      "USDT",
+    );
+
+    usdt = cryptoController.quantity;
+
+    if (mounted) {
+      setState(
+        () {},
+      );
+    }
   }
 
   void openVault() {
     Navigator.push(
       context,
+
       MaterialPageRoute(
         builder:
             (
@@ -55,9 +107,55 @@ class _FinanceScreenState
     );
   }
 
+  void openCryptoDialog(
+    String symbol,
+  ) {
+    showDialog(
+      context: context,
+
+      builder:
+          (
+            _,
+          ) {
+            return CryptoDialog(
+              symbol: symbol,
+            );
+          },
+    ).then(
+      (
+        _,
+      ) {
+        loadCryptoBalances();
+      },
+    );
+  }
+
+  void openBalance() {
+    showDialog(
+      context: context,
+
+      builder:
+          (
+            _,
+          ) {
+            return CryptoBalanceDialog(
+              bitcoin: bitcoin,
+
+              ethereum: ethereum,
+
+              solana: solana,
+
+              usdt: usdt,
+            );
+          },
+    );
+  }
+
   void editValue({
     required String title,
+
     required double currentValue,
+
     required Function(
       double,
     )
@@ -69,6 +167,7 @@ class _FinanceScreenState
 
     showDialog(
       context: context,
+
       builder:
           (
             _,
@@ -77,13 +176,19 @@ class _FinanceScreenState
               title: Text(
                 title,
               ),
+
               content: TextField(
                 controller: controller,
-                keyboardType: TextInputType.number,
+
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+
                 decoration: const InputDecoration(
                   labelText: "Valor",
                 ),
               ),
+
               actions: [
                 TextButton(
                   onPressed: () {
@@ -91,10 +196,12 @@ class _FinanceScreenState
                       context,
                     );
                   },
+
                   child: const Text(
                     "Cancelar",
                   ),
                 ),
+
                 ElevatedButton(
                   onPressed: () {
                     final value =
@@ -111,6 +218,7 @@ class _FinanceScreenState
                         onSave(
                           value,
                         );
+
                         _controller.saveData();
                       },
                     );
@@ -119,6 +227,7 @@ class _FinanceScreenState
                       context,
                     );
                   },
+
                   child: const Text(
                     "Salvar",
                   ),
@@ -129,78 +238,60 @@ class _FinanceScreenState
     );
   }
 
-  void openCryptoDialog(
-    String name,
-    String symbol,
-    Function(
-      double,
-    )
-    save,
-  ) {
-    showDialog(
-      context: context,
-      builder:
-          (
-            _,
-          ) {
-            return CryptoDialog(
-              name: name,
-              symbol: symbol,
-              onSave:
-                  (
-                    value,
-                  ) {
-                    setState(
-                      () {
-                        save(
-                          value,
-                        );
-                        _controller.saveData();
-                      },
-                    );
-                  },
-            );
-          },
-    );
-  }
-
   Widget financeMiniCard({
     required String icon,
+
     required String title,
+
     required String value,
+
     required VoidCallback onTap,
   }) {
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
+
         child: Card(
           child: Padding(
             padding: const EdgeInsets.all(
               10,
             ),
+
             child: Column(
               children: [
                 Text(
                   icon,
+
                   style: const TextStyle(
                     fontSize: 20,
                   ),
                 ),
+
                 const SizedBox(
                   height: 5,
                 ),
+
                 Text(
                   title,
+
+                  textAlign: TextAlign.center,
+
                   style: const TextStyle(
                     fontSize: 11,
+
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+
                 const SizedBox(
                   height: 5,
                 ),
+
                 Text(
                   value,
+
+                  textAlign: TextAlign.center,
+
                   style: const TextStyle(
                     fontSize: 11,
                   ),
@@ -225,97 +316,126 @@ class _FinanceScreenState
           "Financeiro 💰",
         ),
       ),
+
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(
           24,
         ),
+
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+
           children: [
             const Text(
               "Sua liberdade financeira começa aqui.",
+
               style: TextStyle(
                 fontSize: 28,
+
                 fontWeight: FontWeight.bold,
               ),
             ),
+
             const SizedBox(
               height: 16,
             ),
+
             const Text(
               "Construa patrimônio investindo um pouco toda semana.",
+
               style: TextStyle(
                 fontSize: 18,
               ),
             ),
+
             const SizedBox(
               height: 32,
             ),
+
             WalletCard(
+              patrimony: model.patrimony,
+
               invested: model.invested,
-              bitcoin: model.bitcoin,
-              ethereum: model.ethereum,
-              solana: model.solana,
-              usdt: model.usdt,
+
+              bitcoin: bitcoin,
+
+              ethereum: ethereum,
+
+              solana: solana,
+
+              usdt: usdt,
+
+              onBalance: openBalance,
+
               onBitcoin: () {
                 openCryptoDialog(
-                  "Bitcoin",
-                  "₿",
-                  (
-                    value,
-                  ) {
-                    model.bitcoin = value;
-                  },
+                  "BTC",
                 );
               },
+
               onEthereum: () {
                 openCryptoDialog(
-                  "Ethereum",
-                  "Ξ",
-                  (
-                    value,
-                  ) {
-                    model.ethereum = value;
-                  },
+                  "ETH",
                 );
               },
+
               onSolana: () {
                 openCryptoDialog(
-                  "Solana",
-                  "◎",
-                  (
-                    value,
-                  ) {
-                    model.solana = value;
-                  },
+                  "SOL",
                 );
               },
+
               onUsdt: () {
                 openCryptoDialog(
                   "USDT",
-                  "₮",
-                  (
-                    value,
-                  ) {
-                    model.usdt = value;
-                  },
                 );
               },
+
               onVault: openVault,
             ),
+
             const SizedBox(
               height: 24,
             ),
+
             Row(
               children: [
                 financeMiniCard(
-                  icon: "💰",
-                  title: "Investido",
-                  value: "R\$ ${model.invested.toStringAsFixed(2)}",
+                  icon: "💼",
+
+                  title: "Patrimônio",
+
+                  value: "R\$ ${model.patrimony.toStringAsFixed(2)}",
+
                   onTap: () {
                     editValue(
-                      title: "Adicionar investimento",
+                      title: "Editar patrimônio",
+
+                      currentValue: model.patrimony,
+
+                      onSave:
+                          (
+                            value,
+                          ) {
+                            model.patrimony = value;
+                          },
+                    );
+                  },
+                ),
+
+                financeMiniCard(
+                  icon: "💰",
+
+                  title: "Investido",
+
+                  value: "R\$ ${model.invested.toStringAsFixed(2)}",
+
+                  onTap: () {
+                    editValue(
+                      title: "Editar investimento",
+
                       currentValue: model.invested,
+
                       onSave:
                           (
                             value,
@@ -325,36 +445,25 @@ class _FinanceScreenState
                     );
                   },
                 ),
+
                 financeMiniCard(
                   icon: "🎯",
+
                   title: "Meta mensal",
-                  value: "R\$ ${model.monthlyGoal.toStringAsFixed(0)}",
+
+                  value: "R\$ ${model.monthlyGoal.toStringAsFixed(2)}",
+
                   onTap: () {
                     editValue(
                       title: "Editar meta mensal",
+
                       currentValue: model.monthlyGoal,
+
                       onSave:
                           (
                             value,
                           ) {
                             model.monthlyGoal = value;
-                          },
-                    );
-                  },
-                ),
-                financeMiniCard(
-                  icon: "🏦",
-                  title: "Patrimônio",
-                  value: "R\$ ${model.investmentGoal.toStringAsFixed(0)}",
-                  onTap: () {
-                    editValue(
-                      title: "Editar patrimônio",
-                      currentValue: model.investmentGoal,
-                      onSave:
-                          (
-                            value,
-                          ) {
-                            model.investmentGoal = value;
                           },
                     );
                   },
