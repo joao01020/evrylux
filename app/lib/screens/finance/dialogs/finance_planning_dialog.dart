@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../widgets/finance/investment_form.dart';
+import '../widgets/investment_form/investment_form.dart';
 
 class FinancePlanningResult {
   final double invested;

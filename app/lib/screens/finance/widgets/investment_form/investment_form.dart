@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-import 'investment_form/investment_form_calculator.dart';
-import 'investment_form/investment_form_formatter.dart';
-import 'investment_form/investment_form_validation.dart';
-import 'investment_form/investment_money_field.dart';
-import 'investment_form/investment_projection_card.dart';
-import 'investment_form/investment_validation_box.dart';
+import 'investment_form_calculator.dart';
+import 'investment_form_formatter.dart';
+import 'investment_form_validation.dart';
+import 'investment_money_field.dart';
+import 'investment_projection_card.dart';
+import 'investment_validation_box.dart';
 
 class InvestmentForm
     extends

@@ -1,7 +1,7 @@
 import 'dart:convert';
 
-import '../../core/storage/local_storage.dart';
-import '../../models/finance/crypto_transaction_model.dart';
+import '../../../../core/storage/local_storage.dart';
+import '../../../../models/finance/crypto_transaction_model.dart';
 
 class CryptoRepository {
   final LocalStorage storage;

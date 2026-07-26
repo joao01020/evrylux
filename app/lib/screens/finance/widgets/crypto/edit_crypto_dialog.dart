@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../models/finance/crypto_transaction_model.dart';
+import '../../../../models/finance/crypto_transaction_model.dart';
 
 class EditCryptoDialog
     extends

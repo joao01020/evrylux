@@ -1,5 +1,5 @@
-import '../../data/finance/finance_repository.dart';
-import '../../models/finance/finance_model.dart';
+import '../data/finance_repository.dart';
+import '../../../models/finance/finance_model.dart';
 
 class FinanceService {
   final FinanceRepository repository;

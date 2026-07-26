@@ -28,8 +28,8 @@ import 'core/storage/local_storage.dart';
 // CONTROLLERS
 // ======================================================
 
-import 'controllers/finance/finance_controller.dart';
-import 'controllers/finance/crypto_controller.dart';
+import 'screens/finance/controllers/finance_controller.dart';
+import 'screens/finance/controllers/crypto/crypto_controller.dart';
 
 import 'controllers/evolution/evolution_controller.dart';
 import 'controllers/training/training_controller.dart';
@@ -40,8 +40,8 @@ import 'controllers/study/study_controller.dart';
 // REPOSITORIES
 // ======================================================
 
-import 'data/finance/finance_repository.dart';
-import 'data/finance/crypto_repository.dart';
+import 'screens/finance/data/finance_repository.dart';
+import 'screens/finance/data/crypto/crypto_repository.dart';
 
 import 'data/evolution/evolution_repository.dart';
 import 'data/study/study_repository.dart';
@@ -54,8 +54,8 @@ import 'data/journey/journey_repository.dart';
 
 import 'services/study/study_service.dart';
 
-import 'services/finance/finance_service.dart';
-import 'services/finance/crypto_service.dart';
+import 'screens/finance/services/finance_service.dart';
+import 'screens/finance/services/crypto/crypto_service.dart';
 
 import 'services/evolution/evolution_service.dart';
 import 'services/training/training_service.dart';

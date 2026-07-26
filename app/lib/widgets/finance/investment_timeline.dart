@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../models/finance/investment_history.dart';
 
-import 'timeline/investment_month_group.dart';
-import 'timeline/investment_timeline_empty.dart';
-import 'timeline/investment_timeline_header.dart';
-import 'timeline/investment_timeline_summary.dart';
+import '../../screens/finance/widgets/timeline/investment_month_group.dart';
+import '../../screens/finance/widgets/timeline/investment_timeline_empty.dart';
+import '../../screens/finance/widgets/timeline/investment_timeline_header.dart';
+import '../../screens/finance/widgets/timeline/investment_timeline_summary.dart';
 
 class InvestmentTimeline
     extends

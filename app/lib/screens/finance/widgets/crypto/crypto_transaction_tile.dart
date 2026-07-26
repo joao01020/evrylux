@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../models/finance/crypto_transaction_model.dart';
+import '../../../../models/finance/crypto_transaction_model.dart';
 
 class CryptoTransactionTile
     extends

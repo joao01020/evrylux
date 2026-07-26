@@ -10,8 +10,8 @@ import '../../widgets/finance/investment_progress.dart';
 import '../../widgets/finance/investment_timeline.dart';
 import '../../widgets/finance/wallet_card.dart';
 
-import '../../widgets/finance/crypto/crypto_balance_dialog.dart';
-import '../../widgets/finance/crypto/crypto_dialog.dart';
+import 'widgets/crypto/crypto_balance_dialog.dart';
+import 'widgets/crypto/crypto_dialog.dart';
 
 import 'dialogs/contribution_dialog.dart';
 import 'dialogs/edit_finance_value_dialog.dart';

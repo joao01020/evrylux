@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../app_dependencies.dart';
+import '../../../../app_dependencies.dart';
 
-import '../../models/finance/crypto_transaction_model.dart';
+import '../../../../models/finance/crypto_transaction_model.dart';
 
 import 'crypto_history_card.dart';
 import 'add_crypto_dialog.dart';

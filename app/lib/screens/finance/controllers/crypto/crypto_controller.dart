@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
-import '../../models/finance/crypto_transaction_model.dart';
-import '../../services/finance/crypto_service.dart';
+import '../../../../models/finance/crypto_transaction_model.dart';
+import '../../services/crypto/crypto_service.dart';
 
 class CryptoController
     extends
