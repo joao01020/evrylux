@@ -15,10 +15,7 @@ class BrainStorage {
   // PASTA PRINCIPAL
   // =========================================================
 
-  Future<
-    Directory
-  >
-  getBrainDirectory() async {
+  Future<Directory> getBrainDirectory() async {
     final documentsDirectory = await getApplicationDocumentsDirectory();
 
     final brainDirectory = Directory(
@@ -26,9 +23,7 @@ class BrainStorage {
     );
 
     if (!await brainDirectory.exists()) {
-      await brainDirectory.create(
-        recursive: true,
-      );
+      await brainDirectory.create(recursive: true);
     }
 
     return brainDirectory;
@@ -38,17 +33,11 @@ class BrainStorage {
   // SALVAR NOTA
   // =========================================================
 
-  Future<
-    BrainFile
-  >
-  saveNote({
+  Future<BrainFile> saveNote({
     required String topic,
     required String title,
     required String content,
-    required List<
-      BrainConcept
-    >
-    concepts,
+    required List<BrainConcept> concepts,
     String? existingPath,
   }) async {
     final cleanTopic = topic.trim();
@@ -56,56 +45,34 @@ class BrainStorage {
     final cleanContent = content.trim();
 
     if (cleanTopic.isEmpty) {
-      throw const FormatException(
-        'Informe o tema da anotação.',
-      );
+      throw const FormatException('Informe o tema da anotação.');
     }
 
     if (cleanTitle.isEmpty) {
-      throw const FormatException(
-        'Informe o título da anotação.',
-      );
+      throw const FormatException('Informe o título da anotação.');
     }
 
     if (cleanContent.isEmpty) {
-      throw const FormatException(
-        'Escreva algum conteúdo.',
-      );
+      throw const FormatException('Escreva algum conteúdo.');
     }
 
     final brainDirectory = await getBrainDirectory();
 
-    final topicFolderName = _sanitizeName(
-      cleanTopic,
-    );
+    final topicFolderName = _sanitizeName(cleanTopic);
 
-    final topicDirectory = Directory(
-      '${brainDirectory.path}/$topicFolderName',
-    );
+    final topicDirectory = Directory('${brainDirectory.path}/$topicFolderName');
 
     if (!await topicDirectory.exists()) {
-      await topicDirectory.create(
-        recursive: true,
-      );
+      await topicDirectory.create(recursive: true);
     }
 
-    final filePath =
-        existingPath !=
-                null &&
-            existingPath.trim().isNotEmpty
+    final filePath = existingPath != null && existingPath.trim().isNotEmpty
         ? existingPath
         : '${topicDirectory.path}/${_sanitizeName(cleanTitle)}.md';
 
-    final file = File(
-      filePath,
-    );
+    final file = File(filePath);
 
-    final conceptsCopy =
-        List<
-          BrainConcept
-        >.unmodifiable(
-          concepts,
-        );
+    final conceptsCopy = List<BrainConcept>.unmodifiable(concepts);
 
     final markdown = _createMarkdown(
       topic: cleanTopic,
@@ -114,10 +81,7 @@ class BrainStorage {
       concepts: conceptsCopy,
     );
 
-    await file.writeAsString(
-      markdown,
-      flush: true,
-    );
+    await file.writeAsString(markdown, flush: true);
 
     final updatedAt = await file.lastModified();
 
@@ -135,59 +99,35 @@ class BrainStorage {
   // CARREGAR NOTAS
   // =========================================================
 
-  Future<
-    List<
-      BrainFile
-    >
-  >
-  loadNotes() async {
+  Future<List<BrainFile>> loadNotes() async {
     final brainDirectory = await getBrainDirectory();
 
-    final notes =
-        <
-          BrainFile
-        >[];
+    final notes = <BrainFile>[];
 
     await for (final entity in brainDirectory.list(
       recursive: true,
       followLinks: false,
     )) {
-      if (entity
-          is! File) {
+      if (entity is! File) {
         continue;
       }
 
-      if (!entity.path.toLowerCase().endsWith(
-        '.md',
-      )) {
+      if (!entity.path.toLowerCase().endsWith('.md')) {
         continue;
       }
 
       try {
-        final note = await _readFile(
-          entity,
-        );
+        final note = await _readFile(entity);
 
-        notes.add(
-          note,
-        );
-      } catch (
-        _
-      ) {
+        notes.add(note);
+      } catch (_) {
         // Ignora somente o arquivo que não pôde ser lido.
       }
     }
 
-    notes.sort(
-      (
-        first,
-        second,
-      ) {
-        return second.updatedAt.compareTo(
-          first.updatedAt,
-        );
-      },
-    );
+    notes.sort((first, second) {
+      return second.updatedAt.compareTo(first.updatedAt);
+    });
 
     return notes;
   }
@@ -196,40 +136,22 @@ class BrainStorage {
   // ABRIR NOTA
   // =========================================================
 
-  Future<
-    BrainFile
-  >
-  openNote(
-    String path,
-  ) async {
-    final file = File(
-      path,
-    );
+  Future<BrainFile> openNote(String path) async {
+    final file = File(path);
 
     if (!await file.exists()) {
-      throw const FileSystemException(
-        'A anotação não foi encontrada.',
-      );
+      throw const FileSystemException('A anotação não foi encontrada.');
     }
 
-    return _readFile(
-      file,
-    );
+    return _readFile(file);
   }
 
   // =========================================================
   // EXCLUIR NOTA
   // =========================================================
 
-  Future<
-    void
-  >
-  deleteNote(
-    BrainFile note,
-  ) async {
-    final file = File(
-      note.path,
-    );
+  Future<void> deleteNote(BrainFile note) async {
+    final file = File(note.path);
 
     if (await file.exists()) {
       await file.delete();
@@ -250,19 +172,12 @@ class BrainStorage {
   // LEITURA INTERNA
   // =========================================================
 
-  Future<
-    BrainFile
-  >
-  _readFile(
-    File file,
-  ) async {
+  Future<BrainFile> _readFile(File file) async {
     final markdown = await file.readAsString();
 
     final updatedAt = await file.lastModified();
 
-    final metadata = _parseMarkdown(
-      markdown,
-    );
+    final metadata = _parseMarkdown(markdown);
 
     return BrainFile(
       topic: metadata.topic,
@@ -282,16 +197,11 @@ class BrainStorage {
     required String topic,
     required String title,
     required String content,
-    required List<
-      BrainConcept
-    >
-    concepts,
+    required List<BrainConcept> concepts,
   }) {
     final savedAt = DateTime.now().toIso8601String();
 
-    final encodedConcepts = _encodeConcepts(
-      concepts,
-    );
+    final encodedConcepts = _encodeConcepts(concepts);
 
     return '''
 ---
@@ -313,158 +223,75 @@ $content
   // LER MARKDOWN
   // =========================================================
 
-  _BrainMarkdownData _parseMarkdown(
-    String markdown,
-  ) {
+  _BrainMarkdownData _parseMarkdown(String markdown) {
     String topic = 'Sem tema';
     String title = 'Sem título';
     String content = markdown.trim();
 
-    List<
-      BrainConcept
-    >
-    concepts = [];
+    List<BrainConcept> concepts = [];
 
-    final frontMatterExpression = RegExp(
-      r'^---\s*\n([\s\S]*?)\n---\s*\n?',
-    );
+    final frontMatterExpression = RegExp(r'^---\s*\n([\s\S]*?)\n---\s*\n?');
 
-    final frontMatterMatch = frontMatterExpression.firstMatch(
-      markdown,
-    );
+    final frontMatterMatch = frontMatterExpression.firstMatch(markdown);
 
-    if (frontMatterMatch !=
-        null) {
-      final metadataText =
-          frontMatterMatch.group(
-            1,
-          ) ??
-          '';
+    if (frontMatterMatch != null) {
+      final metadataText = frontMatterMatch.group(1) ?? '';
 
-      for (final line in metadataText.split(
-        '\n',
-      )) {
-        final separatorIndex = line.indexOf(
-          ':',
-        );
+      for (final line in metadataText.split('\n')) {
+        final separatorIndex = line.indexOf(':');
 
-        if (separatorIndex <=
-            0) {
+        if (separatorIndex <= 0) {
           continue;
         }
 
-        final key = line
-            .substring(
-              0,
-              separatorIndex,
-            )
-            .trim();
+        final key = line.substring(0, separatorIndex).trim();
 
-        final value = line
-            .substring(
-              separatorIndex +
-                  1,
-            )
-            .trim();
+        final value = line.substring(separatorIndex + 1).trim();
 
-        if (key ==
-                'tema' &&
-            value.isNotEmpty) {
+        if (key == 'tema' && value.isNotEmpty) {
           topic = value;
         }
 
-        if (key ==
-                'titulo' &&
-            value.isNotEmpty) {
+        if (key == 'titulo' && value.isNotEmpty) {
           title = value;
         }
 
-        if (key ==
-                'conceitos' &&
-            value.isNotEmpty) {
-          concepts = _decodeConcepts(
-            value,
-          );
+        if (key == 'conceitos' && value.isNotEmpty) {
+          concepts = _decodeConcepts(value);
         }
       }
 
       content = markdown
-          .replaceFirst(
-            frontMatterMatch.group(
-                  0,
-                ) ??
-                '',
-            '',
-          )
+          .replaceFirst(frontMatterMatch.group(0) ?? '', '')
           .trim();
     }
 
-    final titleExpression = RegExp(
-      r'^#\s+(.+)$',
-      multiLine: true,
-    );
+    final titleExpression = RegExp(r'^#\s+(.+)$', multiLine: true);
 
-    final titleMatch = titleExpression.firstMatch(
-      content,
-    );
+    final titleMatch = titleExpression.firstMatch(content);
 
-    if (titleMatch !=
-        null) {
-      final markdownTitle = titleMatch
-          .group(
-            1,
-          )
-          ?.trim();
+    if (titleMatch != null) {
+      final markdownTitle = titleMatch.group(1)?.trim();
 
-      if (markdownTitle !=
-              null &&
-          markdownTitle.isNotEmpty) {
+      if (markdownTitle != null && markdownTitle.isNotEmpty) {
         title = markdownTitle;
       }
 
-      content = content
-          .replaceFirst(
-            titleMatch.group(
-                  0,
-                ) ??
-                '',
-            '',
-          )
-          .trim();
+      content = content.replaceFirst(titleMatch.group(0) ?? '', '').trim();
     }
 
-    final topicExpression = RegExp(
-      r'^\*\*Tema:\*\*\s*(.+)$',
-      multiLine: true,
-    );
+    final topicExpression = RegExp(r'^\*\*Tema:\*\*\s*(.+)$', multiLine: true);
 
-    final topicMatch = topicExpression.firstMatch(
-      content,
-    );
+    final topicMatch = topicExpression.firstMatch(content);
 
-    if (topicMatch !=
-        null) {
-      final markdownTopic = topicMatch
-          .group(
-            1,
-          )
-          ?.trim();
+    if (topicMatch != null) {
+      final markdownTopic = topicMatch.group(1)?.trim();
 
-      if (markdownTopic !=
-              null &&
-          markdownTopic.isNotEmpty) {
+      if (markdownTopic != null && markdownTopic.isNotEmpty) {
         topic = markdownTopic;
       }
 
-      content = content
-          .replaceFirst(
-            topicMatch.group(
-                  0,
-                ) ??
-                '',
-            '',
-          )
-          .trim();
+      content = content.replaceFirst(topicMatch.group(0) ?? '', '').trim();
     }
 
     return _BrainMarkdownData(
@@ -479,106 +306,61 @@ $content
   // CONVERTER CONCEITOS PARA TEXTO
   // =========================================================
 
-  String _encodeConcepts(
-    List<
-      BrainConcept
-    >
-    concepts,
-  ) {
-    final conceptsData = concepts.map(
-      (
-        concept,
-      ) {
-        return {
-          'id': concept.id,
-          'title': concept.title,
-          'description': concept.description,
-          'type': concept.type.name,
-        };
-      },
-    ).toList();
+  String _encodeConcepts(List<BrainConcept> concepts) {
+    final conceptsData = concepts.map((concept) {
+      return {
+        'id': concept.id,
+        'title': concept.title,
+        'description': concept.description,
+        'type': concept.type.name,
+      };
+    }).toList();
 
-    final jsonText = jsonEncode(
-      conceptsData,
-    );
+    final jsonText = jsonEncode(conceptsData);
 
-    final jsonBytes = utf8.encode(
-      jsonText,
-    );
+    final jsonBytes = utf8.encode(jsonText);
 
-    return base64Url.encode(
-      jsonBytes,
-    );
+    return base64Url.encode(jsonBytes);
   }
 
   // =========================================================
   // CONVERTER TEXTO PARA CONCEITOS
   // =========================================================
 
-  List<
-    BrainConcept
-  >
-  _decodeConcepts(
-    String encodedConcepts,
-  ) {
+  List<BrainConcept> _decodeConcepts(String encodedConcepts) {
     try {
-      final normalizedValue = base64Url.normalize(
-        encodedConcepts.trim(),
-      );
+      final normalizedValue = base64Url.normalize(encodedConcepts.trim());
 
-      final decodedBytes = base64Url.decode(
-        normalizedValue,
-      );
+      final decodedBytes = base64Url.decode(normalizedValue);
 
-      final jsonText = utf8.decode(
-        decodedBytes,
-      );
+      final jsonText = utf8.decode(decodedBytes);
 
-      final decodedData = jsonDecode(
-        jsonText,
-      );
+      final decodedData = jsonDecode(jsonText);
 
-      if (decodedData
-          is! List) {
+      if (decodedData is! List) {
         return [];
       }
 
-      final concepts =
-          <
-            BrainConcept
-          >[];
+      final concepts = <BrainConcept>[];
 
       for (final item in decodedData) {
-        if (item
-            is! Map) {
+        if (item is! Map) {
           continue;
         }
 
-        final id =
-            item['id']?.toString().trim() ??
-            '';
+        final id = item['id']?.toString().trim() ?? '';
 
-        final title =
-            item['title']?.toString().trim() ??
-            '';
+        final title = item['title']?.toString().trim() ?? '';
 
-        final description =
-            item['description']?.toString().trim() ??
-            '';
+        final description = item['description']?.toString().trim() ?? '';
 
-        final typeName =
-            item['type']?.toString().trim() ??
-            '';
+        final typeName = item['type']?.toString().trim() ?? '';
 
-        if (id.isEmpty ||
-            title.isEmpty ||
-            description.isEmpty) {
+        if (id.isEmpty || title.isEmpty || description.isEmpty) {
           continue;
         }
 
-        final type =
-            typeName ==
-                BrainConceptType.keep.name
+        final type = typeName == BrainConceptType.keep.name
             ? BrainConceptType.keep
             : BrainConceptType.memorize;
 
@@ -593,9 +375,7 @@ $content
       }
 
       return concepts;
-    } catch (
-      _
-    ) {
+    } catch (_) {
       return [];
     }
   }
@@ -604,9 +384,7 @@ $content
   // NOME SEGURO PARA ARQUIVO
   // =========================================================
 
-  String _sanitizeName(
-    String value,
-  ) {
+  String _sanitizeName(String value) {
     var result = value.trim().toLowerCase();
 
     const replacements = {
@@ -635,37 +413,14 @@ $content
       'ç': 'c',
     };
 
-    replacements.forEach(
-      (
-        character,
-        replacement,
-      ) {
-        result = result.replaceAll(
-          character,
-          replacement,
-        );
-      },
-    );
+    replacements.forEach((character, replacement) {
+      result = result.replaceAll(character, replacement);
+    });
 
     result = result
-        .replaceAll(
-          RegExp(
-            r'[^a-z0-9]+',
-          ),
-          '-',
-        )
-        .replaceAll(
-          RegExp(
-            r'-+',
-          ),
-          '-',
-        )
-        .replaceAll(
-          RegExp(
-            r'^-|-$',
-          ),
-          '',
-        );
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+        .replaceAll(RegExp(r'-+'), '-')
+        .replaceAll(RegExp(r'^-|-$'), '');
 
     if (result.isEmpty) {
       return 'anotacao';
@@ -680,10 +435,7 @@ class _BrainMarkdownData {
   final String title;
   final String content;
 
-  final List<
-    BrainConcept
-  >
-  concepts;
+  final List<BrainConcept> concepts;
 
   const _BrainMarkdownData({
     required this.topic,

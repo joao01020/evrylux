@@ -5,26 +5,18 @@ import '../models/training_plan_model.dart';
 import '../services/training_service.dart';
 import '../states/training_state.dart';
 
-class TrainingLoadController
-    extends
-        ChangeNotifier {
+class TrainingLoadController extends ChangeNotifier {
   final TrainingService service;
 
   final TrainingState state;
 
-  TrainingLoadController({
-    required this.service,
-    required this.state,
-  });
+  TrainingLoadController({required this.service, required this.state});
 
   // =========================================================
   // CARREGAR DADOS DO MÓDULO
   // =========================================================
 
-  Future<
-    bool
-  >
-  load() async {
+  Future<bool> load() async {
     if (state.isLoading) {
       return false;
     }
@@ -39,9 +31,7 @@ class TrainingLoadController
 
       final loadedPlan = await service.getTrainingPlan();
 
-      state.setTrainings(
-        loadedTrainings,
-      );
+      state.setTrainings(loadedTrainings);
 
       final normalizedWeekdays = TrainingDateHelper.normalizeWeekdays(
         loadedPlan.plannedWeekdays,
@@ -49,32 +39,19 @@ class TrainingLoadController
 
       final trainingPlan = normalizedWeekdays.isEmpty
           ? TrainingPlanModel.defaultPlan()
-          : TrainingPlanModel(
-              plannedWeekdays: normalizedWeekdays,
-            );
+          : TrainingPlanModel(plannedWeekdays: normalizedWeekdays);
 
-      state.setPlannedWeekdays(
-        trainingPlan.plannedWeekdays,
-      );
+      state.setPlannedWeekdays(trainingPlan.plannedWeekdays);
 
       _selectCurrentDay();
 
       return true;
-    } catch (
-      error,
-      stackTrace
-    ) {
-      state.setError(
-        'Não foi possível carregar os dados de treino.',
-      );
+    } catch (error, stackTrace) {
+      state.setError('Não foi possível carregar os dados de treino.');
 
-      debugPrint(
-        'Erro carregando dados de treino: $error',
-      );
+      debugPrint('Erro carregando dados de treino: $error');
 
-      debugPrintStack(
-        stackTrace: stackTrace,
-      );
+      debugPrintStack(stackTrace: stackTrace);
 
       return false;
     } finally {
@@ -88,10 +65,7 @@ class TrainingLoadController
   // RECARREGAR APENAS OS TREINOS
   // =========================================================
 
-  Future<
-    bool
-  >
-  reloadTrainings() async {
+  Future<bool> reloadTrainings() async {
     if (state.isLoading) {
       return false;
     }
@@ -104,26 +78,15 @@ class TrainingLoadController
     try {
       final loadedTrainings = await service.getTrainings();
 
-      state.setTrainings(
-        loadedTrainings,
-      );
+      state.setTrainings(loadedTrainings);
 
       return true;
-    } catch (
-      error,
-      stackTrace
-    ) {
-      state.setError(
-        'Não foi possível atualizar os treinos.',
-      );
+    } catch (error, stackTrace) {
+      state.setError('Não foi possível atualizar os treinos.');
 
-      debugPrint(
-        'Erro atualizando treinos: $error',
-      );
+      debugPrint('Erro atualizando treinos: $error');
 
-      debugPrintStack(
-        stackTrace: stackTrace,
-      );
+      debugPrintStack(stackTrace: stackTrace);
 
       return false;
     } finally {
@@ -137,10 +100,7 @@ class TrainingLoadController
   // RECARREGAR APENAS O PLANO
   // =========================================================
 
-  Future<
-    bool
-  >
-  reloadPlan() async {
+  Future<bool> reloadPlan() async {
     if (state.isLoading) {
       return false;
     }
@@ -159,30 +119,17 @@ class TrainingLoadController
 
       final trainingPlan = normalizedWeekdays.isEmpty
           ? TrainingPlanModel.defaultPlan()
-          : TrainingPlanModel(
-              plannedWeekdays: normalizedWeekdays,
-            );
+          : TrainingPlanModel(plannedWeekdays: normalizedWeekdays);
 
-      state.setPlannedWeekdays(
-        trainingPlan.plannedWeekdays,
-      );
+      state.setPlannedWeekdays(trainingPlan.plannedWeekdays);
 
       return true;
-    } catch (
-      error,
-      stackTrace
-    ) {
-      state.setError(
-        'Não foi possível atualizar o plano semanal.',
-      );
+    } catch (error, stackTrace) {
+      state.setError('Não foi possível atualizar o plano semanal.');
 
-      debugPrint(
-        'Erro atualizando plano semanal: $error',
-      );
+      debugPrint('Erro atualizando plano semanal: $error');
 
-      debugPrintStack(
-        stackTrace: stackTrace,
-      );
+      debugPrintStack(stackTrace: stackTrace);
 
       return false;
     } finally {
@@ -197,8 +144,6 @@ class TrainingLoadController
   // =========================================================
 
   void _selectCurrentDay() {
-    state.selectedDay ??= TrainingDateHelper.getDayName(
-      DateTime.now(),
-    );
+    state.selectedDay ??= TrainingDateHelper.getDayName(DateTime.now());
   }
 }

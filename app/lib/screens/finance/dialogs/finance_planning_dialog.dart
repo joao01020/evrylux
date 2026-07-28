@@ -18,10 +18,7 @@ class FinancePlanningResult {
   });
 }
 
-Future<
-  FinancePlanningResult?
->
-showFinancePlanningDialog({
+Future<FinancePlanningResult?> showFinancePlanningDialog({
   required BuildContext context,
   required double invested,
   required double minimumGoal,
@@ -30,27 +27,19 @@ showFinancePlanningDialog({
   required int projectionYears,
 }) async {
   final investedController = TextEditingController(
-    text: invested.toStringAsFixed(
-      2,
-    ),
+    text: invested.toStringAsFixed(2),
   );
 
   final minimumController = TextEditingController(
-    text: minimumGoal.toStringAsFixed(
-      2,
-    ),
+    text: minimumGoal.toStringAsFixed(2),
   );
 
   final mediumController = TextEditingController(
-    text: mediumGoal.toStringAsFixed(
-      2,
-    ),
+    text: mediumGoal.toStringAsFixed(2),
   );
 
   final maximumController = TextEditingController(
-    text: maximumGoal.toStringAsFixed(
-      2,
-    ),
+    text: maximumGoal.toStringAsFixed(2),
   );
 
   final yearsController = TextEditingController(
@@ -58,77 +47,47 @@ showFinancePlanningDialog({
   );
 
   try {
-    return await showDialog<
-      FinancePlanningResult
-    >(
+    return await showDialog<FinancePlanningResult>(
       context: context,
-      builder:
-          (
-            dialogContext,
-          ) {
-            return AlertDialog(
-              title: const Text(
-                'Planejamento financeiro',
-              ),
-              contentPadding: const EdgeInsets.fromLTRB(
-                18,
-                12,
-                18,
-                8,
-              ),
-              content: SizedBox(
-                width: 600,
-                child: SingleChildScrollView(
-                  child: InvestmentForm(
-                    investedController: investedController,
-                    minimumController: minimumController,
-                    mediumController: mediumController,
-                    maximumController: maximumController,
-                    yearsController: yearsController,
-                    onSave: () {
-                      final result = FinancePlanningResult(
-                        invested: _parseMoney(
-                          investedController.text,
-                        ),
-                        minimumGoal: _parseMoney(
-                          minimumController.text,
-                        ),
-                        mediumGoal: _parseMoney(
-                          mediumController.text,
-                        ),
-                        maximumGoal: _parseMoney(
-                          maximumController.text,
-                        ),
-                        projectionYears:
-                            int.tryParse(
-                              yearsController.text.trim(),
-                            ) ??
-                            projectionYears,
-                      );
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Planejamento financeiro'),
+          contentPadding: const EdgeInsets.fromLTRB(18, 12, 18, 8),
+          content: SizedBox(
+            width: 600,
+            child: SingleChildScrollView(
+              child: InvestmentForm(
+                investedController: investedController,
+                minimumController: minimumController,
+                mediumController: mediumController,
+                maximumController: maximumController,
+                yearsController: yearsController,
+                onSave: () {
+                  final result = FinancePlanningResult(
+                    invested: _parseMoney(investedController.text),
+                    minimumGoal: _parseMoney(minimumController.text),
+                    mediumGoal: _parseMoney(mediumController.text),
+                    maximumGoal: _parseMoney(maximumController.text),
+                    projectionYears:
+                        int.tryParse(yearsController.text.trim()) ??
+                        projectionYears,
+                  );
 
-                      Navigator.of(
-                        dialogContext,
-                      ).pop(
-                        result,
-                      );
-                    },
-                  ),
-                ),
+                  Navigator.of(dialogContext).pop(result);
+                },
               ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(
-                      dialogContext,
-                    ).pop();
-                  },
-                  child: const Text(
-                    'Fechar',
-                  ),
-                ),
-              ],
-            );
-          },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+              child: const Text('Fechar'),
+            ),
+          ],
+        );
+      },
     );
   } finally {
     investedController.dispose();
@@ -139,69 +98,30 @@ showFinancePlanningDialog({
   }
 }
 
-double
-_parseMoney(
-  String value,
-) {
-  var normalized = value
-      .trim()
-      .replaceAll(
-        'R\$',
-        '',
-      )
-      .replaceAll(
-        ' ',
-        '',
-      );
+double _parseMoney(String value) {
+  var normalized = value.trim().replaceAll('R\$', '').replaceAll(' ', '');
 
   if (normalized.isEmpty) {
     return 0;
   }
 
-  final hasComma = normalized.contains(
-    ',',
-  );
+  final hasComma = normalized.contains(',');
 
-  final hasDot = normalized.contains(
-    '.',
-  );
+  final hasDot = normalized.contains('.');
 
-  if (hasComma &&
-      hasDot) {
-    final lastComma = normalized.lastIndexOf(
-      ',',
-    );
+  if (hasComma && hasDot) {
+    final lastComma = normalized.lastIndexOf(',');
 
-    final lastDot = normalized.lastIndexOf(
-      '.',
-    );
+    final lastDot = normalized.lastIndexOf('.');
 
-    if (lastComma >
-        lastDot) {
-      normalized = normalized
-          .replaceAll(
-            '.',
-            '',
-          )
-          .replaceAll(
-            ',',
-            '.',
-          );
+    if (lastComma > lastDot) {
+      normalized = normalized.replaceAll('.', '').replaceAll(',', '.');
     } else {
-      normalized = normalized.replaceAll(
-        ',',
-        '',
-      );
+      normalized = normalized.replaceAll(',', '');
     }
   } else if (hasComma) {
-    normalized = normalized.replaceAll(
-      ',',
-      '.',
-    );
+    normalized = normalized.replaceAll(',', '.');
   }
 
-  return double.tryParse(
-        normalized,
-      ) ??
-      0;
+  return double.tryParse(normalized) ?? 0;
 }

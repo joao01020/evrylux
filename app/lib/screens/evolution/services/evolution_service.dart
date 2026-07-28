@@ -1,5 +1,5 @@
-import '../../screens/evolution/models/evolution_model.dart';
-import '../../data/evolution/evolution_repository.dart';
+import '../models/evolution_model.dart';
+import '../../../data/evolution/evolution_repository.dart';
 
 /* repository.loadHistory()
 

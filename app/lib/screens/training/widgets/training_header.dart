@@ -2,20 +2,13 @@ import 'package:flutter/material.dart';
 
 import 'streak_card.dart';
 
-class TrainingHeader
-    extends
-        StatelessWidget {
-  const TrainingHeader({
-    super.key,
-    required this.streak,
-  });
+class TrainingHeader extends StatelessWidget {
+  const TrainingHeader({super.key, required this.streak});
 
   final int streak;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
 
@@ -24,19 +17,13 @@ class TrainingHeader
           child: Text(
             "Escolha sua atividade de hoje e mantenha sua evolução.",
 
-            style: TextStyle(
-              fontSize: 16,
-            ),
+            style: TextStyle(fontSize: 16),
           ),
         ),
 
-        const SizedBox(
-          width: 12,
-        ),
+        const SizedBox(width: 12),
 
-        StreakCard(
-          streak: streak,
-        ),
+        StreakCard(streak: streak),
       ],
     );
   }

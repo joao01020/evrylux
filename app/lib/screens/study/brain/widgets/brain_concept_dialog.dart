@@ -2,28 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../models/brain_concept.dart';
 
-class BrainConceptDialog
-    extends
-        StatefulWidget {
-  const BrainConceptDialog({
-    super.key,
-    this.initialConcept,
-  });
+class BrainConceptDialog extends StatefulWidget {
+  const BrainConceptDialog({super.key, this.initialConcept});
 
   final BrainConcept? initialConcept;
 
   @override
-  State<
-    BrainConceptDialog
-  >
-  createState() => _BrainConceptDialogState();
+  State<BrainConceptDialog> createState() => _BrainConceptDialogState();
 }
 
-class _BrainConceptDialogState
-    extends
-        State<
-          BrainConceptDialog
-        > {
+class _BrainConceptDialogState extends State<BrainConceptDialog> {
   late final TextEditingController _titleController;
 
   late final TextEditingController _descriptionController;
@@ -35,20 +23,14 @@ class _BrainConceptDialogState
     super.initState();
 
     _titleController = TextEditingController(
-      text:
-          widget.initialConcept?.title ??
-          '',
+      text: widget.initialConcept?.title ?? '',
     );
 
     _descriptionController = TextEditingController(
-      text:
-          widget.initialConcept?.description ??
-          '',
+      text: widget.initialConcept?.description ?? '',
     );
 
-    _type =
-        widget.initialConcept?.type ??
-        BrainConceptType.memorize;
+    _type = widget.initialConcept?.type ?? BrainConceptType.memorize;
   }
 
   @override
@@ -67,13 +49,7 @@ class _BrainConceptDialogState
     if (title.isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Informe o conceito.',
-          ),
-        ),
-      );
+      ).showSnackBar(const SnackBar(content: Text('Informe o conceito.')));
 
       return;
     }
@@ -81,13 +57,7 @@ class _BrainConceptDialogState
     if (description.isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Explique o conceito.',
-          ),
-        ),
-      );
+      ).showSnackBar(const SnackBar(content: Text('Explique o conceito.')));
 
       return;
     }
@@ -106,13 +76,10 @@ class _BrainConceptDialogState
   }
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return AlertDialog(
       title: Text(
-        widget.initialConcept ==
-                null
+        widget.initialConcept == null
             ? 'Novo conhecimento'
             : 'Editar conhecimento',
       ),
@@ -132,9 +99,7 @@ class _BrainConceptDialogState
                 ),
               ),
 
-              const SizedBox(
-                height: 16,
-              ),
+              const SizedBox(height: 16),
 
               TextField(
                 controller: _descriptionController,
@@ -148,111 +113,64 @@ class _BrainConceptDialogState
                 ),
               ),
 
-              const SizedBox(
-                height: 24,
-              ),
+              const SizedBox(height: 24),
 
-              Text(
-                'Objetivo',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium,
-              ),
+              Text('Objetivo', style: Theme.of(context).textTheme.titleMedium),
 
-              const SizedBox(
-                height: 12,
-              ),
+              const SizedBox(height: 12),
 
               Wrap(
                 spacing: 12,
                 runSpacing: 12,
                 children: [
                   ChoiceChip(
-                    avatar: const Icon(
-                      Icons.bookmark_outline,
-                      size: 18,
-                    ),
-                    label: const Text(
-                      'Guardar',
-                    ),
-                    selected:
-                        _type ==
-                        BrainConceptType.keep,
-                    onSelected:
-                        (
-                          _,
-                        ) {
-                          setState(
-                            () {
-                              _type = BrainConceptType.keep;
-                            },
-                          );
-                        },
+                    avatar: const Icon(Icons.bookmark_outline, size: 18),
+                    label: const Text('Guardar'),
+                    selected: _type == BrainConceptType.keep,
+                    onSelected: (_) {
+                      setState(() {
+                        _type = BrainConceptType.keep;
+                      });
+                    },
                   ),
 
                   ChoiceChip(
-                    avatar: const Icon(
-                      Icons.psychology_alt_outlined,
-                      size: 18,
-                    ),
-                    label: const Text(
-                      'Memorizar',
-                    ),
-                    selected:
-                        _type ==
-                        BrainConceptType.memorize,
-                    onSelected:
-                        (
-                          _,
-                        ) {
-                          setState(
-                            () {
-                              _type = BrainConceptType.memorize;
-                            },
-                          );
-                        },
+                    avatar: const Icon(Icons.psychology_alt_outlined, size: 18),
+                    label: const Text('Memorizar'),
+                    selected: _type == BrainConceptType.memorize,
+                    onSelected: (_) {
+                      setState(() {
+                        _type = BrainConceptType.memorize;
+                      });
+                    },
                   ),
                 ],
               ),
 
-              const SizedBox(
-                height: 18,
-              ),
+              const SizedBox(height: 18),
 
               AnimatedContainer(
-                duration: const Duration(
-                  milliseconds: 250,
-                ),
+                duration: const Duration(milliseconds: 250),
                 width: double.infinity,
-                padding: const EdgeInsets.all(
-                  14,
-                ),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(
-                    12,
-                  ),
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Icon(
-                      _type ==
-                              BrainConceptType.memorize
+                      _type == BrainConceptType.memorize
                           ? Icons.psychology
                           : Icons.bookmark_outline,
                     ),
 
-                    const SizedBox(
-                      width: 12,
-                    ),
+                    const SizedBox(width: 12),
 
                     Expanded(
                       child: Text(
-                        _type ==
-                                BrainConceptType.memorize
+                        _type == BrainConceptType.memorize
                             ? 'Este conhecimento será incluído no sistema de revisões espaçadas e poderá gerar perguntas automaticamente no futuro.'
                             : 'Este conhecimento ficará salvo apenas como referência para consultas futuras.',
                       ),
@@ -267,22 +185,14 @@ class _BrainConceptDialogState
       actions: [
         TextButton(
           onPressed: () {
-            Navigator.pop(
-              context,
-            );
+            Navigator.pop(context);
           },
-          child: const Text(
-            'Cancelar',
-          ),
+          child: const Text('Cancelar'),
         ),
         FilledButton.icon(
           onPressed: _save,
-          icon: const Icon(
-            Icons.save_outlined,
-          ),
-          label: const Text(
-            'Salvar',
-          ),
+          icon: const Icon(Icons.save_outlined),
+          label: const Text('Salvar'),
         ),
       ],
     );

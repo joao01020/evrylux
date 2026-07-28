@@ -4,24 +4,13 @@ import '../models/brain_file.dart';
 import 'brain_empty_notes.dart';
 import 'brain_note_card.dart';
 
-class BrainSidebar
-    extends
-        StatelessWidget {
-  final List<
-    BrainFile
-  >
-  notes;
+class BrainSidebar extends StatelessWidget {
+  final List<BrainFile> notes;
   final BrainFile? selectedNote;
 
   final VoidCallback onCreateNote;
-  final ValueChanged<
-    BrainFile
-  >
-  onOpenNote;
-  final ValueChanged<
-    BrainFile
-  >
-  onDeleteNote;
+  final ValueChanged<BrainFile> onOpenNote;
+  final ValueChanged<BrainFile> onDeleteNote;
 
   const BrainSidebar({
     super.key,
@@ -33,75 +22,52 @@ class BrainSidebar
   });
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.all(
-            16,
-          ),
+          padding: const EdgeInsets.all(16),
           child: SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
               onPressed: onCreateNote,
-              icon: const Icon(
-                Icons.add,
-              ),
-              label: const Text(
-                'Nova anotação',
-              ),
+              icon: const Icon(Icons.add),
+              label: const Text('Nova anotação'),
             ),
           ),
         ),
-        const Divider(
-          height: 1,
-        ),
+        const Divider(height: 1),
         Expanded(
           child: notes.isEmpty
               ? const Center(
                   child: Padding(
-                    padding: EdgeInsets.all(
-                      20,
-                    ),
+                    padding: EdgeInsets.all(20),
                     child: BrainEmptyNotes(
                       title: 'Nenhuma anotação salva.',
-                      description: 'Crie uma nova anotação para ela aparecer aqui.',
+                      description:
+                          'Crie uma nova anotação para ela aparecer aqui.',
                     ),
                   ),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.all(
-                    12,
-                  ),
+                  padding: const EdgeInsets.all(12),
                   itemCount: notes.length,
-                  itemBuilder:
-                      (
-                        context,
-                        index,
-                      ) {
-                        final note = notes[index];
+                  itemBuilder: (context, index) {
+                    final note = notes[index];
 
-                        final isSelected =
-                            selectedNote?.path ==
-                            note.path;
+                    final isSelected = selectedNote?.path == note.path;
 
-                        return BrainNoteCard(
-                          note: note,
-                          isSelected: isSelected,
-                          onOpen: () {
-                            onOpenNote(
-                              note,
-                            );
-                          },
-                          onDelete: () {
-                            onDeleteNote(
-                              note,
-                            );
-                          },
-                        );
+                    return BrainNoteCard(
+                      note: note,
+                      isSelected: isSelected,
+                      onOpen: () {
+                        onOpenNote(note);
                       },
+                      onDelete: () {
+                        onDeleteNote(note);
+                      },
+                    );
+                  },
                 ),
         ),
       ],

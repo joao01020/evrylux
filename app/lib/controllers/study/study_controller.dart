@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../data/study/study_repository.dart';
+import '../../screens/study/data/repository/study_repository.dart';
 import '../../models/study/study_model.dart';
-import '../../services/study/study_service.dart';
+import '../../screens/study/brain/services/study_service.dart';
 
 class StudyController
     extends

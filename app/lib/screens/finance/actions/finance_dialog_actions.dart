@@ -27,10 +27,7 @@ class FinanceDialogActions {
   final FinanceScreenController controller;
   final VoidCallback refresh;
   final bool Function() isMounted;
-  final ValueChanged<
-    String
-  >
-  showMessage;
+  final ValueChanged<String> showMessage;
 
   const FinanceDialogActions({
     required this.context,
@@ -40,24 +37,12 @@ class FinanceDialogActions {
     required this.showMessage,
   });
 
-  Future<
-    void
-  >
-  openCrypto(
-    String symbol,
-  ) async {
-    await showDialog<
-      void
-    >(
+  Future<void> openCrypto(String symbol) async {
+    await showDialog<void>(
       context: context,
-      builder:
-          (
-            _,
-          ) {
-            return CryptoDialog(
-              symbol: symbol,
-            );
-          },
+      builder: (_) {
+        return CryptoDialog(symbol: symbol);
+      },
     );
 
     if (!isMounted()) {
@@ -70,13 +55,9 @@ class FinanceDialogActions {
       if (isMounted()) {
         refresh();
       }
-    } catch (
-      _
-    ) {
+    } catch (_) {
       if (isMounted()) {
-        showMessage(
-          'Não foi possível atualizar os saldos das criptomoedas.',
-        );
+        showMessage('Não foi possível atualizar os saldos das criptomoedas.');
       }
     }
   }
@@ -84,28 +65,20 @@ class FinanceDialogActions {
   void openCryptoBalance() {
     final balances = controller.balances;
 
-    showDialog<
-      void
-    >(
+    showDialog<void>(
       context: context,
-      builder:
-          (
-            _,
-          ) {
-            return CryptoBalanceDialog(
-              bitcoin: balances.bitcoin,
-              ethereum: balances.ethereum,
-              solana: balances.solana,
-              usdt: balances.usdt,
-            );
-          },
+      builder: (_) {
+        return CryptoBalanceDialog(
+          bitcoin: balances.bitcoin,
+          ethereum: balances.ethereum,
+          solana: balances.solana,
+          usdt: balances.usdt,
+        );
+      },
     );
   }
 
-  Future<
-    void
-  >
-  openPlanning() async {
+  Future<void> openPlanning() async {
     final model = controller.model;
 
     final result = await showFinancePlanningDialog(
@@ -117,23 +90,17 @@ class FinanceDialogActions {
       projectionYears: model.projectionYears,
     );
 
-    if (result ==
-            null ||
-        !isMounted()) {
+    if (result == null || !isMounted()) {
       return;
     }
 
-    controller.applyPlanning(
-      result,
-    );
+    controller.applyPlanning(result);
 
     refresh();
 
     try {
       await controller.saveModel();
-    } catch (
-      _
-    ) {
+    } catch (_) {
       if (isMounted()) {
         showMessage(
           'O planejamento foi alterado, mas ocorreu um erro ao salvar.',
@@ -144,16 +111,11 @@ class FinanceDialogActions {
     }
 
     if (isMounted()) {
-      showMessage(
-        'Planejamento salvo.',
-      );
+      showMessage('Planejamento salvo.');
     }
   }
 
-  Future<
-    void
-  >
-  editPatrimony() {
+  Future<void> editPatrimony() {
     return _editValue(
       title: 'Editar patrimônio',
       label: 'Patrimônio atual',
@@ -162,10 +124,7 @@ class FinanceDialogActions {
     );
   }
 
-  Future<
-    void
-  >
-  editInvestmentGoal() {
+  Future<void> editInvestmentGoal() {
     return _editValue(
       title: 'Editar objetivo financeiro',
       label: 'Objetivo final',
@@ -174,17 +133,11 @@ class FinanceDialogActions {
     );
   }
 
-  Future<
-    void
-  >
-  _editValue({
+  Future<void> _editValue({
     required String title,
     required String label,
     required double currentValue,
-    required ValueChanged<
-      double
-    >
-    update,
+    required ValueChanged<double> update,
   }) async {
     final value = await showEditFinanceValueDialog(
       context: context,
@@ -193,42 +146,30 @@ class FinanceDialogActions {
       currentValue: currentValue,
     );
 
-    if (value ==
-            null ||
-        !isMounted()) {
+    if (value == null || !isMounted()) {
       return;
     }
 
-    update(
-      value,
-    );
+    update(value);
 
     refresh();
 
     try {
       await controller.saveModel();
-    } catch (
-      _
-    ) {
+    } catch (_) {
       if (isMounted()) {
-        showMessage(
-          'O valor foi alterado, mas ocorreu um erro ao salvar.',
-        );
+        showMessage('O valor foi alterado, mas ocorreu um erro ao salvar.');
       }
 
       return;
     }
 
     if (isMounted()) {
-      showMessage(
-        'Valor atualizado.',
-      );
+      showMessage('Valor atualizado.');
     }
   }
 
-  void showHistoryItem(
-    InvestmentHistory item,
-  ) {
+  void showHistoryItem(InvestmentHistory item) {
     showMessage(
       '${FinanceScreenFormatter.currency(item.safeValue)} • '
       '${item.normalizedRhythm}',

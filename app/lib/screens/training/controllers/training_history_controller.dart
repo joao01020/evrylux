@@ -5,26 +5,18 @@ import '../models/training_model.dart';
 import '../services/training_service.dart';
 import '../states/training_state.dart';
 
-class TrainingHistoryController
-    extends
-        ChangeNotifier {
+class TrainingHistoryController extends ChangeNotifier {
   final TrainingService service;
 
   final TrainingState state;
 
-  TrainingHistoryController({
-    required this.service,
-    required this.state,
-  });
+  TrainingHistoryController({required this.service, required this.state});
 
   // =========================================================
   // HISTÓRICO FORMATADO
   // =========================================================
 
-  List<
-    String
-  >
-  get history {
+  List<String> get history {
     return state.history;
   }
 
@@ -32,10 +24,7 @@ class TrainingHistoryController
   // TREINOS COMPLETOS
   // =========================================================
 
-  List<
-    TrainingModel
-  >
-  get trainings {
+  List<TrainingModel> get trainings {
     return state.trainings;
   }
 
@@ -60,37 +49,18 @@ class TrainingHistoryController
   // =========================================================
 
   void rebuildHistory() {
-    final orderedTrainings =
-        List<
-          TrainingModel
-        >.from(
-          state.trainings,
-        );
+    final orderedTrainings = List<TrainingModel>.from(state.trainings);
 
-    orderedTrainings.sort(
-      (
-        first,
-        second,
-      ) {
-        return second.date.compareTo(
-          first.date,
-        );
-      },
-    );
+    orderedTrainings.sort((first, second) {
+      return second.date.compareTo(first.date);
+    });
 
-    final formattedHistory =
-        <
-          String
-        >[];
+    final formattedHistory = <String>[];
 
     for (final training in orderedTrainings) {
-      final formattedDate = TrainingDateHelper.formatDate(
-        training.date,
-      );
+      final formattedDate = TrainingDateHelper.formatDate(training.date);
 
-      final timeText =
-          training.minutes >
-              0
+      final timeText = training.minutes > 0
           ? '${training.minutes} min'
           : 'sem cronômetro';
 
@@ -101,9 +71,7 @@ class TrainingHistoryController
       );
     }
 
-    state.setHistory(
-      formattedHistory,
-    );
+    state.setHistory(formattedHistory);
 
     notifyListeners();
   }
@@ -112,27 +80,15 @@ class TrainingHistoryController
   // CARREGAR HISTÓRICO DO SERVICE
   // =========================================================
 
-  Future<
-    List<
-      TrainingModel
-    >
-  >
-  loadHistory() async {
+  Future<List<TrainingModel>> loadHistory() async {
     try {
       final loadedTrainings = await service.getTrainings();
 
       return loadedTrainings;
-    } catch (
-      error,
-      stackTrace
-    ) {
-      debugPrint(
-        'Erro carregando histórico: $error',
-      );
+    } catch (error, stackTrace) {
+      debugPrint('Erro carregando histórico: $error');
 
-      debugPrintStack(
-        stackTrace: stackTrace,
-      );
+      debugPrintStack(stackTrace: stackTrace);
 
       return [];
     }
@@ -142,35 +98,21 @@ class TrainingHistoryController
   // ATUALIZAR HISTÓRICO COMPLETO
   // =========================================================
 
-  Future<
-    bool
-  >
-  refreshHistory() async {
+  Future<bool> refreshHistory() async {
     try {
       final loadedTrainings = await service.getTrainings();
 
-      state.setTrainings(
-        loadedTrainings,
-      );
+      state.setTrainings(loadedTrainings);
 
       rebuildHistory();
 
       return true;
-    } catch (
-      error,
-      stackTrace
-    ) {
-      state.setError(
-        'Não foi possível atualizar o histórico.',
-      );
+    } catch (error, stackTrace) {
+      state.setError('Não foi possível atualizar o histórico.');
 
-      debugPrint(
-        'Erro atualizando histórico: $error',
-      );
+      debugPrint('Erro atualizando histórico: $error');
 
-      debugPrintStack(
-        stackTrace: stackTrace,
-      );
+      debugPrintStack(stackTrace: stackTrace);
 
       notifyListeners();
 
@@ -182,33 +124,14 @@ class TrainingHistoryController
   // BUSCAR TREINOS POR DIA
   // =========================================================
 
-  List<
-    TrainingModel
-  >
-  getDayTrainings(
-    DateTime date,
-  ) {
-    final result = state.trainings.where(
-      (
-        training,
-      ) {
-        return TrainingDateHelper.isSameDay(
-          training.date,
-          date,
-        );
-      },
-    ).toList();
+  List<TrainingModel> getDayTrainings(DateTime date) {
+    final result = state.trainings.where((training) {
+      return TrainingDateHelper.isSameDay(training.date, date);
+    }).toList();
 
-    result.sort(
-      (
-        first,
-        second,
-      ) {
-        return first.date.compareTo(
-          second.date,
-        );
-      },
-    );
+    result.sort((first, second) {
+      return first.date.compareTo(second.date);
+    });
 
     return result;
   }
@@ -217,52 +140,27 @@ class TrainingHistoryController
   // BUSCAR TREINOS POR PERÍODO
   // =========================================================
 
-  List<
-    TrainingModel
-  >
-  getTrainingsByPeriod({
+  List<TrainingModel> getTrainingsByPeriod({
     required DateTime start,
     required DateTime end,
   }) {
-    final normalizedStart = TrainingDateHelper.normalize(
-      start,
-    );
+    final normalizedStart = TrainingDateHelper.normalize(start);
 
-    final normalizedEnd = TrainingDateHelper.normalize(
-      end,
-    );
+    final normalizedEnd = TrainingDateHelper.normalize(end);
 
-    final result = state.trainings.where(
-      (
-        training,
-      ) {
-        final trainingDate = TrainingDateHelper.normalize(
-          training.date,
-        );
+    final result = state.trainings.where((training) {
+      final trainingDate = TrainingDateHelper.normalize(training.date);
 
-        final isBeforeStart = trainingDate.isBefore(
-          normalizedStart,
-        );
+      final isBeforeStart = trainingDate.isBefore(normalizedStart);
 
-        final isAfterEnd = trainingDate.isAfter(
-          normalizedEnd,
-        );
+      final isAfterEnd = trainingDate.isAfter(normalizedEnd);
 
-        return !isBeforeStart &&
-            !isAfterEnd;
-      },
-    ).toList();
+      return !isBeforeStart && !isAfterEnd;
+    }).toList();
 
-    result.sort(
-      (
-        first,
-        second,
-      ) {
-        return first.date.compareTo(
-          second.date,
-        );
-      },
-    );
+    result.sort((first, second) {
+      return first.date.compareTo(second.date);
+    });
 
     return result;
   }
@@ -271,85 +169,48 @@ class TrainingHistoryController
   // BUSCAR TREINOS DA SEMANA ATUAL
   // =========================================================
 
-  List<
-    TrainingModel
-  >
-  get currentWeekTrainings {
+  List<TrainingModel> get currentWeekTrainings {
     final now = DateTime.now();
 
-    final startOfWeek = TrainingDateHelper.startOfWeek(
-      now,
-    );
+    final startOfWeek = TrainingDateHelper.startOfWeek(now);
 
-    final endOfWeek = TrainingDateHelper.endOfWeek(
-      now,
-    );
+    final endOfWeek = TrainingDateHelper.endOfWeek(now);
 
-    return getTrainingsByPeriod(
-      start: startOfWeek,
-      end: endOfWeek,
-    );
+    return getTrainingsByPeriod(start: startOfWeek, end: endOfWeek);
   }
 
   // =========================================================
   // BUSCAR TREINOS DO MÊS ATUAL
   // =========================================================
 
-  List<
-    TrainingModel
-  >
-  get currentMonthTrainings {
+  List<TrainingModel> get currentMonthTrainings {
     final now = DateTime.now();
 
-    final startOfMonth = TrainingDateHelper.startOfMonth(
-      now,
-    );
+    final startOfMonth = TrainingDateHelper.startOfMonth(now);
 
-    final endOfMonth = TrainingDateHelper.endOfMonth(
-      now,
-    );
+    final endOfMonth = TrainingDateHelper.endOfMonth(now);
 
-    return getTrainingsByPeriod(
-      start: startOfMonth,
-      end: endOfMonth,
-    );
+    return getTrainingsByPeriod(start: startOfMonth, end: endOfMonth);
   }
 
   // =========================================================
   // BUSCAR TREINOS POR ATIVIDADE
   // =========================================================
 
-  List<
-    TrainingModel
-  >
-  getTrainingsByActivity(
-    String activity,
-  ) {
+  List<TrainingModel> getTrainingsByActivity(String activity) {
     final normalizedActivity = activity.trim();
 
     if (normalizedActivity.isEmpty) {
       return [];
     }
 
-    final result = state.trainings.where(
-      (
-        training,
-      ) {
-        return training.training ==
-            normalizedActivity;
-      },
-    ).toList();
+    final result = state.trainings.where((training) {
+      return training.training == normalizedActivity;
+    }).toList();
 
-    result.sort(
-      (
-        first,
-        second,
-      ) {
-        return second.date.compareTo(
-          first.date,
-        );
-      },
-    );
+    result.sort((first, second) {
+      return second.date.compareTo(first.date);
+    });
 
     return result;
   }
@@ -363,23 +224,11 @@ class TrainingHistoryController
       return null;
     }
 
-    final orderedTrainings =
-        List<
-          TrainingModel
-        >.from(
-          state.trainings,
-        );
+    final orderedTrainings = List<TrainingModel>.from(state.trainings);
 
-    orderedTrainings.sort(
-      (
-        first,
-        second,
-      ) {
-        return second.date.compareTo(
-          first.date,
-        );
-      },
-    );
+    orderedTrainings.sort((first, second) {
+      return second.date.compareTo(first.date);
+    });
 
     return orderedTrainings.first;
   }
@@ -393,23 +242,11 @@ class TrainingHistoryController
       return null;
     }
 
-    final orderedTrainings =
-        List<
-          TrainingModel
-        >.from(
-          state.trainings,
-        );
+    final orderedTrainings = List<TrainingModel>.from(state.trainings);
 
-    orderedTrainings.sort(
-      (
-        first,
-        second,
-      ) {
-        return first.date.compareTo(
-          second.date,
-        );
-      },
-    );
+    orderedTrainings.sort((first, second) {
+      return first.date.compareTo(second.date);
+    });
 
     return orderedTrainings.first;
   }

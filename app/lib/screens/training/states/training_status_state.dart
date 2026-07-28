@@ -7,25 +7,19 @@ mixin TrainingStatusState {
   String? successMessage;
 
   bool get hasError {
-    return errorMessage?.isNotEmpty ??
-        false;
+    return errorMessage?.isNotEmpty ?? false;
   }
 
   bool get hasSuccess {
-    return successMessage?.isNotEmpty ??
-        false;
+    return successMessage?.isNotEmpty ?? false;
   }
 
-  void setError(
-    String message,
-  ) {
+  void setError(String message) {
     errorMessage = message;
     successMessage = null;
   }
 
-  void setSuccess(
-    String message,
-  ) {
+  void setSuccess(String message) {
     successMessage = message;
     errorMessage = null;
   }

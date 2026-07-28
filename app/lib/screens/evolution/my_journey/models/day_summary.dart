@@ -1,10 +1,7 @@
 class DaySummary {
   final String date;
 
-  final List<
-    String
-  >
-  notes;
+  final List<String> notes;
 
   final int workouts;
 

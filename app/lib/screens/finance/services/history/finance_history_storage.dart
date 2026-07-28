@@ -13,38 +13,19 @@ class FinanceHistoryStorage {
   // SALVAR HISTÓRICO
   // =========================================================
 
-  Future<
-    void
-  >
-  save(
-    List<
-      InvestmentHistory
-    >
-    history,
-  ) async {
+  Future<void> save(List<InvestmentHistory> history) async {
     final preferences = await SharedPreferences.getInstance();
 
-    final jsonHistory = history.map(
-      (
-        item,
-      ) {
-        return item.toJson();
-      },
-    ).toList();
+    final jsonHistory = history.map((item) {
+      return item.toJson();
+    }).toList();
 
-    final encodedHistory = jsonEncode(
-      jsonHistory,
-    );
+    final encodedHistory = jsonEncode(jsonHistory);
 
-    final saved = await preferences.setString(
-      _storageKey,
-      encodedHistory,
-    );
+    final saved = await preferences.setString(_storageKey, encodedHistory);
 
     if (!saved) {
-      throw Exception(
-        'Não foi possível salvar o histórico financeiro.',
-      );
+      throw Exception('Não foi possível salvar o histórico financeiro.');
     }
   }
 
@@ -52,70 +33,40 @@ class FinanceHistoryStorage {
   // CARREGAR HISTÓRICO
   // =========================================================
 
-  Future<
-    List<
-      InvestmentHistory
-    >
-  >
-  load() async {
+  Future<List<InvestmentHistory>> load() async {
     final preferences = await SharedPreferences.getInstance();
 
-    final encodedHistory = preferences.getString(
-      _storageKey,
-    );
+    final encodedHistory = preferences.getString(_storageKey);
 
-    if (encodedHistory ==
-            null ||
-        encodedHistory.trim().isEmpty) {
+    if (encodedHistory == null || encodedHistory.trim().isEmpty) {
       return [];
     }
 
     try {
-      final decodedHistory = jsonDecode(
-        encodedHistory,
-      );
+      final decodedHistory = jsonDecode(encodedHistory);
 
-      if (decodedHistory
-          is! List) {
+      if (decodedHistory is! List) {
         return [];
       }
 
-      final history =
-          <
-            InvestmentHistory
-          >[];
+      final history = <InvestmentHistory>[];
 
       for (final item in decodedHistory) {
-        if (item
-            is! Map) {
+        if (item is! Map) {
           continue;
         }
 
-        final json =
-            Map<
-              String,
-              dynamic
-            >.from(
-              item,
-            );
+        final json = Map<String, dynamic>.from(item);
 
-        history.add(
-          InvestmentHistory.fromJson(
-            json,
-          ),
-        );
+        history.add(InvestmentHistory.fromJson(json));
       }
 
-      _sortByDate(
-        history,
-      );
+      _sortByDate(history);
 
       return history;
     } on FormatException {
       return [];
-    } catch (
-      _
-    ) {
+    } catch (_) {
       return [];
     }
   }
@@ -124,27 +75,14 @@ class FinanceHistoryStorage {
   // ADICIONAR APORTE
   // =========================================================
 
-  Future<
-    List<
-      InvestmentHistory
-    >
-  >
-  add(
-    InvestmentHistory contribution,
-  ) async {
+  Future<List<InvestmentHistory>> add(InvestmentHistory contribution) async {
     final history = await load();
 
-    history.add(
-      contribution,
-    );
+    history.add(contribution);
 
-    _sortByDate(
-      history,
-    );
+    _sortByDate(history);
 
-    await save(
-      history,
-    );
+    await save(history);
 
     return history;
   }
@@ -153,23 +91,12 @@ class FinanceHistoryStorage {
   // REMOVER APORTE
   // =========================================================
 
-  Future<
-    List<
-      InvestmentHistory
-    >
-  >
-  remove(
-    InvestmentHistory contribution,
-  ) async {
+  Future<List<InvestmentHistory>> remove(InvestmentHistory contribution) async {
     final history = await load();
 
-    history.remove(
-      contribution,
-    );
+    history.remove(contribution);
 
-    await save(
-      history,
-    );
+    await save(history);
 
     return history;
   }
@@ -178,10 +105,7 @@ class FinanceHistoryStorage {
   // ÚLTIMO APORTE
   // =========================================================
 
-  Future<
-    InvestmentHistory?
-  >
-  loadLatest() async {
+  Future<InvestmentHistory?> loadLatest() async {
     final history = await load();
 
     if (history.isEmpty) {
@@ -195,31 +119,14 @@ class FinanceHistoryStorage {
   // SUBSTITUIR HISTÓRICO
   // =========================================================
 
-  Future<
-    List<
-      InvestmentHistory
-    >
-  >
-  replace(
-    List<
-      InvestmentHistory
-    >
-    history,
+  Future<List<InvestmentHistory>> replace(
+    List<InvestmentHistory> history,
   ) async {
-    final updatedHistory =
-        List<
-          InvestmentHistory
-        >.from(
-          history,
-        );
+    final updatedHistory = List<InvestmentHistory>.from(history);
 
-    _sortByDate(
-      updatedHistory,
-    );
+    _sortByDate(updatedHistory);
 
-    await save(
-      updatedHistory,
-    );
+    await save(updatedHistory);
 
     return updatedHistory;
   }
@@ -228,25 +135,16 @@ class FinanceHistoryStorage {
   // LIMPAR HISTÓRICO
   // =========================================================
 
-  Future<
-    void
-  >
-  clear() async {
+  Future<void> clear() async {
     final preferences = await SharedPreferences.getInstance();
 
-    final removed = await preferences.remove(
-      _storageKey,
-    );
+    final removed = await preferences.remove(_storageKey);
 
     if (!removed) {
-      final stillExists = preferences.containsKey(
-        _storageKey,
-      );
+      final stillExists = preferences.containsKey(_storageKey);
 
       if (stillExists) {
-        throw Exception(
-          'Não foi possível limpar o histórico financeiro.',
-        );
+        throw Exception('Não foi possível limpar o histórico financeiro.');
       }
     }
   }
@@ -255,19 +153,13 @@ class FinanceHistoryStorage {
   // VERIFICAÇÕES
   // =========================================================
 
-  Future<
-    bool
-  >
-  hasHistory() async {
+  Future<bool> hasHistory() async {
     final history = await load();
 
     return history.isNotEmpty;
   }
 
-  Future<
-    int
-  >
-  count() async {
+  Future<int> count() async {
     final history = await load();
 
     return history.length;
@@ -277,21 +169,9 @@ class FinanceHistoryStorage {
   // ORDENAÇÃO
   // =========================================================
 
-  void _sortByDate(
-    List<
-      InvestmentHistory
-    >
-    history,
-  ) {
-    history.sort(
-      (
-        first,
-        second,
-      ) {
-        return first.date.compareTo(
-          second.date,
-        );
-      },
-    );
+  void _sortByDate(List<InvestmentHistory> history) {
+    history.sort((first, second) {
+      return first.date.compareTo(second.date);
+    });
   }
 }

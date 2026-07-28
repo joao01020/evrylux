@@ -18,10 +18,7 @@ class FinanceContributionActions {
   final FinanceScreenController controller;
   final VoidCallback refresh;
   final bool Function() isMounted;
-  final ValueChanged<
-    String
-  >
-  showMessage;
+  final ValueChanged<String> showMessage;
 
   const FinanceContributionActions({
     required this.context,
@@ -31,23 +28,14 @@ class FinanceContributionActions {
     required this.showMessage,
   });
 
-  Future<
-    void
-  >
-  openContribution() async {
-    final contribution = await showContributionDialog(
-      context: context,
-    );
+  Future<void> openContribution() async {
+    final contribution = await showContributionDialog(context: context);
 
-    if (contribution ==
-            null ||
-        !isMounted()) {
+    if (contribution == null || !isMounted()) {
       return;
     }
 
-    controller.addContribution(
-      contribution,
-    );
+    controller.addContribution(contribution);
 
     refresh();
 
@@ -55,8 +43,7 @@ class FinanceContributionActions {
       failureMessage: 'O aporte foi registrado, mas ocorreu um erro ao salvar.',
     );
 
-    if (!saved ||
-        !isMounted()) {
+    if (!saved || !isMounted()) {
       return;
     }
 
@@ -67,15 +54,8 @@ class FinanceContributionActions {
     );
   }
 
-  Future<
-    void
-  >
-  deleteContribution(
-    InvestmentHistory item,
-  ) async {
-    final removed = controller.removeContribution(
-      item,
-    );
+  Future<void> deleteContribution(InvestmentHistory item) async {
+    final removed = controller.removeContribution(item);
 
     if (!removed) {
       return;
@@ -89,8 +69,7 @@ class FinanceContributionActions {
       failureMessage: 'O aporte foi removido, mas ocorreu um erro ao salvar.',
     );
 
-    if (!saved ||
-        !isMounted()) {
+    if (!saved || !isMounted()) {
       return;
     }
 
@@ -101,22 +80,13 @@ class FinanceContributionActions {
     );
   }
 
-  Future<
-    bool
-  >
-  _saveAll({
-    required String failureMessage,
-  }) async {
+  Future<bool> _saveAll({required String failureMessage}) async {
     try {
       await controller.saveAll();
       return true;
-    } catch (
-      _
-    ) {
+    } catch (_) {
       if (isMounted()) {
-        showMessage(
-          failureMessage,
-        );
+        showMessage(failureMessage);
       }
 
       return false;

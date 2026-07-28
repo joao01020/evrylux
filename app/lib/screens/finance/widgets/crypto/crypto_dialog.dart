@@ -8,33 +8,17 @@ import 'crypto_history_card.dart';
 import 'add_crypto_dialog.dart';
 import 'edit_crypto_dialog.dart';
 
-class CryptoDialog
-    extends
-        StatefulWidget {
+class CryptoDialog extends StatefulWidget {
   final String symbol;
 
-  const CryptoDialog({
-    super.key,
-
-    required this.symbol,
-  });
+  const CryptoDialog({super.key, required this.symbol});
 
   @override
-  State<
-    CryptoDialog
-  >
-  createState() => _CryptoDialogState();
+  State<CryptoDialog> createState() => _CryptoDialogState();
 }
 
-class _CryptoDialogState
-    extends
-        State<
-          CryptoDialog
-        > {
-  List<
-    CryptoTransactionModel
-  >
-  transactions = [];
+class _CryptoDialogState extends State<CryptoDialog> {
+  List<CryptoTransactionModel> transactions = [];
 
   @override
   void initState() {
@@ -43,51 +27,26 @@ class _CryptoDialogState
     load();
   }
 
-  Future<
-    void
-  >
-  load() async {
-    final result = await cryptoController.getBySymbol(
-      widget.symbol,
-    );
+  Future<void> load() async {
+    final result = await cryptoController.getBySymbol(widget.symbol);
 
     if (!mounted) return;
 
-    setState(
-      () {
-        transactions = result;
-      },
-    );
+    setState(() {
+      transactions = result;
+    });
   }
 
   double get totalQuantity {
-    return transactions.fold(
-      0.0,
-
-      (
-        total,
-
-        item,
-      ) {
-        return total +
-            item.quantity;
-      },
-    );
+    return transactions.fold(0.0, (total, item) {
+      return total + item.quantity;
+    });
   }
 
   double get totalInvested {
-    return transactions.fold(
-      0.0,
-
-      (
-        total,
-
-        item,
-      ) {
-        return total +
-            item.invested;
-      },
-    );
+    return transactions.fold(0.0, (total, item) {
+      return total + item.invested;
+    });
   }
 
   String title() {
@@ -109,94 +68,55 @@ class _CryptoDialogState
     }
   }
 
-  Future<
-    void
-  >
-  add() async {
+  Future<void> add() async {
     await showDialog(
       context: context,
 
-      builder:
-          (
-            context,
-          ) {
-            return AddCryptoDialog(
-              symbol: widget.symbol,
+      builder: (context) {
+        return AddCryptoDialog(
+          symbol: widget.symbol,
 
-              onSave:
-                  (
-                    transaction,
-                  ) {
-                    return cryptoController.add(
-                      transaction,
-                    );
-                  },
-            );
+          onSave: (transaction) {
+            return cryptoController.add(transaction);
           },
+        );
+      },
     );
 
     load();
   }
 
-  Future<
-    void
-  >
-  edit(
-    CryptoTransactionModel transaction,
-  ) async {
+  Future<void> edit(CryptoTransactionModel transaction) async {
     await showDialog(
       context: context,
 
-      builder:
-          (
-            context,
-          ) {
-            return EditCryptoDialog(
-              transaction: transaction,
+      builder: (context) {
+        return EditCryptoDialog(
+          transaction: transaction,
 
-              onSave:
-                  (
-                    updated,
-                  ) {
-                    return cryptoController.update(
-                      updated,
-                    );
-                  },
-            );
+          onSave: (updated) {
+            return cryptoController.update(updated);
           },
+        );
+      },
     );
 
     load();
   }
 
-  Future<
-    void
-  >
-  remove(
-    CryptoTransactionModel transaction,
-  ) async {
-    await cryptoController.delete(
-      transaction.id,
-    );
+  Future<void> remove(CryptoTransactionModel transaction) async {
+    await cryptoController.delete(transaction.id);
 
     load();
   }
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(
-          20,
-        ),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
 
       child: Padding(
-        padding: const EdgeInsets.all(
-          20,
-        ),
+        padding: const EdgeInsets.all(20),
 
         child: SingleChildScrollView(
           child: Column(
@@ -219,27 +139,19 @@ class _CryptoDialogState
 
                   IconButton(
                     onPressed: () {
-                      Navigator.pop(
-                        context,
-                      );
+                      Navigator.pop(context);
                     },
 
-                    icon: const Icon(
-                      Icons.close,
-                    ),
+                    icon: const Icon(Icons.close),
                   ),
                 ],
               ),
 
-              const SizedBox(
-                height: 20,
-              ),
+              const SizedBox(height: 20),
 
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(
-                    16,
-                  ),
+                  padding: const EdgeInsets.all(16),
 
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -248,9 +160,7 @@ class _CryptoDialogState
                       const Text(
                         "Saldo",
 
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: TextStyle(fontWeight: FontWeight.bold),
                       ),
 
                       Text(
@@ -268,26 +178,20 @@ class _CryptoDialogState
                       const Text(
                         "Investido",
 
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: TextStyle(fontWeight: FontWeight.bold),
                       ),
 
                       Text(
                         "R\$ ${totalInvested.toStringAsFixed(2)}",
 
-                        style: const TextStyle(
-                          fontSize: 20,
-                        ),
+                        style: const TextStyle(fontSize: 20),
                       ),
                     ],
                   ),
                 ),
               ),
 
-              const SizedBox(
-                height: 20,
-              ),
+              const SizedBox(height: 20),
 
               SizedBox(
                 width: double.infinity,
@@ -295,33 +199,21 @@ class _CryptoDialogState
                 child: ElevatedButton.icon(
                   onPressed: add,
 
-                  icon: const Icon(
-                    Icons.add,
-                  ),
+                  icon: const Icon(Icons.add),
 
-                  label: const Text(
-                    "Adicionar compra",
-                  ),
+                  label: const Text("Adicionar compra"),
                 ),
               ),
 
-              const SizedBox(
-                height: 20,
-              ),
+              const SizedBox(height: 20),
 
               const Text(
                 "Histórico",
 
-                style: TextStyle(
-                  fontSize: 20,
-
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
 
-              const SizedBox(
-                height: 10,
-              ),
+              const SizedBox(height: 10),
 
               CryptoHistoryCard(
                 transactions: transactions,

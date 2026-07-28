@@ -8,46 +8,23 @@ class TrainingCoverageCalculator {
   // COBERTURA MENSAL
   // =========================================================
 
-  static Map<
-    String,
-    int
-  >
-  monthlyCoverage({
-    required List<
-      TrainingModel
-    >
-    trainings,
+  static Map<String, int> monthlyCoverage({
+    required List<TrainingModel> trainings,
     DateTime? referenceDate,
   }) {
-    final now =
-        referenceDate ??
-        DateTime.now();
+    final now = referenceDate ?? DateTime.now();
 
-    final Map<
-      String,
-      int
-    >
-    coverage =
-        <
-          String,
-          int
-        >{};
+    final Map<String, int> coverage = <String, int>{};
 
     for (final training in trainings) {
-      if (!_isCurrentMonth(
-        training.date,
-        now,
-      )) {
+      if (!_isCurrentMonth(training.date, now)) {
         continue;
       }
 
       coverage.update(
         training.training,
-        (
-          currentValue,
-        ) {
-          return currentValue +
-              1;
+        (currentValue) {
+          return currentValue + 1;
         },
         ifAbsent: () {
           return 1;
@@ -56,32 +33,17 @@ class TrainingCoverageCalculator {
     }
 
     final orderedEntries = coverage.entries.toList()
-      ..sort(
-        (
-          first,
-          second,
-        ) {
-          final countComparison = second.value.compareTo(
-            first.value,
-          );
+      ..sort((first, second) {
+        final countComparison = second.value.compareTo(first.value);
 
-          if (countComparison !=
-              0) {
-            return countComparison;
-          }
+        if (countComparison != 0) {
+          return countComparison;
+        }
 
-          return first.key.compareTo(
-            second.key,
-          );
-        },
-      );
+        return first.key.compareTo(second.key);
+      });
 
-    return Map<
-      String,
-      int
-    >.fromEntries(
-      orderedEntries,
-    );
+    return Map<String, int>.fromEntries(orderedEntries);
   }
 
   // =========================================================
@@ -89,26 +51,14 @@ class TrainingCoverageCalculator {
   // =========================================================
 
   static int monthlyActivityCount({
-    required List<
-      TrainingModel
-    >
-    trainings,
+    required List<TrainingModel> trainings,
     DateTime? referenceDate,
   }) {
-    final now =
-        referenceDate ??
-        DateTime.now();
+    final now = referenceDate ?? DateTime.now();
 
-    return trainings.where(
-      (
-        training,
-      ) {
-        return _isCurrentMonth(
-          training.date,
-          now,
-        );
-      },
-    ).length;
+    return trainings.where((training) {
+      return _isCurrentMonth(training.date, now);
+    }).length;
   }
 
   // =========================================================
@@ -116,37 +66,19 @@ class TrainingCoverageCalculator {
   // =========================================================
 
   static int monthlyCompletedDays({
-    required List<
-      TrainingModel
-    >
-    trainings,
+    required List<TrainingModel> trainings,
     DateTime? referenceDate,
   }) {
-    final now =
-        referenceDate ??
-        DateTime.now();
+    final now = referenceDate ?? DateTime.now();
 
-    final Set<
-      String
-    >
-    trainedDates =
-        <
-          String
-        >{};
+    final Set<String> trainedDates = <String>{};
 
     for (final training in trainings) {
-      if (!_isCurrentMonth(
-        training.date,
-        now,
-      )) {
+      if (!_isCurrentMonth(training.date, now)) {
         continue;
       }
 
-      trainedDates.add(
-        TrainingDateHelper.dateKey(
-          training.date,
-        ),
-      );
+      trainedDates.add(TrainingDateHelper.dateKey(training.date));
     }
 
     return trainedDates.length;
@@ -157,10 +89,7 @@ class TrainingCoverageCalculator {
   // =========================================================
 
   static String? mostTrainedActivity({
-    required List<
-      TrainingModel
-    >
-    trainings,
+    required List<TrainingModel> trainings,
     DateTime? referenceDate,
   }) {
     final coverage = monthlyCoverage(
@@ -179,18 +108,9 @@ class TrainingCoverageCalculator {
   // ATIVIDADES NÃO TREINADAS NO MÊS
   // =========================================================
 
-  static List<
-    String
-  >
-  untrainedActivities({
-    required List<
-      TrainingModel
-    >
-    trainings,
-    required List<
-      String
-    >
-    activityOptions,
+  static List<String> untrainedActivities({
+    required List<TrainingModel> trainings,
+    required List<String> activityOptions,
     DateTime? referenceDate,
   }) {
     final coverage = monthlyCoverage(
@@ -198,28 +118,16 @@ class TrainingCoverageCalculator {
       referenceDate: referenceDate,
     );
 
-    return activityOptions.where(
-      (
-        activity,
-      ) {
-        return !coverage.containsKey(
-          activity,
-        );
-      },
-    ).toList();
+    return activityOptions.where((activity) {
+      return !coverage.containsKey(activity);
+    }).toList();
   }
 
   // =========================================================
   // VERIFICAR MÊS
   // =========================================================
 
-  static bool _isCurrentMonth(
-    DateTime date,
-    DateTime referenceDate,
-  ) {
-    return date.year ==
-            referenceDate.year &&
-        date.month ==
-            referenceDate.month;
+  static bool _isCurrentMonth(DateTime date, DateTime referenceDate) {
+    return date.year == referenceDate.year && date.month == referenceDate.month;
   }
 }

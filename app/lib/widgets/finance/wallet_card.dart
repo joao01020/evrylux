@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
-class WalletCard
-    extends
-        StatelessWidget {
+class WalletCard extends StatelessWidget {
   final double patrimony;
 
   final double invested;
@@ -57,26 +55,14 @@ class WalletCard
   });
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final hasCrypto =
-        bitcoin >
-            0 ||
-        ethereum >
-            0 ||
-        solana >
-            0 ||
-        usdt >
-            0;
+  Widget build(BuildContext context) {
+    final hasCrypto = bitcoin > 0 || ethereum > 0 || solana > 0 || usdt > 0;
 
     return Card(
       elevation: 2,
 
       child: Padding(
-        padding: const EdgeInsets.all(
-          16,
-        ),
+        padding: const EdgeInsets.all(16),
 
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -88,63 +74,35 @@ class WalletCard
                   onTap: onBalance,
 
                   child: Container(
-                    padding: const EdgeInsets.all(
-                      8,
-                    ),
+                    padding: const EdgeInsets.all(8),
 
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(
-                        12,
-                      ),
+                      borderRadius: BorderRadius.circular(12),
                     ),
 
-                    child: const Icon(
-                      Icons.account_balance_wallet,
-
-                      size: 28,
-                    ),
+                    child: const Icon(Icons.account_balance_wallet, size: 28),
                   ),
                 ),
 
-                const SizedBox(
-                  width: 10,
-                ),
+                const SizedBox(width: 10),
 
                 const Expanded(
                   child: Text(
                     "Carteira",
 
-                    style: TextStyle(
-                      fontSize: 18,
-
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
 
-                crypto(
-                  "₿",
-                  onBitcoin,
-                ),
+                crypto("₿", onBitcoin),
 
-                crypto(
-                  "Ξ",
-                  onEthereum,
-                ),
+                crypto("Ξ", onEthereum),
 
-                crypto(
-                  "◎",
-                  onSolana,
-                ),
+                crypto("◎", onSolana),
 
-                crypto(
-                  "₮",
-                  onUsdt,
-                ),
+                crypto("₮", onUsdt),
 
-                const SizedBox(
-                  width: 10,
-                ),
+                const SizedBox(width: 10),
 
                 GestureDetector(
                   onTap: onVault,
@@ -160,9 +118,7 @@ class WalletCard
               ],
             ),
 
-            const SizedBox(
-              height: 20,
-            ),
+            const SizedBox(height: 20),
 
             Row(
               children: [
@@ -176,9 +132,7 @@ class WalletCard
                   ),
                 ),
 
-                const SizedBox(
-                  width: 12,
-                ),
+                const SizedBox(width: 12),
 
                 Expanded(
                   child: _valueCard(
@@ -193,63 +147,19 @@ class WalletCard
             ),
 
             if (hasCrypto) ...[
-              const SizedBox(
-                height: 18,
-              ),
+              const SizedBox(height: 18),
 
               const Divider(),
 
-              const SizedBox(
-                height: 10,
-              ),
+              const SizedBox(height: 10),
 
-              if (bitcoin >
-                  0)
-                _cryptoBalance(
-                  "₿",
+              if (bitcoin > 0) _cryptoBalance("₿", bitcoin, "BTC", 8),
 
-                  bitcoin,
+              if (ethereum > 0) _cryptoBalance("Ξ", ethereum, "ETH", 6),
 
-                  "BTC",
+              if (solana > 0) _cryptoBalance("◎", solana, "SOL", 4),
 
-                  8,
-                ),
-
-              if (ethereum >
-                  0)
-                _cryptoBalance(
-                  "Ξ",
-
-                  ethereum,
-
-                  "ETH",
-
-                  6,
-                ),
-
-              if (solana >
-                  0)
-                _cryptoBalance(
-                  "◎",
-
-                  solana,
-
-                  "SOL",
-
-                  4,
-                ),
-
-              if (usdt >
-                  0)
-                _cryptoBalance(
-                  "₮",
-
-                  usdt,
-
-                  "USDT",
-
-                  2,
-                ),
+              if (usdt > 0) _cryptoBalance("₮", usdt, "USDT", 2),
             ],
           ],
         ),
@@ -267,34 +177,22 @@ class WalletCard
     int decimals,
   ) {
     return Padding(
-      padding: const EdgeInsets.only(
-        bottom: 6,
-      ),
+      padding: const EdgeInsets.only(bottom: 6),
 
       child: Row(
         children: [
           Text(
             icon,
 
-            style: const TextStyle(
-              fontSize: 18,
-
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
 
-          const SizedBox(
-            width: 8,
-          ),
+          const SizedBox(width: 8),
 
           Text(
             "${value.toStringAsFixed(decimals)} $symbol",
 
-            style: const TextStyle(
-              fontSize: 15,
-
-              fontWeight: FontWeight.w500,
-            ),
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
           ),
         ],
       ),
@@ -309,75 +207,45 @@ class WalletCard
     required double value,
   }) {
     return Container(
-      padding: const EdgeInsets.all(
-        12,
-      ),
+      padding: const EdgeInsets.all(12),
 
       decoration: BoxDecoration(
         color: Colors.grey.shade100,
 
-        borderRadius: BorderRadius.circular(
-          12,
-        ),
+        borderRadius: BorderRadius.circular(12),
       ),
 
       child: Column(
         children: [
-          Icon(
-            icon,
-          ),
+          Icon(icon),
 
-          const SizedBox(
-            height: 8,
-          ),
+          const SizedBox(height: 8),
 
-          Text(
-            title,
+          Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
 
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-
-          const SizedBox(
-            height: 4,
-          ),
+          const SizedBox(height: 4),
 
           Text(
             "R\$ ${value.toStringAsFixed(2)}",
 
-            style: const TextStyle(
-              fontSize: 16,
-
-              fontWeight: FontWeight.w600,
-            ),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
         ],
       ),
     );
   }
 
-  Widget crypto(
-    String icon,
-
-    VoidCallback tap,
-  ) {
+  Widget crypto(String icon, VoidCallback tap) {
     return GestureDetector(
       onTap: tap,
 
       child: Padding(
-        padding: const EdgeInsets.only(
-          left: 8,
-        ),
+        padding: const EdgeInsets.only(left: 8),
 
         child: Text(
           icon,
 
-          style: const TextStyle(
-            fontSize: 20,
-
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
       ),
     );

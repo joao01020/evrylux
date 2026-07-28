@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
-class TrainingConsistencyCard
-    extends
-        StatelessWidget {
+class TrainingConsistencyCard extends StatelessWidget {
   final double consistency;
   final int completedTrainings;
   final int expectedTrainings;
@@ -21,23 +19,19 @@ class TrainingConsistencyCard
   // =========================================================
 
   String get consistencyMessage {
-    if (completedTrainings ==
-        0) {
+    if (completedTrainings == 0) {
       return 'Seu ritmo começa com o primeiro treino.';
     }
 
-    if (consistency >=
-        1.0) {
+    if (consistency >= 1.0) {
       return 'Você está acompanhando ou superando seu plano.';
     }
 
-    if (consistency >=
-        0.75) {
+    if (consistency >= 0.75) {
       return 'Você está muito próximo do ritmo planejado.';
     }
 
-    if (consistency >=
-        0.5) {
+    if (consistency >= 0.5) {
       return 'Seu ritmo continua vivo. Continue construindo.';
     }
 
@@ -49,8 +43,7 @@ class TrainingConsistencyCard
   // =========================================================
 
   String get completedTrainingsText {
-    if (completedTrainings ==
-        1) {
+    if (completedTrainings == 1) {
       return '1 treino realizado';
     }
 
@@ -62,8 +55,7 @@ class TrainingConsistencyCard
   // =========================================================
 
   String get expectedTrainingsText {
-    if (expectedTrainings ==
-        1) {
+    if (expectedTrainings == 1) {
       return '1 treino planejado';
     }
 
@@ -75,8 +67,7 @@ class TrainingConsistencyCard
   // =========================================================
 
   String get weeklyGoalText {
-    if (weeklyGoal ==
-        1) {
+    if (weeklyGoal == 1) {
       return 'Treinar 1 dia por semana';
     }
 
@@ -88,15 +79,11 @@ class TrainingConsistencyCard
   // =========================================================
 
   String get progressSummary {
-    if (expectedTrainings <=
-        0) {
+    if (expectedTrainings <= 0) {
       return 'Defina seu plano semanal para acompanhar seu ritmo.';
     }
 
-    if (completedTrainings ==
-            1 &&
-        expectedTrainings ==
-            1) {
+    if (completedTrainings == 1 && expectedTrainings == 1) {
       return 'Você cumpriu o treino planejado até agora.';
     }
 
@@ -105,24 +92,14 @@ class TrainingConsistencyCard
   }
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final safeConsistency = consistency.clamp(
-      0.0,
-      1.0,
-    );
+  Widget build(BuildContext context) {
+    final safeConsistency = consistency.clamp(0.0, 1.0);
 
-    final percentage =
-        (safeConsistency *
-                100)
-            .round();
+    final percentage = (safeConsistency * 100).round();
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(
-          18,
-        ),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -136,66 +113,46 @@ class TrainingConsistencyCard
                   height: 44,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(
-                      12,
-                    ),
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(
-                    Icons.local_fire_department_outlined,
-                  ),
+                  child: const Icon(Icons.local_fire_department_outlined),
                 ),
 
-                const SizedBox(
-                  width: 12,
-                ),
+                const SizedBox(width: 12),
 
                 Expanded(
                   child: Text(
                     'Seu ritmo neste mês',
-                    style:
-                        Theme.of(
-                          context,
-                        ).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
 
                 Text(
                   '$percentage%',
-                  style:
-                      Theme.of(
-                        context,
-                      ).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
 
-            const SizedBox(
-              height: 18,
-            ),
+            const SizedBox(height: 18),
 
             // =================================================
             // BARRA DE CONSISTÊNCIA
             // =================================================
             ClipRRect(
-              borderRadius: BorderRadius.circular(
-                20,
-              ),
+              borderRadius: BorderRadius.circular(20),
               child: LinearProgressIndicator(
                 value: safeConsistency,
                 minHeight: 12,
               ),
             ),
 
-            const SizedBox(
-              height: 18,
-            ),
+            const SizedBox(height: 18),
 
             // =================================================
             // RESUMO PRINCIPAL
@@ -209,74 +166,52 @@ class TrainingConsistencyCard
               ),
             ),
 
-            const SizedBox(
-              height: 10,
-            ),
+            const SizedBox(height: 10),
 
             Text(
               consistencyMessage,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium,
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
 
-            const SizedBox(
-              height: 20,
-            ),
+            const SizedBox(height: 20),
 
             // =================================================
             // INFORMAÇÕES DETALHADAS
             // =================================================
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(
-                14,
-              ),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Theme.of(
-                  context,
-                ).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(
-                  14,
-                ),
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(14),
               ),
               child: Column(
                 children: [
                   _ConsistencyInformation(
                     icon: Icons.check_circle_outline,
                     title: completedTrainingsText,
-                    description: 'Dias em que você registrou pelo menos um treino neste mês.',
+                    description:
+                        'Dias em que você registrou pelo menos um treino neste mês.',
                   ),
 
-                  const SizedBox(
-                    height: 14,
-                  ),
+                  const SizedBox(height: 14),
 
-                  const Divider(
-                    height: 1,
-                  ),
+                  const Divider(height: 1),
 
-                  const SizedBox(
-                    height: 14,
-                  ),
+                  const SizedBox(height: 14),
 
                   _ConsistencyInformation(
                     icon: Icons.flag_outlined,
                     title: expectedTrainingsText,
-                    description: 'Quantidade de treinos que acompanharia seu plano até hoje.',
+                    description:
+                        'Quantidade de treinos que acompanharia seu plano até hoje.',
                   ),
 
-                  const SizedBox(
-                    height: 14,
-                  ),
+                  const SizedBox(height: 14),
 
-                  const Divider(
-                    height: 1,
-                  ),
+                  const Divider(height: 1),
 
-                  const SizedBox(
-                    height: 14,
-                  ),
+                  const SizedBox(height: 14),
 
                   _ConsistencyInformation(
                     icon: Icons.calendar_today_outlined,
@@ -293,9 +228,7 @@ class TrainingConsistencyCard
   }
 }
 
-class _ConsistencyInformation
-    extends
-        StatelessWidget {
+class _ConsistencyInformation extends StatelessWidget {
   final IconData icon;
   final String title;
   final String description;
@@ -307,20 +240,13 @@ class _ConsistencyInformation
   });
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          icon,
-          size: 22,
-        ),
+        Icon(icon, size: 22),
 
-        const SizedBox(
-          width: 12,
-        ),
+        const SizedBox(width: 12),
 
         Expanded(
           child: Column(
@@ -334,18 +260,13 @@ class _ConsistencyInformation
                 ),
               ),
 
-              const SizedBox(
-                height: 4,
-              ),
+              const SizedBox(height: 4),
 
               Text(
                 description,
-                style:
-                    Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(
-                      height: 1.35,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(height: 1.35),
               ),
             ],
           ),

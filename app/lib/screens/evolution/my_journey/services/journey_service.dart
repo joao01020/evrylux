@@ -1,6 +1,6 @@
-import '../../data/journey/journey_repository.dart';
+import '../data/repository/journey_repository.dart';
 
-import '../../screens/evolution/my_journey/models/journey_model.dart';
+import '../models/journey_model.dart';
 
 class JourneyService {
   final JourneyRepository repository;
@@ -14,7 +14,6 @@ class JourneyService {
   >
   saveNote(
     String date,
-
     List<
       String
     >
@@ -23,7 +22,6 @@ class JourneyService {
     return repository.save(
       JourneyModel(
         date: date,
-
         notes: notes,
       ),
     );

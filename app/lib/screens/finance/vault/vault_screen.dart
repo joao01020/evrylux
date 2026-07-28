@@ -1,31 +1,14 @@
 import 'package:flutter/material.dart';
 
-class VaultScreen
-    extends
-        StatefulWidget {
-  const VaultScreen({
-    super.key,
-  });
+class VaultScreen extends StatefulWidget {
+  const VaultScreen({super.key});
 
   @override
-  State<
-    VaultScreen
-  >
-  createState() => _VaultScreenState();
+  State<VaultScreen> createState() => _VaultScreenState();
 }
 
-class _VaultScreenState
-    extends
-        State<
-          VaultScreen
-        > {
-  final List<
-    Map<
-      String,
-      String
-    >
-  >
-  passwords = [];
+class _VaultScreenState extends State<VaultScreen> {
+  final List<Map<String, String>> passwords = [];
 
   void addPassword() {
     final nameController = TextEditingController();
@@ -37,120 +20,89 @@ class _VaultScreenState
     showDialog(
       context: context,
 
-      builder:
-          (
-            context,
-          ) {
-            return AlertDialog(
-              title: const Text(
-                "Nova senha 🔐",
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Nova senha 🔐"),
+
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+
+            children: [
+              TextField(
+                controller: nameController,
+
+                decoration: const InputDecoration(
+                  labelText: "Serviço",
+                  hintText: "Google, Instagram...",
+                ),
               ),
 
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
+              TextField(
+                controller: userController,
 
-                children: [
-                  TextField(
-                    controller: nameController,
-
-                    decoration: const InputDecoration(
-                      labelText: "Serviço",
-                      hintText: "Google, Instagram...",
-                    ),
-                  ),
-
-                  TextField(
-                    controller: userController,
-
-                    decoration: const InputDecoration(
-                      labelText: "Usuário / Email",
-                    ),
-                  ),
-
-                  TextField(
-                    controller: passwordController,
-
-                    obscureText: true,
-
-                    decoration: const InputDecoration(
-                      labelText: "Senha",
-                    ),
-                  ),
-                ],
+                decoration: const InputDecoration(labelText: "Usuário / Email"),
               ),
 
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(
-                      context,
-                    );
-                  },
+              TextField(
+                controller: passwordController,
 
-                  child: const Text(
-                    "Cancelar",
-                  ),
-                ),
+                obscureText: true,
 
-                ElevatedButton(
-                  onPressed: () {
-                    if (nameController.text.isEmpty ||
-                        passwordController.text.isEmpty) {
-                      return;
-                    }
+                decoration: const InputDecoration(labelText: "Senha"),
+              ),
+            ],
+          ),
 
-                    setState(
-                      () {
-                        passwords.add(
-                          {
-                            "name": nameController.text,
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
 
-                            "user": userController.text,
+              child: const Text("Cancelar"),
+            ),
 
-                            "password": passwordController.text,
-                          },
-                        );
-                      },
-                    );
+            ElevatedButton(
+              onPressed: () {
+                if (nameController.text.isEmpty ||
+                    passwordController.text.isEmpty) {
+                  return;
+                }
 
-                    Navigator.pop(
-                      context,
-                    );
-                  },
+                setState(() {
+                  passwords.add({
+                    "name": nameController.text,
 
-                  child: const Text(
-                    "Salvar",
-                  ),
-                ),
-              ],
-            );
-          },
+                    "user": userController.text,
+
+                    "password": passwordController.text,
+                  });
+                });
+
+                Navigator.pop(context);
+              },
+
+              child: const Text("Salvar"),
+            ),
+          ],
+        );
+      },
     );
   }
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          "Vault 🔑",
-        ),
-      ),
+      appBar: AppBar(title: const Text("Vault 🔑")),
 
       floatingActionButton: FloatingActionButton(
         onPressed: addPassword,
 
-        child: const Icon(
-          Icons.add,
-        ),
+        child: const Icon(Icons.add),
       ),
 
       body: Padding(
-        padding: const EdgeInsets.all(
-          20,
-        ),
+        padding: const EdgeInsets.all(20),
 
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -159,39 +111,24 @@ class _VaultScreenState
             const Text(
               "Seu cofre digital.",
 
-              style: TextStyle(
-                fontSize: 28,
-
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
             ),
 
-            const SizedBox(
-              height: 10,
-            ),
+            const SizedBox(height: 10),
 
             const Text(
               "Guarde suas senhas de forma organizada e protegida.",
 
-              style: TextStyle(
-                fontSize: 16,
-              ),
+              style: TextStyle(fontSize: 16),
             ),
 
-            const SizedBox(
-              height: 25,
-            ),
+            const SizedBox(height: 25),
 
             Card(
               child: ListTile(
-                leading: const Icon(
-                  Icons.lock,
-                  size: 35,
-                ),
+                leading: const Icon(Icons.lock, size: 35),
 
-                title: const Text(
-                  "Vault protegido",
-                ),
+                title: const Text("Vault protegido"),
 
                 subtitle: const Text(
                   "Suas credenciais ficam armazenadas aqui.",
@@ -199,81 +136,57 @@ class _VaultScreenState
               ),
             ),
 
-            const SizedBox(
-              height: 20,
-            ),
+            const SizedBox(height: 20),
 
             Expanded(
               child: passwords.isEmpty
-                  ? const Center(
-                      child: Text(
-                        "Nenhuma senha salva.",
-                      ),
-                    )
+                  ? const Center(child: Text("Nenhuma senha salva."))
                   : ListView.builder(
                       itemCount: passwords.length,
 
-                      itemBuilder:
-                          (
-                            context,
-                            index,
-                          ) {
-                            final item = passwords[index];
+                      itemBuilder: (context, index) {
+                        final item = passwords[index];
 
-                            bool visible = false;
+                        bool visible = false;
 
-                            return StatefulBuilder(
-                              builder:
-                                  (
-                                    context,
-                                    refresh,
-                                  ) {
-                                    return Card(
-                                      child: ListTile(
-                                        leading: const Icon(
-                                          Icons.key,
-                                        ),
+                        return StatefulBuilder(
+                          builder: (context, refresh) {
+                            return Card(
+                              child: ListTile(
+                                leading: const Icon(Icons.key),
 
-                                        title: Text(
-                                          item["name"]!,
-                                        ),
+                                title: Text(item["name"]!),
 
-                                        subtitle: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
 
-                                          children: [
-                                            Text(
-                                              item["user"]!,
-                                            ),
+                                  children: [
+                                    Text(item["user"]!),
 
-                                            Text(
-                                              visible
-                                                  ? item["password"]!
-                                                  : "••••••••",
-                                            ),
-                                          ],
-                                        ),
+                                    Text(
+                                      visible ? item["password"]! : "••••••••",
+                                    ),
+                                  ],
+                                ),
 
-                                        trailing: IconButton(
-                                          icon: Icon(
-                                            visible
-                                                ? Icons.visibility_off
-                                                : Icons.visibility,
-                                          ),
+                                trailing: IconButton(
+                                  icon: Icon(
+                                    visible
+                                        ? Icons.visibility_off
+                                        : Icons.visibility,
+                                  ),
 
-                                          onPressed: () {
-                                            refresh(
-                                              () {
-                                                visible = !visible;
-                                              },
-                                            );
-                                          },
-                                        ),
-                                      ),
-                                    );
+                                  onPressed: () {
+                                    refresh(() {
+                                      visible = !visible;
+                                    });
                                   },
+                                ),
+                              ),
                             );
                           },
+                        );
+                      },
                     ),
             ),
           ],

@@ -12,9 +12,7 @@ class TrainingService {
   late final TrainingRecordService recordService;
   late final TrainingPlanService planService;
 
-  TrainingService({
-    required this.repository,
-  }) {
+  TrainingService({required this.repository}) {
     final parser = TrainingDataParser();
 
     recordService = TrainingRecordService(
@@ -22,62 +20,28 @@ class TrainingService {
       parser: parser,
     );
 
-    planService = TrainingPlanService(
-      repository: repository,
-      parser: parser,
-    );
+    planService = TrainingPlanService(repository: repository, parser: parser);
   }
 
-  Future<
-    List<
-      TrainingModel
-    >
-  >
-  getTrainings() {
+  Future<List<TrainingModel>> getTrainings() {
     return recordService.getTrainings();
   }
 
-  Future<
-    void
-  >
-  saveTraining(
-    TrainingModel model,
-  ) {
-    return recordService.saveTraining(
-      model,
-    );
+  Future<void> saveTraining(TrainingModel model) {
+    return recordService.saveTraining(model);
   }
 
-  Future<
-    TrainingPlanData
-  >
-  getTrainingPlan() {
+  Future<TrainingPlanData> getTrainingPlan() {
     return planService.getPlan();
   }
 
-  Future<
-    void
-  >
-  saveTrainingPlan({
-    required Set<
-      int
-    >
-    plannedWeekdays,
-  }) {
-    return planService.savePlan(
-      plannedWeekdays: plannedWeekdays,
-    );
+  Future<void> saveTrainingPlan({required Set<int> plannedWeekdays}) {
+    return planService.savePlan(plannedWeekdays: plannedWeekdays);
   }
 
-  Future<
-    void
-  >
-  updateTrainingPlan({
+  Future<void> updateTrainingPlan({
     required int weeklyGoal,
-    required Set<
-      int
-    >
-    plannedWeekdays,
+    required Set<int> plannedWeekdays,
   }) {
     return planService.updatePlan(
       weeklyGoal: weeklyGoal,
@@ -85,29 +49,15 @@ class TrainingService {
     );
   }
 
-  Future<
-    void
-  >
-  clearOldData() {
+  Future<void> clearOldData() {
     return recordService.clear();
   }
 
-  Future<
-    void
-  >
-  clearTrainingPlan() {
+  Future<void> clearTrainingPlan() {
     return planService.clear();
   }
 
-  Future<
-    void
-  >
-  resetTrainingStorage() async {
-    await Future.wait(
-      [
-        recordService.clear(),
-        planService.clear(),
-      ],
-    );
+  Future<void> resetTrainingStorage() async {
+    await Future.wait([recordService.clear(), planService.clear()]);
   }
 }

@@ -6,20 +6,12 @@ class TrainingPlanService {
   final TrainingRepository repository;
   final TrainingDataParser parser;
 
-  TrainingPlanService({
-    required this.repository,
-    required this.parser,
-  });
+  TrainingPlanService({required this.repository, required this.parser});
 
-  Future<
-    TrainingPlanData
-  >
-  getPlan() async {
+  Future<TrainingPlanData> getPlan() async {
     try {
       final data = await repository.loadTrainingPlan();
-      final weekdays = parser.parseWeekdays(
-        data?['plannedWeekdays'],
-      );
+      final weekdays = parser.parseWeekdays(data?['plannedWeekdays']);
 
       if (weekdays.isEmpty) {
         return TrainingPlanData.defaultPlan();
@@ -29,67 +21,29 @@ class TrainingPlanService {
         weeklyGoal: weekdays.length,
         plannedWeekdays: weekdays,
       );
-    } catch (
-      _
-    ) {
+    } catch (_) {
       return TrainingPlanData.defaultPlan();
     }
   }
 
-  Future<
-    void
-  >
-  savePlan({
-    required Set<
-      int
-    >
-    plannedWeekdays,
-  }) {
-    return _saveNormalizedPlan(
-      plannedWeekdays,
-    );
+  Future<void> savePlan({required Set<int> plannedWeekdays}) {
+    return _saveNormalizedPlan(plannedWeekdays);
   }
 
-  Future<
-    void
-  >
-  updatePlan({
+  Future<void> updatePlan({
     required int weeklyGoal,
-    required Set<
-      int
-    >
-    plannedWeekdays,
+    required Set<int> plannedWeekdays,
   }) {
-    _validateWeeklyGoal(
-      weeklyGoal,
-    );
+    _validateWeeklyGoal(weeklyGoal);
 
-    return _saveNormalizedPlan(
-      plannedWeekdays,
-    );
+    return _saveNormalizedPlan(plannedWeekdays);
   }
 
-  Future<
-    void
-  >
-  _saveNormalizedPlan(
-    Set<
-      int
-    >
-    plannedWeekdays,
-  ) {
-    final weekdays =
-        parser
-            .normalizeWeekdays(
-              plannedWeekdays,
-            )
-            .toList()
-          ..sort();
+  Future<void> _saveNormalizedPlan(Set<int> plannedWeekdays) {
+    final weekdays = parser.normalizeWeekdays(plannedWeekdays).toList()..sort();
 
     if (weekdays.isEmpty) {
-      throw ArgumentError(
-        'Selecione pelo menos um dia da semana.',
-      );
+      throw ArgumentError('Selecione pelo menos um dia da semana.');
     }
 
     return repository.saveTrainingPlan(
@@ -98,13 +52,8 @@ class TrainingPlanService {
     );
   }
 
-  void _validateWeeklyGoal(
-    int weeklyGoal,
-  ) {
-    if (weeklyGoal <
-            1 ||
-        weeklyGoal >
-            7) {
+  void _validateWeeklyGoal(int weeklyGoal) {
+    if (weeklyGoal < 1 || weeklyGoal > 7) {
       throw ArgumentError.value(
         weeklyGoal,
         'weeklyGoal',
@@ -113,10 +62,7 @@ class TrainingPlanService {
     }
   }
 
-  Future<
-    void
-  >
-  clear() {
+  Future<void> clear() {
     return repository.clearTrainingPlan();
   }
 }

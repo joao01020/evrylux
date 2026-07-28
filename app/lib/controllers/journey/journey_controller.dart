@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-import '../../services/journey/journey_service.dart';
+import '../../screens/evolution/my_journey/services/journey_service.dart';
 
 class JourneyController
     extends

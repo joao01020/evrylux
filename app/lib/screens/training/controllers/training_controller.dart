@@ -11,9 +11,7 @@ import 'training_save_controller.dart';
 import 'training_stats_controller.dart';
 import 'training_ui_controller.dart';
 
-class TrainingController
-    extends
-        ChangeNotifier {
+class TrainingController extends ChangeNotifier {
   final TrainingService service;
   final TrainingState state;
 
@@ -24,10 +22,7 @@ class TrainingController
   late final TrainingUiController uiController;
   late final TrainingStatsController statsController;
 
-  static const List<
-    String
-  >
-  activityOptions = [
+  static const List<String> activityOptions = [
     '🏋️ Peito',
     '🦵 Pernas',
     '💪 Braço',
@@ -38,31 +33,18 @@ class TrainingController
     '🚶 Caminhada',
   ];
 
-  TrainingController({
-    required this.service,
-    TrainingState? initialState,
-  }) : state =
-           initialState ??
-           TrainingState() {
+  TrainingController({required this.service, TrainingState? initialState})
+    : state = initialState ?? TrainingState() {
     _initializeControllers();
     _addListeners();
   }
 
   void _initializeControllers() {
-    loadController = TrainingLoadController(
-      service: service,
-      state: state,
-    );
+    loadController = TrainingLoadController(service: service, state: state);
 
-    saveController = TrainingSaveController(
-      service: service,
-      state: state,
-    );
+    saveController = TrainingSaveController(service: service, state: state);
 
-    planController = TrainingPlanController(
-      service: service,
-      state: state,
-    );
+    planController = TrainingPlanController(service: service, state: state);
 
     historyController = TrainingHistoryController(
       service: service,
@@ -81,24 +63,12 @@ class TrainingController
   }
 
   void _addListeners() {
-    loadController.addListener(
-      _notify,
-    );
-    saveController.addListener(
-      _notify,
-    );
-    planController.addListener(
-      _notify,
-    );
-    historyController.addListener(
-      _notify,
-    );
-    uiController.addListener(
-      _notify,
-    );
-    statsController.addListener(
-      _notify,
-    );
+    loadController.addListener(_notify);
+    saveController.addListener(_notify);
+    planController.addListener(_notify);
+    historyController.addListener(_notify);
+    uiController.addListener(_notify);
+    statsController.addListener(_notify);
   }
 
   void _notify() {
@@ -121,17 +91,11 @@ class TrainingController
   // INTERFACE
   // =========================================================
 
-  List<
-    String
-  >
-  get days => TrainingDateHelper.weekDays;
+  List<String> get days => TrainingDateHelper.weekDays;
 
   String? get selectedDay => state.selectedDay;
 
-  Set<
-    String
-  >
-  get selectedActivities => state.selectedActivities;
+  Set<String> get selectedActivities => state.selectedActivities;
 
   int get currentSeconds => state.currentSeconds;
 
@@ -147,19 +111,13 @@ class TrainingController
 
   int get streak => state.streak;
 
-  List<
-    bool
-  >
-  get completedDays => state.completedDays;
+  List<bool> get completedDays => state.completedDays;
 
   // =========================================================
   // HISTÓRICO
   // =========================================================
 
-  List<
-    String
-  >
-  get history => state.history;
+  List<String> get history => state.history;
 
   // =========================================================
   // ESTATÍSTICAS
@@ -175,11 +133,7 @@ class TrainingController
     return statsController.expectedTrainingsUntilToday;
   }
 
-  Map<
-    String,
-    int
-  >
-  get monthlyCoverage {
+  Map<String, int> get monthlyCoverage {
     return statsController.monthlyCoverage;
   }
 
@@ -187,10 +141,7 @@ class TrainingController
   // CARREGAMENTO
   // =========================================================
 
-  Future<
-    void
-  >
-  load() async {
+  Future<void> load() async {
     final loaded = await loadController.load();
 
     if (!loaded) {
@@ -204,10 +155,7 @@ class TrainingController
   // SALVAR TREINO
   // =========================================================
 
-  Future<
-    bool
-  >
-  save() async {
+  Future<bool> save() async {
     final saved = await saveController.save();
 
     if (!saved) {
@@ -223,12 +171,8 @@ class TrainingController
   // PLANO SEMANAL
   // =========================================================
 
-  void setWeeklyGoal(
-    int goal,
-  ) {
-    planController.setWeeklyGoal(
-      goal,
-    );
+  void setWeeklyGoal(int goal) {
+    planController.setWeeklyGoal(goal);
     statsController.refresh();
   }
 
@@ -236,32 +180,20 @@ class TrainingController
   // SELEÇÃO DO DIA
   // =========================================================
 
-  void selectDay(
-    int index,
-  ) {
-    uiController.selectDay(
-      index,
-    );
+  void selectDay(int index) {
+    uiController.selectDay(index);
   }
 
   // =========================================================
   // ATIVIDADES
   // =========================================================
 
-  bool isActivitySelected(
-    String activity,
-  ) {
-    return uiController.isActivitySelected(
-      activity,
-    );
+  bool isActivitySelected(String activity) {
+    return uiController.isActivitySelected(activity);
   }
 
-  void toggleActivity(
-    String activity,
-  ) {
-    uiController.toggleActivity(
-      activity,
-    );
+  void toggleActivity(String activity) {
+    uiController.toggleActivity(activity);
   }
 
   void clearSelectedActivities() {
@@ -272,12 +204,8 @@ class TrainingController
   // CRONÔMETRO
   // =========================================================
 
-  void updateTimer(
-    int seconds,
-  ) {
-    uiController.updateTimer(
-      seconds,
-    );
+  void updateTimer(int seconds) {
+    uiController.updateTimer(seconds);
   }
 
   // =========================================================
@@ -303,24 +231,12 @@ class TrainingController
 
   @override
   void dispose() {
-    loadController.removeListener(
-      _notify,
-    );
-    saveController.removeListener(
-      _notify,
-    );
-    planController.removeListener(
-      _notify,
-    );
-    historyController.removeListener(
-      _notify,
-    );
-    uiController.removeListener(
-      _notify,
-    );
-    statsController.removeListener(
-      _notify,
-    );
+    loadController.removeListener(_notify);
+    saveController.removeListener(_notify);
+    planController.removeListener(_notify);
+    historyController.removeListener(_notify);
+    uiController.removeListener(_notify);
+    statsController.removeListener(_notify);
 
     loadController.dispose();
     saveController.dispose();

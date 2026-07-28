@@ -7,13 +7,8 @@ import '../../screens/finance/widgets/timeline/investment_timeline_empty.dart';
 import '../../screens/finance/widgets/timeline/investment_timeline_header.dart';
 import '../../screens/finance/widgets/timeline/investment_timeline_summary.dart';
 
-class InvestmentTimeline
-    extends
-        StatelessWidget {
-  final List<
-    InvestmentHistory
-  >
-  history;
+class InvestmentTimeline extends StatelessWidget {
+  final List<InvestmentHistory> history;
 
   /// Exibe o cabeçalho interno do histórico.
   final bool showHeader;
@@ -24,16 +19,10 @@ class InvestmentTimeline
   final int? maxItems;
 
   /// Função chamada ao tocar em um aporte.
-  final ValueChanged<
-    InvestmentHistory
-  >?
-  onTap;
+  final ValueChanged<InvestmentHistory>? onTap;
 
   /// Função chamada ao excluir um aporte.
-  final ValueChanged<
-    InvestmentHistory
-  >?
-  onDelete;
+  final ValueChanged<InvestmentHistory>? onDelete;
 
   const InvestmentTimeline({
     super.key,
@@ -48,83 +37,33 @@ class InvestmentTimeline
   // DADOS ORGANIZADOS
   // =========================================================
 
-  List<
-    InvestmentHistory
-  >
-  get _orderedHistory {
-    final items =
-        List<
-          InvestmentHistory
-        >.from(
-          history,
-        );
+  List<InvestmentHistory> get _orderedHistory {
+    final items = List<InvestmentHistory>.from(history);
 
-    items.sort(
-      (
-        first,
-        second,
-      ) {
-        return second.date.compareTo(
-          first.date,
-        );
-      },
-    );
+    items.sort((first, second) {
+      return second.date.compareTo(first.date);
+    });
 
-    if (maxItems ==
-            null ||
-        maxItems! <=
-            0 ||
-        maxItems! >=
-            items.length) {
+    if (maxItems == null || maxItems! <= 0 || maxItems! >= items.length) {
       return items;
     }
 
-    return items
-        .take(
-          maxItems!,
-        )
-        .toList();
+    return items.take(maxItems!).toList();
   }
 
-  Map<
-    String,
-    List<
-      InvestmentHistory
-    >
-  >
-  _groupByMonth(
-    List<
-      InvestmentHistory
-    >
-    items,
+  Map<String, List<InvestmentHistory>> _groupByMonth(
+    List<InvestmentHistory> items,
   ) {
-    final groups =
-        <
-          String,
-          List<
-            InvestmentHistory
-          >
-        >{};
+    final groups = <String, List<InvestmentHistory>>{};
 
     for (final item in items) {
-      final month = item.date.month.toString().padLeft(
-        2,
-        '0',
-      );
+      final month = item.date.month.toString().padLeft(2, '0');
 
       final key = '${item.date.year}-$month';
 
-      groups.putIfAbsent(
-        key,
-        () =>
-            <
-              InvestmentHistory
-            >[],
-      );
+      groups.putIfAbsent(key, () => <InvestmentHistory>[]);
 
-      groups[key]!.add(
-        item,
-      );
+      groups[key]!.add(item);
     }
 
     return groups;
@@ -135,18 +74,9 @@ class InvestmentTimeline
   // =========================================================
 
   double get _totalInvested {
-    return history.fold<
-      double
-    >(
-      0,
-      (
-        total,
-        item,
-      ) {
-        return total +
-            item.value;
-      },
-    );
+    return history.fold<double>(0, (total, item) {
+      return total + item.value;
+    });
   }
 
   double get _averageContribution {
@@ -154,26 +84,17 @@ class InvestmentTimeline
       return 0;
     }
 
-    return _totalInvested /
-        history.length;
+    return _totalInvested / history.length;
   }
 
   int get _hiddenItemsCount {
-    if (maxItems ==
-            null ||
-        maxItems! <=
-            0) {
+    if (maxItems == null || maxItems! <= 0) {
       return 0;
     }
 
-    final hidden =
-        history.length -
-        maxItems!;
+    final hidden = history.length - maxItems!;
 
-    return hidden >
-            0
-        ? hidden
-        : 0;
+    return hidden > 0 ? hidden : 0;
   }
 
   // =========================================================
@@ -181,42 +102,26 @@ class InvestmentTimeline
   // =========================================================
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     final items = _orderedHistory;
 
-    final groups = _groupByMonth(
-      items,
-    );
+    final groups = _groupByMonth(items);
 
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(
-          20,
-        ),
-        side: BorderSide(
-          color: Theme.of(
-            context,
-          ).dividerColor,
-        ),
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: Theme.of(context).dividerColor),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(
-          16,
-        ),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (showHeader) ...[
-              InvestmentTimelineHeader(
-                contributionCount: history.length,
-              ),
+              InvestmentTimelineHeader(contributionCount: history.length),
 
-              const SizedBox(
-                height: 20,
-              ),
+              const SizedBox(height: 20),
             ],
 
             if (history.isNotEmpty) ...[
@@ -226,9 +131,7 @@ class InvestmentTimeline
                 contributionCount: history.length,
               ),
 
-              const SizedBox(
-                height: 24,
-              ),
+              const SizedBox(height: 24),
             ],
 
             if (items.isEmpty)
@@ -241,11 +144,8 @@ class InvestmentTimeline
                   onDelete: onDelete,
                 ),
 
-            if (_hiddenItemsCount >
-                0) ...[
-              const SizedBox(
-                height: 4,
-              ),
+            if (_hiddenItemsCount > 0) ...[
+              const SizedBox(height: 4),
 
               Center(
                 child: Text(
@@ -253,9 +153,7 @@ class InvestmentTimeline
                   '${_hiddenItemsCount == 1 ? 'aporte anterior não exibido' : 'aportes anteriores não exibidos'}.',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurfaceVariant,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),

@@ -6,20 +6,12 @@ import '../calculators/training_streak_calculator.dart';
 import '../helpers/training_date_helper.dart';
 import '../states/training_state.dart';
 
-class TrainingStatsController
-    extends
-        ChangeNotifier {
+class TrainingStatsController extends ChangeNotifier {
   final TrainingState state;
 
-  final List<
-    String
-  >
-  activityOptions;
+  final List<String> activityOptions;
 
-  TrainingStatsController({
-    required this.state,
-    required this.activityOptions,
-  });
+  TrainingStatsController({required this.state, required this.activityOptions});
 
   // =========================================================
   // ATUALIZAR ESTATÍSTICAS ARMAZENADAS NO ESTADO
@@ -41,38 +33,24 @@ class TrainingStatsController
 
     final now = DateTime.now();
 
-    final startOfWeek = TrainingDateHelper.startOfWeek(
-      now,
-    );
+    final startOfWeek = TrainingDateHelper.startOfWeek(now);
 
-    final endOfWeek = TrainingDateHelper.endOfWeek(
-      now,
-    );
+    final endOfWeek = TrainingDateHelper.endOfWeek(now);
 
     for (final training in state.trainings) {
-      final trainingDate = TrainingDateHelper.normalize(
-        training.date,
-      );
+      final trainingDate = TrainingDateHelper.normalize(training.date);
 
-      if (trainingDate.isBefore(
-        startOfWeek,
-      )) {
+      if (trainingDate.isBefore(startOfWeek)) {
         continue;
       }
 
-      if (trainingDate.isAfter(
-        endOfWeek,
-      )) {
+      if (trainingDate.isAfter(endOfWeek)) {
         continue;
       }
 
-      final weekdayIndex =
-          trainingDate.weekday -
-          1;
+      final weekdayIndex = trainingDate.weekday - 1;
 
-      state.setCompletedDay(
-        weekdayIndex,
-      );
+      state.setCompletedDay(weekdayIndex);
     }
   }
 
@@ -90,11 +68,7 @@ class TrainingStatsController
   // COBERTURA MENSAL
   // =========================================================
 
-  Map<
-    String,
-    int
-  >
-  get monthlyCoverage {
+  Map<String, int> get monthlyCoverage {
     return TrainingCoverageCalculator.monthlyCoverage(
       trainings: state.trainings,
     );
@@ -188,10 +162,7 @@ class TrainingStatsController
   // ATIVIDADES AINDA NÃO TREINADAS NO MÊS
   // =========================================================
 
-  List<
-    String
-  >
-  get untrainedActivitiesThisMonth {
+  List<String> get untrainedActivitiesThisMonth {
     return TrainingCoverageCalculator.untrainedActivities(
       trainings: state.trainings,
       activityOptions: activityOptions,
@@ -203,9 +174,7 @@ class TrainingStatsController
   // =========================================================
 
   int get longestStreak {
-    return TrainingStreakCalculator.longestStreak(
-      trainings: state.trainings,
-    );
+    return TrainingStreakCalculator.longestStreak(trainings: state.trainings);
   }
 
   // =========================================================
@@ -213,9 +182,7 @@ class TrainingStatsController
   // =========================================================
 
   bool get trainedToday {
-    return TrainingStreakCalculator.trainedToday(
-      trainings: state.trainings,
-    );
+    return TrainingStreakCalculator.trainedToday(trainings: state.trainings);
   }
 
   // =========================================================
@@ -239,13 +206,9 @@ class TrainingStatsController
   // =========================================================
 
   int get completedDaysThisWeek {
-    return state.completedDays.where(
-      (
-        completed,
-      ) {
-        return completed;
-      },
-    ).length;
+    return state.completedDays.where((completed) {
+      return completed;
+    }).length;
   }
 
   // =========================================================
@@ -255,24 +218,14 @@ class TrainingStatsController
   int get completedPlannedDaysThisWeek {
     int total = 0;
 
-    for (
-      int index = 0;
-      index <
-          state.completedDays.length;
-      index++
-    ) {
-      final weekday =
-          index +
-          1;
+    for (int index = 0; index < state.completedDays.length; index++) {
+      final weekday = index + 1;
 
       final completed = state.completedDays[index];
 
-      final planned = state.plannedWeekdays.contains(
-        weekday,
-      );
+      final planned = state.plannedWeekdays.contains(weekday);
 
-      if (completed &&
-          planned) {
+      if (completed && planned) {
         total++;
       }
     }
@@ -287,19 +240,13 @@ class TrainingStatsController
   double get weeklyProgress {
     final goal = state.weeklyGoal;
 
-    if (goal <=
-        0) {
+    if (goal <= 0) {
       return 0;
     }
 
-    final progress =
-        completedPlannedDaysThisWeek /
-        goal;
+    final progress = completedPlannedDaysThisWeek / goal;
 
-    return progress.clamp(
-      0.0,
-      1.0,
-    );
+    return progress.clamp(0.0, 1.0);
   }
 
   // =========================================================
@@ -307,9 +254,7 @@ class TrainingStatsController
   // =========================================================
 
   int get weeklyProgressPercentage {
-    return (weeklyProgress *
-            100)
-        .round();
+    return (weeklyProgress * 100).round();
   }
 
   // =========================================================
@@ -317,13 +262,11 @@ class TrainingStatsController
   // =========================================================
 
   bool get weeklyGoalCompleted {
-    if (state.weeklyGoal <=
-        0) {
+    if (state.weeklyGoal <= 0) {
       return false;
     }
 
-    return completedPlannedDaysThisWeek >=
-        state.weeklyGoal;
+    return completedPlannedDaysThisWeek >= state.weeklyGoal;
   }
 
   // =========================================================

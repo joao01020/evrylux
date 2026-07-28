@@ -1,5 +1,5 @@
-import '../../data/study/study_repository.dart';
-import '../../models/study/study_model.dart';
+import '../../data/repository/study_repository.dart';
+import '../../../../models/study/study_model.dart';
 
 class StudyService {
   final StudyRepository repository;
@@ -36,12 +36,10 @@ class StudyService {
   >
   saveStudy(
     String day,
-
     int minutes,
   ) async {
     await repository.save(
       day,
-
       minutes,
     );
   }

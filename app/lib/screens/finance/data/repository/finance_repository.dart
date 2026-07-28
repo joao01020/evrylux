@@ -20,28 +20,11 @@ import '../../../../core/storage/storage_service.dart';
 */
 
 class FinanceRepository {
-  Future<
-    Map<
-      String,
-      dynamic
-    >
-  >
-  load() async {
+  Future<Map<String, dynamic>> load() async {
     return await StorageService.getFinance();
   }
 
-  Future<
-    void
-  >
-  save(
-    Map<
-      String,
-      dynamic
-    >
-    data,
-  ) async {
-    await StorageService.saveFinance(
-      data,
-    );
+  Future<void> save(Map<String, dynamic> data) async {
+    await StorageService.saveFinance(data);
   }
 }

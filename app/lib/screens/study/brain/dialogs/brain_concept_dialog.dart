@@ -1,15 +1,8 @@
 import 'package:flutter/material.dart';
 
-enum BrainConceptCategory {
-  concept,
-  question,
-  example,
-  warning,
-}
+enum BrainConceptCategory { concept, question, example, warning }
 
-extension BrainConceptCategoryExtension
-    on
-        BrainConceptCategory {
+extension BrainConceptCategoryExtension on BrainConceptCategory {
   String get label {
     switch (this) {
       case BrainConceptCategory.concept:
@@ -71,60 +64,32 @@ class BrainConceptDialogResult {
   });
 }
 
-class BrainConceptDialog
-    extends
-        StatefulWidget {
+class BrainConceptDialog extends StatefulWidget {
   final BrainConceptDialogResult? initialValue;
 
-  const BrainConceptDialog({
-    super.key,
-    this.initialValue,
-  });
+  const BrainConceptDialog({super.key, this.initialValue});
 
-  static Future<
-    BrainConceptDialogResult?
-  >
-  show({
+  static Future<BrainConceptDialogResult?> show({
     required BuildContext context,
     BrainConceptDialogResult? initialValue,
   }) {
-    return showDialog<
-      BrainConceptDialogResult
-    >(
+    return showDialog<BrainConceptDialogResult>(
       context: context,
       barrierDismissible: false,
-      builder:
-          (
-            dialogContext,
-          ) {
-            return BrainConceptDialog(
-              initialValue: initialValue,
-            );
-          },
+      builder: (dialogContext) {
+        return BrainConceptDialog(initialValue: initialValue);
+      },
     );
   }
 
   @override
-  State<
-    BrainConceptDialog
-  >
-  createState() {
+  State<BrainConceptDialog> createState() {
     return _BrainConceptDialogState();
   }
 }
 
-class _BrainConceptDialogState
-    extends
-        State<
-          BrainConceptDialog
-        > {
-  final GlobalKey<
-    FormState
-  >
-  _formKey =
-      GlobalKey<
-        FormState
-      >();
+class _BrainConceptDialogState extends State<BrainConceptDialog> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   late final TextEditingController _titleController;
 
@@ -133,8 +98,7 @@ class _BrainConceptDialogState
   late BrainConceptCategory _selectedCategory;
 
   bool get _isEditing {
-    return widget.initialValue !=
-        null;
+    return widget.initialValue != null;
   }
 
   @override
@@ -143,21 +107,13 @@ class _BrainConceptDialogState
 
     final initialValue = widget.initialValue;
 
-    _titleController = TextEditingController(
-      text:
-          initialValue?.title ??
-          '',
-    );
+    _titleController = TextEditingController(text: initialValue?.title ?? '');
 
     _descriptionController = TextEditingController(
-      text:
-          initialValue?.description ??
-          '',
+      text: initialValue?.description ?? '',
     );
 
-    _selectedCategory =
-        initialValue?.category ??
-        BrainConceptCategory.concept;
+    _selectedCategory = initialValue?.category ?? BrainConceptCategory.concept;
   }
 
   @override
@@ -171,8 +127,7 @@ class _BrainConceptDialogState
   void _save() {
     final formState = _formKey.currentState;
 
-    if (formState ==
-        null) {
+    if (formState == null) {
       return;
     }
 
@@ -186,22 +141,13 @@ class _BrainConceptDialogState
       category: _selectedCategory,
     );
 
-    Navigator.pop(
-      context,
-      result,
-    );
+    Navigator.pop(context, result);
   }
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(
-        _isEditing
-            ? 'Editar conceito'
-            : 'Adicionar conceito',
-      ),
+      title: Text(_isEditing ? 'Editar conceito' : 'Adicionar conceito'),
       content: SizedBox(
         width: 520,
         child: SingleChildScrollView(
@@ -218,35 +164,25 @@ class _BrainConceptDialogState
                   decoration: const InputDecoration(
                     labelText: 'Título',
                     hintText: 'Ex.: Ponteiros em C++',
-                    prefixIcon: Icon(
-                      Icons.title,
-                    ),
+                    prefixIcon: Icon(Icons.title),
                     border: OutlineInputBorder(),
                   ),
-                  validator:
-                      (
-                        value,
-                      ) {
-                        final title =
-                            value?.trim() ??
-                            '';
+                  validator: (value) {
+                    final title = value?.trim() ?? '';
 
-                        if (title.isEmpty) {
-                          return 'Informe o título do conceito.';
-                        }
+                    if (title.isEmpty) {
+                      return 'Informe o título do conceito.';
+                    }
 
-                        if (title.length <
-                            3) {
-                          return 'O título precisa ter pelo menos 3 caracteres.';
-                        }
+                    if (title.length < 3) {
+                      return 'O título precisa ter pelo menos 3 caracteres.';
+                    }
 
-                        return null;
-                      },
+                    return null;
+                  },
                 ),
 
-                const SizedBox(
-                  height: 16,
-                ),
+                const SizedBox(height: 16),
 
                 TextFormField(
                   controller: _descriptionController,
@@ -257,135 +193,96 @@ class _BrainConceptDialogState
                     labelText: 'Descrição',
                     hintText: 'Explique este conceito com suas palavras.',
                     alignLabelWithHint: true,
-                    prefixIcon: Icon(
-                      Icons.notes_outlined,
-                    ),
+                    prefixIcon: Icon(Icons.notes_outlined),
                     border: OutlineInputBorder(),
                   ),
-                  validator:
-                      (
-                        value,
-                      ) {
-                        final description =
-                            value?.trim() ??
-                            '';
+                  validator: (value) {
+                    final description = value?.trim() ?? '';
 
-                        if (description.isEmpty) {
-                          return 'Escreva uma descrição.';
-                        }
+                    if (description.isEmpty) {
+                      return 'Escreva uma descrição.';
+                    }
 
-                        return null;
-                      },
+                    return null;
+                  },
                 ),
 
-                const SizedBox(
-                  height: 20,
-                ),
+                const SizedBox(height: 20),
 
                 Text(
                   'Tipo do conceito',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleMedium,
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
 
-                const SizedBox(
-                  height: 10,
-                ),
+                const SizedBox(height: 10),
 
-                ...BrainConceptCategory.values.map(
-                  (
-                    category,
-                  ) {
-                    final isSelected =
-                        _selectedCategory ==
-                        category;
+                ...BrainConceptCategory.values.map((category) {
+                  final isSelected = _selectedCategory == category;
 
-                    return Padding(
-                      padding: const EdgeInsets.only(
-                        bottom: 8,
-                      ),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(
-                          12,
-                        ),
-                        onTap: () {
-                          setState(
-                            () {
-                              _selectedCategory = category;
-                            },
-                          );
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(
-                            12,
-                          ),
-                          decoration: BoxDecoration(
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () {
+                        setState(() {
+                          _selectedCategory = category;
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? Theme.of(context).colorScheme.primaryContainer
+                              : Theme.of(
+                                  context,
+                                ).colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
                             color: isSelected
-                                ? Theme.of(
-                                    context,
-                                  ).colorScheme.primaryContainer
-                                : Theme.of(
-                                    context,
-                                  ).colorScheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(
-                              12,
-                            ),
-                            border: Border.all(
-                              color: isSelected
-                                  ? Theme.of(
-                                      context,
-                                    ).colorScheme.primary
-                                  : Colors.transparent,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                category.icon,
-                              ),
-
-                              const SizedBox(
-                                width: 12,
-                              ),
-
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      category.label,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-
-                                    const SizedBox(
-                                      height: 2,
-                                    ),
-
-                                    Text(
-                                      category.description,
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.bodySmall,
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              Icon(
-                                isSelected
-                                    ? Icons.radio_button_checked
-                                    : Icons.radio_button_off,
-                              ),
-                            ],
+                                ? Theme.of(context).colorScheme.primary
+                                : Colors.transparent,
                           ),
                         ),
+                        child: Row(
+                          children: [
+                            Icon(category.icon),
+
+                            const SizedBox(width: 12),
+
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    category.label,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+
+                                  const SizedBox(height: 2),
+
+                                  Text(
+                                    category.description,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            Icon(
+                              isSelected
+                                  ? Icons.radio_button_checked
+                                  : Icons.radio_button_off,
+                            ),
+                          ],
+                        ),
                       ),
-                    );
-                  },
-                ),
+                    ),
+                  );
+                }),
               ],
             ),
           ),
@@ -394,27 +291,15 @@ class _BrainConceptDialogState
       actions: [
         TextButton(
           onPressed: () {
-            Navigator.pop(
-              context,
-            );
+            Navigator.pop(context);
           },
-          child: const Text(
-            'Cancelar',
-          ),
+          child: const Text('Cancelar'),
         ),
 
         FilledButton.icon(
           onPressed: _save,
-          icon: Icon(
-            _isEditing
-                ? Icons.save_outlined
-                : Icons.add,
-          ),
-          label: Text(
-            _isEditing
-                ? 'Salvar alterações'
-                : 'Adicionar',
-          ),
+          icon: Icon(_isEditing ? Icons.save_outlined : Icons.add),
+          label: Text(_isEditing ? 'Salvar alterações' : 'Adicionar'),
         ),
       ],
     );

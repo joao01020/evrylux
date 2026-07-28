@@ -17,13 +17,7 @@ class FinanceNavigationActions {
   final VoidCallback refresh;
   final bool Function() isMounted;
 
-  final Future<
-    void
-  >
-  Function(
-    InvestmentHistory item,
-  )
-  onDeleteContribution;
+  final Future<void> Function(InvestmentHistory item) onDeleteContribution;
 
   const FinanceNavigationActions({
     required this.context,
@@ -33,24 +27,16 @@ class FinanceNavigationActions {
     required this.onDeleteContribution,
   });
 
-  Future<
-    void
-  >
-  openHistory() async {
-    await Navigator.push<
-      void
-    >(
+  Future<void> openHistory() async {
+    await Navigator.push<void>(
       context,
       MaterialPageRoute(
-        builder:
-            (
-              _,
-            ) {
-              return FinanceHistoryScreen(
-                history: controller.history,
-                onDelete: onDeleteContribution,
-              );
-            },
+        builder: (_) {
+          return FinanceHistoryScreen(
+            history: controller.history,
+            onDelete: onDeleteContribution,
+          );
+        },
       ),
     );
 
@@ -60,17 +46,12 @@ class FinanceNavigationActions {
   }
 
   void openVault() {
-    Navigator.push<
-      void
-    >(
+    Navigator.push<void>(
       context,
       MaterialPageRoute(
-        builder:
-            (
-              _,
-            ) {
-              return const VaultScreen();
-            },
+        builder: (_) {
+          return const VaultScreen();
+        },
       ),
     );
   }
