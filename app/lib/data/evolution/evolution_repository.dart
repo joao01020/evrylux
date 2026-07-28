@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import '../../core/storage/local_storage.dart';
 
-import '../../models/evolution/evolution_model.dart';
+import '../../screens/evolution/models/evolution_model.dart';
 
 import '../study/study_repository.dart';
 import '../../screens/training/data/training_repository.dart';

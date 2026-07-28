@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import '../../core/storage/local_storage.dart';
 
-import '../../models/journey/journey_model.dart';
+import '../../screens/evolution/my_journey/models/journey_model.dart';
 
 class JourneyRepository {
   final LocalStorage storage;

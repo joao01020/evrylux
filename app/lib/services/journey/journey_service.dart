@@ -1,6 +1,6 @@
 import '../../data/journey/journey_repository.dart';
 
-import '../../models/journey/journey_model.dart';
+import '../../screens/evolution/my_journey/models/journey_model.dart';
 
 class JourneyService {
   final JourneyRepository repository;

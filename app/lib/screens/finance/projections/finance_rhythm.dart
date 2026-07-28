@@ -1,4 +1,4 @@
-import '../../models/finance/finance_model.dart';
+import '../../../models/finance/finance_model.dart';
 
 class FinanceRhythm {
   final FinanceModel model;

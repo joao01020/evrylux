@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../models/journey/day_summary.dart';
+import '../../../screens/evolution/my_journey/models/day_summary.dart';
 
 import '../../../app_dependencies.dart';
 

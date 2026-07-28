@@ -1,4 +1,4 @@
-import '../../models/evolution/evolution_model.dart';
+import '../../screens/evolution/models/evolution_model.dart';
 import '../../data/evolution/evolution_repository.dart';
 
 /* repository.loadHistory()

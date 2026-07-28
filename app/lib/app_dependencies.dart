@@ -73,29 +73,19 @@ final localStorage = LocalStorage();
 
 final financeRepository = FinanceRepository();
 
-final financeService = FinanceService(
-  repository: financeRepository,
-);
+final financeService = FinanceService(repository: financeRepository);
 
-final financeController = FinanceController(
-  financeService,
-);
+final financeController = FinanceController(financeService);
 
 // ======================================================
 // CRYPTO
 // ======================================================
 
-final cryptoRepository = CryptoRepository(
-  storage: localStorage,
-);
+final cryptoRepository = CryptoRepository(storage: localStorage);
 
-final cryptoService = CryptoService(
-  repository: cryptoRepository,
-);
+final cryptoService = CryptoService(repository: cryptoRepository);
 
-final cryptoController = CryptoController(
-  service: cryptoService,
-);
+final cryptoController = CryptoController(service: cryptoService);
 
 // ======================================================
 // TRAINING
@@ -103,13 +93,9 @@ final cryptoController = CryptoController(
 
 final trainingRepository = TrainingRepository();
 
-final trainingService = TrainingService(
-  repository: trainingRepository,
-);
+final trainingService = TrainingService(repository: trainingRepository);
 
-final trainingController = TrainingController(
-  service: trainingService,
-);
+final trainingController = TrainingController(service: trainingService);
 
 // ======================================================
 // STUDY
@@ -117,13 +103,9 @@ final trainingController = TrainingController(
 
 final studyRepository = StudyRepository();
 
-final studyService = StudyService(
-  repository: studyRepository,
-);
+final studyService = StudyService(repository: studyRepository);
 
-final studyController = StudyController(
-  service: studyService,
-);
+final studyController = StudyController(service: studyService);
 
 // ======================================================
 // EVOLUTION
@@ -139,26 +121,16 @@ final evolutionRepository = EvolutionRepository(
   storage: localStorage,
 );
 
-final evolutionService = EvolutionService(
-  repository: evolutionRepository,
-);
+final evolutionService = EvolutionService(repository: evolutionRepository);
 
-final evolutionController = EvolutionController(
-  service: evolutionService,
-);
+final evolutionController = EvolutionController(service: evolutionService);
 
 // ======================================================
 // JOURNEY
 // ======================================================
 
-final journeyRepository = JourneyRepository(
-  storage: localStorage,
-);
+final journeyRepository = JourneyRepository(storage: localStorage);
 
-final journeyService = JourneyService(
-  repository: journeyRepository,
-);
+final journeyService = JourneyService(repository: journeyRepository);
 
-final journeyController = JourneyController(
-  service: journeyService,
-);
+final journeyController = JourneyController(service: journeyService);

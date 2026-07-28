@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-import '../../models/evolution/evolution_model.dart';
+import '../../screens/evolution/models/evolution_model.dart';
 import '../../services/evolution/evolution_service.dart';
 
 class EvolutionController

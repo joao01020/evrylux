@@ -1,4 +1,4 @@
-import '../../../core/utils/finance_projection.dart';
+import '../projections/finance_projection.dart';
 import '../../../models/finance/investment_history.dart';
 
 import '../models/crypto_balances.dart';
@@ -12,14 +12,16 @@ class FinanceScreenController {
   final dynamic financeController;
   final dynamic cryptoController;
 
-  final FinanceContributionService _contributionService =
-      const FinanceContributionService();
+  final FinanceContributionService _contributionService = const FinanceContributionService();
 
   late final CryptoBalanceService _cryptoBalanceService;
 
   late final FinancePersistenceService _persistenceService;
 
-  final List<InvestmentHistory> history = [];
+  final List<
+    InvestmentHistory
+  >
+  history = [];
 
   CryptoBalances balances = const CryptoBalances();
 
@@ -44,10 +46,16 @@ class FinanceScreenController {
   }
 
   FinanceProjection get projection {
-    return FinanceProjection(model: model, history: history);
+    return FinanceProjection(
+      model: model,
+      history: history,
+    );
   }
 
-  Future<void> load() async {
+  Future<
+    void
+  >
+  load() async {
     isLoading = true;
 
     try {
@@ -59,17 +67,24 @@ class FinanceScreenController {
 
       history
         ..clear()
-        ..addAll(storedHistory);
+        ..addAll(
+          storedHistory,
+        );
     } finally {
       isLoading = false;
     }
   }
 
-  Future<void> refreshCryptoBalances() async {
+  Future<
+    void
+  >
+  refreshCryptoBalances() async {
     balances = await _cryptoBalanceService.loadBalances();
   }
 
-  void applyPlanning(dynamic planning) {
+  void applyPlanning(
+    dynamic planning,
+  ) {
     model.invested = planning.invested;
     model.minimumGoal = planning.minimumGoal;
     model.mediumGoal = planning.mediumGoal;
@@ -79,12 +94,25 @@ class FinanceScreenController {
     model.monthlyGoal = planning.mediumGoal;
   }
 
-  InvestmentHistory addContribution(double contribution) {
-    final entry = projection.createHistoryEntry(contribution: contribution);
+  InvestmentHistory addContribution(
+    double contribution,
+  ) {
+    final entry = projection.createHistoryEntry(
+      contribution: contribution,
+    );
 
-    history.add(entry);
+    history.add(
+      entry,
+    );
 
-    history.sort((a, b) => a.date.compareTo(b.date));
+    history.sort(
+      (
+        a,
+        b,
+      ) => a.date.compareTo(
+        b.date,
+      ),
+    );
 
     _contributionService.addContribution(
       model: model,
@@ -94,8 +122,12 @@ class FinanceScreenController {
     return entry;
   }
 
-  bool removeContribution(InvestmentHistory contribution) {
-    final removed = history.remove(contribution);
+  bool removeContribution(
+    InvestmentHistory contribution,
+  ) {
+    final removed = history.remove(
+      contribution,
+    );
 
     if (!removed) {
       return false;
@@ -109,19 +141,31 @@ class FinanceScreenController {
     return true;
   }
 
-  void updatePatrimony(double value) {
+  void updatePatrimony(
+    double value,
+  ) {
     model.patrimony = value;
   }
 
-  void updateInvestmentGoal(double value) {
+  void updateInvestmentGoal(
+    double value,
+  ) {
     model.investmentGoal = value;
   }
 
-  Future<void> saveModel() async {
+  Future<
+    void
+  >
+  saveModel() async {
     await financeController.saveData();
   }
 
-  Future<void> saveAll() async {
-    await _persistenceService.save(history: history);
+  Future<
+    void
+  >
+  saveAll() async {
+    await _persistenceService.save(
+      history: history,
+    );
   }
 }

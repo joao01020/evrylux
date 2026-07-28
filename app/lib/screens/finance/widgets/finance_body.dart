@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/utils/finance_projection.dart';
+import '../projections/finance_projection.dart';
 import '../../../models/finance/investment_history.dart';
 
 import '../../../widgets/finance/investment_progress.dart';

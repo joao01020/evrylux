@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../app_dependencies.dart';
 
-import '../../../models/journey/day_summary.dart';
+import 'models/day_summary.dart';
 
 import '../../../widgets/journey/journey_calendar.dart';
 
@@ -197,7 +197,6 @@ class _JourneyScreenState
 
               style: TextStyle(
                 fontSize: 30,
-
                 fontWeight: FontWeight.bold,
               ),
             ),
