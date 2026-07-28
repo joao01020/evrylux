@@ -10,6 +10,7 @@ import '../../widgets/study/streak_card.dart';
 import '../../widgets/study/current_time_card.dart';
 import '../../widgets/study/history_button.dart';
 
+import 'brain/brain_screen.dart';
 import 'history/history_screen.dart';
 
 class StudyScreen
@@ -61,10 +62,13 @@ class _StudyScreenState
     super.dispose();
   }
 
+  // =========================================================
+  // HISTÓRICO
+  // =========================================================
+
   void openHistory() {
     Navigator.push(
       context,
-
       MaterialPageRoute(
         builder:
             (
@@ -74,13 +78,31 @@ class _StudyScreenState
     );
   }
 
+  // =========================================================
+  // CÉREBRO
+  // =========================================================
+
+  void openBrain() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (
+              _,
+            ) => const BrainScreen(),
+      ),
+    );
+  }
+
+  // =========================================================
+  // SALVAR ESTUDO
+  // =========================================================
+
   Future<
     void
   >
   saveStudy() async {
     await studyController.saveStudy();
-
-    // Corrige use_build_context_synchronously
 
     if (!mounted) return;
 
@@ -108,30 +130,33 @@ class _StudyScreenState
         title: const Text(
           "Conhecimento 📚",
         ),
+        actions: [
+          IconButton(
+            tooltip: "Cérebro",
+            icon: const Icon(
+              Icons.psychology_outlined,
+            ),
+            onPressed: openBrain,
+          ),
+        ],
       ),
-
       body: Padding(
         padding: const EdgeInsets.all(
           24,
         ),
-
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-
             children: [
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
-
                 children: [
                   const Expanded(
                     child: StudyHeader(),
                   ),
-
                   const SizedBox(
                     width: 12,
                   ),
-
                   StreakCard(
                     streak: studyController.streak,
                   ),
@@ -144,14 +169,10 @@ class _StudyScreenState
 
               SizedBox(
                 height: 70,
-
                 child: WeekTracker(
                   completedDays: studyController.completedDays,
-
                   selectedDay: studyController.selectedDay,
-
                   days: studyController.days,
-
                   onDayTap: studyController.selectDay,
                 ),
               ),
@@ -162,10 +183,8 @@ class _StudyScreenState
 
               Transform.scale(
                 scale: timerScale,
-
                 child: ActivityTimer(
                   title: "Tempo estudado",
-
                   onTimeChanged: studyController.updateTimer,
                 ),
               ),
@@ -184,16 +203,30 @@ class _StudyScreenState
 
               SizedBox(
                 width: double.infinity,
-
                 child: ElevatedButton.icon(
                   onPressed: saveStudy,
-
                   icon: const Icon(
                     Icons.save,
                   ),
-
                   label: const Text(
                     "Salvar estudo",
+                  ),
+                ),
+              ),
+
+              const SizedBox(
+                height: 12,
+              ),
+
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: openBrain,
+                  icon: const Icon(
+                    Icons.psychology_outlined,
+                  ),
+                  label: const Text(
+                    "Cérebro",
                   ),
                 ),
               ),
