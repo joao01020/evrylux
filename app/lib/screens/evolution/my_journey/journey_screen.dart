@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../app_dependencies.dart';
+import '../../../app/app_dependencies.dart';
 
 import 'models/day_summary.dart';
 
@@ -10,25 +10,42 @@ import '../../../widgets/journey/modal/journey_day_modal.dart';
 
 import '../../../widgets/journey/utils/date_formatter.dart';
 
-class JourneyScreen extends StatefulWidget {
-  const JourneyScreen({super.key});
+class JourneyScreen
+    extends
+        StatefulWidget {
+  const JourneyScreen({
+    super.key,
+  });
 
   @override
-  State<JourneyScreen> createState() => _JourneyScreenState();
+  State<
+    JourneyScreen
+  >
+  createState() => _JourneyScreenState();
 }
 
-class _JourneyScreenState extends State<JourneyScreen> {
+class _JourneyScreenState
+    extends
+        State<
+          JourneyScreen
+        > {
   DateTime selectedDate = DateTime.now();
 
   @override
   void initState() {
     super.initState();
 
-    journeyController.addListener(refresh);
+    journeyController.addListener(
+      refresh,
+    );
 
-    trainingController.addListener(refresh);
+    trainingController.addListener(
+      refresh,
+    );
 
-    studyController.addListener(refresh);
+    studyController.addListener(
+      refresh,
+    );
 
     journeyController.load();
 
@@ -41,47 +58,79 @@ class _JourneyScreenState extends State<JourneyScreen> {
 
   void refresh() {
     if (mounted) {
-      setState(() {});
+      setState(
+        () {},
+      );
     }
   }
 
   @override
   void dispose() {
-    journeyController.removeListener(refresh);
+    journeyController.removeListener(
+      refresh,
+    );
 
-    trainingController.removeListener(refresh);
+    trainingController.removeListener(
+      refresh,
+    );
 
-    studyController.removeListener(refresh);
+    studyController.removeListener(
+      refresh,
+    );
 
     super.dispose();
   }
 
-  void openDayDetails(DateTime date) {
-    setState(() {
-      selectedDate = date;
-    });
+  void openDayDetails(
+    DateTime date,
+  ) {
+    setState(
+      () {
+        selectedDate = date;
+      },
+    );
 
-    final key = DateFormatter.key(date);
+    final key = DateFormatter.key(
+      date,
+    );
 
     // ==============================
     // TREINOS
     // ==============================
 
-    final workouts = trainingController.history.where((item) {
-      return item.contains(key);
-    }).length;
+    final workouts = trainingController.history.where(
+      (
+        item,
+      ) {
+        return item.contains(
+          key,
+        );
+      },
+    ).length;
 
     // ==============================
     // ESTUDOS
     // ==============================
 
     final studiesMinutes = studyController.studies
-        .where((study) {
-          return study.day == key;
-        })
-        .fold(0, (total, study) {
-          return total + study.minutes;
-        });
+        .where(
+          (
+            study,
+          ) {
+            return study.day ==
+                key;
+          },
+        )
+        .fold(
+          0,
+          (
+            total,
+            study,
+          ) {
+            return total +
+                study.minutes;
+          },
+        );
 
     // ==============================
     // FINANCEIRO
@@ -93,7 +142,9 @@ class _JourneyScreenState extends State<JourneyScreen> {
     // NOTAS
     // ==============================
 
-    final notes = journeyController.getDayHistory(key);
+    final notes = journeyController.getDayHistory(
+      key,
+    );
 
     final summary = DaySummary(
       date: key,
@@ -110,19 +161,32 @@ class _JourneyScreenState extends State<JourneyScreen> {
     showDialog(
       context: context,
 
-      builder: (_) {
-        return JourneyDayModal(summary: summary);
-      },
+      builder:
+          (
+            _,
+          ) {
+            return JourneyDayModal(
+              summary: summary,
+            );
+          },
     );
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Minha Jornada 📅")),
+      appBar: AppBar(
+        title: const Text(
+          "Minha Jornada 📅",
+        ),
+      ),
 
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(
+          24,
+        ),
 
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -131,18 +195,27 @@ class _JourneyScreenState extends State<JourneyScreen> {
             const Text(
               "Seu histórico",
 
-              style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 30,
+                fontWeight: FontWeight.bold,
+              ),
             ),
 
-            const SizedBox(height: 10),
+            const SizedBox(
+              height: 10,
+            ),
 
             const Text(
               "Seu caminho de evolução diário.",
 
-              style: TextStyle(fontSize: 18),
+              style: TextStyle(
+                fontSize: 18,
+              ),
             ),
 
-            const SizedBox(height: 30),
+            const SizedBox(
+              height: 30,
+            ),
 
             JourneyCalendar(
               selectedDate: selectedDate,

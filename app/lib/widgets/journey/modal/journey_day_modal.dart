@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../screens/evolution/my_journey/models/day_summary.dart';
 
-import '../../../app_dependencies.dart';
+import '../../../app/app_dependencies.dart';
 
 class JourneyDayModal
     extends

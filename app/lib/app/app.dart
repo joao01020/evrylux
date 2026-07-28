@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-import 'screens/welcome/welcome_screen.dart';
+import '../screens/welcome/welcome_screen.dart';
 
-import 'screens/study/study_screen.dart';
-import 'screens/training/training_screen.dart';
+import '../screens/study/study_screen.dart';
+import '../screens/training/training_screen.dart';
 
-import 'core/theme/app_theme.dart';
+import '../core/theme/app_theme.dart';
 
-import 'controllers/evolution/evolution_controller.dart';
+import '../controllers/evolution/evolution_controller.dart';
 
 class GhostApp
     extends
