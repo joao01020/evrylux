@@ -1,4 +1,4 @@
-import '../../data/crypto/crypto_repository.dart';
+import '../../data/repository/crypto/crypto_repository.dart';
 import '../../../../models/finance/crypto_transaction_model.dart';
 
 class CryptoService {

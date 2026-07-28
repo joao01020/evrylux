@@ -1,4 +1,4 @@
-import '../data/finance_repository.dart';
+import '../data/repository/finance_repository.dart';
 import '../../../models/finance/finance_model.dart';
 
 class FinanceService {

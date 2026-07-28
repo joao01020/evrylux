@@ -2,18 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../../../models/finance/crypto_transaction_model.dart';
 
-class AddCryptoDialog
-    extends
-        StatefulWidget {
+class AddCryptoDialog extends StatefulWidget {
   final String symbol;
 
-  final Future<
-    void
-  >
-  Function(
-    CryptoTransactionModel transaction,
-  )
-  onSave;
+  final Future<void> Function(CryptoTransactionModel transaction) onSave;
 
   const AddCryptoDialog({
     super.key,
@@ -22,17 +14,10 @@ class AddCryptoDialog
   });
 
   @override
-  State<
-    AddCryptoDialog
-  >
-  createState() => _AddCryptoDialogState();
+  State<AddCryptoDialog> createState() => _AddCryptoDialogState();
 }
 
-class _AddCryptoDialogState
-    extends
-        State<
-          AddCryptoDialog
-        > {
+class _AddCryptoDialogState extends State<AddCryptoDialog> {
   final quantityController = TextEditingController();
 
   final investedController = TextEditingController();
@@ -46,55 +31,29 @@ class _AddCryptoDialogState
     super.dispose();
   }
 
-  Future<
-    void
-  >
-  chooseDate() async {
+  Future<void> chooseDate() async {
     final picked = await showDatePicker(
       context: context,
       initialDate: selectedDate,
-      firstDate: DateTime(
-        2009,
-      ),
+      firstDate: DateTime(2009),
       lastDate: DateTime.now(),
     );
 
-    if (picked !=
-        null) {
-      setState(
-        () {
-          selectedDate = picked;
-        },
-      );
+    if (picked != null) {
+      setState(() {
+        selectedDate = picked;
+      });
     }
   }
 
-  Future<
-    void
-  >
-  save() async {
+  Future<void> save() async {
     final quantity =
-        double.tryParse(
-          quantityController.text.replaceAll(
-            ",",
-            ".",
-          ),
-        ) ??
-        0;
+        double.tryParse(quantityController.text.replaceAll(",", ".")) ?? 0;
 
     final invested =
-        double.tryParse(
-          investedController.text.replaceAll(
-            ",",
-            ".",
-          ),
-        ) ??
-        0;
+        double.tryParse(investedController.text.replaceAll(",", ".")) ?? 0;
 
-    if (quantity <=
-            0 ||
-        invested <=
-            0) {
+    if (quantity <= 0 || invested <= 0) {
       return;
     }
 
@@ -106,39 +65,23 @@ class _AddCryptoDialogState
       date: selectedDate,
     );
 
-    await widget.onSave(
-      transaction,
-    );
+    await widget.onSave(transaction);
 
     if (!mounted) return;
 
-    Navigator.pop(
-      context,
-    );
+    Navigator.pop(context);
   }
 
-  String formatDate(
-    DateTime date,
-  ) {
-    String
-    two(
-      int value,
-    ) => value.toString().padLeft(
-      2,
-      "0",
-    );
+  String formatDate(DateTime date) {
+    String two(int value) => value.toString().padLeft(2, "0");
 
     return "${two(date.day)}/${two(date.month)}/${date.year}";
   }
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(
-        "Adicionar ${widget.symbol}",
-      ),
+      title: Text("Adicionar ${widget.symbol}"),
 
       content: SingleChildScrollView(
         child: Column(
@@ -146,33 +89,19 @@ class _AddCryptoDialogState
           children: [
             InkWell(
               onTap: chooseDate,
-              borderRadius: BorderRadius.circular(
-                10,
-              ),
+              borderRadius: BorderRadius.circular(10),
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(
-                  14,
-                ),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  border: Border.all(
-                    color: Colors.grey.shade400,
-                  ),
-                  borderRadius: BorderRadius.circular(
-                    10,
-                  ),
+                  border: Border.all(color: Colors.grey.shade400),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Text(
-                  formatDate(
-                    selectedDate,
-                  ),
-                ),
+                child: Text(formatDate(selectedDate)),
               ),
             ),
 
-            const SizedBox(
-              height: 16,
-            ),
+            const SizedBox(height: 16),
 
             TextField(
               controller: quantityController,
@@ -185,9 +114,7 @@ class _AddCryptoDialogState
               ),
             ),
 
-            const SizedBox(
-              height: 16,
-            ),
+            const SizedBox(height: 16),
 
             TextField(
               controller: investedController,
@@ -206,23 +133,15 @@ class _AddCryptoDialogState
       actions: [
         TextButton(
           onPressed: () {
-            Navigator.pop(
-              context,
-            );
+            Navigator.pop(context);
           },
-          child: const Text(
-            "Cancelar",
-          ),
+          child: const Text("Cancelar"),
         ),
 
         ElevatedButton.icon(
           onPressed: save,
-          icon: const Icon(
-            Icons.add,
-          ),
-          label: const Text(
-            "Adicionar",
-          ),
+          icon: const Icon(Icons.add),
+          label: const Text("Adicionar"),
         ),
       ],
     );

@@ -6,7 +6,7 @@ import '../../models/evolution/evolution_model.dart';
 
 import '../study/study_repository.dart';
 import '../../screens/training/data/training_repository.dart';
-import '../../screens/finance/data/finance_repository.dart';
+import '../../screens/finance/data/repository/finance_repository.dart';
 
 class EvolutionRepository {
   final StudyRepository studyRepository;

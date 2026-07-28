@@ -6,51 +6,33 @@ class FinanceController {
 
   FinanceModel model = FinanceModel();
 
-  FinanceController(
-    this.service,
-  );
+  FinanceController(this.service);
 
-  Future<
-    void
-  >
-  loadData() async {
+  Future<void> loadData() async {
     model = await service.loadFinance();
   }
 
-  Future<
-    void
-  >
-  saveData() async {
-    await service.saveFinance(
-      model,
-    );
+  Future<void> saveData() async {
+    await service.saveFinance(model);
   }
 
   //========================================
   // Patrimônio
   //========================================
 
-  void updatePatrimony(
-    double value,
-  ) {
+  void updatePatrimony(double value) {
     model.patrimony = value;
   }
 
-  void updateInvested(
-    double value,
-  ) {
+  void updateInvested(double value) {
     model.invested = value;
   }
 
-  void updateMonthlyGoal(
-    double value,
-  ) {
+  void updateMonthlyGoal(double value) {
     model.monthlyGoal = value;
   }
 
-  void updateInvestmentGoal(
-    double value,
-  ) {
+  void updateInvestmentGoal(double value) {
     model.investmentGoal = value;
   }
 
@@ -58,27 +40,19 @@ class FinanceController {
   // Planejamento
   //========================================
 
-  void updateMinimumGoal(
-    double value,
-  ) {
+  void updateMinimumGoal(double value) {
     model.minimumGoal = value;
   }
 
-  void updateMediumGoal(
-    double value,
-  ) {
+  void updateMediumGoal(double value) {
     model.mediumGoal = value;
   }
 
-  void updateMaximumGoal(
-    double value,
-  ) {
+  void updateMaximumGoal(double value) {
     model.maximumGoal = value;
   }
 
-  void updateProjectionYears(
-    int value,
-  ) {
+  void updateProjectionYears(int value) {
     model.projectionYears = value;
   }
 
@@ -86,19 +60,14 @@ class FinanceController {
   // Histórico de aportes
   //========================================
 
-  void registerContribution(
-    double value,
-  ) {
+  void registerContribution(double value) {
     model.totalInvested += value;
 
     model.investedMonths++;
 
-    model.averageContribution =
-        model.investedMonths ==
-            0
+    model.averageContribution = model.investedMonths == 0
         ? 0
-        : model.totalInvested /
-              model.investedMonths;
+        : model.totalInvested / model.investedMonths;
   }
 
   void resetContributionHistory() {
@@ -113,61 +82,38 @@ class FinanceController {
   // Cálculos
   //========================================
 
-  double projectedValue(
-    double monthly,
-  ) {
-    return monthly *
-        model.projectionYears *
-        12;
+  double projectedValue(double monthly) {
+    return monthly * model.projectionYears * 12;
   }
 
-  double yearsToGoal(
-    double monthly,
-  ) {
-    if (monthly <=
-        0) {
+  double yearsToGoal(double monthly) {
+    if (monthly <= 0) {
       return 0;
     }
 
-    final remaining =
-        model.investmentGoal -
-        model.patrimony;
+    final remaining = model.investmentGoal - model.patrimony;
 
-    if (remaining <=
-        0) {
+    if (remaining <= 0) {
       return 0;
     }
 
-    return remaining /
-        (monthly *
-            12);
+    return remaining / (monthly * 12);
   }
 
-  double progressByRhythm(
-    double monthly,
-  ) {
-    if (model.investmentGoal <=
-        0) {
+  double progressByRhythm(double monthly) {
+    if (model.investmentGoal <= 0) {
       return 0;
     }
 
-    final projected =
-        model.patrimony +
-        projectedValue(
-          monthly,
-        );
+    final projected = model.patrimony + projectedValue(monthly);
 
-    final progress =
-        projected /
-        model.investmentGoal;
+    final progress = projected / model.investmentGoal;
 
-    if (progress >
-        1) {
+    if (progress > 1) {
       return 1;
     }
 
-    if (progress <
-        0) {
+    if (progress < 0) {
       return 0;
     }
 
@@ -178,27 +124,19 @@ class FinanceController {
   // Criptomoedas
   //========================================
 
-  void updateBitcoin(
-    double value,
-  ) {
+  void updateBitcoin(double value) {
     model.bitcoin = value;
   }
 
-  void updateEthereum(
-    double value,
-  ) {
+  void updateEthereum(double value) {
     model.ethereum = value;
   }
 
-  void updateSolana(
-    double value,
-  ) {
+  void updateSolana(double value) {
     model.solana = value;
   }
 
-  void updateUsdt(
-    double value,
-  ) {
+  void updateUsdt(double value) {
     model.usdt = value;
   }
 }

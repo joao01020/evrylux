@@ -1,230 +1,127 @@
-import 'package:flutter/foundation.dart';
-
-import '../../../app_dependencies.dart';
 import '../../../core/utils/finance_projection.dart';
 import '../../../models/finance/investment_history.dart';
 
-class FinanceScreenController
-    extends
-        ChangeNotifier {
-  final _financeController = financeController;
+import '../models/crypto_balances.dart';
 
-  final List<
-    InvestmentHistory
-  >
-  investmentHistory = [];
+import '../services/crypto_balance_service.dart';
+import '../services/finance_contribution_service.dart';
+import '../services/finance_persistence_service.dart';
+import '../services/history/finance_history_storage.dart';
 
-  double bitcoin = 0;
-  double ethereum = 0;
-  double solana = 0;
-  double usdt = 0;
+class FinanceScreenController {
+  final dynamic financeController;
+  final dynamic cryptoController;
+
+  final FinanceContributionService _contributionService =
+      const FinanceContributionService();
+
+  late final CryptoBalanceService _cryptoBalanceService;
+
+  late final FinancePersistenceService _persistenceService;
+
+  final List<InvestmentHistory> history = [];
+
+  CryptoBalances balances = const CryptoBalances();
 
   bool isLoading = true;
-  bool _disposed = false;
 
-  dynamic get model => _financeController.model;
+  FinanceScreenController({
+    required this.financeController,
+    required this.cryptoController,
+  }) {
+    _cryptoBalanceService = CryptoBalanceService(
+      cryptoController: cryptoController,
+    );
 
-  FinanceProjection get projection {
-    return FinanceProjection(
-      model: model,
-      history: investmentHistory,
+    _persistenceService = FinancePersistenceService(
+      financeController: financeController,
+      historyStorage: const FinanceHistoryStorage(),
     );
   }
 
-  Future<
-    void
-  >
-  load() async {
+  dynamic get model {
+    return financeController.model;
+  }
+
+  FinanceProjection get projection {
+    return FinanceProjection(model: model, history: history);
+  }
+
+  Future<void> load() async {
     isLoading = true;
-    _notify();
 
     try {
-      await Future.wait(
-        [
-          _financeController.loadData(),
-          loadCryptoBalances(),
-        ],
-      );
+      await financeController.loadData();
+
+      balances = await _cryptoBalanceService.loadBalances();
+
+      final storedHistory = await _persistenceService.loadHistory();
+
+      history
+        ..clear()
+        ..addAll(storedHistory);
     } finally {
       isLoading = false;
-      _notify();
     }
   }
 
-  Future<
-    void
-  >
-  loadCryptoBalances() async {
-    bitcoin = await _loadCryptoQuantity(
-      'BTC',
-    );
-    ethereum = await _loadCryptoQuantity(
-      'ETH',
-    );
-    solana = await _loadCryptoQuantity(
-      'SOL',
-    );
-    usdt = await _loadCryptoQuantity(
-      'USDT',
-    );
-
-    _notify();
+  Future<void> refreshCryptoBalances() async {
+    balances = await _cryptoBalanceService.loadBalances();
   }
 
-  Future<
-    double
-  >
-  _loadCryptoQuantity(
-    String symbol,
-  ) async {
-    await cryptoController.load(
-      symbol,
-    );
+  void applyPlanning(dynamic planning) {
+    model.invested = planning.invested;
+    model.minimumGoal = planning.minimumGoal;
+    model.mediumGoal = planning.mediumGoal;
+    model.maximumGoal = planning.maximumGoal;
+    model.projectionYears = planning.projectionYears;
 
-    return cryptoController.quantity;
+    model.monthlyGoal = planning.mediumGoal;
   }
 
-  Future<
-    void
-  >
-  savePlanning({
-    required double invested,
-    required double minimumGoal,
-    required double mediumGoal,
-    required double maximumGoal,
-    required int projectionYears,
-  }) async {
-    model.invested = invested;
-    model.minimumGoal = minimumGoal;
-    model.mediumGoal = mediumGoal;
-    model.maximumGoal = maximumGoal;
-    model.projectionYears = projectionYears;
-    model.monthlyGoal = mediumGoal;
+  InvestmentHistory addContribution(double contribution) {
+    final entry = projection.createHistoryEntry(contribution: contribution);
 
-    await _save();
-  }
+    history.add(entry);
 
-  Future<
-    void
-  >
-  addContribution(
-    double contribution,
-  ) async {
-    final historyEntry = projection.createHistoryEntry(
+    history.sort((a, b) => a.date.compareTo(b.date));
+
+    _contributionService.addContribution(
+      model: model,
       contribution: contribution,
     );
 
-    investmentHistory.add(
-      historyEntry,
-    );
-
-    model.invested += contribution;
-    model.totalInvested += contribution;
-    model.investedMonths += 1;
-    model.patrimony += contribution;
-
-    _updateAverageContribution();
-
-    await _save();
+    return entry;
   }
 
-  Future<
-    void
-  >
-  deleteContribution(
-    InvestmentHistory item,
-  ) async {
-    investmentHistory.remove(
-      item,
-    );
+  bool removeContribution(InvestmentHistory contribution) {
+    final removed = history.remove(contribution);
 
-    model.invested = _subtractWithoutNegative(
-      model.invested,
-      item.safeValue,
-    );
-
-    model.totalInvested = _subtractWithoutNegative(
-      model.totalInvested,
-      item.safeValue,
-    );
-
-    model.patrimony = _subtractWithoutNegative(
-      model.patrimony,
-      item.safeValue,
-    );
-
-    if (model.investedMonths >
-        0) {
-      model.investedMonths -= 1;
+    if (!removed) {
+      return false;
     }
 
-    _updateAverageContribution();
+    _contributionService.removeContribution(
+      model: model,
+      contribution: contribution,
+    );
 
-    await _save();
+    return true;
   }
 
-  Future<
-    void
-  >
-  updatePatrimony(
-    double value,
-  ) async {
+  void updatePatrimony(double value) {
     model.patrimony = value;
-
-    await _save();
   }
 
-  Future<
-    void
-  >
-  updateInvestmentGoal(
-    double value,
-  ) async {
+  void updateInvestmentGoal(double value) {
     model.investmentGoal = value;
-
-    await _save();
   }
 
-  void _updateAverageContribution() {
-    model.averageContribution =
-        model.investedMonths >
-            0
-        ? model.totalInvested /
-              model.investedMonths
-        : 0;
+  Future<void> saveModel() async {
+    await financeController.saveData();
   }
 
-  double _subtractWithoutNegative(
-    double currentValue,
-    double valueToRemove,
-  ) {
-    return (currentValue -
-            valueToRemove)
-        .clamp(
-          0.0,
-          double.infinity,
-        );
-  }
-
-  Future<
-    void
-  >
-  _save() async {
-    await _financeController.saveData();
-
-    _notify();
-  }
-
-  void _notify() {
-    if (!_disposed) {
-      notifyListeners();
-    }
-  }
-
-  @override
-  void dispose() {
-    _disposed = true;
-
-    super.dispose();
+  Future<void> saveAll() async {
+    await _persistenceService.save(history: history);
   }
 }

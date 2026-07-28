@@ -40,8 +40,8 @@ import 'controllers/study/study_controller.dart';
 // REPOSITORIES
 // ======================================================
 
-import 'screens/finance/data/finance_repository.dart';
-import 'screens/finance/data/crypto/crypto_repository.dart';
+import 'screens/finance/data/repository/finance_repository.dart';
+import 'screens/finance/data/repository/crypto/crypto_repository.dart';
 
 import 'data/evolution/evolution_repository.dart';
 import 'data/study/study_repository.dart';

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
-class CryptoBalanceDialog
-    extends
-        StatelessWidget {
+class CryptoBalanceDialog extends StatelessWidget {
   final double bitcoin;
 
   final double ethereum;
@@ -24,29 +22,17 @@ class CryptoBalanceDialog
   });
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return AlertDialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(
-          20,
-        ),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
 
       title: const Row(
         children: [
-          Icon(
-            Icons.account_balance_wallet,
-          ),
+          Icon(Icons.account_balance_wallet),
 
-          SizedBox(
-            width: 10,
-          ),
+          SizedBox(width: 10),
 
-          Text(
-            "Saldo da carteira",
-          ),
+          Text("Saldo da carteira"),
         ],
       ),
 
@@ -54,93 +40,43 @@ class CryptoBalanceDialog
         mainAxisSize: MainAxisSize.min,
 
         children: [
-          crypto(
-            "₿",
+          crypto("₿", "Bitcoin", bitcoin.toStringAsFixed(8)),
 
-            "Bitcoin",
+          crypto("Ξ", "Ethereum", ethereum.toStringAsFixed(6)),
 
-            bitcoin.toStringAsFixed(
-              8,
-            ),
-          ),
+          crypto("◎", "Solana", solana.toStringAsFixed(4)),
 
-          crypto(
-            "Ξ",
-
-            "Ethereum",
-
-            ethereum.toStringAsFixed(
-              6,
-            ),
-          ),
-
-          crypto(
-            "◎",
-
-            "Solana",
-
-            solana.toStringAsFixed(
-              4,
-            ),
-          ),
-
-          crypto(
-            "₮",
-
-            "USDT",
-
-            usdt.toStringAsFixed(
-              2,
-            ),
-          ),
+          crypto("₮", "USDT", usdt.toStringAsFixed(2)),
         ],
       ),
 
       actions: [
         TextButton(
           onPressed: () {
-            Navigator.pop(
-              context,
-            );
+            Navigator.pop(context);
           },
 
-          child: const Text(
-            "Fechar",
-          ),
+          child: const Text("Fechar"),
         ),
       ],
     );
   }
 
-  Widget crypto(
-    String icon,
-
-    String name,
-
-    String value,
-  ) {
+  Widget crypto(String icon, String name, String value) {
     return Card(
       child: ListTile(
         leading: Text(
           icon,
 
-          style: const TextStyle(
-            fontSize: 28,
-
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
         ),
 
-        title: Text(
-          name,
-        ),
+        title: Text(name),
 
         trailing: Text(
           value,
 
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
     );
