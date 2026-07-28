@@ -32,7 +32,7 @@ import 'screens/finance/controllers/finance_controller.dart';
 import 'screens/finance/controllers/crypto/crypto_controller.dart';
 
 import 'controllers/evolution/evolution_controller.dart';
-import 'controllers/training/training_controller.dart';
+import 'screens/training/controllers/training_controller.dart';
 import 'controllers/journey/journey_controller.dart';
 import 'controllers/study/study_controller.dart';
 
@@ -45,7 +45,7 @@ import 'screens/finance/data/crypto/crypto_repository.dart';
 
 import 'data/evolution/evolution_repository.dart';
 import 'data/study/study_repository.dart';
-import 'data/training/training_repository.dart';
+import 'screens/training/data/training_repository.dart';
 import 'data/journey/journey_repository.dart';
 
 // ======================================================
@@ -58,7 +58,7 @@ import 'screens/finance/services/finance_service.dart';
 import 'screens/finance/services/crypto/crypto_service.dart';
 
 import 'services/evolution/evolution_service.dart';
-import 'services/training/training_service.dart';
+import 'screens/training/services/training_service.dart';
 import 'services/journey/journey_service.dart';
 
 // ======================================================

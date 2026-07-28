@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../../app_dependencies.dart';
 
-import '../../widgets/generic/activity_timer.dart';
 import '../../widgets/generic/week_tracker.dart';
 
-import '../../widgets/training/training_header.dart';
-import '../../widgets/training/activity_card.dart';
-import '../../widgets/training/history_dialog.dart';
+import 'widgets/history_dialog.dart';
+import 'widgets/training_consistency_card.dart';
+import 'widgets/training_coverage_card.dart';
+import 'widgets/training_header.dart';
+import 'widgets/training_registration_section.dart';
+import 'widgets/training_weekly_goal_card.dart';
 
 class TrainingScreen
     extends
@@ -20,7 +22,9 @@ class TrainingScreen
   State<
     TrainingScreen
   >
-  createState() => _TrainingScreenState();
+  createState() {
+    return _TrainingScreenState();
+  }
 }
 
 class _TrainingScreenState
@@ -31,31 +35,47 @@ class _TrainingScreenState
   @override
   void initState() {
     super.initState();
-
     trainingController.load();
   }
 
   Future<
     void
   >
-  completeActivity() async {
-    await trainingController.save();
+  _completeActivity() async {
+    final saved = await trainingController.save();
 
-    // Atualiza evolução do usuário
+    if (!mounted) {
+      return;
+    }
+
+    if (!saved) {
+      _showMessage(
+        trainingController.errorMessage ??
+            'Não foi possível registrar o treino.',
+      );
+
+      return;
+    }
 
     await evolutionController.saveToday();
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
-    setState(
-      () {},
+    _showMessage(
+      trainingController.successMessage ??
+          'Treino registrado com sucesso.',
     );
+
+    trainingController.clearMessages();
   }
 
-  void openHistory() {
-    showDialog(
+  void _showHistory() {
+    showDialog<
+      void
+    >(
       context: context,
-
       builder:
           (
             _,
@@ -67,19 +87,28 @@ class _TrainingScreenState
     );
   }
 
+  void _showMessage(
+    String message,
+  ) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(
     BuildContext context,
   ) {
     final controller = trainingController;
 
-    final minutes =
-        controller.currentSeconds ~/
-        60;
-
     return AnimatedBuilder(
       animation: controller,
-
       builder:
           (
             context,
@@ -88,156 +117,79 @@ class _TrainingScreenState
             return Scaffold(
               appBar: AppBar(
                 title: const Text(
-                  "Saúde 💪",
+                  'Saúde 💪',
                 ),
               ),
-
-              body: SingleChildScrollView(
-                padding: const EdgeInsets.all(
-                  20,
-                ),
-
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-
-                  children: [
-                    TrainingHeader(
-                      streak: controller.streak,
-                    ),
-
-                    const SizedBox(
-                      height: 24,
-                    ),
-
-                    WeekTracker(
-                      completedDays: controller.completedDays,
-
-                      days: controller.days,
-
-                      selectedDay: controller.selectedDay,
-
-                      onDayTap: controller.selectDay,
-                    ),
-
-                    const SizedBox(
-                      height: 20,
-                    ),
-
-                    ActivityTimer(
-                      title: "Tempo de atividade",
-
-                      onTimeChanged: controller.updateTimer,
-                    ),
-
-                    const SizedBox(
-                      height: 15,
-                    ),
-
-                    Card(
-                      child: ListTile(
-                        leading: const Text(
-                          "⏱️",
-                          style: TextStyle(
-                            fontSize: 24,
+              body: controller.isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(),
+                    )
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.all(
+                        20,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          TrainingHeader(
+                            streak: controller.streak,
                           ),
-                        ),
 
-                        title: const Text(
-                          "Tempo atual",
-                        ),
+                          const SizedBox(
+                            height: 24,
+                          ),
 
-                        subtitle: Text(
-                          "$minutes minutos registrados",
-                        ),
+                          WeekTracker(
+                            completedDays: controller.completedDays,
+                            days: controller.days,
+                            selectedDay: controller.selectedDay,
+                            onDayTap: controller.selectDay,
+                          ),
+
+                          const SizedBox(
+                            height: 24,
+                          ),
+
+                          TrainingWeeklyGoalCard(
+                            weeklyGoal: controller.weeklyGoal,
+                            onGoalChanged: controller.setWeeklyGoal,
+                          ),
+
+                          const SizedBox(
+                            height: 20,
+                          ),
+
+                          TrainingConsistencyCard(
+                            consistency: controller.consistencyIndex,
+                            completedTrainings: controller.monthlyCompletedTrainings,
+                            expectedTrainings: controller.expectedTrainingsUntilToday,
+                            weeklyGoal: controller.weeklyGoal,
+                          ),
+
+                          const SizedBox(
+                            height: 20,
+                          ),
+
+                          TrainingCoverageCard(
+                            coverage: controller.monthlyCoverage,
+                          ),
+
+                          const SizedBox(
+                            height: 28,
+                          ),
+
+                          TrainingRegistrationSection(
+                            controller: controller,
+                            onComplete: _completeActivity,
+                            onOpenHistory: _showHistory,
+                          ),
+
+                          const SizedBox(
+                            height: 20,
+                          ),
+                        ],
                       ),
                     ),
-
-                    const SizedBox(
-                      height: 20,
-                    ),
-
-                    const Text(
-                      "Hoje:",
-
-                      style: TextStyle(
-                        fontSize: 18,
-
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-
-                    const SizedBox(
-                      height: 10,
-                    ),
-
-                    Wrap(
-                      spacing: 10,
-
-                      runSpacing: 10,
-
-                      children: controller.activityOptions.map(
-                        (
-                          activity,
-                        ) {
-                          return SizedBox(
-                            width: 105,
-
-                            child: ActivityCard(
-                              activity: activity,
-
-                              selected:
-                                  controller.selectedActivity ==
-                                  activity,
-
-                              onTap: () {
-                                controller.selectActivity(
-                                  activity,
-                                );
-                              },
-                            ),
-                          );
-                        },
-                      ).toList(),
-                    ),
-
-                    const SizedBox(
-                      height: 20,
-                    ),
-
-                    SizedBox(
-                      width: double.infinity,
-
-                      child: ElevatedButton(
-                        onPressed: completeActivity,
-
-                        child: const Text(
-                          "Salvar",
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(
-                      height: 20,
-                    ),
-
-                    SizedBox(
-                      width: double.infinity,
-
-                      child: OutlinedButton.icon(
-                        onPressed: openHistory,
-
-                        icon: const Icon(
-                          Icons.history,
-                        ),
-
-                        label: const Text(
-                          "Histórico 📚",
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             );
           },
     );

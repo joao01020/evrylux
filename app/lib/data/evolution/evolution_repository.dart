@@ -5,7 +5,7 @@ import '../../core/storage/local_storage.dart';
 import '../../models/evolution/evolution_model.dart';
 
 import '../study/study_repository.dart';
-import '../training/training_repository.dart';
+import '../../screens/training/data/training_repository.dart';
 import '../../screens/finance/data/finance_repository.dart';
 
 class EvolutionRepository {
