@@ -22,44 +22,44 @@
 // STORAGE
 // ======================================================
 
-import '../core/storage/local_storage.dart';
+import '../../core/storage/local_storage.dart';
 
 // ======================================================
 // CONTROLLERS
 // ======================================================
 
-import '../screens/finance/controllers/finance_controller.dart';
-import '../screens/finance/controllers/crypto/crypto_controller.dart';
+import '../../screens/finance/controllers/finance_controller.dart';
+import '../../screens/finance/controllers/crypto/crypto_controller.dart';
 
-import '../screens/evolution/controllers/evolution_controller.dart';
-import '../screens/training/controllers/training_controller.dart';
-import '../screens/evolution/my_journey/controllers/journey_controller.dart';
-import '../screens/study/controllers/study_controller.dart';
+import '../../screens/evolution/controllers/evolution_controller.dart';
+import '../../screens/training/controllers/training_controller.dart';
+import '../../screens/evolution/my_journey/controllers/journey_controller.dart';
+import '../../screens/study/controllers/study_controller.dart';
 
 // ======================================================
 // REPOSITORIES
 // ======================================================
 
-import '../screens/finance/data/repository/finance_repository.dart';
-import '../screens/finance/data/repository/crypto/crypto_repository.dart';
+import '../../screens/finance/data/repository/finance_repository.dart';
+import '../../screens/finance/data/repository/crypto/crypto_repository.dart';
 
-import '../screens/evolution/data/repository/evolution_repository.dart';
-import '../screens/study/data/repository/study_repository.dart';
-import '../screens/training/data/training_repository.dart';
-import '../screens/evolution/my_journey/data/repository/journey_repository.dart';
+import '../../screens/evolution/data/repository/evolution_repository.dart';
+import '../../screens/study/data/repository/study_repository.dart';
+import '../../screens/training/data/training_repository.dart';
+import '../../screens/evolution/my_journey/data/repository/journey_repository.dart';
 
 // ======================================================
 // SERVICES
 // ======================================================
 
-import '../screens/study/brain/services/study_service.dart';
+import '../../screens/study/brain/services/study_service.dart';
 
-import '../screens/finance/services/persistence/finance_service.dart';
-import '../screens/finance/services/crypto/crypto_service.dart';
+import '../../screens/finance/services/persistence/finance_service.dart';
+import '../../screens/finance/services/crypto/crypto_service.dart';
 
-import '../screens/evolution/services/evolution_service.dart';
-import '../screens/training/services/training_service.dart';
-import '../screens/evolution/my_journey/services/journey_service.dart';
+import '../../screens/evolution/services/evolution_service.dart';
+import '../../screens/training/services/training_service.dart';
+import '../../screens/evolution/my_journey/services/journey_service.dart';
 
 // ======================================================
 // STORAGE

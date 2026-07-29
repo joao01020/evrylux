@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../app/app_dependencies.dart';
+import '../../app/dependencies/app_dependencies.dart';
 
 import 'actions/finance_screen_actions.dart';
 import 'controllers/finance_screen_controller.dart';

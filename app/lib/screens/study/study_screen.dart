@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../app/app_dependencies.dart';
+import '../../app/dependencies/app_dependencies.dart';
 
 import '../../widgets/generic/activity_timer.dart';
 import '../../widgets/generic/week_tracker.dart';
