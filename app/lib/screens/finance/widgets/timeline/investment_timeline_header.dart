@@ -1,19 +1,12 @@
 import 'package:flutter/material.dart';
 
-class InvestmentTimelineHeader
-    extends
-        StatelessWidget {
+class InvestmentTimelineHeader extends StatelessWidget {
   final int contributionCount;
 
-  const InvestmentTimelineHeader({
-    super.key,
-    required this.contributionCount,
-  });
+  const InvestmentTimelineHeader({super.key, required this.contributionCount});
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -21,24 +14,16 @@ class InvestmentTimelineHeader
           width: 46,
           height: 46,
           decoration: BoxDecoration(
-            color: Theme.of(
-              context,
-            ).colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(
-              14,
-            ),
+            color: Theme.of(context).colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(14),
           ),
           child: Icon(
             Icons.history_outlined,
-            color: Theme.of(
-              context,
-            ).colorScheme.onPrimaryContainer,
+            color: Theme.of(context).colorScheme.onPrimaryContainer,
           ),
         ),
 
-        const SizedBox(
-          width: 12,
-        ),
+        const SizedBox(width: 12),
 
         Expanded(
           child: Column(
@@ -46,26 +31,18 @@ class InvestmentTimelineHeader
             children: [
               const Text(
                 'Histórico de aportes',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
 
-              const SizedBox(
-                height: 4,
-              ),
+              const SizedBox(height: 4),
 
               Text(
-                contributionCount ==
-                        0
+                contributionCount == 0
                     ? 'Seus aportes aparecerão aqui.'
                     : '$contributionCount '
                           '${contributionCount == 1 ? 'aporte registrado' : 'aportes registrados'}.',
                 style: TextStyle(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurfaceVariant,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ],

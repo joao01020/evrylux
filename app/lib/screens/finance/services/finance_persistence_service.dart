@@ -1,4 +1,4 @@
-import '../../../models/finance/investment_history.dart';
+import 'history/investment_history.dart';
 import 'history/finance_history_storage.dart';
 
 class FinancePersistenceService {
@@ -10,27 +10,12 @@ class FinancePersistenceService {
     required this.historyStorage,
   });
 
-  Future<
-    List<
-      InvestmentHistory
-    >
-  >
-  loadHistory() {
+  Future<List<InvestmentHistory>> loadHistory() {
     return historyStorage.load();
   }
 
-  Future<
-    void
-  >
-  save({
-    required List<
-      InvestmentHistory
-    >
-    history,
-  }) async {
+  Future<void> save({required List<InvestmentHistory> history}) async {
     await financeController.saveData();
-    await historyStorage.save(
-      history,
-    );
+    await historyStorage.save(history);
   }
 }

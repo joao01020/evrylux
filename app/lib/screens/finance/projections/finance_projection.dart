@@ -1,6 +1,6 @@
 import 'finance_rhythm.dart';
-import '../../../models/finance/finance_model.dart';
-import '../../../models/finance/investment_history.dart';
+import '../models/finance_model.dart';
+import '../services/history/investment_history.dart';
 
 import 'finance_projection_calculator.dart';
 

@@ -3,56 +3,32 @@ import 'package:flutter/material.dart';
 class InvestmentRhythmStyle {
   const InvestmentRhythmStyle._();
 
-  static String normalize(
-    String rhythm,
-  ) {
+  static String normalize(String rhythm) {
     final value = rhythm.trim().toLowerCase();
 
-    if (value.contains(
-          'tranquilo',
-        ) ||
-        value.contains(
-          'mínimo',
-        ) ||
-        value.contains(
-          'minimo',
-        )) {
+    if (value.contains('tranquilo') ||
+        value.contains('mínimo') ||
+        value.contains('minimo')) {
       return 'Tranquilo';
     }
 
-    if (value.contains(
-          'normal',
-        ) ||
-        value.contains(
-          'médio',
-        ) ||
-        value.contains(
-          'medio',
-        )) {
+    if (value.contains('normal') ||
+        value.contains('médio') ||
+        value.contains('medio')) {
       return 'Normal';
     }
 
-    if (value.contains(
-          'forte',
-        ) ||
-        value.contains(
-          'máximo',
-        ) ||
-        value.contains(
-          'maximo',
-        )) {
+    if (value.contains('forte') ||
+        value.contains('máximo') ||
+        value.contains('maximo')) {
       return 'Forte';
     }
 
-    if (value.contains(
-      'personalizado',
-    )) {
+    if (value.contains('personalizado')) {
       return 'Personalizado';
     }
 
-    if (value.contains(
-      'sem aporte',
-    )) {
+    if (value.contains('sem aporte')) {
       return 'Sem aporte';
     }
 
@@ -63,12 +39,8 @@ class InvestmentRhythmStyle {
     return rhythm;
   }
 
-  static Color color(
-    String rhythm,
-  ) {
-    switch (normalize(
-      rhythm,
-    )) {
+  static Color color(String rhythm) {
+    switch (normalize(rhythm)) {
       case 'Tranquilo':
         return Colors.green;
 
@@ -89,12 +61,8 @@ class InvestmentRhythmStyle {
     }
   }
 
-  static IconData icon(
-    String rhythm,
-  ) {
-    switch (normalize(
-      rhythm,
-    )) {
+  static IconData icon(String rhythm) {
+    switch (normalize(rhythm)) {
       case 'Tranquilo':
         return Icons.eco_outlined;
 
@@ -115,12 +83,8 @@ class InvestmentRhythmStyle {
     }
   }
 
-  static String description(
-    String rhythm,
-  ) {
-    switch (normalize(
-      rhythm,
-    )) {
+  static String description(String rhythm) {
+    switch (normalize(rhythm)) {
       case 'Tranquilo':
         return 'Você manteve seu objetivo em movimento.';
 

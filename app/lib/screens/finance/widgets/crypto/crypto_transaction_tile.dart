@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../models/finance/crypto_transaction_model.dart';
+import '../../models/crypto/crypto_transaction_model.dart';
 
-class CryptoTransactionTile extends StatelessWidget {
+class CryptoTransactionTile
+    extends
+        StatelessWidget {
   final CryptoTransactionModel transaction;
 
   final VoidCallback onDelete;
@@ -20,15 +22,24 @@ class CryptoTransactionTile extends StatelessWidget {
     required this.onEdit,
   });
 
-  String _formatDate(DateTime date) {
-    String two(int value) {
-      return value.toString().padLeft(2, '0');
+  String _formatDate(
+    DateTime date,
+  ) {
+    String two(
+      int value,
+    ) {
+      return value.toString().padLeft(
+        2,
+        '0',
+      );
     }
 
     return "${two(date.day)}/${two(date.month)}/${date.year}";
   }
 
-  int _decimals(String symbol) {
+  int _decimals(
+    String symbol,
+  ) {
     switch (symbol) {
       case "BTC":
         return 8;
@@ -47,63 +58,106 @@ class CryptoTransactionTile extends StatelessWidget {
     }
   }
 
-  Future<bool?> _confirmDelete(BuildContext context) {
-    return showDialog<bool>(
+  Future<
+    bool?
+  >
+  _confirmDelete(
+    BuildContext context,
+  ) {
+    return showDialog<
+      bool
+    >(
       context: context,
 
-      builder: (context) {
-        return AlertDialog(
-          title: const Text("Excluir compra?"),
+      builder:
+          (
+            context,
+          ) {
+            return AlertDialog(
+              title: const Text(
+                "Excluir compra?",
+              ),
 
-          content: const Text("Esta operação não poderá ser desfeita."),
+              content: const Text(
+                "Esta operação não poderá ser desfeita.",
+              ),
 
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context, false);
-              },
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(
+                      context,
+                      false,
+                    );
+                  },
 
-              child: const Text("Cancelar"),
-            ),
+                  child: const Text(
+                    "Cancelar",
+                  ),
+                ),
 
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context, true);
-              },
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(
+                      context,
+                      true,
+                    );
+                  },
 
-              child: const Text("Excluir"),
-            ),
-          ],
-        );
-      },
+                  child: const Text(
+                    "Excluir",
+                  ),
+                ),
+              ],
+            );
+          },
     );
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Dismissible(
-      key: ValueKey(transaction.id),
+      key: ValueKey(
+        transaction.id,
+      ),
 
       direction: DismissDirection.endToStart,
 
-      confirmDismiss: (direction) async {
-        final result = await _confirmDelete(context);
+      confirmDismiss:
+          (
+            direction,
+          ) async {
+            final result = await _confirmDelete(
+              context,
+            );
 
-        return result ?? false;
-      },
+            return result ??
+                false;
+          },
 
-      onDismissed: (direction) {
-        onDelete();
-      },
+      onDismissed:
+          (
+            direction,
+          ) {
+            onDelete();
+          },
 
       background: Container(
         alignment: Alignment.centerRight,
 
-        padding: const EdgeInsets.only(right: 24),
+        padding: const EdgeInsets.only(
+          right: 24,
+        ),
 
         color: Colors.red,
 
-        child: const Icon(Icons.delete_outline, color: Colors.white, size: 30),
+        child: const Icon(
+          Icons.delete_outline,
+          color: Colors.white,
+          size: 30,
+        ),
       ),
 
       child: GestureDetector(
@@ -126,21 +180,30 @@ class CryptoTransactionTile extends StatelessWidget {
             child: Text(
               transaction.symbol,
 
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 11,
+              ),
             ),
           ),
 
           title: Text(
-            _formatDate(transaction.date),
+            _formatDate(
+              transaction.date,
+            ),
 
-            style: const TextStyle(fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+            ),
           ),
 
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
 
             children: [
-              const SizedBox(height: 5),
+              const SizedBox(
+                height: 5,
+              ),
 
               Text(
                 "${transaction.quantity.toStringAsFixed(_decimals(transaction.symbol))} ${transaction.symbol}",
@@ -149,12 +212,16 @@ class CryptoTransactionTile extends StatelessWidget {
               Text(
                 "R\$ ${transaction.invested.toStringAsFixed(2)}",
 
-                style: const TextStyle(fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
 
-          trailing: const Icon(Icons.more_horiz),
+          trailing: const Icon(
+            Icons.more_horiz,
+          ),
         ),
       ),
     );

@@ -1,9 +1,9 @@
 import '../projections/finance_projection.dart';
-import '../../../models/finance/investment_history.dart';
+import '../services/history/investment_history.dart';
 
-import '../models/crypto_balances.dart';
+import '../models/crypto/crypto_balances.dart';
 
-import '../services/crypto_balance_service.dart';
+import '../services/crypto/crypto_balance_service.dart';
 import '../services/finance_contribution_service.dart';
 import '../services/finance_persistence_service.dart';
 import '../services/history/finance_history_storage.dart';

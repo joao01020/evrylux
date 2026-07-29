@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
-class FinanceSectionHeader
-    extends
-        StatelessWidget {
+class FinanceSectionHeader extends StatelessWidget {
   final String title;
   final String? subtitle;
   final Widget? trailing;
@@ -15,9 +13,7 @@ class FinanceSectionHeader
   });
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
@@ -33,18 +29,13 @@ class FinanceSectionHeader
                 ),
               ),
 
-              if (subtitle !=
-                  null) ...[
-                const SizedBox(
-                  height: 4,
-                ),
+              if (subtitle != null) ...[
+                const SizedBox(height: 4),
 
                 Text(
                   subtitle!,
                   style: TextStyle(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurfaceVariant,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -52,14 +43,7 @@ class FinanceSectionHeader
           ),
         ),
 
-        if (trailing !=
-            null) ...[
-          const SizedBox(
-            width: 12,
-          ),
-
-          trailing!,
-        ],
+        if (trailing != null) ...[const SizedBox(width: 12), trailing!],
       ],
     );
   }

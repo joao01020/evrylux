@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../projections/finance_projection.dart';
-import '../../../models/finance/investment_history.dart';
+import '../services/history/investment_history.dart';
 
-import '../../../widgets/finance/investment_progress.dart';
-import '../../../widgets/finance/investment_timeline.dart';
-import '../../../widgets/finance/wallet_card.dart';
+import 'progress/investment_progress.dart';
+import 'timeline/investment_timeline.dart';
+import 'wallet/wallet_card.dart';
 
 import 'finance_intro.dart';
 import 'finance_section_header.dart';

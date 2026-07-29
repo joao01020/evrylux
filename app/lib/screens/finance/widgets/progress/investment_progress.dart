@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../screens/finance/projections/finance_projection.dart';
+import '../../projections/finance_projection.dart';
 
 class InvestmentProgress
     extends

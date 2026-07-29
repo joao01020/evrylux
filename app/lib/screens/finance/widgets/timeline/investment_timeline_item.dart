@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../models/finance/investment_history.dart';
+import '../../services/history/investment_history.dart';
 
 import 'finance_history_formatter.dart';
 import 'investment_rhythm_style.dart';

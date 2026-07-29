@@ -4,11 +4,11 @@ import '../../../app/app_dependencies.dart';
 
 import 'models/day_summary.dart';
 
-import '../../../widgets/journey/journey_calendar.dart';
+import 'widgets/journey_calendar.dart';
 
-import '../../../widgets/journey/modal/journey_day_modal.dart';
+import 'widgets/modal/journey_day_modal.dart';
 
-import '../../../widgets/journey/utils/date_formatter.dart';
+import 'utils/date_formatter.dart';
 
 class JourneyScreen
     extends

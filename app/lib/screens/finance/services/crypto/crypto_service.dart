@@ -1,5 +1,5 @@
 import '../../data/repository/crypto/crypto_repository.dart';
-import '../../../../models/finance/crypto_transaction_model.dart';
+import '../../models/crypto/crypto_transaction_model.dart';
 
 class CryptoService {
   final CryptoRepository repository;

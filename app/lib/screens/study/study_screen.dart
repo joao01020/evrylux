@@ -5,10 +5,10 @@ import '../../app/app_dependencies.dart';
 import '../../widgets/generic/activity_timer.dart';
 import '../../widgets/generic/week_tracker.dart';
 
-import '../../widgets/study/study_header.dart';
-import '../../widgets/study/streak_card.dart';
-import '../../widgets/study/current_time_card.dart';
-import '../../widgets/study/history_button.dart';
+import 'widgets/study_header.dart';
+import 'widgets/streak_card.dart';
+import 'widgets/current_time_card.dart';
+import 'widgets/history_button.dart';
 
 import 'brain/brain_screen.dart';
 import 'history/history_screen.dart';

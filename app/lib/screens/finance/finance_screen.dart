@@ -6,27 +6,16 @@ import 'actions/finance_screen_actions.dart';
 import 'controllers/finance_screen_controller.dart';
 import 'widgets/finance_screen_content.dart';
 
-class FinanceScreen
-    extends
-        StatefulWidget {
-  const FinanceScreen({
-    super.key,
-  });
+class FinanceScreen extends StatefulWidget {
+  const FinanceScreen({super.key});
 
   @override
-  State<
-    FinanceScreen
-  >
-  createState() {
+  State<FinanceScreen> createState() {
     return _FinanceScreenState();
   }
 }
 
-class _FinanceScreenState
-    extends
-        State<
-          FinanceScreen
-        > {
+class _FinanceScreenState extends State<FinanceScreen> {
   late final FinanceScreenController _controller;
   late final FinanceScreenActions _actions;
 
@@ -49,15 +38,10 @@ class _FinanceScreenState
     _loadScreen();
   }
 
-  Future<
-    void
-  >
-  _loadScreen() async {
+  Future<void> _loadScreen() async {
     try {
       await _controller.load();
-    } catch (
-      _
-    ) {
+    } catch (_) {
       if (mounted) {
         _actions.showMessage(
           'Não foi possível carregar todos os dados financeiros.',
@@ -73,23 +57,17 @@ class _FinanceScreenState
       return;
     }
 
-    setState(
-      () {},
-    );
+    setState(() {});
   }
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      title: const Text(
-        'Financeiro 💰',
-      ),
+      title: const Text('Financeiro 💰'),
       actions: [
         IconButton(
           tooltip: 'Planejamento',
           onPressed: _actions.openPlanning,
-          icon: const Icon(
-            Icons.tune_outlined,
-          ),
+          icon: const Icon(Icons.tune_outlined),
         ),
       ],
     );
@@ -98,20 +76,14 @@ class _FinanceScreenState
   Widget _buildContributionButton() {
     return FloatingActionButton.extended(
       onPressed: _actions.openContribution,
-      icon: const Icon(
-        Icons.add,
-      ),
-      label: const Text(
-        'Registrar aporte',
-      ),
+      icon: const Icon(Icons.add),
+      label: const Text('Registrar aporte'),
     );
   }
 
   Widget _buildBody() {
     if (_controller.isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     return FinanceScreenContent(
@@ -132,9 +104,7 @@ class _FinanceScreenState
   }
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: _buildAppBar(),
       floatingActionButton: _buildContributionButton(),

@@ -1,4 +1,4 @@
-import '../models/crypto_balances.dart';
+import '../../models/crypto/crypto_balances.dart';
 
 class CryptoBalanceService {
   final dynamic cryptoController;

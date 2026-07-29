@@ -1,6 +1,6 @@
 import '../data/training_repository.dart';
 import '../models/training_model.dart';
-import '../models/training_data_parser.dart';
+import '../models/data/training_data_parser.dart';
 
 class TrainingRecordService {
   final TrainingRepository repository;

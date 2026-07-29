@@ -5,7 +5,7 @@ Apenas Cria e orquestra
 
 import 'package:flutter/material.dart';
 
-import '../../../models/finance/investment_history.dart';
+import '../services/history/investment_history.dart';
 
 import '../controllers/finance_screen_controller.dart';
 
@@ -54,7 +54,10 @@ class FinanceScreenActions {
     );
   }
 
-  Future<void> openHistory() {
+  Future<
+    void
+  >
+  openHistory() {
     return _navigationActions.openHistory();
   }
 
@@ -62,45 +65,83 @@ class FinanceScreenActions {
     _navigationActions.openVault();
   }
 
-  Future<void> openCrypto(String symbol) {
-    return _dialogActions.openCrypto(symbol);
+  Future<
+    void
+  >
+  openCrypto(
+    String symbol,
+  ) {
+    return _dialogActions.openCrypto(
+      symbol,
+    );
   }
 
   void openCryptoBalance() {
     _dialogActions.openCryptoBalance();
   }
 
-  Future<void> openPlanning() {
+  Future<
+    void
+  >
+  openPlanning() {
     return _dialogActions.openPlanning();
   }
 
-  Future<void> openContribution() {
+  Future<
+    void
+  >
+  openContribution() {
     return _contributionActions.openContribution();
   }
 
-  Future<void> deleteContribution(InvestmentHistory item) {
-    return _contributionActions.deleteContribution(item);
+  Future<
+    void
+  >
+  deleteContribution(
+    InvestmentHistory item,
+  ) {
+    return _contributionActions.deleteContribution(
+      item,
+    );
   }
 
-  Future<void> editPatrimony() {
+  Future<
+    void
+  >
+  editPatrimony() {
     return _dialogActions.editPatrimony();
   }
 
-  Future<void> editInvestmentGoal() {
+  Future<
+    void
+  >
+  editInvestmentGoal() {
     return _dialogActions.editInvestmentGoal();
   }
 
-  void showHistoryItem(InvestmentHistory item) {
-    _dialogActions.showHistoryItem(item);
+  void showHistoryItem(
+    InvestmentHistory item,
+  ) {
+    _dialogActions.showHistoryItem(
+      item,
+    );
   }
 
-  void showMessage(String message) {
+  void showMessage(
+    String message,
+  ) {
     if (!isMounted()) {
       return;
     }
 
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+        ),
+      ),
+    );
   }
 }

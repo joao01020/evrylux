@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../../models/finance/investment_history.dart';
+import 'investment_history.dart';
 
 class FinanceHistoryStorage {
   static const String _storageKey = 'finance_investment_history';
