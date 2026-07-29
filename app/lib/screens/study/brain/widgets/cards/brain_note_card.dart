@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../models/brain_file.dart';
+import '../../models/brain_file.dart';
 
 class BrainNoteCard
     extends

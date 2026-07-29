@@ -4,12 +4,12 @@ import '../../app/dependencies/app_dependencies.dart';
 
 import '../../widgets/generic/week_tracker.dart';
 
-import 'widgets/history_dialog.dart';
-import 'widgets/training_consistency_card.dart';
-import 'widgets/training_coverage_card.dart';
-import 'widgets/training_header.dart';
-import 'widgets/training_registration_section.dart';
-import 'widgets/training_weekly_goal_card.dart';
+import 'widgets/dialogs/history_dialog.dart';
+import 'widgets/cards/training_consistency_card.dart';
+import 'widgets/cards/training_coverage_card.dart';
+import 'widgets/sections/training_header.dart';
+import 'widgets/sections/training_registration_section.dart';
+import 'widgets/cards/training_weekly_goal_card.dart';
 
 class TrainingScreen
     extends

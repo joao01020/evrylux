@@ -52,7 +52,7 @@ import '../../screens/evolution/my_journey/data/repository/journey_repository.da
 // SERVICES
 // ======================================================
 
-import '../../screens/study/brain/services/study_service.dart';
+import '../../screens/study/services/study_service.dart';
 
 import '../../screens/finance/services/persistence/finance_service.dart';
 import '../../screens/finance/services/crypto/crypto_service.dart';

@@ -4,14 +4,16 @@ import '../helpers/training_date_helper.dart';
 import '../services/training_service.dart';
 import '../states/training_state.dart';
 
-import 'training_history_controller.dart';
-import 'training_load_controller.dart';
-import 'training_plan_controller.dart';
-import 'training_save_controller.dart';
-import 'training_stats_controller.dart';
-import 'training_ui_controller.dart';
+import 'subcontrollers/training_history_controller.dart';
+import 'subcontrollers/training_load_controller.dart';
+import 'subcontrollers/training_plan_controller.dart';
+import 'subcontrollers/training_save_controller.dart';
+import 'subcontrollers/training_stats_controller.dart';
+import 'subcontrollers/training_ui_controller.dart';
 
-class TrainingController extends ChangeNotifier {
+class TrainingController
+    extends
+        ChangeNotifier {
   final TrainingService service;
   final TrainingState state;
 
@@ -22,7 +24,10 @@ class TrainingController extends ChangeNotifier {
   late final TrainingUiController uiController;
   late final TrainingStatsController statsController;
 
-  static const List<String> activityOptions = [
+  static const List<
+    String
+  >
+  activityOptions = [
     '🏋️ Peito',
     '🦵 Pernas',
     '💪 Braço',
@@ -33,18 +38,31 @@ class TrainingController extends ChangeNotifier {
     '🚶 Caminhada',
   ];
 
-  TrainingController({required this.service, TrainingState? initialState})
-    : state = initialState ?? TrainingState() {
+  TrainingController({
+    required this.service,
+    TrainingState? initialState,
+  }) : state =
+           initialState ??
+           TrainingState() {
     _initializeControllers();
     _addListeners();
   }
 
   void _initializeControllers() {
-    loadController = TrainingLoadController(service: service, state: state);
+    loadController = TrainingLoadController(
+      service: service,
+      state: state,
+    );
 
-    saveController = TrainingSaveController(service: service, state: state);
+    saveController = TrainingSaveController(
+      service: service,
+      state: state,
+    );
 
-    planController = TrainingPlanController(service: service, state: state);
+    planController = TrainingPlanController(
+      service: service,
+      state: state,
+    );
 
     historyController = TrainingHistoryController(
       service: service,
@@ -63,12 +81,24 @@ class TrainingController extends ChangeNotifier {
   }
 
   void _addListeners() {
-    loadController.addListener(_notify);
-    saveController.addListener(_notify);
-    planController.addListener(_notify);
-    historyController.addListener(_notify);
-    uiController.addListener(_notify);
-    statsController.addListener(_notify);
+    loadController.addListener(
+      _notify,
+    );
+    saveController.addListener(
+      _notify,
+    );
+    planController.addListener(
+      _notify,
+    );
+    historyController.addListener(
+      _notify,
+    );
+    uiController.addListener(
+      _notify,
+    );
+    statsController.addListener(
+      _notify,
+    );
   }
 
   void _notify() {
@@ -91,11 +121,17 @@ class TrainingController extends ChangeNotifier {
   // INTERFACE
   // =========================================================
 
-  List<String> get days => TrainingDateHelper.weekDays;
+  List<
+    String
+  >
+  get days => TrainingDateHelper.weekDays;
 
   String? get selectedDay => state.selectedDay;
 
-  Set<String> get selectedActivities => state.selectedActivities;
+  Set<
+    String
+  >
+  get selectedActivities => state.selectedActivities;
 
   int get currentSeconds => state.currentSeconds;
 
@@ -111,13 +147,19 @@ class TrainingController extends ChangeNotifier {
 
   int get streak => state.streak;
 
-  List<bool> get completedDays => state.completedDays;
+  List<
+    bool
+  >
+  get completedDays => state.completedDays;
 
   // =========================================================
   // HISTÓRICO
   // =========================================================
 
-  List<String> get history => state.history;
+  List<
+    String
+  >
+  get history => state.history;
 
   // =========================================================
   // ESTATÍSTICAS
@@ -133,7 +175,11 @@ class TrainingController extends ChangeNotifier {
     return statsController.expectedTrainingsUntilToday;
   }
 
-  Map<String, int> get monthlyCoverage {
+  Map<
+    String,
+    int
+  >
+  get monthlyCoverage {
     return statsController.monthlyCoverage;
   }
 
@@ -141,7 +187,10 @@ class TrainingController extends ChangeNotifier {
   // CARREGAMENTO
   // =========================================================
 
-  Future<void> load() async {
+  Future<
+    void
+  >
+  load() async {
     final loaded = await loadController.load();
 
     if (!loaded) {
@@ -155,7 +204,10 @@ class TrainingController extends ChangeNotifier {
   // SALVAR TREINO
   // =========================================================
 
-  Future<bool> save() async {
+  Future<
+    bool
+  >
+  save() async {
     final saved = await saveController.save();
 
     if (!saved) {
@@ -171,8 +223,12 @@ class TrainingController extends ChangeNotifier {
   // PLANO SEMANAL
   // =========================================================
 
-  void setWeeklyGoal(int goal) {
-    planController.setWeeklyGoal(goal);
+  void setWeeklyGoal(
+    int goal,
+  ) {
+    planController.setWeeklyGoal(
+      goal,
+    );
     statsController.refresh();
   }
 
@@ -180,20 +236,32 @@ class TrainingController extends ChangeNotifier {
   // SELEÇÃO DO DIA
   // =========================================================
 
-  void selectDay(int index) {
-    uiController.selectDay(index);
+  void selectDay(
+    int index,
+  ) {
+    uiController.selectDay(
+      index,
+    );
   }
 
   // =========================================================
   // ATIVIDADES
   // =========================================================
 
-  bool isActivitySelected(String activity) {
-    return uiController.isActivitySelected(activity);
+  bool isActivitySelected(
+    String activity,
+  ) {
+    return uiController.isActivitySelected(
+      activity,
+    );
   }
 
-  void toggleActivity(String activity) {
-    uiController.toggleActivity(activity);
+  void toggleActivity(
+    String activity,
+  ) {
+    uiController.toggleActivity(
+      activity,
+    );
   }
 
   void clearSelectedActivities() {
@@ -204,8 +272,12 @@ class TrainingController extends ChangeNotifier {
   // CRONÔMETRO
   // =========================================================
 
-  void updateTimer(int seconds) {
-    uiController.updateTimer(seconds);
+  void updateTimer(
+    int seconds,
+  ) {
+    uiController.updateTimer(
+      seconds,
+    );
   }
 
   // =========================================================
@@ -231,12 +303,24 @@ class TrainingController extends ChangeNotifier {
 
   @override
   void dispose() {
-    loadController.removeListener(_notify);
-    saveController.removeListener(_notify);
-    planController.removeListener(_notify);
-    historyController.removeListener(_notify);
-    uiController.removeListener(_notify);
-    statsController.removeListener(_notify);
+    loadController.removeListener(
+      _notify,
+    );
+    saveController.removeListener(
+      _notify,
+    );
+    planController.removeListener(
+      _notify,
+    );
+    historyController.removeListener(
+      _notify,
+    );
+    uiController.removeListener(
+      _notify,
+    );
+    statsController.removeListener(
+      _notify,
+    );
 
     loadController.dispose();
     saveController.dispose();

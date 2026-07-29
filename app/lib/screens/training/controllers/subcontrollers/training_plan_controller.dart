@@ -1,22 +1,30 @@
 import 'package:flutter/foundation.dart';
 
-import '../helpers/training_date_helper.dart';
-import '../models/training_plan_model.dart';
-import '../services/training_service.dart';
-import '../states/training_state.dart';
+import '../../helpers/training_date_helper.dart';
+import '../../models/training_plan_model.dart';
+import '../../services/training_service.dart';
+import '../../states/training_state.dart';
 
-class TrainingPlanController extends ChangeNotifier {
+class TrainingPlanController
+    extends
+        ChangeNotifier {
   final TrainingService service;
 
   final TrainingState state;
 
-  TrainingPlanController({required this.service, required this.state});
+  TrainingPlanController({
+    required this.service,
+    required this.state,
+  });
 
   // =========================================================
   // DIAS PLANEJADOS
   // =========================================================
 
-  Set<int> get plannedWeekdays {
+  Set<
+    int
+  >
+  get plannedWeekdays {
     return state.plannedWeekdays;
   }
 
@@ -40,19 +48,33 @@ class TrainingPlanController extends ChangeNotifier {
   // SALVAR PLANO SEMANAL
   // =========================================================
 
-  Future<bool> setPlannedWeekdays(Set<int> weekdays) async {
+  Future<
+    bool
+  >
+  setPlannedWeekdays(
+    Set<
+      int
+    >
+    weekdays,
+  ) async {
     if (state.isSavingPlan) {
       return false;
     }
 
     state.clearMessages();
 
-    final normalizedWeekdays = TrainingDateHelper.normalizeWeekdays(weekdays);
+    final normalizedWeekdays = TrainingDateHelper.normalizeWeekdays(
+      weekdays,
+    );
 
-    final plan = TrainingPlanModel(plannedWeekdays: normalizedWeekdays);
+    final plan = TrainingPlanModel(
+      plannedWeekdays: normalizedWeekdays,
+    );
 
     if (!plan.isValid) {
-      state.setError('Selecione pelo menos um dia da semana.');
+      state.setError(
+        'Selecione pelo menos um dia da semana.',
+      );
 
       notifyListeners();
 
@@ -64,19 +86,34 @@ class TrainingPlanController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await service.saveTrainingPlan(plannedWeekdays: plan.plannedWeekdays);
+      await service.saveTrainingPlan(
+        plannedWeekdays: plan.plannedWeekdays,
+      );
 
-      state.setPlannedWeekdays(plan.plannedWeekdays);
+      state.setPlannedWeekdays(
+        plan.plannedWeekdays,
+      );
 
-      state.setSuccess('Plano semanal salvo com sucesso.');
+      state.setSuccess(
+        'Plano semanal salvo com sucesso.',
+      );
 
       return true;
-    } catch (error, stackTrace) {
-      state.setError('Não foi possível salvar o plano semanal.');
+    } catch (
+      error,
+      stackTrace
+    ) {
+      state.setError(
+        'Não foi possível salvar o plano semanal.',
+      );
 
-      debugPrint('Erro salvando plano semanal: $error');
+      debugPrint(
+        'Erro salvando plano semanal: $error',
+      );
 
-      debugPrintStack(stackTrace: stackTrace);
+      debugPrintStack(
+        stackTrace: stackTrace,
+      );
 
       return false;
     } finally {
@@ -90,112 +127,193 @@ class TrainingPlanController extends ChangeNotifier {
   // ALTERNAR DIA PLANEJADO
   // =========================================================
 
-  Future<bool> togglePlannedWeekday(int weekday) async {
-    if (!TrainingDateHelper.isValidWeekday(weekday)) {
-      state.setError('Dia da semana inválido.');
+  Future<
+    bool
+  >
+  togglePlannedWeekday(
+    int weekday,
+  ) async {
+    if (!TrainingDateHelper.isValidWeekday(
+      weekday,
+    )) {
+      state.setError(
+        'Dia da semana inválido.',
+      );
 
       notifyListeners();
 
       return false;
     }
 
-    final updatedWeekdays = Set<int>.from(state.plannedWeekdays);
+    final updatedWeekdays =
+        Set<
+          int
+        >.from(
+          state.plannedWeekdays,
+        );
 
-    if (updatedWeekdays.contains(weekday)) {
-      updatedWeekdays.remove(weekday);
+    if (updatedWeekdays.contains(
+      weekday,
+    )) {
+      updatedWeekdays.remove(
+        weekday,
+      );
     } else {
-      updatedWeekdays.add(weekday);
+      updatedWeekdays.add(
+        weekday,
+      );
     }
 
     if (updatedWeekdays.isEmpty) {
-      state.setError('O plano precisa ter pelo menos um dia de treino.');
+      state.setError(
+        'O plano precisa ter pelo menos um dia de treino.',
+      );
 
       notifyListeners();
 
       return false;
     }
 
-    return setPlannedWeekdays(updatedWeekdays);
+    return setPlannedWeekdays(
+      updatedWeekdays,
+    );
   }
 
   // =========================================================
   // ADICIONAR DIA PLANEJADO
   // =========================================================
 
-  Future<bool> addPlannedWeekday(int weekday) async {
-    if (!TrainingDateHelper.isValidWeekday(weekday)) {
-      state.setError('Dia da semana inválido.');
+  Future<
+    bool
+  >
+  addPlannedWeekday(
+    int weekday,
+  ) async {
+    if (!TrainingDateHelper.isValidWeekday(
+      weekday,
+    )) {
+      state.setError(
+        'Dia da semana inválido.',
+      );
 
       notifyListeners();
 
       return false;
     }
 
-    if (state.plannedWeekdays.contains(weekday)) {
+    if (state.plannedWeekdays.contains(
+      weekday,
+    )) {
       return true;
     }
 
-    final updatedWeekdays = Set<int>.from(state.plannedWeekdays);
+    final updatedWeekdays =
+        Set<
+          int
+        >.from(
+          state.plannedWeekdays,
+        );
 
-    updatedWeekdays.add(weekday);
+    updatedWeekdays.add(
+      weekday,
+    );
 
-    return setPlannedWeekdays(updatedWeekdays);
+    return setPlannedWeekdays(
+      updatedWeekdays,
+    );
   }
 
   // =========================================================
   // REMOVER DIA PLANEJADO
   // =========================================================
 
-  Future<bool> removePlannedWeekday(int weekday) async {
-    if (!TrainingDateHelper.isValidWeekday(weekday)) {
-      state.setError('Dia da semana inválido.');
+  Future<
+    bool
+  >
+  removePlannedWeekday(
+    int weekday,
+  ) async {
+    if (!TrainingDateHelper.isValidWeekday(
+      weekday,
+    )) {
+      state.setError(
+        'Dia da semana inválido.',
+      );
 
       notifyListeners();
 
       return false;
     }
 
-    if (!state.plannedWeekdays.contains(weekday)) {
+    if (!state.plannedWeekdays.contains(
+      weekday,
+    )) {
       return true;
     }
 
-    if (state.plannedWeekdays.length == 1) {
-      state.setError('O plano precisa ter pelo menos um dia de treino.');
+    if (state.plannedWeekdays.length ==
+        1) {
+      state.setError(
+        'O plano precisa ter pelo menos um dia de treino.',
+      );
 
       notifyListeners();
 
       return false;
     }
 
-    final updatedWeekdays = Set<int>.from(state.plannedWeekdays);
+    final updatedWeekdays =
+        Set<
+          int
+        >.from(
+          state.plannedWeekdays,
+        );
 
-    updatedWeekdays.remove(weekday);
+    updatedWeekdays.remove(
+      weekday,
+    );
 
-    return setPlannedWeekdays(updatedWeekdays);
+    return setPlannedWeekdays(
+      updatedWeekdays,
+    );
   }
 
   // =========================================================
   // VERIFICAR DIA PLANEJADO
   // =========================================================
 
-  bool isPlannedWeekday(int weekday) {
-    return state.isPlannedWeekday(weekday);
+  bool isPlannedWeekday(
+    int weekday,
+  ) {
+    return state.isPlannedWeekday(
+      weekday,
+    );
   }
 
   // =========================================================
   // DIAS PLANEJADOS ORDENADOS
   // =========================================================
 
-  List<int> get orderedPlannedWeekdays {
-    return TrainingDateHelper.sortWeekdays(state.plannedWeekdays);
+  List<
+    int
+  >
+  get orderedPlannedWeekdays {
+    return TrainingDateHelper.sortWeekdays(
+      state.plannedWeekdays,
+    );
   }
 
   // =========================================================
   // NOMES DOS DIAS PLANEJADOS
   // =========================================================
 
-  List<String> get plannedWeekdayNames {
-    return TrainingDateHelper.weekdayNames(state.plannedWeekdays);
+  List<
+    String
+  >
+  get plannedWeekdayNames {
+    return TrainingDateHelper.weekdayNames(
+      state.plannedWeekdays,
+    );
   }
 
   // =========================================================
@@ -207,7 +325,9 @@ class TrainingPlanController extends ChangeNotifier {
       return 'Nenhum dia selecionado';
     }
 
-    return TrainingDateHelper.weekdaysText(state.plannedWeekdays);
+    return TrainingDateHelper.weekdaysText(
+      state.plannedWeekdays,
+    );
   }
 
   // =========================================================
@@ -217,7 +337,8 @@ class TrainingPlanController extends ChangeNotifier {
   String get weeklyGoalText {
     final goal = state.weeklyGoal;
 
-    if (goal == 1) {
+    if (goal ==
+        1) {
       return 'Treinar 1 dia por semana';
     }
 
@@ -232,8 +353,13 @@ class TrainingPlanController extends ChangeNotifier {
   ///
   /// Esse método altera apenas o estado local.
   /// Para persistir o plano, prefira [setPlannedWeekdays].
-  void setWeeklyGoal(int goal) {
-    if (goal < 1 || goal > 7) {
+  void setWeeklyGoal(
+    int goal,
+  ) {
+    if (goal <
+            1 ||
+        goal >
+            7) {
       return;
     }
 
@@ -241,31 +367,50 @@ class TrainingPlanController extends ChangeNotifier {
       state.plannedWeekdays,
     );
 
-    final updatedWeekdays = <int>{};
+    final updatedWeekdays =
+        <
+          int
+        >{};
 
     for (final weekday in currentWeekdays) {
-      if (updatedWeekdays.length >= goal) {
+      if (updatedWeekdays.length >=
+          goal) {
         break;
       }
 
-      updatedWeekdays.add(weekday);
+      updatedWeekdays.add(
+        weekday,
+      );
     }
 
-    for (int weekday = DateTime.monday; weekday <= DateTime.sunday; weekday++) {
-      if (updatedWeekdays.length >= goal) {
+    for (
+      int weekday = DateTime.monday;
+      weekday <=
+          DateTime.sunday;
+      weekday++
+    ) {
+      if (updatedWeekdays.length >=
+          goal) {
         break;
       }
 
-      updatedWeekdays.add(weekday);
+      updatedWeekdays.add(
+        weekday,
+      );
     }
 
-    final hasChanged = !_setsAreEqual(state.plannedWeekdays, updatedWeekdays);
+    final hasChanged = !_setsAreEqual(
+      state.plannedWeekdays,
+      updatedWeekdays,
+    );
 
     if (!hasChanged) {
       return;
     }
 
-    state.setPlannedWeekdays(updatedWeekdays);
+    state.setPlannedWeekdays(
+      updatedWeekdays,
+    );
 
     notifyListeners();
   }
@@ -286,7 +431,9 @@ class TrainingPlanController extends ChangeNotifier {
       return;
     }
 
-    state.setPlannedWeekdays(defaultPlan.plannedWeekdays);
+    state.setPlannedWeekdays(
+      defaultPlan.plannedWeekdays,
+    );
 
     notifyListeners();
   }
@@ -295,10 +442,15 @@ class TrainingPlanController extends ChangeNotifier {
   // SALVAR PLANO PADRÃO
   // =========================================================
 
-  Future<bool> saveDefaultPlan() {
+  Future<
+    bool
+  >
+  saveDefaultPlan() {
     final defaultPlan = TrainingPlanModel.defaultPlan();
 
-    return setPlannedWeekdays(defaultPlan.plannedWeekdays);
+    return setPlannedWeekdays(
+      defaultPlan.plannedWeekdays,
+    );
   }
 
   // =========================================================
@@ -308,18 +460,33 @@ class TrainingPlanController extends ChangeNotifier {
   bool get isDefaultPlan {
     final defaultPlan = TrainingPlanModel.defaultPlan();
 
-    return _setsAreEqual(state.plannedWeekdays, defaultPlan.plannedWeekdays);
+    return _setsAreEqual(
+      state.plannedWeekdays,
+      defaultPlan.plannedWeekdays,
+    );
   }
 
   // =========================================================
   // COMPARAR CONJUNTOS
   // =========================================================
 
-  bool _setsAreEqual(Set<int> first, Set<int> second) {
-    if (first.length != second.length) {
+  bool _setsAreEqual(
+    Set<
+      int
+    >
+    first,
+    Set<
+      int
+    >
+    second,
+  ) {
+    if (first.length !=
+        second.length) {
       return false;
     }
 
-    return first.containsAll(second);
+    return first.containsAll(
+      second,
+    );
   }
 }

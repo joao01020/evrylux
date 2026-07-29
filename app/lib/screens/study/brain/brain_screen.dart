@@ -12,18 +12,29 @@ import 'sections/brain_concepts_section.dart';
 import 'sections/brain_editor_section.dart';
 import 'sections/brain_notes_section.dart';
 
-import 'widgets/brain_sidebar.dart';
+import 'widgets/sections/brain_sidebar.dart';
 
-class BrainScreen extends StatefulWidget {
-  const BrainScreen({super.key});
+class BrainScreen
+    extends
+        StatefulWidget {
+  const BrainScreen({
+    super.key,
+  });
 
   @override
-  State<BrainScreen> createState() {
+  State<
+    BrainScreen
+  >
+  createState() {
     return _BrainScreenState();
   }
 }
 
-class _BrainScreenState extends State<BrainScreen> {
+class _BrainScreenState
+    extends
+        State<
+          BrainScreen
+        > {
   late final BrainController _controller;
 
   // =========================================================
@@ -36,14 +47,18 @@ class _BrainScreenState extends State<BrainScreen> {
 
     _controller = BrainController();
 
-    _controller.addListener(_onControllerChanged);
+    _controller.addListener(
+      _onControllerChanged,
+    );
 
     _initialize();
   }
 
   @override
   void dispose() {
-    _controller.removeListener(_onControllerChanged);
+    _controller.removeListener(
+      _onControllerChanged,
+    );
 
     _controller.dispose();
 
@@ -59,14 +74,19 @@ class _BrainScreenState extends State<BrainScreen> {
       return;
     }
 
-    setState(() {});
+    setState(
+      () {},
+    );
   }
 
   // =========================================================
   // INICIALIZAÇÃO
   // =========================================================
 
-  Future<void> _initialize() async {
+  Future<
+    void
+  >
+  _initialize() async {
     await _controller.initialize();
 
     if (!mounted) {
@@ -88,8 +108,15 @@ class _BrainScreenState extends State<BrainScreen> {
   // ABRIR NOTA
   // =========================================================
 
-  Future<void> _openNote(BrainFile note) async {
-    await _controller.openNote(note);
+  Future<
+    void
+  >
+  _openNote(
+    BrainFile note,
+  ) async {
+    await _controller.openNote(
+      note,
+    );
 
     if (!mounted) {
       return;
@@ -102,7 +129,10 @@ class _BrainScreenState extends State<BrainScreen> {
   // SALVAR NOTA
   // =========================================================
 
-  Future<void> _saveNote() async {
+  Future<
+    void
+  >
+  _saveNote() async {
     await _controller.saveNote();
 
     if (!mounted) {
@@ -116,8 +146,16 @@ class _BrainScreenState extends State<BrainScreen> {
   // EXCLUIR NOTA
   // =========================================================
 
-  Future<void> _deleteNote(BrainFile note) async {
-    final confirmed = await DeleteNoteDialog.show(context: context, note: note);
+  Future<
+    void
+  >
+  _deleteNote(
+    BrainFile note,
+  ) async {
+    final confirmed = await DeleteNoteDialog.show(
+      context: context,
+      note: note,
+    );
 
     if (!mounted) {
       return;
@@ -127,7 +165,9 @@ class _BrainScreenState extends State<BrainScreen> {
       return;
     }
 
-    await _controller.deleteNote(note);
+    await _controller.deleteNote(
+      note,
+    );
 
     if (!mounted) {
       return;
@@ -140,10 +180,15 @@ class _BrainScreenState extends State<BrainScreen> {
   // CONVERTER CATEGORIA PARA TIPO
   // =========================================================
 
-  BrainConceptType _convertCategoryToType(BrainConceptCategory category) {
+  BrainConceptType _convertCategoryToType(
+    BrainConceptCategory category,
+  ) {
     return BrainConceptType.values.firstWhere(
-      (type) {
-        return type.name == category.name;
+      (
+        type,
+      ) {
+        return type.name ==
+            category.name;
       },
       orElse: () {
         return BrainConceptType.values.first;
@@ -155,14 +200,20 @@ class _BrainScreenState extends State<BrainScreen> {
   // ADICIONAR CONCEITO
   // =========================================================
 
-  Future<void> _addConcept() async {
-    final result = await BrainConceptDialog.show(context: context);
+  Future<
+    void
+  >
+  _addConcept() async {
+    final result = await BrainConceptDialog.show(
+      context: context,
+    );
 
     if (!mounted) {
       return;
     }
 
-    if (result == null) {
+    if (result ==
+        null) {
       return;
     }
 
@@ -170,10 +221,14 @@ class _BrainScreenState extends State<BrainScreen> {
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       title: result.title,
       description: result.description,
-      type: _convertCategoryToType(result.category),
+      type: _convertCategoryToType(
+        result.category,
+      ),
     );
 
-    _controller.addConcept(concept);
+    _controller.addConcept(
+      concept,
+    );
 
     _showControllerMessage();
   }
@@ -182,8 +237,12 @@ class _BrainScreenState extends State<BrainScreen> {
   // REMOVER CONCEITO
   // =========================================================
 
-  void _removeConcept(int index) {
-    _controller.removeConcept(index);
+  void _removeConcept(
+    int index,
+  ) {
+    _controller.removeConcept(
+      index,
+    );
 
     _showControllerMessage();
   }
@@ -196,27 +255,43 @@ class _BrainScreenState extends State<BrainScreen> {
     final errorMessage = _controller.errorMessage;
     final successMessage = _controller.successMessage;
 
-    if (errorMessage != null) {
-      _showMessage(errorMessage);
+    if (errorMessage !=
+        null) {
+      _showMessage(
+        errorMessage,
+      );
 
       _controller.clearMessages();
 
       return;
     }
 
-    if (successMessage != null) {
-      _showMessage(successMessage);
+    if (successMessage !=
+        null) {
+      _showMessage(
+        successMessage,
+      );
 
       _controller.clearMessages();
     }
   }
 
-  void _showMessage(String message) {
-    final messenger = ScaffoldMessenger.of(context);
+  void _showMessage(
+    String message,
+  ) {
+    final messenger = ScaffoldMessenger.of(
+      context,
+    );
 
     messenger.hideCurrentSnackBar();
 
-    messenger.showSnackBar(SnackBar(content: Text(message)));
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+        ),
+      ),
+    );
   }
 
   // =========================================================
@@ -224,33 +299,51 @@ class _BrainScreenState extends State<BrainScreen> {
   // =========================================================
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Scaffold(
       appBar: AppBar(
         toolbarHeight: 54,
         titleSpacing: 16,
-        title: const Text('Cérebro 🧠'),
+        title: const Text(
+          'Cérebro 🧠',
+        ),
         actions: [
           IconButton(
             tooltip: 'Nova anotação',
-            onPressed: _controller.isSaving ? null : _createNewNote,
-            icon: const Icon(Icons.note_add_outlined),
+            onPressed: _controller.isSaving
+                ? null
+                : _createNewNote,
+            icon: const Icon(
+              Icons.note_add_outlined,
+            ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(
+            width: 6,
+          ),
         ],
       ),
       body: _controller.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(),
+            )
           : LayoutBuilder(
-              builder: (context, constraints) {
-                final isWide = constraints.maxWidth >= 850;
+              builder:
+                  (
+                    context,
+                    constraints,
+                  ) {
+                    final isWide =
+                        constraints.maxWidth >=
+                        850;
 
-                if (isWide) {
-                  return _buildWideLayout();
-                }
+                    if (isWide) {
+                      return _buildWideLayout();
+                    }
 
-                return _buildCompactLayout();
-              },
+                    return _buildCompactLayout();
+                  },
             ),
     );
   }
@@ -273,19 +366,31 @@ class _BrainScreenState extends State<BrainScreen> {
             onDeleteNote: _deleteNote,
           ),
         ),
-        const VerticalDivider(width: 1, thickness: 1),
+        const VerticalDivider(
+          width: 1,
+          thickness: 1,
+        ),
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
+            padding: const EdgeInsets.fromLTRB(
+              18,
+              16,
+              18,
+              24,
+            ),
             child: Align(
               alignment: Alignment.topCenter,
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1100),
+                constraints: const BoxConstraints(
+                  maxWidth: 1100,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildEditorSection(),
-                    const SizedBox(height: 20),
+                    const SizedBox(
+                      height: 20,
+                    ),
                     _buildConceptsSection(),
                   ],
                 ),
@@ -303,12 +408,21 @@ class _BrainScreenState extends State<BrainScreen> {
 
   Widget _buildCompactLayout() {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 24),
+      padding: const EdgeInsets.fromLTRB(
+        14,
+        12,
+        14,
+        24,
+      ),
       children: [
         _buildEditorSection(),
-        const SizedBox(height: 20),
+        const SizedBox(
+          height: 20,
+        ),
         _buildConceptsSection(),
-        const SizedBox(height: 20),
+        const SizedBox(
+          height: 20,
+        ),
         _buildNotesSection(),
       ],
     );
@@ -320,7 +434,9 @@ class _BrainScreenState extends State<BrainScreen> {
 
   Widget _buildEditorSection() {
     return AnimatedSize(
-      duration: const Duration(milliseconds: 180),
+      duration: const Duration(
+        milliseconds: 180,
+      ),
       curve: Curves.easeOut,
       alignment: Alignment.topCenter,
       child: BrainEditorSection(
@@ -357,38 +473,54 @@ class _BrainScreenState extends State<BrainScreen> {
     return BrainConceptsSection(
       concepts: _controller.concepts,
       onAddConcept: _addConcept,
-      itemBuilder: (context, concept, index) {
-        return Card(
-          margin: EdgeInsets.zero,
-          child: ListTile(
-            dense: true,
-            visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 4,
-            ),
-            leading: const Icon(Icons.lightbulb_outline, size: 21),
-            title: Text(
-              concept.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(
-              concept.description,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            trailing: IconButton(
-              tooltip: 'Remover conceito',
-              visualDensity: VisualDensity.compact,
-              onPressed: () {
-                _removeConcept(index);
-              },
-              icon: const Icon(Icons.delete_outline, size: 20),
-            ),
-          ),
-        );
-      },
+      itemBuilder:
+          (
+            context,
+            concept,
+            index,
+          ) {
+            return Card(
+              margin: EdgeInsets.zero,
+              child: ListTile(
+                dense: true,
+                visualDensity: const VisualDensity(
+                  horizontal: -1,
+                  vertical: -1,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
+                leading: const Icon(
+                  Icons.lightbulb_outline,
+                  size: 21,
+                ),
+                title: Text(
+                  concept.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text(
+                  concept.description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: IconButton(
+                  tooltip: 'Remover conceito',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () {
+                    _removeConcept(
+                      index,
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    size: 20,
+                  ),
+                ),
+              ),
+            );
+          },
     );
   }
 }

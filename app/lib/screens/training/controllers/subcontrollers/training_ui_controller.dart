@@ -1,20 +1,31 @@
 import 'package:flutter/foundation.dart';
 
-import '../helpers/training_date_helper.dart';
-import '../states/training_state.dart';
+import '../../helpers/training_date_helper.dart';
+import '../../states/training_state.dart';
 
-class TrainingUiController extends ChangeNotifier {
+class TrainingUiController
+    extends
+        ChangeNotifier {
   final TrainingState state;
 
-  final List<String> activityOptions;
+  final List<
+    String
+  >
+  activityOptions;
 
-  TrainingUiController({required this.state, required this.activityOptions});
+  TrainingUiController({
+    required this.state,
+    required this.activityOptions,
+  });
 
   // =========================================================
   // DIAS DA SEMANA
   // =========================================================
 
-  List<String> get days {
+  List<
+    String
+  >
+  get days {
     return TrainingDateHelper.weekDays;
   }
 
@@ -30,7 +41,10 @@ class TrainingUiController extends ChangeNotifier {
   // ATIVIDADES SELECIONADAS
   // =========================================================
 
-  Set<String> get selectedActivities {
+  Set<
+    String
+  >
+  get selectedActivities {
     return state.selectedActivities;
   }
 
@@ -54,14 +68,20 @@ class TrainingUiController extends ChangeNotifier {
   // SELECIONAR DIA PELO ÍNDICE
   // =========================================================
 
-  void selectDay(int index) {
-    if (index < 0 || index >= days.length) {
+  void selectDay(
+    int index,
+  ) {
+    if (index <
+            0 ||
+        index >=
+            days.length) {
       return;
     }
 
     final day = days[index];
 
-    if (state.selectedDay == day) {
+    if (state.selectedDay ==
+        day) {
       return;
     }
 
@@ -74,9 +94,13 @@ class TrainingUiController extends ChangeNotifier {
   // DEFINIR DIA DIRETAMENTE
   // =========================================================
 
-  void setSelectedDay(String? day) {
-    if (day == null) {
-      if (state.selectedDay == null) {
+  void setSelectedDay(
+    String? day,
+  ) {
+    if (day ==
+        null) {
+      if (state.selectedDay ==
+          null) {
         return;
       }
 
@@ -93,11 +117,14 @@ class TrainingUiController extends ChangeNotifier {
       return;
     }
 
-    if (!days.contains(normalizedDay)) {
+    if (!days.contains(
+      normalizedDay,
+    )) {
       return;
     }
 
-    if (state.selectedDay == normalizedDay) {
+    if (state.selectedDay ==
+        normalizedDay) {
       return;
     }
 
@@ -111,9 +138,12 @@ class TrainingUiController extends ChangeNotifier {
   // =========================================================
 
   void selectCurrentDay() {
-    final currentDay = TrainingDateHelper.getDayName(DateTime.now());
+    final currentDay = TrainingDateHelper.getDayName(
+      DateTime.now(),
+    );
 
-    if (state.selectedDay == currentDay) {
+    if (state.selectedDay ==
+        currentDay) {
       return;
     }
 
@@ -126,26 +156,36 @@ class TrainingUiController extends ChangeNotifier {
   // SELECIONAR ATIVIDADE
   // =========================================================
 
-  void selectActivity(String activity) {
-    toggleActivity(activity);
+  void selectActivity(
+    String activity,
+  ) {
+    toggleActivity(
+      activity,
+    );
   }
 
   // =========================================================
   // ALTERNAR ATIVIDADE
   // =========================================================
 
-  void toggleActivity(String activity) {
+  void toggleActivity(
+    String activity,
+  ) {
     final normalizedActivity = activity.trim();
 
     if (normalizedActivity.isEmpty) {
       return;
     }
 
-    if (!activityOptions.contains(normalizedActivity)) {
+    if (!activityOptions.contains(
+      normalizedActivity,
+    )) {
       return;
     }
 
-    state.toggleActivity(normalizedActivity);
+    state.toggleActivity(
+      normalizedActivity,
+    );
 
     notifyListeners();
   }
@@ -154,8 +194,12 @@ class TrainingUiController extends ChangeNotifier {
   // VERIFICAR ATIVIDADE SELECIONADA
   // =========================================================
 
-  bool isActivitySelected(String activity) {
-    return state.isActivitySelected(activity);
+  bool isActivitySelected(
+    String activity,
+  ) {
+    return state.isActivitySelected(
+      activity,
+    );
   }
 
   // =========================================================
@@ -176,20 +220,27 @@ class TrainingUiController extends ChangeNotifier {
   // SELECIONAR APENAS UMA ATIVIDADE
   // =========================================================
 
-  void selectOnlyActivity(String activity) {
+  void selectOnlyActivity(
+    String activity,
+  ) {
     final normalizedActivity = activity.trim();
 
     if (normalizedActivity.isEmpty) {
       return;
     }
 
-    if (!activityOptions.contains(normalizedActivity)) {
+    if (!activityOptions.contains(
+      normalizedActivity,
+    )) {
       return;
     }
 
     final alreadySelected =
-        state.selectedActivities.length == 1 &&
-        state.selectedActivities.contains(normalizedActivity);
+        state.selectedActivities.length ==
+            1 &&
+        state.selectedActivities.contains(
+          normalizedActivity,
+        );
 
     if (alreadySelected) {
       return;
@@ -197,7 +248,9 @@ class TrainingUiController extends ChangeNotifier {
 
     state.clearSelectedActivities();
 
-    state.selectedActivities.add(normalizedActivity);
+    state.selectedActivities.add(
+      normalizedActivity,
+    );
 
     notifyListeners();
   }
@@ -206,14 +259,23 @@ class TrainingUiController extends ChangeNotifier {
   // ATUALIZAR CRONÔMETRO
   // =========================================================
 
-  void updateTimer(int seconds) {
-    final normalizedSeconds = seconds < 0 ? 0 : seconds;
+  void updateTimer(
+    int seconds,
+  ) {
+    final normalizedSeconds =
+        seconds <
+            0
+        ? 0
+        : seconds;
 
-    if (state.currentSeconds == normalizedSeconds) {
+    if (state.currentSeconds ==
+        normalizedSeconds) {
       return;
     }
 
-    state.updateTimer(normalizedSeconds);
+    state.updateTimer(
+      normalizedSeconds,
+    );
 
     notifyListeners();
   }
@@ -222,12 +284,18 @@ class TrainingUiController extends ChangeNotifier {
   // ADICIONAR TEMPO
   // =========================================================
 
-  void addTimerSeconds(int seconds) {
-    if (seconds <= 0) {
+  void addTimerSeconds(
+    int seconds,
+  ) {
+    if (seconds <=
+        0) {
       return;
     }
 
-    state.updateTimer(state.currentSeconds + seconds);
+    state.updateTimer(
+      state.currentSeconds +
+          seconds,
+    );
 
     notifyListeners();
   }
@@ -236,14 +304,24 @@ class TrainingUiController extends ChangeNotifier {
   // REMOVER TEMPO
   // =========================================================
 
-  void removeTimerSeconds(int seconds) {
-    if (seconds <= 0) {
+  void removeTimerSeconds(
+    int seconds,
+  ) {
+    if (seconds <=
+        0) {
       return;
     }
 
-    final updatedSeconds = state.currentSeconds - seconds;
+    final updatedSeconds =
+        state.currentSeconds -
+        seconds;
 
-    state.updateTimer(updatedSeconds < 0 ? 0 : updatedSeconds);
+    state.updateTimer(
+      updatedSeconds <
+              0
+          ? 0
+          : updatedSeconds,
+    );
 
     notifyListeners();
   }
@@ -253,7 +331,8 @@ class TrainingUiController extends ChangeNotifier {
   // =========================================================
 
   void resetTimer() {
-    if (state.currentSeconds == 0) {
+    if (state.currentSeconds ==
+        0) {
       return;
     }
 
@@ -267,7 +346,8 @@ class TrainingUiController extends ChangeNotifier {
   // =========================================================
 
   void clearMessages() {
-    if (!state.hasError && !state.hasSuccess) {
+    if (!state.hasError &&
+        !state.hasSuccess) {
       return;
     }
 
@@ -283,11 +363,17 @@ class TrainingUiController extends ChangeNotifier {
   void clearTemporaryState() {
     final hadSelectedActivities = state.selectedActivities.isNotEmpty;
 
-    final hadTimer = state.currentSeconds > 0;
+    final hadTimer =
+        state.currentSeconds >
+        0;
 
-    final hadMessages = state.hasError || state.hasSuccess;
+    final hadMessages =
+        state.hasError ||
+        state.hasSuccess;
 
-    if (!hadSelectedActivities && !hadTimer && !hadMessages) {
+    if (!hadSelectedActivities &&
+        !hadTimer &&
+        !hadMessages) {
       return;
     }
 

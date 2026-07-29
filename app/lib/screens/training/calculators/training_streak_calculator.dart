@@ -1,3 +1,6 @@
+// Rastreia a sequência de dias consecutivos treinados (considerando se você treinou hoje ou ontem para manter o ritmo)
+//e calcula o recorde histórico de maior sequência.
+
 import '../helpers/training_date_helper.dart';
 import '../models/training_model.dart';
 

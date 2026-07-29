@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/brain_file.dart';
-import '../widgets/brain_save_button.dart';
+import '../widgets/buttons/brain_save_button.dart';
 
 class BrainEditorSection
     extends
