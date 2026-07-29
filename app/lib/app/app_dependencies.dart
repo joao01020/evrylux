@@ -43,7 +43,7 @@ import '../screens/study/controllers/study_controller.dart';
 import '../screens/finance/data/repository/finance_repository.dart';
 import '../screens/finance/data/repository/crypto/crypto_repository.dart';
 
-import '../data/evolution/evolution_repository.dart';
+import '../screens/evolution/data/repository/evolution_repository.dart';
 import '../screens/study/data/repository/study_repository.dart';
 import '../screens/training/data/training_repository.dart';
 import '../screens/evolution/my_journey/data/repository/journey_repository.dart';

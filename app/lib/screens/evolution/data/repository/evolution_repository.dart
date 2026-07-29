@@ -1,12 +1,12 @@
 import 'dart:convert';
 
-import '../../core/storage/local_storage.dart';
+import '../../../../core/storage/local_storage.dart';
 
-import '../../screens/evolution/models/evolution_model.dart';
+import '../../models/evolution_model.dart';
 
-import '../../screens/study/data/repository/study_repository.dart';
-import '../../screens/training/data/training_repository.dart';
-import '../../screens/finance/data/repository/finance_repository.dart';
+import '../../../study/data/repository/study_repository.dart';
+import '../../../training/data/training_repository.dart';
+import '../../../finance/data/repository/finance_repository.dart';
 
 class EvolutionRepository {
   final StudyRepository studyRepository;
