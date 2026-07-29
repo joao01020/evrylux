@@ -10,7 +10,7 @@ import 'package:flutter/material.dart';
 import '../services/history/investment_history.dart';
 
 import '../controllers/finance_screen_controller.dart';
-import '../dialogs/contribution_dialog.dart';
+import '../widgets/dialogs/contribution_dialog.dart';
 import '../utils/finance_screen_formatter.dart';
 
 class FinanceContributionActions {

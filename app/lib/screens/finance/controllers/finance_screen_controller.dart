@@ -4,8 +4,8 @@ import '../services/history/investment_history.dart';
 import '../models/crypto/crypto_balances.dart';
 
 import '../services/crypto/crypto_balance_service.dart';
-import '../services/finance_contribution_service.dart';
-import '../services/finance_persistence_service.dart';
+import '../services/finance/finance_contribution_service.dart';
+import '../services/persistence/finance_persistence_service.dart';
 import '../services/history/finance_history_storage.dart';
 
 class FinanceScreenController {

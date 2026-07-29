@@ -14,8 +14,8 @@ import '../services/history/investment_history.dart';
 
 import '../controllers/finance_screen_controller.dart';
 
-import '../dialogs/edit_finance_value_dialog.dart';
-import '../dialogs/finance_planning_dialog.dart';
+import '../widgets/dialogs/edit_finance_value_dialog.dart';
+import '../widgets/dialogs/finance_planning_dialog.dart';
 
 import '../utils/finance_screen_formatter.dart';
 

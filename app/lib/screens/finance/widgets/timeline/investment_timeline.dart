@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../services/history/investment_history.dart';
 
-import 'investment_month_group.dart';
-import 'investment_timeline_empty.dart';
-import 'investment_timeline_header.dart';
-import 'investment_timeline_summary.dart';
+import 'components/investment_month_group.dart';
+import 'components/investment_timeline_empty.dart';
+import 'components/investment_timeline_header.dart';
+import 'components/investment_timeline_summary.dart';
 
 class InvestmentTimeline
     extends

@@ -1,5 +1,5 @@
 import '../models/finance_model.dart';
-import '../services/finance_service.dart';
+import '../services/persistence/finance_service.dart';
 
 class FinanceController {
   final FinanceService service;

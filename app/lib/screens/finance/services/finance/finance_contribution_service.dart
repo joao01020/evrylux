@@ -1,5 +1,5 @@
-import '../models/finance_model.dart';
-import 'history/investment_history.dart';
+import '../../models/finance_model.dart';
+import '../history/investment_history.dart';
 
 class FinanceContributionService {
   const FinanceContributionService();
