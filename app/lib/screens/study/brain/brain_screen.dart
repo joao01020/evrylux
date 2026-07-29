@@ -194,7 +194,6 @@ class _BrainScreenState extends State<BrainScreen> {
 
   void _showControllerMessage() {
     final errorMessage = _controller.errorMessage;
-
     final successMessage = _controller.successMessage;
 
     if (errorMessage != null) {
@@ -228,6 +227,8 @@ class _BrainScreenState extends State<BrainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        toolbarHeight: 54,
+        titleSpacing: 16,
         title: const Text('Cérebro 🧠'),
         actions: [
           IconButton(
@@ -235,6 +236,7 @@ class _BrainScreenState extends State<BrainScreen> {
             onPressed: _controller.isSaving ? null : _createNewNote,
             icon: const Icon(Icons.note_add_outlined),
           ),
+          const SizedBox(width: 6),
         ],
       ),
       body: _controller.isLoading
@@ -259,9 +261,10 @@ class _BrainScreenState extends State<BrainScreen> {
 
   Widget _buildWideLayout() {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SizedBox(
-          width: 310,
+          width: 270,
           child: BrainSidebar(
             notes: _controller.notes,
             selectedNote: _controller.selectedNote,
@@ -270,21 +273,23 @@ class _BrainScreenState extends State<BrainScreen> {
             onDeleteNote: _deleteNote,
           ),
         ),
-
-        const VerticalDivider(width: 1),
-
+        const VerticalDivider(width: 1, thickness: 1),
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildEditorSection(),
-
-                const SizedBox(height: 32),
-
-                _buildConceptsSection(),
-              ],
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1100),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildEditorSection(),
+                    const SizedBox(height: 20),
+                    _buildConceptsSection(),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -298,16 +303,12 @@ class _BrainScreenState extends State<BrainScreen> {
 
   Widget _buildCompactLayout() {
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 24),
       children: [
         _buildEditorSection(),
-
-        const SizedBox(height: 32),
-
+        const SizedBox(height: 20),
         _buildConceptsSection(),
-
-        const SizedBox(height: 32),
-
+        const SizedBox(height: 20),
         _buildNotesSection(),
       ],
     );
@@ -318,15 +319,20 @@ class _BrainScreenState extends State<BrainScreen> {
   // =========================================================
 
   Widget _buildEditorSection() {
-    return BrainEditorSection(
-      selectedNote: _controller.selectedNote,
-      topicController: _controller.topicController,
-      titleController: _controller.titleController,
-      contentController: _controller.contentController,
-      contentFocusNode: _controller.contentFocusNode,
-      isSaving: _controller.isSaving,
-      onSave: _saveNote,
-      onDelete: _deleteNote,
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      alignment: Alignment.topCenter,
+      child: BrainEditorSection(
+        selectedNote: _controller.selectedNote,
+        topicController: _controller.topicController,
+        titleController: _controller.titleController,
+        contentController: _controller.contentController,
+        contentFocusNode: _controller.contentFocusNode,
+        isSaving: _controller.isSaving,
+        onSave: _saveNote,
+        onDelete: _deleteNote,
+      ),
     );
   }
 
@@ -355,15 +361,30 @@ class _BrainScreenState extends State<BrainScreen> {
         return Card(
           margin: EdgeInsets.zero,
           child: ListTile(
-            leading: const Icon(Icons.lightbulb_outline),
-            title: Text(concept.title),
-            subtitle: Text(concept.description),
+            dense: true,
+            visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 4,
+            ),
+            leading: const Icon(Icons.lightbulb_outline, size: 21),
+            title: Text(
+              concept.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: Text(
+              concept.description,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
             trailing: IconButton(
               tooltip: 'Remover conceito',
+              visualDensity: VisualDensity.compact,
               onPressed: () {
                 _removeConcept(index);
               },
-              icon: const Icon(Icons.delete_outline),
+              icon: const Icon(Icons.delete_outline, size: 20),
             ),
           ),
         );

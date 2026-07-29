@@ -52,7 +52,7 @@ class BrainEditorSection
         ),
 
         const SizedBox(
-          height: 6,
+          height: 4,
         ),
 
         Text(
@@ -63,7 +63,7 @@ class BrainEditorSection
         ),
 
         const SizedBox(
-          height: 24,
+          height: 16,
         ),
 
         TextField(
@@ -74,13 +74,19 @@ class BrainEditorSection
             hintText: 'Ex.: Programação C++',
             prefixIcon: Icon(
               Icons.folder_outlined,
+              size: 20,
+            ),
+            isDense: true,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
             ),
             border: OutlineInputBorder(),
           ),
         ),
 
         const SizedBox(
-          height: 16,
+          height: 12,
         ),
 
         TextField(
@@ -91,34 +97,46 @@ class BrainEditorSection
             hintText: 'Ex.: Assunto aprendido hoje',
             prefixIcon: Icon(
               Icons.title,
+              size: 20,
+            ),
+            isDense: true,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
             ),
             border: OutlineInputBorder(),
           ),
         ),
 
         const SizedBox(
-          height: 16,
+          height: 12,
         ),
 
         TextField(
           controller: contentController,
           focusNode: contentFocusNode,
-          minLines: 14,
-          maxLines: null,
           keyboardType: TextInputType.multiline,
+          textInputAction: TextInputAction.newline,
+
+          // Começa pequena e aumenta conforme você escreve.
+          minLines: 1,
+          maxLines: null,
+
           decoration: const InputDecoration(
             labelText: 'Anotação em Markdown',
-            hintText:
-                '## O que aprendi\n\n'
-                '## Resumo\n\n'
-                'Explique o conteúdo com suas palavras.',
+            hintText: 'Escreva o conteúdo com suas palavras',
             alignLabelWithHint: true,
+            isDense: true,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
+            ),
             border: OutlineInputBorder(),
           ),
         ),
 
         const SizedBox(
-          height: 18,
+          height: 14,
         ),
 
         BrainSaveButton(
@@ -129,7 +147,7 @@ class BrainEditorSection
         if (selectedNote !=
             null) ...[
           const SizedBox(
-            height: 10,
+            height: 8,
           ),
 
           SizedBox(
@@ -149,6 +167,7 @@ class BrainEditorSection
               },
               icon: const Icon(
                 Icons.delete_outline,
+                size: 20,
               ),
               label: const Text(
                 'Excluir anotação',
