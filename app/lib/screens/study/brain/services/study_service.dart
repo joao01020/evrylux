@@ -1,5 +1,5 @@
 import '../../data/repository/study_repository.dart';
-import '../../../../models/study/study_model.dart';
+import '../../models/study_model.dart';
 
 class StudyService {
   final StudyRepository repository;

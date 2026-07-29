@@ -31,10 +31,10 @@ import '../core/storage/local_storage.dart';
 import '../screens/finance/controllers/finance_controller.dart';
 import '../screens/finance/controllers/crypto/crypto_controller.dart';
 
-import '../controllers/evolution/evolution_controller.dart';
+import '../screens/evolution/controllers/evolution_controller.dart';
 import '../screens/training/controllers/training_controller.dart';
-import '../controllers/journey/journey_controller.dart';
-import '../controllers/study/study_controller.dart';
+import '../screens/evolution/my_journey/controllers/journey_controller.dart';
+import '../screens/study/controllers/study_controller.dart';
 
 // ======================================================
 // REPOSITORIES

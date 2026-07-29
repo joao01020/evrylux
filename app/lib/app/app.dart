@@ -7,7 +7,7 @@ import '../screens/training/training_screen.dart';
 
 import '../core/theme/app_theme.dart';
 
-import '../controllers/evolution/evolution_controller.dart';
+import '../screens/evolution/controllers/evolution_controller.dart';
 
 class GhostApp
     extends

@@ -1,16 +1,12 @@
 import 'package:flutter/foundation.dart';
 
-import '../../screens/evolution/models/evolution_model.dart';
-import '../../screens/evolution/services/evolution_service.dart';
+import '../models/evolution_model.dart';
+import '../services/evolution_service.dart';
 
-class EvolutionController
-    extends
-        ChangeNotifier {
+class EvolutionController extends ChangeNotifier {
   final EvolutionService service;
 
-  EvolutionController({
-    required this.service,
-  });
+  EvolutionController({required this.service});
 
   EvolutionModel _evolution = const EvolutionModel(
     knowledge: 0,
@@ -22,10 +18,7 @@ class EvolutionController
 
   // Carrega a evolução atual
 
-  Future<
-    void
-  >
-  load() async {
+  Future<void> load() async {
     _evolution = await service.calculateEvolution();
 
     notifyListeners();
@@ -33,10 +26,7 @@ class EvolutionController
 
   // Salva o registro do dia no histórico
 
-  Future<
-    void
-  >
-  saveToday() async {
+  Future<void> saveToday() async {
     await service.saveTodayEvolution();
 
     await load();
