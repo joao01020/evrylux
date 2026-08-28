@@ -35,6 +35,19 @@ class _ReviewScreenState
   bool _isSubmitting = false;
 
   // ============================================================
+  // CURRENT REVIEW
+  // ============================================================
+
+  BrainReviewItem get _review {
+    final current = widget.controller.findById(
+      widget.review.id,
+    );
+
+    return current ??
+        widget.review;
+  }
+
+  // ============================================================
   // ANSWER
   // ============================================================
 
@@ -55,7 +68,7 @@ class _ReviewScreenState
     );
 
     await widget.controller.answerReview(
-      review: widget.review,
+      review: _review,
       answer: answer,
     );
 
@@ -73,14 +86,8 @@ class _ReviewScreenState
         },
       );
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
-        SnackBar(
-          content: Text(
-            error,
-          ),
-        ),
+      _showMessage(
+        error,
       );
 
       widget.controller.clearMessages();
@@ -102,17 +109,68 @@ class _ReviewScreenState
     void
   >
   _archive() async {
+    if (_isSubmitting) {
+      return;
+    }
+
+    setState(
+      () {
+        _isSubmitting = true;
+      },
+    );
+
     await widget.controller.archiveReview(
-      widget.review,
+      _review,
     );
 
     if (!mounted) {
       return;
     }
 
+    final error = widget.controller.errorMessage;
+
+    if (error !=
+        null) {
+      setState(
+        () {
+          _isSubmitting = false;
+        },
+      );
+
+      _showMessage(
+        error,
+      );
+
+      widget.controller.clearMessages();
+
+      return;
+    }
+
     Navigator.pop(
       context,
       true,
+    );
+  }
+
+  // ============================================================
+  // MESSAGE
+  // ============================================================
+
+  void _showMessage(
+    String message,
+  ) {
+    final messenger = ScaffoldMessenger.of(
+      context,
+    );
+
+    messenger.hideCurrentSnackBar();
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+        ),
+      ),
     );
   }
 
@@ -140,15 +198,30 @@ class _ReviewScreenState
           ],
         ),
         actions: [
-          IconButton(
-            tooltip: 'Arquivar pergunta',
-            onPressed: _isSubmitting
-                ? null
-                : _archive,
-            icon: const Icon(
-              Icons.archive_outlined,
+          if (_isSubmitting)
+            const Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: 14,
+              ),
+              child: Center(
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                  ),
+                ),
+              ),
+            )
+          else
+            IconButton(
+              tooltip: 'Arquivar pergunta',
+              onPressed: _archive,
+              icon: const Icon(
+                Icons.archive_outlined,
+              ),
             ),
-          ),
+
           const SizedBox(
             width: 6,
           ),
@@ -166,20 +239,26 @@ class _ReviewScreenState
             child: Column(
               children: [
                 _buildProgressInfo(),
+
                 const SizedBox(
                   height: 18,
                 ),
+
                 _buildQuestionCard(),
+
                 const SizedBox(
                   height: 18,
                 ),
+
                 if (!_showAnswer)
                   _buildShowAnswerButton()
                 else ...[
                   _buildAnswerCard(),
+
                   const SizedBox(
                     height: 22,
                   ),
+
                   _buildAnswerButtons(),
                 ],
               ],
@@ -195,48 +274,60 @@ class _ReviewScreenState
   // ============================================================
 
   Widget _buildProgressInfo() {
+    final review = _review;
+
     return Row(
       children: [
         Expanded(
           child: _smallInfo(
             icon: Icons.repeat,
-            title: '${widget.review.reviewCount}',
+            title: '${review.reviewCount}',
             subtitle: 'Revisões',
           ),
         ),
+
         const SizedBox(
           width: 10,
         ),
+
         Expanded(
           child: _smallInfo(
             icon: Icons.check_circle_outline,
-            title: '${widget.review.correctCount}',
+            title: '${review.correctCount}',
             subtitle: 'Acertos',
           ),
         ),
+
         const SizedBox(
           width: 10,
         ),
+
         Expanded(
           child: _smallInfo(
             icon: Icons.cancel_outlined,
-            title: '${widget.review.wrongCount}',
+            title: '${review.wrongCount}',
             subtitle: 'Erros',
           ),
         ),
+
         const SizedBox(
           width: 10,
         ),
+
         Expanded(
           child: _smallInfo(
             icon: Icons.local_fire_department_outlined,
-            title: '${widget.review.streak}',
+            title: '${review.streak}',
             subtitle: 'Sequência',
           ),
         ),
       ],
     );
   }
+
+  // ============================================================
+  // SMALL INFO
+  // ============================================================
 
   Widget _smallInfo({
     required IconData icon,
@@ -256,18 +347,22 @@ class _ReviewScreenState
               icon,
               size: 19,
             ),
+
             const SizedBox(
               height: 6,
             ),
+
             Text(
               title,
               style: const TextStyle(
                 fontWeight: FontWeight.w800,
               ),
             ),
+
             const SizedBox(
               height: 2,
             ),
+
             Text(
               subtitle,
               style: const TextStyle(
@@ -285,6 +380,8 @@ class _ReviewScreenState
   // ============================================================
 
   Widget _buildQuestionCard() {
+    final review = _review;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(
@@ -309,11 +406,13 @@ class _ReviewScreenState
             Icons.help_outline_rounded,
             size: 38,
           ),
+
           const SizedBox(
             height: 18,
           ),
+
           Text(
-            widget.review.question,
+            review.question,
             textAlign: TextAlign.center,
             style:
                 Theme.of(
@@ -336,13 +435,15 @@ class _ReviewScreenState
       width: double.infinity,
       height: 48,
       child: FilledButton.icon(
-        onPressed: () {
-          setState(
-            () {
-              _showAnswer = true;
-            },
-          );
-        },
+        onPressed: _isSubmitting
+            ? null
+            : () {
+                setState(
+                  () {
+                    _showAnswer = true;
+                  },
+                );
+              },
         icon: const Icon(
           Icons.visibility_outlined,
         ),
@@ -358,6 +459,8 @@ class _ReviewScreenState
   // ============================================================
 
   Widget _buildAnswerCard() {
+    final review = _review;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(
@@ -390,26 +493,32 @@ class _ReviewScreenState
               ),
             ],
           ),
+
           const SizedBox(
             height: 14,
           ),
-          Text(
-            widget.review.answer,
+
+          SelectableText(
+            review.answer,
             style: const TextStyle(
               fontSize: 16,
               height: 1.5,
             ),
           ),
-          if (widget.review.sourceNoteTitle.trim().isNotEmpty) ...[
+
+          if (review.sourceNoteTitle.trim().isNotEmpty) ...[
             const SizedBox(
               height: 18,
             ),
+
             const Divider(),
+
             const SizedBox(
               height: 6,
             ),
+
             Text(
-              'Origem: ${widget.review.sourceNoteTitle}',
+              'Origem: ${review.sourceNoteTitle}',
               style: Theme.of(
                 context,
               ).textTheme.bodySmall,
@@ -435,9 +544,11 @@ class _ReviewScreenState
             fontWeight: FontWeight.w700,
           ),
         ),
+
         const SizedBox(
           height: 12,
         ),
+
         Wrap(
           spacing: 10,
           runSpacing: 10,
@@ -449,18 +560,21 @@ class _ReviewScreenState
               icon: Icons.replay,
               answer: ReviewAnswer.again,
             ),
+
             _reviewButton(
               label: 'Difícil',
               subtitle: '1 dia',
               icon: Icons.sentiment_dissatisfied_outlined,
               answer: ReviewAnswer.hard,
             ),
+
             _reviewButton(
               label: 'Acertei',
               subtitle: '3+ dias',
               icon: Icons.check_circle_outline,
               answer: ReviewAnswer.good,
             ),
+
             _reviewButton(
               label: 'Fácil',
               subtitle: '7+ dias',
@@ -472,6 +586,10 @@ class _ReviewScreenState
       ],
     );
   }
+
+  // ============================================================
+  // REVIEW BUTTON
+  // ============================================================
 
   Widget _reviewButton({
     required String label,
@@ -496,9 +614,11 @@ class _ReviewScreenState
             Icon(
               icon,
             ),
+
             const SizedBox(
               width: 8,
             ),
+
             Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -508,6 +628,7 @@ class _ReviewScreenState
                     fontWeight: FontWeight.w700,
                   ),
                 ),
+
                 Text(
                   subtitle,
                   style: const TextStyle(

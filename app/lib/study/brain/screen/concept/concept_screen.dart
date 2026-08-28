@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/brain_concept.dart';
-import '../../services/brain_storage.dart';
+import '../../repositories/brain_repository.dart';
 
 class ConceptScreen
     extends
@@ -24,11 +24,13 @@ class _ConceptScreenState
         State<
           ConceptScreen
         > {
-  final BrainStorage _storage = const BrainStorage();
+  final BrainRepository _repository = BrainRepository();
 
   final TextEditingController _searchController = TextEditingController();
 
   bool _isLoading = true;
+
+  bool _isDeleting = false;
 
   String? _errorMessage;
 
@@ -39,12 +41,20 @@ class _ConceptScreenState
   >
   _items = [];
 
+  // ============================================================
+  // INIT
+  // ============================================================
+
   @override
   void initState() {
     super.initState();
 
     _load();
   }
+
+  // ============================================================
+  // DISPOSE
+  // ============================================================
 
   @override
   void dispose() {
@@ -61,15 +71,21 @@ class _ConceptScreenState
     void
   >
   _load() async {
+    if (_isLoading &&
+        _items.isNotEmpty) {
+      return;
+    }
+
     setState(
       () {
         _isLoading = true;
+
         _errorMessage = null;
       },
     );
 
     try {
-      final items = await _storage.loadConceptsByType(
+      final items = await _repository.loadConceptsByType(
         BrainConceptType.concept,
       );
 
@@ -80,6 +96,7 @@ class _ConceptScreenState
       setState(
         () {
           _items = items;
+
           _isLoading = false;
         },
       );
@@ -93,6 +110,7 @@ class _ConceptScreenState
       setState(
         () {
           _errorMessage = error.toString();
+
           _isLoading = false;
         },
       );
@@ -117,14 +135,156 @@ class _ConceptScreenState
       (
         item,
       ) {
-        return item.title.toLowerCase().contains(
+        final title = item.title.toLowerCase();
+
+        final description = item.description.toLowerCase();
+
+        return title.contains(
               query,
             ) ||
-            item.description.toLowerCase().contains(
+            description.contains(
               query,
             );
       },
     ).toList();
+  }
+
+  // ============================================================
+  // DELETE
+  // ============================================================
+
+  Future<
+    void
+  >
+  _deleteConcept(
+    BrainConcept item,
+  ) async {
+    if (_isDeleting) {
+      return;
+    }
+
+    final confirmed =
+        await showDialog<
+          bool
+        >(
+          context: context,
+          builder:
+              (
+                dialogContext,
+              ) {
+                return AlertDialog(
+                  title: const Text(
+                    'Excluir conceito?',
+                  ),
+                  content: Text(
+                    'Deseja excluir "${item.title}"?',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(
+                          dialogContext,
+                          false,
+                        );
+                      },
+                      child: const Text(
+                        'Cancelar',
+                      ),
+                    ),
+                    FilledButton(
+                      onPressed: () {
+                        Navigator.pop(
+                          dialogContext,
+                          true,
+                        );
+                      },
+                      child: const Text(
+                        'Excluir',
+                      ),
+                    ),
+                  ],
+                );
+              },
+        );
+
+    if (!mounted ||
+        confirmed !=
+            true) {
+      return;
+    }
+
+    setState(
+      () {
+        _isDeleting = true;
+      },
+    );
+
+    try {
+      await _repository.deleteConcept(
+        item.id,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(
+        () {
+          _items.removeWhere(
+            (
+              current,
+            ) {
+              return current.id ==
+                  item.id;
+            },
+          );
+        },
+      );
+
+      _showMessage(
+        'Conceito excluído.',
+      );
+    } catch (
+      error
+    ) {
+      if (!mounted) {
+        return;
+      }
+
+      _showMessage(
+        'Não foi possível excluir o conceito.',
+      );
+    } finally {
+      if (mounted) {
+        setState(
+          () {
+            _isDeleting = false;
+          },
+        );
+      }
+    }
+  }
+
+  // ============================================================
+  // MESSAGE
+  // ============================================================
+
+  void _showMessage(
+    String message,
+  ) {
+    final messenger = ScaffoldMessenger.of(
+      context,
+    );
+
+    messenger.hideCurrentSnackBar();
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+        ),
+      ),
+    );
   }
 
   // ============================================================
@@ -156,7 +316,9 @@ class _ConceptScreenState
         actions: [
           IconButton(
             tooltip: 'Atualizar',
-            onPressed: _load,
+            onPressed: _isDeleting
+                ? null
+                : _load,
             icon: const Icon(
               Icons.refresh_rounded,
             ),
@@ -250,30 +412,34 @@ class _ConceptScreenState
       return _buildEmpty();
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.all(
-        18,
-      ),
-      itemCount: items.length,
-      separatorBuilder:
-          (
-            _,
-            __,
-          ) {
-            return const SizedBox(
-              height: 10,
-            );
-          },
-      itemBuilder:
-          (
-            context,
-            index,
-          ) {
-            return _buildConceptCard(
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(
+          18,
+        ),
+        itemCount: items.length,
+        separatorBuilder:
+            (
+              _,
+              __,
+            ) {
+              return const SizedBox(
+                height: 10,
+              );
+            },
+        itemBuilder:
+            (
               context,
-              items[index],
-            );
-          },
+              index,
+            ) {
+              return _buildConceptCard(
+                context,
+                items[index],
+              );
+            },
+      ),
     );
   }
 
@@ -341,6 +507,19 @@ class _ConceptScreenState
             overflow: TextOverflow.ellipsis,
           ),
         ),
+        trailing: IconButton(
+          tooltip: 'Excluir conceito',
+          onPressed: _isDeleting
+              ? null
+              : () {
+                  _deleteConcept(
+                    item,
+                  );
+                },
+          icon: const Icon(
+            Icons.delete_outline_rounded,
+          ),
+        ),
       ),
     );
   }
@@ -350,28 +529,45 @@ class _ConceptScreenState
   // ============================================================
 
   Widget _buildEmpty() {
-    return const Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.lightbulb_outline_rounded,
-            size: 54,
-          ),
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [
           SizedBox(
-            height: 14,
+            height: 140,
           ),
-          Text(
-            'Nenhum conceito encontrado.',
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.lightbulb_outline_rounded,
+                  size: 54,
+                ),
+                SizedBox(
+                  height: 14,
+                ),
+                Text(
+                  'Nenhum conceito encontrado.',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                SizedBox(
+                  height: 6,
+                ),
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 24,
+                  ),
+                  child: Text(
+                    'Os conhecimentos salvos como Conceito aparecerão aqui.',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
             ),
-          ),
-          SizedBox(
-            height: 6,
-          ),
-          Text(
-            'Os conceitos salvos nas suas anotações aparecerão aqui.',
           ),
         ],
       ),
@@ -384,33 +580,49 @@ class _ConceptScreenState
 
   Widget _buildError() {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.error_outline,
-            size: 46,
-          ),
-          const SizedBox(
-            height: 12,
-          ),
-          Text(
-            _errorMessage ??
-                'Erro desconhecido.',
-          ),
-          const SizedBox(
-            height: 14,
-          ),
-          FilledButton.icon(
-            onPressed: _load,
-            icon: const Icon(
-              Icons.refresh,
+      child: Padding(
+        padding: const EdgeInsets.all(
+          24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.error_outline,
+              size: 46,
             ),
-            label: const Text(
-              'Tentar novamente',
+            const SizedBox(
+              height: 12,
             ),
-          ),
-        ],
+            const Text(
+              'Não foi possível carregar os conceitos.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(
+              height: 8,
+            ),
+            Text(
+              _errorMessage ??
+                  'Erro desconhecido.',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(
+              height: 14,
+            ),
+            FilledButton.icon(
+              onPressed: _load,
+              icon: const Icon(
+                Icons.refresh,
+              ),
+              label: const Text(
+                'Tentar novamente',
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

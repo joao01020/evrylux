@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/brain_concept.dart';
-import '../../services/brain_storage.dart';
+import '../../repositories/brain_repository.dart';
 
 class ExampleScreen
     extends
@@ -24,9 +24,11 @@ class _ExampleScreenState
         State<
           ExampleScreen
         > {
-  final BrainStorage _storage = const BrainStorage();
+  final BrainRepository _repository = BrainRepository();
 
   bool _isLoading = true;
+
+  bool _isDeleting = false;
 
   String? _errorMessage;
 
@@ -35,12 +37,20 @@ class _ExampleScreenState
   >
   _items = [];
 
+  // ============================================================
+  // INIT
+  // ============================================================
+
   @override
   void initState() {
     super.initState();
 
     _load();
   }
+
+  // ============================================================
+  // LOAD
+  // ============================================================
 
   Future<
     void
@@ -49,12 +59,13 @@ class _ExampleScreenState
     setState(
       () {
         _isLoading = true;
+
         _errorMessage = null;
       },
     );
 
     try {
-      final items = await _storage.loadConceptsByType(
+      final items = await _repository.loadConceptsByType(
         BrainConceptType.example,
       );
 
@@ -65,6 +76,7 @@ class _ExampleScreenState
       setState(
         () {
           _items = items;
+
           _isLoading = false;
         },
       );
@@ -78,11 +90,154 @@ class _ExampleScreenState
       setState(
         () {
           _errorMessage = error.toString();
+
           _isLoading = false;
         },
       );
     }
   }
+
+  // ============================================================
+  // DELETE
+  // ============================================================
+
+  Future<
+    void
+  >
+  _deleteExample(
+    BrainConcept item,
+  ) async {
+    if (_isDeleting) {
+      return;
+    }
+
+    final confirmed =
+        await showDialog<
+          bool
+        >(
+          context: context,
+          builder:
+              (
+                dialogContext,
+              ) {
+                return AlertDialog(
+                  title: const Text(
+                    'Excluir exemplo?',
+                  ),
+                  content: Text(
+                    'Deseja excluir "${item.title}"?',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(
+                          dialogContext,
+                          false,
+                        );
+                      },
+                      child: const Text(
+                        'Cancelar',
+                      ),
+                    ),
+                    FilledButton(
+                      onPressed: () {
+                        Navigator.pop(
+                          dialogContext,
+                          true,
+                        );
+                      },
+                      child: const Text(
+                        'Excluir',
+                      ),
+                    ),
+                  ],
+                );
+              },
+        );
+
+    if (!mounted ||
+        confirmed !=
+            true) {
+      return;
+    }
+
+    setState(
+      () {
+        _isDeleting = true;
+      },
+    );
+
+    try {
+      await _repository.deleteConcept(
+        item.id,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(
+        () {
+          _items.removeWhere(
+            (
+              current,
+            ) {
+              return current.id ==
+                  item.id;
+            },
+          );
+        },
+      );
+
+      _showMessage(
+        'Exemplo excluído.',
+      );
+    } catch (
+      error
+    ) {
+      if (!mounted) {
+        return;
+      }
+
+      _showMessage(
+        'Não foi possível excluir o exemplo.',
+      );
+    } finally {
+      if (mounted) {
+        setState(
+          () {
+            _isDeleting = false;
+          },
+        );
+      }
+    }
+  }
+
+  // ============================================================
+  // MESSAGE
+  // ============================================================
+
+  void _showMessage(
+    String message,
+  ) {
+    final messenger = ScaffoldMessenger.of(
+      context,
+    );
+
+    messenger.hideCurrentSnackBar();
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(
@@ -109,7 +264,9 @@ class _ExampleScreenState
         actions: [
           IconButton(
             tooltip: 'Atualizar',
-            onPressed: _load,
+            onPressed: _isDeleting
+                ? null
+                : _load,
             icon: const Icon(
               Icons.refresh_rounded,
             ),
@@ -123,6 +280,10 @@ class _ExampleScreenState
     );
   }
 
+  // ============================================================
+  // BODY
+  // ============================================================
+
   Widget _buildBody() {
     if (_isLoading) {
       return const Center(
@@ -132,7 +293,203 @@ class _ExampleScreenState
 
     if (_errorMessage !=
         null) {
-      return Center(
+      return _buildError();
+    }
+
+    if (_items.isEmpty) {
+      return _buildEmpty();
+    }
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(
+          18,
+        ),
+        itemCount: _items.length,
+        separatorBuilder:
+            (
+              _,
+              __,
+            ) {
+              return const SizedBox(
+                height: 10,
+              );
+            },
+        itemBuilder:
+            (
+              context,
+              index,
+            ) {
+              return _buildExampleCard(
+                context,
+                _items[index],
+              );
+            },
+      ),
+    );
+  }
+
+  // ============================================================
+  // CARD
+  // ============================================================
+
+  Widget _buildExampleCard(
+    BuildContext context,
+    BrainConcept item,
+  ) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(
+          16,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: item.color.withValues(
+                  alpha: 0.10,
+                ),
+                borderRadius: BorderRadius.circular(
+                  12,
+                ),
+                border: Border.all(
+                  color: item.color.withValues(
+                    alpha: 0.20,
+                  ),
+                ),
+              ),
+              child: Icon(
+                item.icon,
+                color: item.color,
+              ),
+            ),
+
+            const SizedBox(
+              width: 14,
+            ),
+
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        item.emoji,
+                      ),
+
+                      const SizedBox(
+                        width: 7,
+                      ),
+
+                      Expanded(
+                        child: Text(
+                          item.title,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+
+                      IconButton(
+                        tooltip: 'Excluir exemplo',
+                        onPressed: _isDeleting
+                            ? null
+                            : () {
+                                _deleteExample(
+                                  item,
+                                );
+                              },
+                        icon: const Icon(
+                          Icons.delete_outline_rounded,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(
+                    height: 10,
+                  ),
+
+                  SelectableText(
+                    item.description,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // EMPTY
+  // ============================================================
+
+  Widget _buildEmpty() {
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [
+          SizedBox(
+            height: 140,
+          ),
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.code_rounded,
+                  size: 54,
+                ),
+                SizedBox(
+                  height: 14,
+                ),
+                Text(
+                  'Nenhum exemplo salvo.',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                SizedBox(
+                  height: 6,
+                ),
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 24,
+                  ),
+                  child: Text(
+                    'Os conhecimentos salvos como Exemplo aparecerão aqui.',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // ERROR
+  // ============================================================
+
+  Widget _buildError() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(
+          24,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -140,15 +497,33 @@ class _ExampleScreenState
               Icons.error_outline,
               size: 46,
             ),
+
             const SizedBox(
               height: 12,
             ),
-            Text(
-              _errorMessage!,
+
+            const Text(
+              'Não foi possível carregar os exemplos.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+              ),
             ),
+
+            const SizedBox(
+              height: 8,
+            ),
+
+            Text(
+              _errorMessage ??
+                  'Erro desconhecido.',
+              textAlign: TextAlign.center,
+            ),
+
             const SizedBox(
               height: 14,
             ),
+
             FilledButton.icon(
               onPressed: _load,
               icon: const Icon(
@@ -160,124 +535,7 @@ class _ExampleScreenState
             ),
           ],
         ),
-      );
-    }
-
-    if (_items.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.code_rounded,
-              size: 54,
-            ),
-            SizedBox(
-              height: 14,
-            ),
-            Text(
-              'Nenhum exemplo salvo.',
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            SizedBox(
-              height: 6,
-            ),
-            Text(
-              'Exemplos práticos aparecerão aqui.',
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.separated(
-      padding: const EdgeInsets.all(
-        18,
       ),
-      itemCount: _items.length,
-      separatorBuilder:
-          (
-            _,
-            __,
-          ) {
-            return const SizedBox(
-              height: 10,
-            );
-          },
-      itemBuilder:
-          (
-            context,
-            index,
-          ) {
-            final item = _items[index];
-
-            return Card(
-              margin: EdgeInsets.zero,
-              child: Padding(
-                padding: const EdgeInsets.all(
-                  16,
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 46,
-                      height: 46,
-                      decoration: BoxDecoration(
-                        color: item.color.withValues(
-                          alpha: 0.10,
-                        ),
-                        borderRadius: BorderRadius.circular(
-                          12,
-                        ),
-                      ),
-                      child: Icon(
-                        item.icon,
-                        color: item.color,
-                      ),
-                    ),
-                    const SizedBox(
-                      width: 14,
-                    ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                item.emoji,
-                              ),
-                              const SizedBox(
-                                width: 7,
-                              ),
-                              Expanded(
-                                child: Text(
-                                  item.title,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(
-                            height: 10,
-                          ),
-                          SelectableText(
-                            item.description,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
     );
   }
 }

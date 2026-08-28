@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/brain_concept.dart';
-import '../../services/brain_storage.dart';
+import '../../repositories/brain_repository.dart';
 
 class WarningScreen
     extends
@@ -24,16 +24,25 @@ class _WarningScreenState
         State<
           WarningScreen
         > {
-  final BrainStorage _storage = const BrainStorage();
+  final BrainRepository _repository = BrainRepository();
 
   bool _isLoading = true;
+
+  bool _isDeleting = false;
 
   String? _errorMessage;
 
   List<
     BrainConcept
   >
-  _items = [];
+  _items =
+      <
+        BrainConcept
+      >[];
+
+  // ============================================================
+  // INIT
+  // ============================================================
 
   @override
   void initState() {
@@ -53,12 +62,13 @@ class _WarningScreenState
     setState(
       () {
         _isLoading = true;
+
         _errorMessage = null;
       },
     );
 
     try {
-      final items = await _storage.loadConceptsByType(
+      final items = await _repository.loadConceptsByType(
         BrainConceptType.warning,
       );
 
@@ -69,6 +79,7 @@ class _WarningScreenState
       setState(
         () {
           _items = items;
+
           _isLoading = false;
         },
       );
@@ -82,10 +93,149 @@ class _WarningScreenState
       setState(
         () {
           _errorMessage = error.toString();
+
           _isLoading = false;
         },
       );
     }
+  }
+
+  // ============================================================
+  // DELETE
+  // ============================================================
+
+  Future<
+    void
+  >
+  _deleteWarning(
+    BrainConcept item,
+  ) async {
+    if (_isDeleting) {
+      return;
+    }
+
+    final confirmed =
+        await showDialog<
+          bool
+        >(
+          context: context,
+          builder:
+              (
+                dialogContext,
+              ) {
+                return AlertDialog(
+                  title: const Text(
+                    'Excluir atenção?',
+                  ),
+                  content: Text(
+                    'Deseja excluir "${item.title}"?',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(
+                          dialogContext,
+                          false,
+                        );
+                      },
+                      child: const Text(
+                        'Cancelar',
+                      ),
+                    ),
+                    FilledButton(
+                      onPressed: () {
+                        Navigator.pop(
+                          dialogContext,
+                          true,
+                        );
+                      },
+                      child: const Text(
+                        'Excluir',
+                      ),
+                    ),
+                  ],
+                );
+              },
+        );
+
+    if (!mounted ||
+        confirmed !=
+            true) {
+      return;
+    }
+
+    setState(
+      () {
+        _isDeleting = true;
+      },
+    );
+
+    try {
+      await _repository.deleteConcept(
+        item.id,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(
+        () {
+          _items.removeWhere(
+            (
+              current,
+            ) {
+              return current.id ==
+                  item.id;
+            },
+          );
+        },
+      );
+
+      _showMessage(
+        'Atenção excluída.',
+      );
+    } catch (
+      error
+    ) {
+      if (!mounted) {
+        return;
+      }
+
+      _showMessage(
+        'Não foi possível excluir a atenção.',
+      );
+    } finally {
+      if (mounted) {
+        setState(
+          () {
+            _isDeleting = false;
+          },
+        );
+      }
+    }
+  }
+
+  // ============================================================
+  // MESSAGE
+  // ============================================================
+
+  void _showMessage(
+    String message,
+  ) {
+    final messenger = ScaffoldMessenger.of(
+      context,
+    );
+
+    messenger.hideCurrentSnackBar();
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+        ),
+      ),
+    );
   }
 
   // ============================================================
@@ -117,7 +267,9 @@ class _WarningScreenState
         actions: [
           IconButton(
             tooltip: 'Atualizar',
-            onPressed: _load,
+            onPressed: _isDeleting
+                ? null
+                : _load,
             icon: const Icon(
               Icons.refresh_rounded,
             ),
@@ -159,30 +311,34 @@ class _WarningScreenState
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.all(
-        18,
-      ),
-      itemCount: _items.length,
-      separatorBuilder:
-          (
-            _,
-            __,
-          ) {
-            return const SizedBox(
-              height: 10,
-            );
-          },
-      itemBuilder:
-          (
-            context,
-            index,
-          ) {
-            return _buildCard(
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(
+          18,
+        ),
+        itemCount: _items.length,
+        separatorBuilder:
+            (
+              _,
+              __,
+            ) {
+              return const SizedBox(
+                height: 10,
+              );
+            },
+        itemBuilder:
+            (
               context,
-              _items[index],
-            );
-          },
+              index,
+            ) {
+              return _buildCard(
+                context,
+                _items[index],
+              );
+            },
+      ),
     );
   }
 
@@ -224,9 +380,11 @@ class _WarningScreenState
                 color: item.color,
               ),
             ),
+
             const SizedBox(
               width: 14,
             ),
+
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -239,9 +397,11 @@ class _WarningScreenState
                           fontSize: 16,
                         ),
                       ),
+
                       const SizedBox(
                         width: 7,
                       ),
+
                       Expanded(
                         child: Text(
                           item.title,
@@ -253,17 +413,35 @@ class _WarningScreenState
                               ),
                         ),
                       ),
+
+                      IconButton(
+                        tooltip: 'Excluir atenção',
+                        onPressed: _isDeleting
+                            ? null
+                            : () {
+                                _deleteWarning(
+                                  item,
+                                );
+                              },
+                        icon: const Icon(
+                          Icons.delete_outline_rounded,
+                        ),
+                      ),
                     ],
                   ),
+
                   const SizedBox(
                     height: 8,
                   ),
-                  Text(
+
+                  SelectableText(
                     item.description,
                   ),
+
                   const SizedBox(
                     height: 10,
                   ),
+
                   _buildTag(
                     item,
                   ),
@@ -275,6 +453,10 @@ class _WarningScreenState
       ),
     );
   }
+
+  // ============================================================
+  // TAG
+  // ============================================================
 
   Widget _buildTag(
     BrainConcept item,
@@ -290,6 +472,11 @@ class _WarningScreenState
         ),
         borderRadius: BorderRadius.circular(
           8,
+        ),
+        border: Border.all(
+          color: item.color.withValues(
+            alpha: 0.16,
+          ),
         ),
       ),
       child: Text(
@@ -312,29 +499,50 @@ class _WarningScreenState
   ) {
     final type = BrainConceptType.warning;
 
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          Icon(
-            type.icon,
-            size: 54,
-            color: type.color,
-          ),
           const SizedBox(
-            height: 14,
+            height: 140,
           ),
-          const Text(
-            'Nenhuma atenção salva.',
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  type.icon,
+                  size: 54,
+                  color: type.color,
+                ),
+
+                const SizedBox(
+                  height: 14,
+                ),
+
+                const Text(
+                  'Nenhuma atenção salva.',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+
+                const SizedBox(
+                  height: 6,
+                ),
+
+                const Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 24,
+                  ),
+                  child: Text(
+                    'Erros comuns, cuidados e detalhes importantes aparecerão aqui.',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(
-            height: 6,
-          ),
-          const Text(
-            'Erros comuns e detalhes importantes aparecerão aqui.',
           ),
         ],
       ),
@@ -349,33 +557,55 @@ class _WarningScreenState
     BuildContext context,
   ) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.error_outline,
-            size: 46,
-          ),
-          const SizedBox(
-            height: 12,
-          ),
-          Text(
-            _errorMessage ??
-                'Erro desconhecido.',
-          ),
-          const SizedBox(
-            height: 14,
-          ),
-          FilledButton.icon(
-            onPressed: _load,
-            icon: const Icon(
-              Icons.refresh,
+      child: Padding(
+        padding: const EdgeInsets.all(
+          24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.error_outline,
+              size: 46,
             ),
-            label: const Text(
-              'Tentar novamente',
+
+            const SizedBox(
+              height: 12,
             ),
-          ),
-        ],
+
+            const Text(
+              'Não foi possível carregar as atenções.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+
+            const SizedBox(
+              height: 8,
+            ),
+
+            Text(
+              _errorMessage ??
+                  'Erro desconhecido.',
+              textAlign: TextAlign.center,
+            ),
+
+            const SizedBox(
+              height: 14,
+            ),
+
+            FilledButton.icon(
+              onPressed: _load,
+              icon: const Icon(
+                Icons.refresh,
+              ),
+              label: const Text(
+                'Tentar novamente',
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
