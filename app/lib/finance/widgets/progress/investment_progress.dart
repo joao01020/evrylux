@@ -16,12 +16,16 @@ class InvestmentProgress
   /// Exibe ou esconde o tempo estimado.
   final bool showEstimatedTime;
 
+  /// Controla a visibilidade de todos os valores monetários.
+  final bool showBalances;
+
   const InvestmentProgress({
     super.key,
     required this.projection,
     this.showPatrimony = true,
     this.showAverageContribution = true,
     this.showEstimatedTime = true,
+    this.showBalances = true,
   });
 
   // =========================================================
@@ -31,6 +35,10 @@ class InvestmentProgress
   String _formatCurrency(
     double value,
   ) {
+    if (!showBalances) {
+      return 'R\$ ••••••';
+    }
+
     final safeValue = value.isFinite
         ? value
         : 0.0;
@@ -38,6 +46,7 @@ class InvestmentProgress
     final isNegative =
         safeValue <
         0;
+
     final absoluteValue = safeValue.abs();
 
     final parts = absoluteValue
@@ -49,6 +58,7 @@ class InvestmentProgress
         );
 
     final integerPart = parts.first;
+
     final decimalPart =
         parts.length >
             1
@@ -539,6 +549,7 @@ class InvestmentProgress
                     index++
                   ) ...[
                     items[index],
+
                     if (index <
                         items.length -
                             1)
@@ -562,6 +573,7 @@ class InvestmentProgress
                   Expanded(
                     child: items[index],
                   ),
+
                   if (index <
                       items.length -
                           1)

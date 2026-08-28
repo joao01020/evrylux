@@ -1,252 +1,474 @@
 import 'package:flutter/material.dart';
 
-class WalletCard extends StatelessWidget {
-  final double patrimony;
+class WalletCard
+    extends
+        StatelessWidget {
+  const WalletCard({
+    super.key,
+    required this.patrimony,
+    required this.invested,
+    required this.bitcoin,
+    required this.ethereum,
+    required this.solana,
+    required this.usdt,
+    required this.onBalance,
+    required this.onBitcoin,
+    required this.onEthereum,
+    required this.onSolana,
+    required this.onUsdt,
+    required this.onVault,
+    this.showBalances = true,
+  });
 
+  final double patrimony;
   final double invested;
 
-  // Saldos vindos do CryptoController
   final double bitcoin;
-
   final double ethereum;
-
   final double solana;
-
   final double usdt;
 
   final VoidCallback onBalance;
-
   final VoidCallback onBitcoin;
-
   final VoidCallback onEthereum;
-
   final VoidCallback onSolana;
-
   final VoidCallback onUsdt;
-
   final VoidCallback onVault;
 
-  const WalletCard({
-    super.key,
+  // ============================================================
+  // VISIBILIDADE GLOBAL
+  // ============================================================
 
-    required this.patrimony,
+  final bool showBalances;
 
-    required this.invested,
-
-    required this.bitcoin,
-
-    required this.ethereum,
-
-    required this.solana,
-
-    required this.usdt,
-
-    required this.onBalance,
-
-    required this.onBitcoin,
-
-    required this.onEthereum,
-
-    required this.onSolana,
-
-    required this.onUsdt,
-
-    required this.onVault,
-  });
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
-  Widget build(BuildContext context) {
-    final hasCrypto = bitcoin > 0 || ethereum > 0 || solana > 0 || usdt > 0;
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme = Theme.of(
+      context,
+    ).colorScheme;
 
-    return Card(
-      elevation: 2,
-
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-
-          children: [
-            Row(
-              children: [
-                GestureDetector(
-                  onTap: onBalance,
-
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-
-                    child: const Icon(Icons.account_balance_wallet, size: 28),
-                  ),
-                ),
-
-                const SizedBox(width: 10),
-
-                const Expanded(
-                  child: Text(
-                    "Carteira",
-
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ),
-
-                crypto("₿", onBitcoin),
-
-                crypto("Ξ", onEthereum),
-
-                crypto("◎", onSolana),
-
-                crypto("₮", onUsdt),
-
-                const SizedBox(width: 10),
-
-                GestureDetector(
-                  onTap: onVault,
-
-                  child: const Icon(
-                    Icons.key_outlined,
-
-                    size: 18,
-
-                    color: Colors.grey,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 20),
-
-            Row(
-              children: [
-                Expanded(
-                  child: _valueCard(
-                    icon: Icons.account_balance,
-
-                    title: "Patrimônio",
-
-                    value: patrimony,
-                  ),
-                ),
-
-                const SizedBox(width: 12),
-
-                Expanded(
-                  child: _valueCard(
-                    icon: Icons.trending_up,
-
-                    title: "Investido",
-
-                    value: invested,
-                  ),
-                ),
-              ],
-            ),
-
-            if (hasCrypto) ...[
-              const SizedBox(height: 18),
-
-              const Divider(),
-
-              const SizedBox(height: 10),
-
-              if (bitcoin > 0) _cryptoBalance("₿", bitcoin, "BTC", 8),
-
-              if (ethereum > 0) _cryptoBalance("Ξ", ethereum, "ETH", 6),
-
-              if (solana > 0) _cryptoBalance("◎", solana, "SOL", 4),
-
-              if (usdt > 0) _cryptoBalance("₮", usdt, "USDT", 2),
-            ],
-          ],
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(
+        18,
+      ),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(
+          16,
         ),
+        border: Border.all(
+          color: colorScheme.outlineVariant,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ====================================================
+          // HEADER
+          // ====================================================
+          Row(
+            children: [
+              const Icon(
+                Icons.account_balance_wallet_rounded,
+              ),
+
+              const SizedBox(
+                width: 10,
+              ),
+
+              const Expanded(
+                child: Text(
+                  'Carteira',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+
+              IconButton(
+                tooltip: 'Bitcoin',
+                onPressed: onBitcoin,
+                icon: const Icon(
+                  Icons.currency_bitcoin,
+                ),
+              ),
+
+              IconButton(
+                tooltip: 'Ethereum',
+                onPressed: onEthereum,
+                icon: const Icon(
+                  Icons.view_stream_outlined,
+                ),
+              ),
+
+              IconButton(
+                tooltip: 'Solana',
+                onPressed: onSolana,
+                icon: const Icon(
+                  Icons.adjust_outlined,
+                ),
+              ),
+
+              IconButton(
+                tooltip: 'USDT',
+                onPressed: onUsdt,
+                icon: const Icon(
+                  Icons.currency_exchange_outlined,
+                ),
+              ),
+
+              IconButton(
+                tooltip: 'Cofre',
+                onPressed: onVault,
+                icon: const Icon(
+                  Icons.key_outlined,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(
+            height: 20,
+          ),
+
+          // ====================================================
+          // PATRIMÔNIO / INVESTIDO
+          // ====================================================
+          Row(
+            children: [
+              Expanded(
+                child: _FinanceValueCard(
+                  icon: Icons.account_balance_rounded,
+                  title: 'Patrimônio',
+                  value: _valueText(
+                    patrimony,
+                  ),
+                ),
+              ),
+
+              const SizedBox(
+                width: 12,
+              ),
+
+              Expanded(
+                child: _FinanceValueCard(
+                  icon: Icons.trending_up_rounded,
+                  title: 'Investido',
+                  value: _valueText(
+                    invested,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(
+            height: 20,
+          ),
+
+          Divider(
+            color: colorScheme.outlineVariant,
+          ),
+
+          const SizedBox(
+            height: 10,
+          ),
+
+          // ====================================================
+          // CRIPTO
+          // ====================================================
+          if (bitcoin >
+              0)
+            _cryptoLine(
+              symbol: '₿',
+              value: bitcoin,
+              suffix: 'BTC',
+            ),
+
+          if (ethereum >
+              0)
+            _cryptoLine(
+              symbol: 'Ξ',
+              value: ethereum,
+              suffix: 'ETH',
+            ),
+
+          if (solana >
+              0)
+            _cryptoLine(
+              symbol: '◎',
+              value: solana,
+              suffix: 'SOL',
+            ),
+
+          if (usdt >
+              0)
+            _cryptoLine(
+              symbol: '₮',
+              value: usdt,
+              suffix: 'USDT',
+            ),
+
+          // ====================================================
+          // SEM CRIPTO
+          // ====================================================
+          if (bitcoin <=
+                  0 &&
+              ethereum <=
+                  0 &&
+              solana <=
+                  0 &&
+              usdt <=
+                  0)
+            TextButton.icon(
+              onPressed: onBalance,
+              icon: const Icon(
+                Icons.add_chart_rounded,
+              ),
+              label: const Text(
+                'Adicionar saldo cripto',
+              ),
+            ),
+        ],
       ),
     );
   }
 
-  Widget _cryptoBalance(
-    String icon,
+  // ============================================================
+  // CRYPTO
+  // ============================================================
 
-    double value,
-
-    String symbol,
-
-    int decimals,
-  ) {
+  Widget _cryptoLine({
+    required String symbol,
+    required double value,
+    required String suffix,
+  }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-
+      padding: const EdgeInsets.symmetric(
+        vertical: 5,
+      ),
       child: Row(
         children: [
-          Text(
-            icon,
-
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          SizedBox(
+            width: 24,
+            child: Text(
+              symbol,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
 
-          const SizedBox(width: 8),
+          const SizedBox(
+            width: 4,
+          ),
 
           Text(
-            "${value.toStringAsFixed(decimals)} $symbol",
-
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+            _cryptoValueText(
+              value,
+              suffix,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _valueCard({
-    required IconData icon,
+  // ============================================================
+  // VALOR CRIPTO
+  // ============================================================
 
-    required String title,
+  String _cryptoValueText(
+    double value,
+    String suffix,
+  ) {
+    if (!showBalances) {
+      return '•••••• $suffix';
+    }
 
-    required double value,
-  }) {
+    return '${_formatCrypto(value)} $suffix';
+  }
+
+  // ============================================================
+  // VALOR MONETÁRIO
+  // ============================================================
+
+  String _valueText(
+    double value,
+  ) {
+    if (!showBalances) {
+      return 'R\$ ••••••';
+    }
+
+    return _currency(
+      value,
+    );
+  }
+
+  // ============================================================
+  // FORMATAR CRIPTO
+  // ============================================================
+
+  String _formatCrypto(
+    double value,
+  ) {
+    final safeValue = value.isFinite
+        ? value
+        : 0.0;
+
+    return safeValue.toStringAsFixed(
+      8,
+    );
+  }
+
+  // ============================================================
+  // FORMATAR MOEDA
+  // ============================================================
+
+  String _currency(
+    double value,
+  ) {
+    final safeValue = value.isFinite
+        ? value
+        : 0.0;
+
+    final negative =
+        safeValue <
+        0;
+
+    final absolute = safeValue.abs();
+
+    final parts = absolute
+        .toStringAsFixed(
+          2,
+        )
+        .split(
+          '.',
+        );
+
+    final integer = parts.first;
+
+    final decimal =
+        parts.length >
+            1
+        ? parts.last
+        : '00';
+
+    final reversed = integer
+        .split(
+          '',
+        )
+        .reversed
+        .toList();
+
+    final buffer = StringBuffer();
+
+    for (
+      int index = 0;
+      index <
+          reversed.length;
+      index++
+    ) {
+      if (index >
+              0 &&
+          index %
+                  3 ==
+              0) {
+        buffer.write(
+          '.',
+        );
+      }
+
+      buffer.write(
+        reversed[index],
+      );
+    }
+
+    final formattedInteger = buffer
+        .toString()
+        .split(
+          '',
+        )
+        .reversed
+        .join();
+
+    return '${negative ? '-' : ''}'
+        'R\$ $formattedInteger,$decimal';
+  }
+}
+
+// ============================================================
+// FINANCE VALUE CARD
+// ============================================================
+
+class _FinanceValueCard
+    extends
+        StatelessWidget {
+  const _FinanceValueCard({
+    required this.icon,
+    required this.title,
+    required this.value,
+  });
+
+  final IconData icon;
+
+  final String title;
+
+  final String value;
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
     return Container(
-      padding: const EdgeInsets.all(12),
-
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-
-        borderRadius: BorderRadius.circular(12),
+      padding: const EdgeInsets.all(
+        14,
       ),
-
+      decoration: BoxDecoration(
+        color: Theme.of(
+          context,
+        ).colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(
+          14,
+        ),
+      ),
       child: Column(
         children: [
-          Icon(icon),
+          Icon(
+            icon,
+          ),
 
-          const SizedBox(height: 8),
-
-          Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-
-          const SizedBox(height: 4),
+          const SizedBox(
+            height: 8,
+          ),
 
           Text(
-            "R\$ ${value.toStringAsFixed(2)}",
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
 
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          const SizedBox(
+            height: 5,
+          ),
+
+          Text(
+            value,
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget crypto(String icon, VoidCallback tap) {
-    return GestureDetector(
-      onTap: tap,
-
-      child: Padding(
-        padding: const EdgeInsets.only(left: 8),
-
-        child: Text(
-          icon,
-
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
       ),
     );
   }

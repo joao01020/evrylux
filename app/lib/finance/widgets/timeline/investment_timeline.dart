@@ -2,266 +2,297 @@ import 'package:flutter/material.dart';
 
 import '../../services/history/investment_history.dart';
 
-import 'components/investment_month_group.dart';
-import 'components/investment_timeline_empty.dart';
-import 'components/investment_timeline_header.dart';
-import 'components/investment_timeline_summary.dart';
-
 class InvestmentTimeline
     extends
         StatelessWidget {
+  const InvestmentTimeline({
+    super.key,
+    required this.history,
+    required this.showHeader,
+    required this.onDelete,
+    required this.onTap,
+    this.showBalances = true,
+  });
+
   final List<
     InvestmentHistory
   >
   history;
 
-  /// Exibe o cabeçalho interno do histórico.
   final bool showHeader;
 
-  /// Quantidade máxima de registros mostrados.
-  ///
-  /// Quando for nulo, todos os registros serão exibidos.
-  final int? maxItems;
-
-  /// Função chamada ao tocar em um aporte.
   final ValueChanged<
     InvestmentHistory
-  >?
-  onTap;
-
-  /// Função chamada ao excluir um aporte.
-  final ValueChanged<
-    InvestmentHistory
-  >?
+  >
   onDelete;
 
-  const InvestmentTimeline({
-    super.key,
-    required this.history,
-    this.showHeader = true,
-    this.maxItems,
-    this.onTap,
-    this.onDelete,
-  });
-
-  // =========================================================
-  // DADOS ORGANIZADOS
-  // =========================================================
-
-  List<
+  final ValueChanged<
     InvestmentHistory
   >
-  get _orderedHistory {
-    final items =
-        List<
-          InvestmentHistory
-        >.from(
-          history,
-        );
+  onTap;
 
-    items.sort(
-      (
-        first,
-        second,
-      ) {
-        return second.date.compareTo(
-          first.date,
-        );
-      },
-    );
+  final bool showBalances;
 
-    if (maxItems ==
-            null ||
-        maxItems! <=
-            0 ||
-        maxItems! >=
-            items.length) {
-      return items;
+  double get total {
+    double result = 0;
+
+    for (final item in history) {
+      result += item.safeValue;
     }
 
-    return items
-        .take(
-          maxItems!,
-        )
-        .toList();
+    return result;
   }
 
-  Map<
-    String,
-    List<
-      InvestmentHistory
-    >
-  >
-  _groupByMonth(
-    List<
-      InvestmentHistory
-    >
-    items,
-  ) {
-    final groups =
-        <
-          String,
-          List<
-            InvestmentHistory
-          >
-        >{};
-
-    for (final item in items) {
-      final month = item.date.month.toString().padLeft(
-        2,
-        '0',
-      );
-
-      final key = '${item.date.year}-$month';
-
-      groups.putIfAbsent(
-        key,
-        () =>
-            <
-              InvestmentHistory
-            >[],
-      );
-
-      groups[key]!.add(
-        item,
-      );
-    }
-
-    return groups;
-  }
-
-  // =========================================================
-  // ESTATÍSTICAS
-  // =========================================================
-
-  double get _totalInvested {
-    return history.fold<
-      double
-    >(
-      0,
-      (
-        total,
-        item,
-      ) {
-        return total +
-            item.value;
-      },
-    );
-  }
-
-  double get _averageContribution {
+  double get average {
     if (history.isEmpty) {
       return 0;
     }
 
-    return _totalInvested /
+    return total /
         history.length;
   }
-
-  int get _hiddenItemsCount {
-    if (maxItems ==
-            null ||
-        maxItems! <=
-            0) {
-      return 0;
-    }
-
-    final hidden =
-        history.length -
-        maxItems!;
-
-    return hidden >
-            0
-        ? hidden
-        : 0;
-  }
-
-  // =========================================================
-  // TELA
-  // =========================================================
 
   @override
   Widget build(
     BuildContext context,
   ) {
-    final items = _orderedHistory;
+    if (history.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
-    final groups = _groupByMonth(
-      items,
-    );
-
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(
+        16,
+      ),
+      decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(
-          20,
+          22,
         ),
-        side: BorderSide(
+        border: Border.all(
           color: Theme.of(
             context,
-          ).dividerColor,
+          ).colorScheme.outlineVariant,
         ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(
-          16,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (showHeader) ...[
-              InvestmentTimelineHeader(
-                contributionCount: history.length,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (showHeader) ...[
+            const Text(
+              'Histórico',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
               ),
+            ),
+            const SizedBox(
+              height: 14,
+            ),
+          ],
 
-              const SizedBox(
-                height: 20,
-              ),
-            ],
-
-            if (history.isNotEmpty) ...[
-              InvestmentTimelineSummary(
-                totalInvested: _totalInvested,
-                averageContribution: _averageContribution,
-                contributionCount: history.length,
-              ),
-
-              const SizedBox(
-                height: 24,
-              ),
-            ],
-
-            if (items.isEmpty)
-              const InvestmentTimelineEmpty()
-            else
-              for (final group in groups.values)
-                InvestmentMonthGroup(
-                  items: group,
-                  onTap: onTap,
-                  onDelete: onDelete,
-                ),
-
-            if (_hiddenItemsCount >
-                0) ...[
-              const SizedBox(
-                height: 4,
-              ),
-
-              Center(
-                child: Text(
-                  '$_hiddenItemsCount '
-                  '${_hiddenItemsCount == 1 ? 'aporte anterior não exibido' : 'aportes anteriores não exibidos'}.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurfaceVariant,
+          // ====================================================
+          // SUMMARY
+          // ====================================================
+          Row(
+            children: [
+              Expanded(
+                child: _TimelineMetric(
+                  icon: Icons.account_balance_wallet_outlined,
+                  value: _money(
+                    total,
                   ),
+                  label: 'Total aportado',
+                ),
+              ),
+
+              const SizedBox(
+                width: 10,
+              ),
+
+              Expanded(
+                child: _TimelineMetric(
+                  icon: Icons.bar_chart_rounded,
+                  value: _money(
+                    average,
+                  ),
+                  label: 'Média por aporte',
+                ),
+              ),
+
+              const SizedBox(
+                width: 10,
+              ),
+
+              Expanded(
+                child: _TimelineMetric(
+                  icon: Icons.format_list_numbered_rounded,
+                  value: '${history.length}',
+                  label: 'Aportes',
                 ),
               ),
             ],
+          ),
+
+          const SizedBox(
+            height: 20,
+          ),
+
+          ...history.map(
+            (
+              item,
+            ) {
+              return _buildItem(
+                context,
+                item,
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildItem(
+    BuildContext context,
+    InvestmentHistory item,
+  ) {
+    return InkWell(
+      onTap: () {
+        onTap(
+          item,
+        );
+      },
+      borderRadius: BorderRadius.circular(
+        14,
+      ),
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(
+          bottom: 10,
+        ),
+        padding: const EdgeInsets.all(
+          14,
+        ),
+        decoration: BoxDecoration(
+          color: Theme.of(
+            context,
+          ).colorScheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(
+            14,
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _money(
+                      item.safeValue,
+                    ),
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+
+                  const SizedBox(
+                    height: 4,
+                  ),
+
+                  Text(
+                    item.normalizedRhythm,
+                  ),
+                ],
+              ),
+            ),
+
+            IconButton(
+              tooltip: 'Excluir',
+              onPressed: () {
+                onDelete(
+                  item,
+                );
+              },
+              icon: const Icon(
+                Icons.delete_outline_rounded,
+              ),
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  String _money(
+    double value,
+  ) {
+    if (!showBalances) {
+      return 'R\$ ••••••';
+    }
+
+    return 'R\$ ${value.toStringAsFixed(2).replaceAll('.', ',')}';
+  }
+}
+
+class _TimelineMetric
+    extends
+        StatelessWidget {
+  const _TimelineMetric({
+    required this.icon,
+    required this.value,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String value;
+  final String label;
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(
+        14,
+      ),
+      decoration: BoxDecoration(
+        color: Theme.of(
+          context,
+        ).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(
+          15,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            icon,
+            size: 18,
+          ),
+
+          const SizedBox(
+            height: 12,
+          ),
+
+          Text(
+            value,
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+
+          const SizedBox(
+            height: 4,
+          ),
+
+          Text(
+            label,
+          ),
+        ],
       ),
     );
   }

@@ -28,7 +28,26 @@ class _FinanceScreenState
           FinanceScreen
         > {
   late final FinanceScreenController _controller;
+
   late final FinanceScreenActions _actions;
+
+  // ============================================================
+  // EXPANSÃO DOS CARDS
+  // ============================================================
+
+  bool _showEvolutionDetails = false;
+
+  bool _showLastContributionDetails = false;
+
+  // ============================================================
+  // VISIBILIDADE GLOBAL DOS SALDOS
+  // ============================================================
+
+  bool _showBalances = true;
+
+  // ============================================================
+  // INIT
+  // ============================================================
 
   @override
   void initState() {
@@ -49,6 +68,10 @@ class _FinanceScreenState
     _loadScreen();
   }
 
+  // ============================================================
+  // LOAD
+  // ============================================================
+
   Future<
     void
   >
@@ -68,6 +91,10 @@ class _FinanceScreenState
     _refresh();
   }
 
+  // ============================================================
+  // REFRESH
+  // ============================================================
+
   void _refresh() {
     if (!mounted) {
       return;
@@ -78,12 +105,93 @@ class _FinanceScreenState
     );
   }
 
+  // ============================================================
+  // MOSTRAR / OCULTAR TODOS OS SALDOS
+  // ============================================================
+
+  void _toggleBalances() {
+    if (!mounted) {
+      return;
+    }
+
+    setState(
+      () {
+        _showBalances = !_showBalances;
+      },
+    );
+  }
+
+  // ============================================================
+  // TOGGLE EVOLUTION
+  // ============================================================
+
+  void _toggleEvolutionDetails() {
+    if (!mounted) {
+      return;
+    }
+
+    setState(
+      () {
+        _showEvolutionDetails = !_showEvolutionDetails;
+      },
+    );
+  }
+
+  // ============================================================
+  // TOGGLE LAST CONTRIBUTION
+  // ============================================================
+
+  void _toggleLastContributionDetails() {
+    if (!mounted) {
+      return;
+    }
+
+    setState(
+      () {
+        _showLastContributionDetails = !_showLastContributionDetails;
+      },
+    );
+  }
+
+  // ============================================================
+  // APP BAR
+  // ============================================================
+
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       title: const Text(
         'Financeiro 💰',
       ),
       actions: [
+        // ======================================================
+        // OLHO - VISIBILIDADE GLOBAL
+        // ======================================================
+        IconButton(
+          tooltip: _showBalances
+              ? 'Ocultar todos os saldos'
+              : 'Mostrar todos os saldos',
+          onPressed: _toggleBalances,
+          icon: AnimatedSwitcher(
+            duration: const Duration(
+              milliseconds: 180,
+            ),
+            child: Icon(
+              _showBalances
+                  ? Icons.visibility_outlined
+                  : Icons.visibility_off_outlined,
+              key:
+                  ValueKey<
+                    bool
+                  >(
+                    _showBalances,
+                  ),
+            ),
+          ),
+        ),
+
+        // ======================================================
+        // PLANEJAMENTO
+        // ======================================================
         IconButton(
           tooltip: 'Planejamento',
           onPressed: _actions.openPlanning,
@@ -94,6 +202,10 @@ class _FinanceScreenState
       ],
     );
   }
+
+  // ============================================================
+  // CONTRIBUTION BUTTON
+  // ============================================================
 
   Widget _buildContributionButton() {
     return FloatingActionButton.extended(
@@ -107,6 +219,10 @@ class _FinanceScreenState
     );
   }
 
+  // ============================================================
+  // BODY
+  // ============================================================
+
   Widget _buildBody() {
     if (_controller.isLoading) {
       return const Center(
@@ -115,21 +231,62 @@ class _FinanceScreenState
     }
 
     return FinanceScreenContent(
+      // ========================================================
+      // DADOS
+      // ========================================================
       model: _controller.model,
+
       projection: _controller.projection,
+
       balances: _controller.balances,
+
       history: _controller.history,
+
+      // ========================================================
+      // AÇÕES
+      // ========================================================
       onPlanning: _actions.openPlanning,
+
       onHistory: _actions.openHistory,
+
       onBalance: _actions.openCryptoBalance,
+
       onVault: _actions.openVault,
+
       onPatrimony: _actions.editPatrimony,
+
       onObjective: _actions.editInvestmentGoal,
+
       onCrypto: _actions.openCrypto,
+
       onHistoryItem: _actions.showHistoryItem,
+
       onDeleteContribution: _actions.deleteContribution,
+
+      // ========================================================
+      // VISIBILIDADE GLOBAL DOS SALDOS
+      // ========================================================
+      showBalances: _showBalances,
+
+      // ========================================================
+      // EVOLUÇÃO
+      // ========================================================
+      showEvolutionDetails: _showEvolutionDetails,
+
+      onToggleEvolution: _toggleEvolutionDetails,
+
+      // ========================================================
+      // ÚLTIMO APORTE
+      // ========================================================
+      showLastContributionDetails: _showLastContributionDetails,
+
+      onToggleLastContribution: _toggleLastContributionDetails,
     );
   }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(
@@ -137,7 +294,9 @@ class _FinanceScreenState
   ) {
     return Scaffold(
       appBar: _buildAppBar(),
+
       floatingActionButton: _buildContributionButton(),
+
       body: _buildBody(),
     );
   }

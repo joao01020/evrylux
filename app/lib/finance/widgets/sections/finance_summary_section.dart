@@ -1,21 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../utils/finance_screen_formatter.dart';
-
 class FinanceSummarySection
     extends
         StatelessWidget {
-  final double patrimony;
-  final double investmentGoal;
-
-  final double minimumGoal;
-  final double mediumGoal;
-  final double maximumGoal;
-
-  final VoidCallback onPatrimonyTap;
-  final VoidCallback onObjectiveTap;
-  final VoidCallback onRhythmsTap;
-
   const FinanceSummarySection({
     super.key,
     required this.patrimony,
@@ -26,136 +13,318 @@ class FinanceSummarySection
     required this.onPatrimonyTap,
     required this.onObjectiveTap,
     required this.onRhythmsTap,
+    this.showBalances = true,
   });
 
-  Widget _miniCard({
-    required BuildContext context,
-    required String icon,
-    required String title,
-    required String value,
-    required VoidCallback onTap,
-  }) {
-    return Expanded(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(
-            16,
-          ),
-          child: Card(
-            elevation: 0,
-            margin: EdgeInsets.zero,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(
-                16,
-              ),
-              side: BorderSide(
-                color: Theme.of(
-                  context,
-                ).dividerColor,
-              ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 14,
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    icon,
-                    style: const TextStyle(
-                      fontSize: 22,
-                    ),
-                  ),
+  final double patrimony;
+  final double investmentGoal;
+  final double minimumGoal;
+  final double mediumGoal;
+  final double maximumGoal;
 
-                  const SizedBox(
-                    height: 7,
-                  ),
+  final VoidCallback onPatrimonyTap;
+  final VoidCallback onObjectiveTap;
+  final VoidCallback onRhythmsTap;
 
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+  // ============================================================
+  // VISIBILIDADE DOS SALDOS
+  // ============================================================
 
-                  const SizedBox(
-                    height: 5,
-                  ),
+  final bool showBalances;
 
-                  Text(
-                    value,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(
     BuildContext context,
   ) {
-    return Row(
-      children: [
-        _miniCard(
-          context: context,
-          icon: '💼',
-          title: 'Patrimônio',
-          value: FinanceScreenFormatter.currency(
-            patrimony,
-          ),
-          onTap: onPatrimonyTap,
-        ),
+    return LayoutBuilder(
+      builder:
+          (
+            context,
+            constraints,
+          ) {
+            final cards = [
+              // ==================================================
+              // PATRIMÔNIO
+              // ==================================================
+              _FinanceSummaryCard(
+                icon: Icons.work_outline_rounded,
+                title: 'Patrimônio',
+                content: _money(
+                  patrimony,
+                ),
+                onTap: onPatrimonyTap,
+              ),
 
-        const SizedBox(
-          width: 8,
-        ),
-
-        _miniCard(
-          context: context,
-          icon: '🎯',
-          title: 'Objetivo',
-          value:
-              investmentGoal >
-                  0
-              ? FinanceScreenFormatter.currency(
+              // ==================================================
+              // OBJETIVO
+              // ==================================================
+              _FinanceSummaryCard(
+                icon: Icons.track_changes_rounded,
+                title: 'Objetivo',
+                content: _money(
                   investmentGoal,
-                )
-              : 'Não definido',
-          onTap: onObjectiveTap,
-        ),
+                ),
+                onTap: onObjectiveTap,
+              ),
 
-        const SizedBox(
-          width: 8,
-        ),
+              // ==================================================
+              // RITMOS
+              //
+              // Ritmos permanecem sempre visíveis.
+              // ==================================================
+              _FinanceSummaryCard(
+                icon: Icons.bar_chart_rounded,
+                title: 'Ritmos',
+                content: _rhythmsText(),
+                onTap: onRhythmsTap,
+              ),
+            ];
 
-        _miniCard(
-          context: context,
-          icon: '📊',
-          title: 'Ritmos',
-          value:
-              '${FinanceScreenFormatter.currency(minimumGoal)}\n'
-              '${FinanceScreenFormatter.currency(mediumGoal)}\n'
-              '${FinanceScreenFormatter.currency(maximumGoal)}',
-          onTap: onRhythmsTap,
+            // ====================================================
+            // MOBILE
+            // ====================================================
+
+            if (constraints.maxWidth <
+                760) {
+              return Column(
+                children: cards
+                    .map(
+                      (
+                        card,
+                      ) => Padding(
+                        padding: const EdgeInsets.only(
+                          bottom: 10,
+                        ),
+                        child: card,
+                      ),
+                    )
+                    .toList(),
+              );
+            }
+
+            // ====================================================
+            // DESKTOP
+            // ====================================================
+
+            return Row(
+              children: [
+                Expanded(
+                  child: cards[0],
+                ),
+
+                const SizedBox(
+                  width: 10,
+                ),
+
+                Expanded(
+                  child: cards[1],
+                ),
+
+                const SizedBox(
+                  width: 10,
+                ),
+
+                Expanded(
+                  child: cards[2],
+                ),
+              ],
+            );
+          },
+    );
+  }
+
+  // ============================================================
+  // RITMOS
+  //
+  // NÃO respeita showBalances.
+  // Deve permanecer sempre visível.
+  // ============================================================
+
+  String _rhythmsText() {
+    return '${_currency(minimumGoal)}\n'
+        '${_currency(mediumGoal)}\n'
+        '${_currency(maximumGoal)}';
+  }
+
+  // ============================================================
+  // MONEY
+  //
+  // Usado apenas nos valores que devem ser ocultados:
+  //
+  // - Patrimônio
+  // - Objetivo
+  // ============================================================
+
+  String _money(
+    double value,
+  ) {
+    if (!showBalances) {
+      return 'R\$ ••••••';
+    }
+
+    return _currency(
+      value,
+    );
+  }
+
+  // ============================================================
+  // CURRENCY
+  // ============================================================
+
+  String _currency(
+    double value,
+  ) {
+    final safeValue = value.isFinite
+        ? value
+        : 0.0;
+
+    final negative =
+        safeValue <
+        0;
+
+    final absolute = safeValue.abs();
+
+    final parts = absolute
+        .toStringAsFixed(
+          2,
+        )
+        .split(
+          '.',
+        );
+
+    final integer = parts.first;
+
+    final decimal =
+        parts.length >
+            1
+        ? parts.last
+        : '00';
+
+    final reversed = integer
+        .split(
+          '',
+        )
+        .reversed
+        .toList();
+
+    final buffer = StringBuffer();
+
+    for (
+      int index = 0;
+      index <
+          reversed.length;
+      index++
+    ) {
+      if (index >
+              0 &&
+          index %
+                  3 ==
+              0) {
+        buffer.write(
+          '.',
+        );
+      }
+
+      buffer.write(
+        reversed[index],
+      );
+    }
+
+    final formattedInteger = buffer
+        .toString()
+        .split(
+          '',
+        )
+        .reversed
+        .join();
+
+    final sign = negative
+        ? '-'
+        : '';
+
+    return '${sign}R\$ $formattedInteger,$decimal';
+  }
+}
+
+// ============================================================
+// FINANCE SUMMARY CARD
+// ============================================================
+
+class _FinanceSummaryCard
+    extends
+        StatelessWidget {
+  const _FinanceSummaryCard({
+    required this.icon,
+    required this.title,
+    required this.content,
+    required this.onTap,
+  });
+
+  final IconData icon;
+
+  final String title;
+
+  final String content;
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(
+        16,
+      ),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(
+          18,
         ),
-      ],
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(
+            16,
+          ),
+          border: Border.all(
+            color: Theme.of(
+              context,
+            ).colorScheme.outlineVariant,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              size: 24,
+            ),
+
+            const SizedBox(
+              height: 10,
+            ),
+
+            Text(
+              title,
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+
+            const SizedBox(
+              height: 7,
+            ),
+
+            Text(
+              content,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
