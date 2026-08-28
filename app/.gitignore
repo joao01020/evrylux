@@ -1,4 +1,15 @@
-# Miscellaneous
+# ============================================================
+# ENVIRONMENT VARIABLES
+# ============================================================
+
+.env
+.env.*
+!.env.example
+
+# ============================================================
+# MISCELLANEOUS
+# ============================================================
+
 *.class
 *.log
 *.pyc
@@ -7,39 +18,87 @@
 .atom/
 .build/
 .buildlog/
-.history
+.history/
 .svn/
 .swiftpm/
 migrate_working_dir/
 
-# IntelliJ related
+# ============================================================
+# INTELLIJ / ANDROID STUDIO
+# ============================================================
+
 *.iml
 *.ipr
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# ============================================================
+# VISUAL STUDIO CODE
+# ============================================================
 
-# Flutter/Dart/Pub related
+# Descomente se não quiser versionar as configurações do VS Code.
+# .vscode/
+
+# ============================================================
+# FLUTTER / DART / PUB
+# ============================================================
+
 **/doc/api/
 **/ios/Flutter/.last_build_id
+
 .dart_tool/
+.flutter-plugins
 .flutter-plugins-dependencies
+.packages
 .pub-cache/
 .pub/
-/build/
-/coverage/
+build/
+coverage/
 
-# Symbolication related
+# ============================================================
+# GENERATED FILES
+# ============================================================
+
+*.g.dart
+*.freezed.dart
+*.mocks.dart
+
+# Remova as três regras acima caso queira versionar os arquivos gerados.
+
+# ============================================================
+# SYMBOLICATION
+# ============================================================
+
 app.*.symbols
 
-# Obfuscation related
+# ============================================================
+# OBFUSCATION
+# ============================================================
+
 app.*.map.json
 
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
+# ============================================================
+# ANDROID BUILD ARTIFACTS
+# ============================================================
+
+/android/app/debug/
+/android/app/profile/
+/android/app/release/
+
+# ============================================================
+# LINUX BUILD ARTIFACTS
+# ============================================================
+
+/linux/flutter/ephemeral/
+
+# ============================================================
+# MACOS BUILD ARTIFACTS
+# ============================================================
+
+/macos/Flutter/ephemeral/
+
+# ============================================================
+# WINDOWS BUILD ARTIFACTS
+# ============================================================
+
+/windows/flutter/ephemeral/

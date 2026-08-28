@@ -119,6 +119,14 @@ class BrainController
   >
   initialize() async {
     await loadNotes();
+
+    if (_notes.isEmpty) {
+      return;
+    }
+
+    await openNote(
+      _notes.first,
+    );
   }
 
   // =========================================================
@@ -190,9 +198,7 @@ class BrainController
       _selectedNote = loadedNote;
 
       topicController.text = loadedNote.topic;
-
       titleController.text = loadedNote.title;
-
       contentController.text = loadedNote.content;
 
       _concepts =
@@ -222,9 +228,7 @@ class BrainController
 
   String? validateNote() {
     final topic = topicController.text.trim();
-
     final title = titleController.text.trim();
-
     final content = contentController.text.trim();
 
     if (topic.isEmpty) {
@@ -249,7 +253,9 @@ class BrainController
   Future<
     bool
   >
-  saveNote() async {
+  saveNote({
+    String successMessage = 'Anotação salva em arquivo Markdown ✅',
+  }) async {
     if (_isSaving) {
       return false;
     }
@@ -268,9 +274,7 @@ class BrainController
     }
 
     final topic = topicController.text.trim();
-
     final title = titleController.text.trim();
-
     final content = contentController.text.trim();
 
     _setSaving(
@@ -304,7 +308,7 @@ class BrainController
             savedNote.concepts,
           );
 
-      _successMessage = 'Anotação salva em arquivo Markdown ✅';
+      _successMessage = successMessage;
 
       return true;
     } on FormatException catch (
@@ -375,35 +379,74 @@ class BrainController
   // ADICIONAR CONCEITO
   // =========================================================
 
-  void addConcept(
+  Future<
+    bool
+  >
+  addConcept(
     BrainConcept concept,
-  ) {
+  ) async {
+    if (_isSaving) {
+      return false;
+    }
+
+    _clearMessages();
+
     _concepts = [
       ..._concepts,
       concept,
     ];
 
-    _successMessage = 'Conceito adicionado.';
-
-    _errorMessage = null;
-
     _safeNotifyListeners();
+
+    final canPersist =
+        validateNote() ==
+        null;
+
+    if (!canPersist) {
+      _successMessage = 'Conceito adicionado. Salve a anotação para mantê-lo.';
+
+      _safeNotifyListeners();
+
+      return true;
+    }
+
+    final saved = await saveNote(
+      successMessage: 'Conceito adicionado e salvo na anotação ✅',
+    );
+
+    return saved;
   }
 
   // =========================================================
   // ATUALIZAR CONCEITO
   // =========================================================
 
-  void updateConcept({
+  Future<
+    bool
+  >
+  updateConcept({
     required int index,
     required BrainConcept concept,
-  }) {
+  }) async {
+    if (_isSaving) {
+      return false;
+    }
+
     if (index <
             0 ||
         index >=
             _concepts.length) {
-      return;
+      return false;
     }
+
+    _clearMessages();
+
+    final previousConcepts =
+        List<
+          BrainConcept
+        >.from(
+          _concepts,
+        );
 
     final updatedConcepts =
         List<
@@ -416,26 +459,64 @@ class BrainController
 
     _concepts = updatedConcepts;
 
-    _successMessage = 'Conceito atualizado.';
-
-    _errorMessage = null;
-
     _safeNotifyListeners();
+
+    final canPersist =
+        validateNote() ==
+        null;
+
+    if (!canPersist) {
+      _successMessage = 'Conceito atualizado. Salve a anotação para mantê-lo.';
+
+      _safeNotifyListeners();
+
+      return true;
+    }
+
+    final saved = await saveNote(
+      successMessage: 'Conceito atualizado e salvo na anotação ✅',
+    );
+
+    if (!saved) {
+      _concepts = previousConcepts;
+
+      _safeNotifyListeners();
+
+      return false;
+    }
+
+    return true;
   }
 
   // =========================================================
   // REMOVER CONCEITO
   // =========================================================
 
-  void removeConcept(
+  Future<
+    bool
+  >
+  removeConcept(
     int index,
-  ) {
+  ) async {
+    if (_isSaving) {
+      return false;
+    }
+
     if (index <
             0 ||
         index >=
             _concepts.length) {
-      return;
+      return false;
     }
+
+    _clearMessages();
+
+    final previousConcepts =
+        List<
+          BrainConcept
+        >.from(
+          _concepts,
+        );
 
     final updatedConcepts =
         List<
@@ -450,21 +531,89 @@ class BrainController
 
     _concepts = updatedConcepts;
 
-    _successMessage = 'Conceito removido.';
-
-    _errorMessage = null;
-
     _safeNotifyListeners();
+
+    final canPersist =
+        validateNote() ==
+        null;
+
+    if (!canPersist) {
+      _successMessage = 'Conceito removido. Salve a anotação para confirmar.';
+
+      _safeNotifyListeners();
+
+      return true;
+    }
+
+    final saved = await saveNote(
+      successMessage: 'Conceito removido e alteração salva ✅',
+    );
+
+    if (!saved) {
+      _concepts = previousConcepts;
+
+      _safeNotifyListeners();
+
+      return false;
+    }
+
+    return true;
   }
 
   // =========================================================
   // LIMPAR CONCEITOS
   // =========================================================
 
-  void clearConcepts() {
+  Future<
+    bool
+  >
+  clearConcepts() async {
+    if (_isSaving) {
+      return false;
+    }
+
+    if (_concepts.isEmpty) {
+      return true;
+    }
+
+    _clearMessages();
+
+    final previousConcepts =
+        List<
+          BrainConcept
+        >.from(
+          _concepts,
+        );
+
     _concepts = [];
 
     _safeNotifyListeners();
+
+    final canPersist =
+        validateNote() ==
+        null;
+
+    if (!canPersist) {
+      _successMessage = 'Conceitos removidos. Salve a anotação para confirmar.';
+
+      _safeNotifyListeners();
+
+      return true;
+    }
+
+    final saved = await saveNote(
+      successMessage: 'Conceitos removidos e alteração salva ✅',
+    );
+
+    if (!saved) {
+      _concepts = previousConcepts;
+
+      _safeNotifyListeners();
+
+      return false;
+    }
+
+    return true;
   }
 
   // =========================================================
@@ -501,7 +650,6 @@ class BrainController
 
   void _clearMessages() {
     _errorMessage = null;
-
     _successMessage = null;
   }
 

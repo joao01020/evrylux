@@ -2,7 +2,7 @@
 
 #include <TFT_eSPI.h>
 
-#include "../ghost/phantom.h"
+#include "../ghost/phantom/phantom.h"
 
 TFT_eSPI tft;
 
@@ -19,7 +19,6 @@ void displayInit()
 
 void displayUpdate()
 {
-
 
     updatePhantom(tft);
 }

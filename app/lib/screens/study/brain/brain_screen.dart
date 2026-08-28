@@ -226,9 +226,13 @@ class _BrainScreenState
       ),
     );
 
-    _controller.addConcept(
+    await _controller.addConcept(
       concept,
     );
+
+    if (!mounted) {
+      return;
+    }
 
     _showControllerMessage();
   }
@@ -237,12 +241,19 @@ class _BrainScreenState
   // REMOVER CONCEITO
   // =========================================================
 
-  void _removeConcept(
+  Future<
+    void
+  >
+  _removeConcept(
     int index,
-  ) {
-    _controller.removeConcept(
+  ) async {
+    await _controller.removeConcept(
       index,
     );
+
+    if (!mounted) {
+      return;
+    }
 
     _showControllerMessage();
   }
@@ -366,10 +377,12 @@ class _BrainScreenState
             onDeleteNote: _deleteNote,
           ),
         ),
+
         const VerticalDivider(
           width: 1,
           thickness: 1,
         ),
+
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(
@@ -388,9 +401,11 @@ class _BrainScreenState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildEditorSection(),
+
                     const SizedBox(
                       height: 20,
                     ),
+
                     _buildConceptsSection(),
                   ],
                 ),
@@ -416,13 +431,17 @@ class _BrainScreenState
       ),
       children: [
         _buildEditorSection(),
+
         const SizedBox(
           height: 20,
         ),
+
         _buildConceptsSection(),
+
         const SizedBox(
           height: 20,
         ),
+
         _buildNotesSection(),
       ],
     );
@@ -508,11 +527,13 @@ class _BrainScreenState
                 trailing: IconButton(
                   tooltip: 'Remover conceito',
                   visualDensity: VisualDensity.compact,
-                  onPressed: () {
-                    _removeConcept(
-                      index,
-                    );
-                  },
+                  onPressed: _controller.isSaving
+                      ? null
+                      : () async {
+                          await _removeConcept(
+                            index,
+                          );
+                        },
                   icon: const Icon(
                     Icons.delete_outline,
                     size: 20,

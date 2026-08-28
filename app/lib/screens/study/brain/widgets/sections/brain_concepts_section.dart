@@ -17,11 +17,15 @@ class BrainConceptsSection
   >
   concepts;
 
-  final ValueChanged<
+  final Future<
+    void
+  >
+  Function(
     List<
       BrainConcept
     >
-  >
+    concepts,
+  )
   onChanged;
 
   // =========================================================
@@ -57,7 +61,7 @@ class BrainConceptsSection
       concept,
     ];
 
-    onChanged(
+    await onChanged(
       updated,
     );
   }
@@ -93,19 +97,20 @@ class BrainConceptsSection
       return;
     }
 
-    final updated = concepts
-        .map(
-          (
-            item,
-          ) =>
-              item.id ==
-                  edited.id
-              ? edited
-              : item,
-        )
-        .toList();
+    final updated = concepts.map(
+      (
+        item,
+      ) {
+        if (item.id ==
+            edited.id) {
+          return edited;
+        }
 
-    onChanged(
+        return item;
+      },
+    ).toList();
+
+    await onChanged(
       updated,
     );
   }
@@ -170,17 +175,16 @@ class BrainConceptsSection
       return;
     }
 
-    final updated = concepts
-        .where(
-          (
-            item,
-          ) =>
-              item.id !=
-              concept.id,
-        )
-        .toList();
+    final updated = concepts.where(
+      (
+        item,
+      ) {
+        return item.id !=
+            concept.id;
+      },
+    ).toList();
 
-    onChanged(
+    await onChanged(
       updated,
     );
   }
@@ -251,17 +255,17 @@ class BrainConceptsSection
               onSelected:
                   (
                     value,
-                  ) {
+                  ) async {
                     switch (value) {
                       case 'edit':
-                        _editConcept(
+                        await _editConcept(
                           context,
                           concept,
                         );
                         break;
 
                       case 'delete':
-                        _deleteConcept(
+                        await _deleteConcept(
                           context,
                           concept,
                         );
@@ -271,40 +275,42 @@ class BrainConceptsSection
               itemBuilder:
                   (
                     _,
-                  ) => const [
-                    PopupMenuItem(
-                      value: 'edit',
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.edit_outlined,
-                          ),
-                          SizedBox(
-                            width: 12,
-                          ),
-                          Text(
-                            'Editar',
-                          ),
-                        ],
+                  ) {
+                    return const [
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.edit_outlined,
+                            ),
+                            SizedBox(
+                              width: 12,
+                            ),
+                            Text(
+                              'Editar',
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.delete_outline,
-                          ),
-                          SizedBox(
-                            width: 12,
-                          ),
-                          Text(
-                            'Excluir',
-                          ),
-                        ],
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.delete_outline,
+                            ),
+                            SizedBox(
+                              width: 12,
+                            ),
+                            Text(
+                              'Excluir',
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ];
+                  },
             ),
       ),
     );
@@ -324,29 +330,24 @@ class BrainConceptsSection
         const Divider(
           height: 40,
         ),
-
         Row(
           children: [
             const Icon(
               Icons.psychology_alt_outlined,
             ),
-
             const SizedBox(
               width: 8,
             ),
-
             Text(
               'Conhecimentos',
               style: Theme.of(
                 context,
               ).textTheme.titleLarge,
             ),
-
             const Spacer(),
-
             FilledButton.icon(
-              onPressed: () {
-                _addConcept(
+              onPressed: () async {
+                await _addConcept(
                   context,
                 );
               },
@@ -359,11 +360,9 @@ class BrainConceptsSection
             ),
           ],
         ),
-
         const SizedBox(
           height: 20,
         ),
-
         if (concepts.isEmpty)
           Container(
             width: double.infinity,
@@ -407,10 +406,12 @@ class BrainConceptsSection
           ...concepts.map(
             (
               concept,
-            ) => _buildConceptCard(
-              context,
-              concept,
-            ),
+            ) {
+              return _buildConceptCard(
+                context,
+                concept,
+              );
+            },
           ),
       ],
     );

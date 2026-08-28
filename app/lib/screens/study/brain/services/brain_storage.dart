@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
-import '../models/brain_file.dart';
 import '../models/brain_concept.dart';
+import '../models/brain_file.dart';
 
 class BrainStorage {
   static const String _brainFolderName = 'ghost_brain';
@@ -30,6 +31,10 @@ class BrainStorage {
         recursive: true,
       );
     }
+
+    debugPrint(
+      'BrainStorage: pasta das anotações: ${brainDirectory.path}',
+    );
 
     return brainDirectory;
   }
@@ -89,11 +94,13 @@ class BrainStorage {
       );
     }
 
-    final filePath =
+    final hasExistingPath =
         existingPath !=
-                null &&
-            existingPath.trim().isNotEmpty
-        ? existingPath
+            null &&
+        existingPath.trim().isNotEmpty;
+
+    final filePath = hasExistingPath
+        ? existingPath.trim()
         : '${topicDirectory.path}/${_sanitizeName(cleanTitle)}.md';
 
     final file = File(
@@ -104,7 +111,11 @@ class BrainStorage {
         List<
           BrainConcept
         >.unmodifiable(
-          concepts,
+          List<
+            BrainConcept
+          >.from(
+            concepts,
+          ),
         );
 
     final markdown = _createMarkdown(
@@ -114,21 +125,63 @@ class BrainStorage {
       concepts: conceptsCopy,
     );
 
-    await file.writeAsString(
-      markdown,
-      flush: true,
-    );
+    try {
+      if (!await file.parent.exists()) {
+        await file.parent.create(
+          recursive: true,
+        );
+      }
 
-    final updatedAt = await file.lastModified();
+      await file.writeAsString(
+        markdown,
+        encoding: utf8,
+        flush: true,
+      );
 
-    return BrainFile(
-      topic: cleanTopic,
-      title: cleanTitle,
-      path: file.path,
-      content: cleanContent,
-      concepts: conceptsCopy,
-      updatedAt: updatedAt,
-    );
+      final existsAfterSaving = await file.exists();
+
+      if (!existsAfterSaving) {
+        throw const FileSystemException(
+          'O arquivo não foi encontrado depois do salvamento.',
+        );
+      }
+
+      final updatedAt = await file.lastModified();
+
+      debugPrint(
+        'BrainStorage: anotação salva em ${file.path}',
+      );
+
+      debugPrint(
+        'BrainStorage: conceitos salvos: ${conceptsCopy.length}',
+      );
+
+      return BrainFile(
+        topic: cleanTopic,
+        title: cleanTitle,
+        path: file.path,
+        content: cleanContent,
+        concepts: conceptsCopy,
+        updatedAt: updatedAt,
+      );
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        'BrainStorage: erro ao salvar ${file.path}',
+      );
+
+      debugPrint(
+        'BrainStorage: $error',
+      );
+
+      debugPrintStack(
+        stackTrace: stackTrace,
+      );
+
+      rethrow;
+    }
   }
 
   // =========================================================
@@ -148,6 +201,10 @@ class BrainStorage {
           BrainFile
         >[];
 
+    debugPrint(
+      'BrainStorage: iniciando carregamento das anotações.',
+    );
+
     await for (final entity in brainDirectory.list(
       recursive: true,
       followLinks: false,
@@ -163,6 +220,10 @@ class BrainStorage {
         continue;
       }
 
+      debugPrint(
+        'BrainStorage: arquivo encontrado: ${entity.path}',
+      );
+
       try {
         final note = await _readFile(
           entity,
@@ -171,10 +232,45 @@ class BrainStorage {
         notes.add(
           note,
         );
+
+        debugPrint(
+          'BrainStorage: arquivo carregado: ${entity.path}',
+        );
+
+        debugPrint(
+          'BrainStorage: conceitos carregados: '
+          '${note.concepts.length}',
+        );
       } catch (
-        _
+        error,
+        stackTrace
       ) {
-        // Ignora somente o arquivo que não pôde ser lido.
+        debugPrint(
+          'BrainStorage: erro ao interpretar ${entity.path}',
+        );
+
+        debugPrint(
+          'BrainStorage: $error',
+        );
+
+        debugPrintStack(
+          stackTrace: stackTrace,
+        );
+
+        final recoveredNote = await _createFallbackNote(
+          entity,
+        );
+
+        if (recoveredNote !=
+            null) {
+          notes.add(
+            recoveredNote,
+          );
+
+          debugPrint(
+            'BrainStorage: arquivo recuperado: ${entity.path}',
+          );
+        }
       }
     }
 
@@ -187,6 +283,11 @@ class BrainStorage {
           first.updatedAt,
         );
       },
+    );
+
+    debugPrint(
+      'BrainStorage: total de anotações carregadas: '
+      '${notes.length}',
     );
 
     return notes;
@@ -202,19 +303,71 @@ class BrainStorage {
   openNote(
     String path,
   ) async {
-    final file = File(
-      path,
-    );
+    final cleanPath = path.trim();
 
-    if (!await file.exists()) {
+    if (cleanPath.isEmpty) {
       throw const FileSystemException(
-        'A anotação não foi encontrada.',
+        'O caminho da anotação está vazio.',
       );
     }
 
-    return _readFile(
-      file,
+    final file = File(
+      cleanPath,
     );
+
+    if (!await file.exists()) {
+      debugPrint(
+        'BrainStorage: arquivo não encontrado: $cleanPath',
+      );
+
+      throw FileSystemException(
+        'A anotação não foi encontrada.',
+        cleanPath,
+      );
+    }
+
+    try {
+      final note = await _readFile(
+        file,
+      );
+
+      debugPrint(
+        'BrainStorage: anotação aberta: ${file.path}',
+      );
+
+      debugPrint(
+        'BrainStorage: conceitos abertos: '
+        '${note.concepts.length}',
+      );
+
+      return note;
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        'BrainStorage: erro ao abrir ${file.path}',
+      );
+
+      debugPrint(
+        'BrainStorage: $error',
+      );
+
+      debugPrintStack(
+        stackTrace: stackTrace,
+      );
+
+      final recoveredNote = await _createFallbackNote(
+        file,
+      );
+
+      if (recoveredNote !=
+          null) {
+        return recoveredNote;
+      }
+
+      rethrow;
+    }
   }
 
   // =========================================================
@@ -233,16 +386,27 @@ class BrainStorage {
 
     if (await file.exists()) {
       await file.delete();
+
+      debugPrint(
+        'BrainStorage: anotação excluída: ${file.path}',
+      );
     }
 
     final parentDirectory = file.parent;
 
-    if (await parentDirectory.exists()) {
-      final remainingFiles = await parentDirectory.list().toList();
+    if (!await parentDirectory.exists()) {
+      return;
+    }
 
-      if (remainingFiles.isEmpty) {
-        await parentDirectory.delete();
-      }
+    final remainingEntities = await parentDirectory.list().toList();
+
+    if (remainingEntities.isEmpty) {
+      await parentDirectory.delete();
+
+      debugPrint(
+        'BrainStorage: pasta vazia excluída: '
+        '${parentDirectory.path}',
+      );
     }
   }
 
@@ -256,7 +420,16 @@ class BrainStorage {
   _readFile(
     File file,
   ) async {
-    final markdown = await file.readAsString();
+    if (!await file.exists()) {
+      throw FileSystemException(
+        'O arquivo não existe.',
+        file.path,
+      );
+    }
+
+    final markdown = await file.readAsString(
+      encoding: utf8,
+    );
 
     final updatedAt = await file.lastModified();
 
@@ -269,9 +442,88 @@ class BrainStorage {
       title: metadata.title,
       path: file.path,
       content: metadata.content,
-      concepts: metadata.concepts,
+      concepts:
+          List<
+            BrainConcept
+          >.unmodifiable(
+            metadata.concepts,
+          ),
       updatedAt: updatedAt,
     );
+  }
+
+  // =========================================================
+  // RECUPERAR ARQUIVO COM ERRO
+  // =========================================================
+
+  Future<
+    BrainFile?
+  >
+  _createFallbackNote(
+    File file,
+  ) async {
+    try {
+      if (!await file.exists()) {
+        return null;
+      }
+
+      final markdown = await file.readAsString(
+        encoding: utf8,
+      );
+
+      final updatedAt = await file.lastModified();
+
+      final fileName = file.uri.pathSegments.isNotEmpty
+          ? file.uri.pathSegments.last
+          : 'anotacao.md';
+
+      final fallbackTitle = fileName
+          .replaceFirst(
+            RegExp(
+              r'\.md$',
+              caseSensitive: false,
+            ),
+            '',
+          )
+          .trim();
+
+      final parentName =
+          file.parent.uri.pathSegments.length >=
+              2
+          ? file.parent.uri.pathSegments[file.parent.uri.pathSegments.length -
+                2]
+          : 'Sem tema';
+
+      return BrainFile(
+        topic: parentName.isEmpty
+            ? 'Sem tema'
+            : parentName,
+        title: fallbackTitle.isEmpty
+            ? 'Anotação recuperada'
+            : fallbackTitle,
+        path: file.path,
+        content: markdown.trim(),
+        concepts: const [],
+        updatedAt: updatedAt,
+      );
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        'BrainStorage: não foi possível recuperar ${file.path}',
+      );
+
+      debugPrint(
+        'BrainStorage: $error',
+      );
+
+      debugPrintStack(
+        stackTrace: stackTrace,
+      );
+
+      return null;
+    }
   }
 
   // =========================================================
@@ -293,8 +545,7 @@ class BrainStorage {
       concepts,
     );
 
-    return '''
----
+    return '''---
 tema: $topic
 titulo: $title
 atualizado_em: $savedAt
@@ -316,9 +567,29 @@ $content
   _BrainMarkdownData _parseMarkdown(
     String markdown,
   ) {
+    var normalizedMarkdown = markdown;
+
+    if (normalizedMarkdown.startsWith(
+      '\uFEFF',
+    )) {
+      normalizedMarkdown = normalizedMarkdown.substring(
+        1,
+      );
+    }
+
+    normalizedMarkdown = normalizedMarkdown.replaceAll(
+      '\r\n',
+      '\n',
+    );
+
+    normalizedMarkdown = normalizedMarkdown.replaceAll(
+      '\r',
+      '\n',
+    );
+
     String topic = 'Sem tema';
     String title = 'Sem título';
-    String content = markdown.trim();
+    String content = normalizedMarkdown.trim();
 
     List<
       BrainConcept
@@ -326,11 +597,11 @@ $content
     concepts = [];
 
     final frontMatterExpression = RegExp(
-      r'^---\s*\n([\s\S]*?)\n---\s*\n?',
+      r'^\s*---\s*\n([\s\S]*?)\n---\s*\n?',
     );
 
     final frontMatterMatch = frontMatterExpression.firstMatch(
-      markdown,
+      normalizedMarkdown,
     );
 
     if (frontMatterMatch !=
@@ -341,9 +612,11 @@ $content
           ) ??
           '';
 
-      for (final line in metadataText.split(
+      final metadataLines = metadataText.split(
         '\n',
-      )) {
+      );
+
+      for (final line in metadataLines) {
         final separatorIndex = line.indexOf(
           ':',
         );
@@ -367,40 +640,48 @@ $content
             )
             .trim();
 
-        if (key ==
-                'tema' &&
-            value.isNotEmpty) {
-          topic = value;
-        }
+        switch (key) {
+          case 'tema':
+            if (value.isNotEmpty) {
+              topic = value;
+            }
 
-        if (key ==
-                'titulo' &&
-            value.isNotEmpty) {
-          title = value;
-        }
+            break;
 
-        if (key ==
-                'conceitos' &&
-            value.isNotEmpty) {
-          concepts = _decodeConcepts(
-            value,
-          );
+          case 'titulo':
+            if (value.isNotEmpty) {
+              title = value;
+            }
+
+            break;
+
+          case 'conceitos':
+            if (value.isNotEmpty) {
+              concepts = _decodeConcepts(
+                value,
+              );
+            }
+
+            break;
         }
       }
 
-      content = markdown
+      final fullFrontMatter =
+          frontMatterMatch.group(
+            0,
+          ) ??
+          '';
+
+      content = normalizedMarkdown
           .replaceFirst(
-            frontMatterMatch.group(
-                  0,
-                ) ??
-                '',
+            fullFrontMatter,
             '',
           )
           .trim();
     }
 
     final titleExpression = RegExp(
-      r'^#\s+(.+)$',
+      r'^#\s+(.+?)\s*$',
       multiLine: true,
     );
 
@@ -422,19 +703,22 @@ $content
         title = markdownTitle;
       }
 
+      final fullTitle =
+          titleMatch.group(
+            0,
+          ) ??
+          '';
+
       content = content
           .replaceFirst(
-            titleMatch.group(
-                  0,
-                ) ??
-                '',
+            fullTitle,
             '',
           )
           .trim();
     }
 
     final topicExpression = RegExp(
-      r'^\*\*Tema:\*\*\s*(.+)$',
+      r'^\*\*Tema:\*\*\s*(.+?)\s*$',
       multiLine: true,
     );
 
@@ -456,12 +740,15 @@ $content
         topic = markdownTopic;
       }
 
+      final fullTopic =
+          topicMatch.group(
+            0,
+          ) ??
+          '';
+
       content = content
           .replaceFirst(
-            topicMatch.group(
-                  0,
-                ) ??
-                '',
+            fullTopic,
             '',
           )
           .trim();
@@ -489,7 +776,10 @@ $content
       (
         concept,
       ) {
-        return {
+        return <
+          String,
+          dynamic
+        >{
           'id': concept.id,
           'title': concept.title,
           'description': concept.description,
@@ -522,8 +812,14 @@ $content
     String encodedConcepts,
   ) {
     try {
+      final cleanValue = encodedConcepts.trim();
+
+      if (cleanValue.isEmpty) {
+        return [];
+      }
+
       final normalizedValue = base64Url.normalize(
-        encodedConcepts.trim(),
+        cleanValue,
       );
 
       final decodedBytes = base64Url.decode(
@@ -540,6 +836,10 @@ $content
 
       if (decodedData
           is! List) {
+        debugPrint(
+          'BrainStorage: os conceitos não estão em uma lista.',
+        );
+
         return [];
       }
 
@@ -573,14 +873,25 @@ $content
         if (id.isEmpty ||
             title.isEmpty ||
             description.isEmpty) {
+          debugPrint(
+            'BrainStorage: conceito ignorado por possuir '
+            'campos vazios.',
+          );
+
           continue;
         }
 
-        final type =
-            typeName ==
-                BrainConceptType.keep.name
-            ? BrainConceptType.keep
-            : BrainConceptType.memorize;
+        final type = BrainConceptType.values.firstWhere(
+          (
+            conceptType,
+          ) {
+            return conceptType.name ==
+                typeName;
+          },
+          orElse: () {
+            return BrainConceptType.keep;
+          },
+        );
 
         concepts.add(
           BrainConcept(
@@ -594,8 +905,21 @@ $content
 
       return concepts;
     } catch (
-      _
+      error,
+      stackTrace
     ) {
+      debugPrint(
+        'BrainStorage: erro ao decodificar conceitos.',
+      );
+
+      debugPrint(
+        'BrainStorage: $error',
+      );
+
+      debugPrintStack(
+        stackTrace: stackTrace,
+      );
+
       return [];
     }
   }
@@ -679,7 +1003,6 @@ class _BrainMarkdownData {
   final String topic;
   final String title;
   final String content;
-
   final List<
     BrainConcept
   >
