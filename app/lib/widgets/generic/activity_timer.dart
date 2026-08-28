@@ -8,9 +8,11 @@ class ActivityTimer
   const ActivityTimer({
     super.key,
 
-    this.title = "Tempo",
+    this.title = 'Tempo',
 
     required this.onTimeChanged,
+
+    this.onSave,
   });
 
   final String title;
@@ -19,6 +21,8 @@ class ActivityTimer
     int seconds,
   )
   onTimeChanged;
+
+  final VoidCallback? onSave;
 
   @override
   State<
@@ -42,8 +46,14 @@ class _ActivityTimerState
 
   bool minuteCompleted = false;
 
+  // ============================================================
+  // START
+  // ============================================================
+
   void startTimer() {
-    if (running) return;
+    if (running) {
+      return;
+    }
 
     setState(
       () {
@@ -55,10 +65,13 @@ class _ActivityTimerState
       const Duration(
         seconds: 1,
       ),
-
       (
         _,
       ) {
+        if (!mounted) {
+          return;
+        }
+
         setState(
           () {
             seconds++;
@@ -78,7 +91,15 @@ class _ActivityTimerState
     );
   }
 
+  // ============================================================
+  // MINUTE COMPLETED
+  // ============================================================
+
   void showMinuteCompleted() {
+    if (!mounted) {
+      return;
+    }
+
     setState(
       () {
         minuteCompleted = true;
@@ -91,9 +112,10 @@ class _ActivityTimerState
       const Duration(
         seconds: 1,
       ),
-
       () {
-        if (!mounted) return;
+        if (!mounted) {
+          return;
+        }
 
         setState(
           () {
@@ -104,8 +126,16 @@ class _ActivityTimerState
     );
   }
 
+  // ============================================================
+  // PAUSE
+  // ============================================================
+
   void pauseTimer() {
     timer?.cancel();
+
+    if (!mounted) {
+      return;
+    }
 
     setState(
       () {
@@ -114,10 +144,18 @@ class _ActivityTimerState
     );
   }
 
+  // ============================================================
+  // RESET
+  // ============================================================
+
   void resetTimer() {
     timer?.cancel();
 
     colorTimer?.cancel();
+
+    if (!mounted) {
+      return;
+    }
 
     setState(
       () {
@@ -134,6 +172,18 @@ class _ActivityTimerState
     );
   }
 
+  // ============================================================
+  // SAVE
+  // ============================================================
+
+  void saveTimer() {
+    widget.onSave?.call();
+  }
+
+  // ============================================================
+  // FORMAT
+  // ============================================================
+
   String formatTime() {
     final minutes =
         seconds ~/
@@ -143,9 +193,13 @@ class _ActivityTimerState
         seconds %
         60;
 
-    return "${minutes.toString().padLeft(2, '0')}:"
-        "${secs.toString().padLeft(2, '0')}";
+    return '${minutes.toString().padLeft(2, '0')}:'
+        '${secs.toString().padLeft(2, '0')}';
   }
+
+  // ============================================================
+  // DISPOSE
+  // ============================================================
 
   @override
   void dispose() {
@@ -156,6 +210,10 @@ class _ActivityTimerState
     super.dispose();
   }
 
+  // ============================================================
+  // BUILD
+  // ============================================================
+
   @override
   Widget build(
     BuildContext context,
@@ -165,15 +223,12 @@ class _ActivityTimerState
         padding: const EdgeInsets.all(
           20,
         ),
-
         child: Column(
           children: [
             Text(
               widget.title,
-
               style: const TextStyle(
                 fontSize: 18,
-
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -186,47 +241,66 @@ class _ActivityTimerState
               duration: const Duration(
                 milliseconds: 300,
               ),
-
               style: TextStyle(
                 fontSize: 40,
-
                 fontWeight: FontWeight.bold,
-
                 color: minuteCompleted
                     ? Colors.green
                     : Colors.black,
               ),
-
               child: Text(
                 formatTime(),
               ),
             ),
 
+            const SizedBox(
+              height: 6,
+            ),
+
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
-
               children: [
+                // =================================================
+                // PLAY / PAUSE
+                // =================================================
                 IconButton(
+                  tooltip: running
+                      ? 'Pausar'
+                      : 'Iniciar',
                   icon: Icon(
                     running
                         ? Icons.pause
                         : Icons.play_arrow,
                   ),
-
                   iconSize: 40,
-
                   onPressed: running
                       ? pauseTimer
                       : startTimer,
                 ),
 
+                // =================================================
+                // RESET
+                // =================================================
                 IconButton(
+                  tooltip: 'Reiniciar',
                   icon: const Icon(
                     Icons.restart_alt,
                   ),
-
                   onPressed: resetTimer,
                 ),
+
+                // =================================================
+                // SAVE
+                // =================================================
+                if (widget.onSave !=
+                    null)
+                  IconButton(
+                    tooltip: 'Salvar estudo',
+                    icon: const Icon(
+                      Icons.save_outlined,
+                    ),
+                    onPressed: saveTimer,
+                  ),
               ],
             ),
           ],

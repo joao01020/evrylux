@@ -36,46 +36,46 @@ import '../../core/storage/local_storage.dart';
 // CONTROLLERS
 // ======================================================
 
-import '../../screens/finance/controllers/finance_controller.dart';
-import '../../screens/finance/controllers/crypto/crypto_controller.dart';
+import '../../finance/controllers/finance_controller.dart';
+import '../../finance/controllers/crypto/crypto_controller.dart';
 
-import '../../screens/evolution/controllers/evolution_controller.dart';
-import '../../screens/training/controllers/training_controller.dart';
-import '../../screens/evolution/my_journey/controllers/journey_controller.dart';
-import '../../screens/study/controllers/study_controller.dart';
+import '../../evolution/controllers/evolution_controller.dart';
+import '../../training/controllers/training_controller.dart';
+import '../../evolution/my_journey/controllers/journey_controller.dart';
+import '../../study/controllers/study_controller.dart';
 
 // ======================================================
 // ROUTINE
 // ======================================================
 
-import '../../screens/routine/data/datasources/routine_memory_datasource.dart';
-import '../../screens/routine/data/datasources/routine_remote_data_source.dart';
-import '../../screens/routine/data/repositories/routine_repository_impl.dart';
+import '../../routine/data/datasources/routine_memory_datasource.dart';
+import '../../routine/data/datasources/routine_remote_data_source.dart';
+import '../../routine/data/repositories/routine_repository_impl.dart';
 
 // ======================================================
 // REPOSITORIES
 // ======================================================
 
-import '../../screens/finance/data/repository/finance_repository.dart';
-import '../../screens/finance/data/repository/crypto/crypto_repository.dart';
+import '../../finance/data/repository/finance_repository.dart';
+import '../../finance/data/repository/crypto/crypto_repository.dart';
 
-import '../../screens/evolution/data/repository/evolution_repository.dart';
-import '../../screens/study/data/repository/study_repository.dart';
-import '../../screens/training/data/training_repository.dart';
-import '../../screens/evolution/my_journey/data/repository/journey_repository.dart';
+import '../../evolution/data/repository/evolution_repository.dart';
+import '../../study/data/repository/study_repository.dart';
+import '../../training/data/training_repository.dart';
+import '../../evolution/my_journey/data/repository/journey_repository.dart';
 
 // ======================================================
 // SERVICES
 // ======================================================
 
-import '../../screens/study/services/study_service.dart';
+import '../../study/services/study_service.dart';
 
-import '../../screens/finance/services/persistence/finance_service.dart';
-import '../../screens/finance/services/crypto/crypto_service.dart';
+import '../../finance/services/persistence/finance_service.dart';
+import '../../finance/services/crypto/crypto_service.dart';
 
-import '../../screens/evolution/services/evolution_service.dart';
-import '../../screens/training/services/training_service.dart';
-import '../../screens/evolution/my_journey/services/journey_service.dart';
+import '../../evolution/services/evolution_service.dart';
+import '../../training/services/training_service.dart';
+import '../../evolution/my_journey/services/journey_service.dart';
 
 // ======================================================
 // STORAGE
@@ -117,8 +117,27 @@ final routineRepository = RoutineRepositoryImpl(
 // ======================================================
 // FINANCE
 // ======================================================
+//
+// Agora o FinanceRepository usa Supabase internamente.
+//
+// Fluxo:
+//
+// FinanceController
+//      ↓
+// FinanceService
+//      ↓
+// FinanceRepository
+//      ↓
+// Supabase
+//
+// O FinanceRepository pega automaticamente:
+// Supabase.instance.client.auth.currentUser
+//
+// ======================================================
 
-final financeRepository = FinanceRepository();
+final financeRepository = FinanceRepository(
+  client: supabaseClient,
+);
 
 final financeService = FinanceService(
   repository: financeRepository,
@@ -130,6 +149,15 @@ final financeController = FinanceController(
 
 // ======================================================
 // CRYPTO
+// ======================================================
+//
+// Por enquanto continua usando LocalStorage.
+//
+// Quando quisermos, podemos migrar também:
+// CryptoRepository
+//      ↓
+// Supabase
+//
 // ======================================================
 
 final cryptoRepository = CryptoRepository(
@@ -174,6 +202,14 @@ final studyController = StudyController(
 
 // ======================================================
 // EVOLUTION
+// ======================================================
+//
+// EvolutionRepository continua recebendo
+// o mesmo FinanceRepository.
+//
+// Isso permite que a Evolution também enxergue
+// os dados financeiros carregados do Supabase.
+//
 // ======================================================
 
 final evolutionRepository = EvolutionRepository(

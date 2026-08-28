@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 import '../auth/auth_gate.dart';
 import '../core/theme/app_theme.dart';
 
-import '../screens/evolution/controllers/evolution_controller.dart';
+import '../evolution/controllers/evolution_controller.dart';
 
-import '../screens/routine/screen/routine_screen.dart';
-import '../screens/study/study_screen.dart';
-import '../screens/training/training_screen.dart';
-import '../screens/welcome/welcome_screen.dart';
+import '../routine/screen/routine_screen.dart';
+import '../study/study_screen.dart';
+import '../training/training_screen.dart';
+import '../welcome/welcome_screen.dart';
 
 class GhostApp
     extends

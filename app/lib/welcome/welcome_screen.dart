@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../profile/data/profile_repository.dart';
-import '../../profile/models/user_profile.dart';
+import '../profile/data/profile_repository.dart';
+import '../profile/models/user_profile.dart';
 
 import '../evolution/controllers/evolution_controller.dart';
 import '../evolution/evolution_screen.dart';
-import '../finance/finance_screen.dart';
+import '../finance/screen/finance_screen.dart';
 import '../routine/screen/routine_screen.dart';
 import '../study/study_screen.dart';
 import '../training/training_screen.dart';

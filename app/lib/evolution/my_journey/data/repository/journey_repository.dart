@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import '../../../../../core/storage/local_storage.dart';
+import '../../../../core/storage/local_storage.dart';
 
 import '../../models/journey_model.dart';
 

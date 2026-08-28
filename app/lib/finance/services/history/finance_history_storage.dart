@@ -1,177 +1,545 @@
-import 'dart:convert';
-
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'investment_history.dart';
 
 class FinanceHistoryStorage {
-  static const String _storageKey = 'finance_investment_history';
-
   const FinanceHistoryStorage();
 
-  // =========================================================
-  // SALVAR HISTÓRICO
-  // =========================================================
+  static const String _table = 'finance_contributions';
 
-  Future<void> save(List<InvestmentHistory> history) async {
-    final preferences = await SharedPreferences.getInstance();
+  // ============================================================
+  // CLIENT
+  // ============================================================
 
-    final jsonHistory = history.map((item) {
-      return item.toJson();
-    }).toList();
-
-    final encodedHistory = jsonEncode(jsonHistory);
-
-    final saved = await preferences.setString(_storageKey, encodedHistory);
-
-    if (!saved) {
-      throw Exception('Não foi possível salvar o histórico financeiro.');
-    }
+  SupabaseClient get _client {
+    return Supabase.instance.client;
   }
 
-  // =========================================================
-  // CARREGAR HISTÓRICO
-  // =========================================================
+  // ============================================================
+  // CURRENT USER
+  // ============================================================
 
-  Future<List<InvestmentHistory>> load() async {
-    final preferences = await SharedPreferences.getInstance();
+  User _requireUser() {
+    final user = _client.auth.currentUser;
 
-    final encodedHistory = preferences.getString(_storageKey);
-
-    if (encodedHistory == null || encodedHistory.trim().isEmpty) {
-      return [];
+    if (user ==
+        null) {
+      throw StateError(
+        'Usuário não autenticado.',
+      );
     }
+
+    return user;
+  }
+
+  // ============================================================
+  // SAVE ALL
+  // ============================================================
+
+  Future<
+    void
+  >
+  save(
+    List<
+      InvestmentHistory
+    >
+    history,
+  ) async {
+    final user = _requireUser();
 
     try {
-      final decodedHistory = jsonDecode(encodedHistory);
+      debugPrint(
+        '[FINANCE HISTORY] Salvando histórico...',
+      );
 
-      if (decodedHistory is! List) {
-        return [];
+      // --------------------------------------------------------
+      // Estratégia:
+      //
+      // O controller trabalha com a lista completa em memória.
+      // Então, ao salvar, sincronizamos a lista inteira.
+      //
+      // Remove o histórico do usuário e grava novamente.
+      // --------------------------------------------------------
+
+      await _client
+          .from(
+            _table,
+          )
+          .delete()
+          .eq(
+            'user_id',
+            user.id,
+          );
+
+      if (history.isEmpty) {
+        debugPrint(
+          '[FINANCE HISTORY] Histórico vazio.',
+        );
+
+        return;
       }
 
-      final history = <InvestmentHistory>[];
+      final rows = history.map(
+        (
+          item,
+        ) {
+          return {
+            'user_id': user.id,
 
-      for (final item in decodedHistory) {
-        if (item is! Map) {
-          continue;
-        }
+            'value': item.safeValue,
 
-        final json = Map<String, dynamic>.from(item);
+            'contribution_date': item.date.toUtc().toIso8601String(),
 
-        history.add(InvestmentHistory.fromJson(json));
-      }
+            'rhythm': item.normalizedRhythm,
 
-      _sortByDate(history);
+            'objective_progress': item.normalizedObjectiveProgress,
 
-      return history;
-    } on FormatException {
-      return [];
-    } catch (_) {
-      return [];
+            'time_progress': item.normalizedTimeProgress,
+          };
+        },
+      ).toList();
+
+      await _client
+          .from(
+            _table,
+          )
+          .insert(
+            rows,
+          );
+
+      debugPrint(
+        '[FINANCE HISTORY] ${rows.length} registros salvos.',
+      );
+    } on PostgrestException catch (
+      error
+    ) {
+      debugPrint(
+        '[FINANCE HISTORY] Erro Supabase ao salvar.',
+      );
+
+      debugPrint(
+        '[FINANCE HISTORY] Code: ${error.code}',
+      );
+
+      debugPrint(
+        '[FINANCE HISTORY] Message: ${error.message}',
+      );
+
+      debugPrint(
+        '[FINANCE HISTORY] Details: ${error.details}',
+      );
+
+      rethrow;
+    } catch (
+      error
+    ) {
+      debugPrint(
+        '[FINANCE HISTORY] Erro ao salvar: $error',
+      );
+
+      rethrow;
     }
   }
 
-  // =========================================================
-  // ADICIONAR APORTE
-  // =========================================================
+  // ============================================================
+  // LOAD
+  // ============================================================
 
-  Future<List<InvestmentHistory>> add(InvestmentHistory contribution) async {
-    final history = await load();
+  Future<
+    List<
+      InvestmentHistory
+    >
+  >
+  load() async {
+    final user = _requireUser();
 
-    history.add(contribution);
+    try {
+      final data = await _client
+          .from(
+            _table,
+          )
+          .select(
+            'value, '
+            'contribution_date, '
+            'rhythm, '
+            'objective_progress, '
+            'time_progress',
+          )
+          .eq(
+            'user_id',
+            user.id,
+          )
+          .order(
+            'contribution_date',
+            ascending: true,
+          );
 
-    _sortByDate(history);
+      final history =
+          <
+            InvestmentHistory
+          >[];
 
-    await save(history);
+      for (final item in data) {
+        history.add(
+          InvestmentHistory(
+            value: _parseDouble(
+              item['value'],
+            ),
 
-    return history;
+            date: _parseDate(
+              item['contribution_date'],
+            ),
+
+            rhythm:
+                item['rhythm']?.toString() ??
+                'Personalizado',
+
+            objectiveProgress: _parseDouble(
+              item['objective_progress'],
+            ),
+
+            timeProgress: _parseDouble(
+              item['time_progress'],
+            ),
+          ),
+        );
+      }
+
+      _sortByDate(
+        history,
+      );
+
+      debugPrint(
+        '[FINANCE HISTORY] ${history.length} registros carregados.',
+      );
+
+      return history;
+    } on PostgrestException catch (
+      error
+    ) {
+      debugPrint(
+        '[FINANCE HISTORY] Erro Supabase ao carregar.',
+      );
+
+      debugPrint(
+        '[FINANCE HISTORY] Code: ${error.code}',
+      );
+
+      debugPrint(
+        '[FINANCE HISTORY] Message: ${error.message}',
+      );
+
+      rethrow;
+    } catch (
+      error
+    ) {
+      debugPrint(
+        '[FINANCE HISTORY] Erro ao carregar: $error',
+      );
+
+      rethrow;
+    }
   }
 
-  // =========================================================
-  // REMOVER APORTE
-  // =========================================================
+  // ============================================================
+  // ADD
+  // ============================================================
 
-  Future<List<InvestmentHistory>> remove(InvestmentHistory contribution) async {
-    final history = await load();
+  Future<
+    List<
+      InvestmentHistory
+    >
+  >
+  add(
+    InvestmentHistory contribution,
+  ) async {
+    final user = _requireUser();
 
-    history.remove(contribution);
+    await _client
+        .from(
+          _table,
+        )
+        .insert(
+          {
+            'user_id': user.id,
 
-    await save(history);
+            'value': contribution.safeValue,
 
-    return history;
+            'contribution_date': contribution.date.toUtc().toIso8601String(),
+
+            'rhythm': contribution.normalizedRhythm,
+
+            'objective_progress': contribution.normalizedObjectiveProgress,
+
+            'time_progress': contribution.normalizedTimeProgress,
+          },
+        );
+
+    return load();
   }
 
-  // =========================================================
-  // ÚLTIMO APORTE
-  // =========================================================
+  // ============================================================
+  // REMOVE
+  // ============================================================
 
-  Future<InvestmentHistory?> loadLatest() async {
-    final history = await load();
+  Future<
+    List<
+      InvestmentHistory
+    >
+  >
+  remove(
+    InvestmentHistory contribution,
+  ) async {
+    final user = _requireUser();
 
-    if (history.isEmpty) {
+    final date = contribution.date.toUtc().toIso8601String();
+
+    // ----------------------------------------------------------
+    // Como o modelo InvestmentHistory atual não possui ID,
+    // identificamos pelo usuário + data + valor.
+    // ----------------------------------------------------------
+
+    await _client
+        .from(
+          _table,
+        )
+        .delete()
+        .eq(
+          'user_id',
+          user.id,
+        )
+        .eq(
+          'contribution_date',
+          date,
+        )
+        .eq(
+          'value',
+          contribution.safeValue,
+        );
+
+    return load();
+  }
+
+  // ============================================================
+  // LATEST
+  // ============================================================
+
+  Future<
+    InvestmentHistory?
+  >
+  loadLatest() async {
+    final user = _requireUser();
+
+    final data = await _client
+        .from(
+          _table,
+        )
+        .select(
+          'value, '
+          'contribution_date, '
+          'rhythm, '
+          'objective_progress, '
+          'time_progress',
+        )
+        .eq(
+          'user_id',
+          user.id,
+        )
+        .order(
+          'contribution_date',
+          ascending: false,
+        )
+        .limit(
+          1,
+        )
+        .maybeSingle();
+
+    if (data ==
+        null) {
       return null;
     }
 
-    return history.last;
+    return InvestmentHistory(
+      value: _parseDouble(
+        data['value'],
+      ),
+
+      date: _parseDate(
+        data['contribution_date'],
+      ),
+
+      rhythm:
+          data['rhythm']?.toString() ??
+          'Personalizado',
+
+      objectiveProgress: _parseDouble(
+        data['objective_progress'],
+      ),
+
+      timeProgress: _parseDouble(
+        data['time_progress'],
+      ),
+    );
   }
 
-  // =========================================================
-  // SUBSTITUIR HISTÓRICO
-  // =========================================================
+  // ============================================================
+  // REPLACE
+  // ============================================================
 
-  Future<List<InvestmentHistory>> replace(
-    List<InvestmentHistory> history,
+  Future<
+    List<
+      InvestmentHistory
+    >
+  >
+  replace(
+    List<
+      InvestmentHistory
+    >
+    history,
   ) async {
-    final updatedHistory = List<InvestmentHistory>.from(history);
+    final updatedHistory =
+        List<
+          InvestmentHistory
+        >.from(
+          history,
+        );
 
-    _sortByDate(updatedHistory);
+    _sortByDate(
+      updatedHistory,
+    );
 
-    await save(updatedHistory);
+    await save(
+      updatedHistory,
+    );
 
     return updatedHistory;
   }
 
-  // =========================================================
-  // LIMPAR HISTÓRICO
-  // =========================================================
+  // ============================================================
+  // CLEAR
+  // ============================================================
 
-  Future<void> clear() async {
-    final preferences = await SharedPreferences.getInstance();
+  Future<
+    void
+  >
+  clear() async {
+    final user = _requireUser();
 
-    final removed = await preferences.remove(_storageKey);
+    await _client
+        .from(
+          _table,
+        )
+        .delete()
+        .eq(
+          'user_id',
+          user.id,
+        );
 
-    if (!removed) {
-      final stillExists = preferences.containsKey(_storageKey);
-
-      if (stillExists) {
-        throw Exception('Não foi possível limpar o histórico financeiro.');
-      }
-    }
+    debugPrint(
+      '[FINANCE HISTORY] Histórico removido.',
+    );
   }
 
-  // =========================================================
-  // VERIFICAÇÕES
-  // =========================================================
+  // ============================================================
+  // HAS HISTORY
+  // ============================================================
 
-  Future<bool> hasHistory() async {
+  Future<
+    bool
+  >
+  hasHistory() async {
     final history = await load();
 
     return history.isNotEmpty;
   }
 
-  Future<int> count() async {
-    final history = await load();
+  // ============================================================
+  // COUNT
+  // ============================================================
 
-    return history.length;
+  Future<
+    int
+  >
+  count() async {
+    final user = _requireUser();
+
+    final data = await _client
+        .from(
+          _table,
+        )
+        .select(
+          'id',
+        )
+        .eq(
+          'user_id',
+          user.id,
+        );
+
+    return data.length;
   }
 
-  // =========================================================
-  // ORDENAÇÃO
-  // =========================================================
+  // ============================================================
+  // SORT
+  // ============================================================
 
-  void _sortByDate(List<InvestmentHistory> history) {
-    history.sort((first, second) {
-      return first.date.compareTo(second.date);
-    });
+  void _sortByDate(
+    List<
+      InvestmentHistory
+    >
+    history,
+  ) {
+    history.sort(
+      (
+        first,
+        second,
+      ) {
+        return first.date.compareTo(
+          second.date,
+        );
+      },
+    );
+  }
+
+  // ============================================================
+  // PARSE DOUBLE
+  // ============================================================
+
+  double _parseDouble(
+    dynamic value,
+  ) {
+    if (value ==
+        null) {
+      return 0;
+    }
+
+    if (value
+        is num) {
+      return value.toDouble();
+    }
+
+    return double.tryParse(
+          value.toString(),
+        ) ??
+        0;
+  }
+
+  // ============================================================
+  // PARSE DATE
+  // ============================================================
+
+  DateTime _parseDate(
+    dynamic value,
+  ) {
+    if (value
+        is DateTime) {
+      return value;
+    }
+
+    return DateTime.tryParse(
+          value?.toString() ??
+              '',
+        ) ??
+        DateTime.now();
   }
 }

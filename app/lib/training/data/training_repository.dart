@@ -1,4 +1,4 @@
-import '../../../core/storage/storage_service.dart';
+import '../../core/storage/storage_service.dart';
 
 /*
 
@@ -24,7 +24,13 @@ class TrainingRepository {
   // CARREGAR TREINOS
   // =========================================================
 
-  Future<Map<String, dynamic>> load() async {
+  Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  load() async {
     return await StorageService.getTraining();
   }
 
@@ -32,20 +38,34 @@ class TrainingRepository {
   // SALVAR TREINO
   // =========================================================
 
-  Future<void> save({
+  Future<
+    void
+  >
+  save({
     required String day,
     required String training,
     required int minutes,
     required DateTime date,
   }) async {
-    await StorageService.saveTraining(day, training, minutes, date: date);
+    await StorageService.saveTraining(
+      day,
+      training,
+      minutes,
+      date: date,
+    );
   }
 
   // =========================================================
   // CARREGAR PLANO SEMANAL
   // =========================================================
 
-  Future<Map<String, dynamic>?> loadTrainingPlan() async {
+  Future<
+    Map<
+      String,
+      dynamic
+    >?
+  >
+  loadTrainingPlan() async {
     final data = await StorageService.getTrainingPlan();
 
     if (data.isEmpty) {
@@ -59,21 +79,36 @@ class TrainingRepository {
   // SALVAR PLANO SEMANAL
   // =========================================================
 
-  Future<void> saveTrainingPlan({
+  Future<
+    void
+  >
+  saveTrainingPlan({
     required int weeklyGoal,
-    required List<int> plannedWeekdays,
+    required List<
+      int
+    >
+    plannedWeekdays,
   }) async {
     final normalizedWeekdays =
         plannedWeekdays
-            .where((weekday) {
-              return weekday >= DateTime.monday && weekday <= DateTime.sunday;
-            })
+            .where(
+              (
+                weekday,
+              ) {
+                return weekday >=
+                        DateTime.monday &&
+                    weekday <=
+                        DateTime.sunday;
+              },
+            )
             .toSet()
             .toList()
           ..sort();
 
     if (normalizedWeekdays.isEmpty) {
-      throw ArgumentError('Selecione pelo menos um dia da semana.');
+      throw ArgumentError(
+        'Selecione pelo menos um dia da semana.',
+      );
     }
 
     await StorageService.saveTrainingPlan(
@@ -86,7 +121,10 @@ class TrainingRepository {
   // LIMPAR PLANO SEMANAL
   // =========================================================
 
-  Future<void> clearTrainingPlan() async {
+  Future<
+    void
+  >
+  clearTrainingPlan() async {
     await StorageService.clearTrainingPlan();
   }
 
@@ -94,7 +132,10 @@ class TrainingRepository {
   // LIMPAR TREINOS
   // =========================================================
 
-  Future<void> clear() async {
+  Future<
+    void
+  >
+  clear() async {
     await StorageService.clearTraining();
   }
 
@@ -102,7 +143,10 @@ class TrainingRepository {
   // RESET COMPLETO
   // =========================================================
 
-  Future<void> clearAll() async {
+  Future<
+    void
+  >
+  clearAll() async {
     await StorageService.clearTraining();
 
     await StorageService.clearTrainingPlan();

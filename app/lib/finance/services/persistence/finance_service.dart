@@ -8,6 +8,10 @@ class FinanceService {
     required this.repository,
   });
 
+  // ============================================================
+  // ESTIMATE
+  // ============================================================
+
   static String calculateEstimate({
     required double current,
     required double goal,
@@ -19,12 +23,12 @@ class FinanceService {
 
     if (missing <=
         0) {
-      return "Meta alcançada 🎉";
+      return 'Meta alcançada 🎉';
     }
 
     if (monthly <=
         0) {
-      return "Defina um investimento mensal";
+      return 'Defina um investimento mensal';
     }
 
     final months =
@@ -35,17 +39,22 @@ class FinanceService {
     final years =
         months ~/
         12;
+
     final rest =
         months %
         12;
 
     if (years >
         0) {
-      return "$years anos e $rest meses";
+      return '$years anos e $rest meses';
     }
 
-    return "$months meses";
+    return '$months meses';
   }
+
+  // ============================================================
+  // SAVE
+  // ============================================================
 
   Future<
     void
@@ -55,35 +64,61 @@ class FinanceService {
   ) async {
     await repository.save(
       {
-        // Patrimônio
-        "patrimony": model.patrimony,
-        "invested": model.invested,
-        "monthlyGoal": model.monthlyGoal,
-        "investmentGoal": model.investmentGoal,
+        // ======================================================
+        // PATRIMÔNIO
+        // ======================================================
+        'patrimony': model.patrimony,
 
-        // Planejamento
-        "minimumGoal": model.minimumGoal,
-        "mediumGoal": model.mediumGoal,
-        "maximumGoal": model.maximumGoal,
-        "projectionYears": model.projectionYears,
+        'invested': model.invested,
 
-        // Histórico
-        "totalInvested": model.totalInvested,
-        "investedMonths": model.investedMonths,
-        "averageContribution": model.averageContribution,
+        'monthlyGoal': model.monthlyGoal,
 
-        // Criptomoedas
-        "bitcoin": model.bitcoin,
-        "ethereum": model.ethereum,
-        "solana": model.solana,
-        "usdt": model.usdt,
+        'investmentGoal': model.investmentGoal,
 
-        // Outros
-        "selectedDay": model.selectedDay,
-        "completedDays": model.completedDays,
+        // ======================================================
+        // PLANEJAMENTO
+        // ======================================================
+        'minimumGoal': model.minimumGoal,
+
+        'mediumGoal': model.mediumGoal,
+
+        'maximumGoal': model.maximumGoal,
+
+        'projectionYears': model.projectionYears,
+
+        // ======================================================
+        // EVOLUÇÃO
+        // ======================================================
+        'totalInvested': model.totalInvested,
+
+        'investedMonths': model.investedMonths,
+
+        'averageContribution': model.averageContribution,
+
+        // ======================================================
+        // CRYPTO
+        // ======================================================
+        'bitcoin': model.bitcoin,
+
+        'ethereum': model.ethereum,
+
+        'solana': model.solana,
+
+        'usdt': model.usdt,
+
+        // ======================================================
+        // OUTROS
+        // ======================================================
+        'selectedDay': model.selectedDay,
+
+        'completedDays': model.completedDays,
       },
     );
   }
+
+  // ============================================================
+  // LOAD
+  // ============================================================
 
   Future<
     FinanceModel
@@ -96,96 +131,121 @@ class FinanceService {
     }
 
     return FinanceModel(
-      // Patrimônio
+      // ========================================================
+      // PATRIMÔNIO
+      // ========================================================
       patrimony:
-          (data["patrimony"] ??
-                  0)
-              .toDouble(),
-      invested:
-          (data["invested"] ??
-                  0)
-              .toDouble(),
-      monthlyGoal:
-          (data["monthlyGoal"] ??
-                  0)
-              .toDouble(),
-      investmentGoal:
-          (data["investmentGoal"] ??
+          (data['patrimony'] ??
                   0)
               .toDouble(),
 
-      // Planejamento
+      invested:
+          (data['invested'] ??
+                  0)
+              .toDouble(),
+
+      monthlyGoal:
+          (data['monthlyGoal'] ??
+                  0)
+              .toDouble(),
+
+      investmentGoal:
+          (data['investmentGoal'] ??
+                  0)
+              .toDouble(),
+
+      // ========================================================
+      // PLANEJAMENTO
+      // ========================================================
       minimumGoal:
-          (data["minimumGoal"] ??
+          (data['minimumGoal'] ??
                   0)
               .toDouble(),
+
       mediumGoal:
-          (data["mediumGoal"] ??
+          (data['mediumGoal'] ??
                   0)
               .toDouble(),
+
       maximumGoal:
-          (data["maximumGoal"] ??
+          (data['maximumGoal'] ??
                   0)
               .toDouble(),
+
       projectionYears:
-          data["projectionYears"] ??
+          data['projectionYears'] ??
           10,
 
-      // Histórico
+      // ========================================================
+      // EVOLUÇÃO
+      // ========================================================
       totalInvested:
-          (data["totalInvested"] ??
+          (data['totalInvested'] ??
                   0)
               .toDouble(),
+
       investedMonths:
-          data["investedMonths"] ??
+          data['investedMonths'] ??
           0,
+
       averageContribution:
-          (data["averageContribution"] ??
+          (data['averageContribution'] ??
                   0)
               .toDouble(),
 
-      // Criptomoedas
+      // ========================================================
+      // CRYPTO
+      // ========================================================
       bitcoin:
-          (data["bitcoin"] ??
-                  0)
-              .toDouble(),
-      ethereum:
-          (data["ethereum"] ??
-                  0)
-              .toDouble(),
-      solana:
-          (data["solana"] ??
-                  0)
-              .toDouble(),
-      usdt:
-          (data["usdt"] ??
+          (data['bitcoin'] ??
                   0)
               .toDouble(),
 
-      // Outros
-      selectedDay: data["selectedDay"],
+      ethereum:
+          (data['ethereum'] ??
+                  0)
+              .toDouble(),
+
+      solana:
+          (data['solana'] ??
+                  0)
+              .toDouble(),
+
+      usdt:
+          (data['usdt'] ??
+                  0)
+              .toDouble(),
+
+      // ========================================================
+      // OUTROS
+      // ========================================================
+      selectedDay: data['selectedDay']?.toString(),
 
       completedDays:
-          data["completedDays"] !=
+          data['completedDays'] !=
               null
           ? List<
               bool
             >.from(
-              data["completedDays"],
+              data['completedDays'],
             )
-          : List.filled(
+          : List<
+              bool
+            >.filled(
               7,
               false,
             ),
     );
   }
 
+  // ============================================================
+  // CLEAR
+  // ============================================================
+
   Future<
     void
   >
   clearFinance() async {
-    await repository.save(
-      {},
-    );
+    await repository.clear();
   }
 }

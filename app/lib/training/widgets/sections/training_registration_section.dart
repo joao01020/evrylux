@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../controllers/training_controller.dart';
 
-import '../../../../widgets/generic/activity_timer.dart';
+import '../../../widgets/generic/activity_timer.dart';
 
 import '../cards/activity_card.dart';
 

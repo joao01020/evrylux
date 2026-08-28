@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../app/dependencies/app_dependencies.dart';
 
-import 'actions/finance_screen_actions.dart';
-import 'controllers/finance_screen_controller.dart';
-import 'widgets/components/finance_screen_content.dart';
+import '../actions/finance_screen_actions.dart';
+import '../controllers/finance_screen_controller.dart';
+import '../widgets/components/finance_screen_content.dart';
 
 class FinanceScreen
     extends

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../app/dependencies/app_dependencies.dart';
+import '../app/dependencies/app_dependencies.dart';
 
-import '../../widgets/generic/week_tracker.dart';
+import '../widgets/generic/week_tracker.dart';
 
 import 'widgets/dialogs/history_dialog.dart';
 import 'widgets/cards/training_consistency_card.dart';

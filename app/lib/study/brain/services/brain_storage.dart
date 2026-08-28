@@ -10,11 +10,13 @@ import '../models/brain_file.dart';
 class BrainStorage {
   static const String _brainFolderName = 'ghost_brain';
 
+  static const String _conceptsFolderName = '_concepts';
+
   const BrainStorage();
 
-  // =========================================================
+  // ============================================================
   // PASTA PRINCIPAL
-  // =========================================================
+  // ============================================================
 
   Future<
     Directory
@@ -33,15 +35,78 @@ class BrainStorage {
     }
 
     debugPrint(
-      'BrainStorage: pasta das anotações: ${brainDirectory.path}',
+      'BrainStorage: pasta principal: ${brainDirectory.path}',
     );
 
     return brainDirectory;
   }
 
-  // =========================================================
+  // ============================================================
+  // PASTA DOS CONCEITOS
+  // ============================================================
+
+  Future<
+    Directory
+  >
+  getConceptsDirectory() async {
+    final brainDirectory = await getBrainDirectory();
+
+    final directory = Directory(
+      '${brainDirectory.path}/$_conceptsFolderName',
+    );
+
+    if (!await directory.exists()) {
+      await directory.create(
+        recursive: true,
+      );
+    }
+
+    return directory;
+  }
+
+  // ============================================================
+  // PASTA POR TIPO
+  // ============================================================
+
+  Future<
+    Directory
+  >
+  getConceptTypeDirectory(
+    BrainConceptType type,
+  ) async {
+    final conceptsDirectory = await getConceptsDirectory();
+
+    final directory = Directory(
+      '${conceptsDirectory.path}/${type.folderName}',
+    );
+
+    if (!await directory.exists()) {
+      await directory.create(
+        recursive: true,
+      );
+    }
+
+    return directory;
+  }
+
+  // ============================================================
+  // CRIAR TODAS AS PASTAS
+  // ============================================================
+
+  Future<
+    void
+  >
+  ensureConceptDirectories() async {
+    for (final type in BrainConceptType.values) {
+      await getConceptTypeDirectory(
+        type,
+      );
+    }
+  }
+
+  // ============================================================
   // SALVAR NOTA
-  // =========================================================
+  // ============================================================
 
   Future<
     BrainFile
@@ -57,7 +122,9 @@ class BrainStorage {
     String? existingPath,
   }) async {
     final cleanTopic = topic.trim();
+
     final cleanTitle = title.trim();
+
     final cleanContent = content.trim();
 
     if (cleanTopic.isEmpty) {
@@ -138,13 +205,22 @@ class BrainStorage {
         flush: true,
       );
 
-      final existsAfterSaving = await file.exists();
-
-      if (!existsAfterSaving) {
+      if (!await file.exists()) {
         throw const FileSystemException(
           'O arquivo não foi encontrado depois do salvamento.',
         );
       }
+
+      // ========================================================
+      // SINCRONIZAR CONCEITOS EM ARQUIVOS INDIVIDUAIS
+      // ========================================================
+
+      await _syncConceptFiles(
+        notePath: file.path,
+        topic: cleanTopic,
+        noteTitle: cleanTitle,
+        concepts: conceptsCopy,
+      );
 
       final updatedAt = await file.lastModified();
 
@@ -184,9 +260,426 @@ class BrainStorage {
     }
   }
 
-  // =========================================================
+  // ============================================================
+  // SALVAR CONCEITOS EM PASTAS
+  // ============================================================
+
+  Future<
+    void
+  >
+  _syncConceptFiles({
+    required String notePath,
+    required String topic,
+    required String noteTitle,
+    required List<
+      BrainConcept
+    >
+    concepts,
+  }) async {
+    await ensureConceptDirectories();
+
+    // Remove os arquivos antigos pertencentes à mesma anotação.
+    await _deleteConceptFilesForNote(
+      notePath,
+    );
+
+    for (final concept in concepts) {
+      await _saveConceptFile(
+        concept: concept,
+        notePath: notePath,
+        topic: topic,
+        noteTitle: noteTitle,
+      );
+    }
+  }
+
+  // ============================================================
+  // SALVAR UM CONCEITO
+  // ============================================================
+
+  Future<
+    File
+  >
+  _saveConceptFile({
+    required BrainConcept concept,
+    required String notePath,
+    required String topic,
+    required String noteTitle,
+  }) async {
+    final directory = await getConceptTypeDirectory(
+      concept.type,
+    );
+
+    final safeTitle = _sanitizeName(
+      concept.title,
+    );
+
+    final safeId = _sanitizeName(
+      concept.id,
+    );
+
+    final file = File(
+      '${directory.path}/$safeTitle-$safeId.md',
+    );
+
+    final markdown = _createConceptMarkdown(
+      concept: concept,
+      notePath: notePath,
+      topic: topic,
+      noteTitle: noteTitle,
+    );
+
+    await file.writeAsString(
+      markdown,
+      encoding: utf8,
+      flush: true,
+    );
+
+    debugPrint(
+      'BrainStorage: ${concept.emoji} '
+      '${concept.label} salvo em ${file.path}',
+    );
+
+    return file;
+  }
+
+  // ============================================================
+  // MARKDOWN DO CONCEITO
+  // ============================================================
+
+  String _createConceptMarkdown({
+    required BrainConcept concept,
+    required String notePath,
+    required String topic,
+    required String noteTitle,
+  }) {
+    final savedAt = DateTime.now().toIso8601String();
+
+    final encodedSourcePath = base64Url.encode(
+      utf8.encode(
+        notePath,
+      ),
+    );
+
+    return '''---
+id: ${concept.id}
+tipo: ${concept.type.name}
+categoria: ${concept.label}
+emoji: ${concept.emoji}
+pasta: ${concept.folderName}
+tema: $topic
+anotacao: $noteTitle
+origem: $encodedSourcePath
+atualizado_em: $savedAt
+---
+
+# ${concept.emoji} ${concept.title}
+
+${concept.description}
+''';
+  }
+
+  // ============================================================
+  // CARREGAR CONCEITOS POR TIPO
+  // ============================================================
+
+  Future<
+    List<
+      BrainConcept
+    >
+  >
+  loadConceptsByType(
+    BrainConceptType type,
+  ) async {
+    final directory = await getConceptTypeDirectory(
+      type,
+    );
+
+    final concepts =
+        <
+          BrainConcept
+        >[];
+
+    await for (final entity in directory.list(
+      recursive: false,
+      followLinks: false,
+    )) {
+      if (entity
+          is! File) {
+        continue;
+      }
+
+      if (!entity.path.toLowerCase().endsWith(
+        '.md',
+      )) {
+        continue;
+      }
+
+      try {
+        final markdown = await entity.readAsString(
+          encoding: utf8,
+        );
+
+        final concept = _parseConceptFile(
+          markdown,
+          fallbackType: type,
+        );
+
+        if (concept !=
+            null) {
+          concepts.add(
+            concept,
+          );
+        }
+      } catch (
+        error
+      ) {
+        debugPrint(
+          'BrainStorage: erro ao carregar conceito '
+          '${entity.path}: $error',
+        );
+      }
+    }
+
+    return concepts;
+  }
+
+  // ============================================================
+  // CARREGAR TODOS OS CONCEITOS
+  // ============================================================
+
+  Future<
+    List<
+      BrainConcept
+    >
+  >
+  loadAllConcepts() async {
+    final result =
+        <
+          BrainConcept
+        >[];
+
+    for (final type in BrainConceptType.values) {
+      result.addAll(
+        await loadConceptsByType(
+          type,
+        ),
+      );
+    }
+
+    return result;
+  }
+
+  // ============================================================
+  // PARSE DO ARQUIVO DE CONCEITO
+  // ============================================================
+
+  BrainConcept? _parseConceptFile(
+    String markdown, {
+    required BrainConceptType fallbackType,
+  }) {
+    var id = '';
+
+    var type = fallbackType;
+
+    final metadataExpression = RegExp(
+      r'^\s*---\s*\n([\s\S]*?)\n---\s*\n?',
+    );
+
+    final metadataMatch = metadataExpression.firstMatch(
+      markdown,
+    );
+
+    var content = markdown.trim();
+
+    if (metadataMatch !=
+        null) {
+      final metadata =
+          metadataMatch.group(
+            1,
+          ) ??
+          '';
+
+      for (final line in metadata.split(
+        '\n',
+      )) {
+        final separator = line.indexOf(
+          ':',
+        );
+
+        if (separator <=
+            0) {
+          continue;
+        }
+
+        final key = line
+            .substring(
+              0,
+              separator,
+            )
+            .trim();
+
+        final value = line
+            .substring(
+              separator +
+                  1,
+            )
+            .trim();
+
+        switch (key) {
+          case 'id':
+            id = value;
+            break;
+
+          case 'tipo':
+            type = BrainConceptTypeExtension.fromString(
+              value,
+            );
+            break;
+        }
+      }
+
+      content = content
+          .replaceFirst(
+            metadataMatch.group(
+                  0,
+                ) ??
+                '',
+            '',
+          )
+          .trim();
+    }
+
+    final titleExpression = RegExp(
+      r'^#\s+(.+?)\s*$',
+      multiLine: true,
+    );
+
+    final titleMatch = titleExpression.firstMatch(
+      content,
+    );
+
+    if (titleMatch ==
+        null) {
+      return null;
+    }
+
+    var title =
+        titleMatch
+            .group(
+              1,
+            )
+            ?.trim() ??
+        '';
+
+    // Remove emoji do começo.
+    for (final conceptType in BrainConceptType.values) {
+      if (title.startsWith(
+        conceptType.emoji,
+      )) {
+        title = title
+            .substring(
+              conceptType.emoji.length,
+            )
+            .trim();
+
+        break;
+      }
+    }
+
+    content = content
+        .replaceFirst(
+          titleMatch.group(
+                0,
+              ) ??
+              '',
+          '',
+        )
+        .trim();
+
+    if (id.isEmpty) {
+      id = DateTime.now().microsecondsSinceEpoch.toString();
+    }
+
+    if (title.isEmpty ||
+        content.isEmpty) {
+      return null;
+    }
+
+    return BrainConcept(
+      id: id,
+      title: title,
+      description: content,
+      type: type,
+    );
+  }
+
+  // ============================================================
+  // REMOVER ARQUIVOS DE CONCEITOS DA NOTA
+  // ============================================================
+
+  Future<
+    void
+  >
+  _deleteConceptFilesForNote(
+    String notePath,
+  ) async {
+    final conceptsDirectory = await getConceptsDirectory();
+
+    if (!await conceptsDirectory.exists()) {
+      return;
+    }
+
+    final encodedSourcePath = base64Url.encode(
+      utf8.encode(
+        notePath,
+      ),
+    );
+
+    await for (final entity in conceptsDirectory.list(
+      recursive: true,
+      followLinks: false,
+    )) {
+      if (entity
+          is! File) {
+        continue;
+      }
+
+      if (!entity.path.toLowerCase().endsWith(
+        '.md',
+      )) {
+        continue;
+      }
+
+      try {
+        final content = await entity.readAsString(
+          encoding: utf8,
+        );
+
+        if (content.contains(
+          'origem: $encodedSourcePath',
+        )) {
+          await entity.delete();
+
+          debugPrint(
+            'BrainStorage: conceito antigo removido: '
+            '${entity.path}',
+          );
+        }
+      } catch (
+        error
+      ) {
+        debugPrint(
+          'BrainStorage: erro ao verificar '
+          '${entity.path}: $error',
+        );
+      }
+    }
+  }
+
+  // ============================================================
   // CARREGAR NOTAS
-  // =========================================================
+  // ============================================================
 
   Future<
     List<
@@ -200,6 +693,8 @@ class BrainStorage {
         <
           BrainFile
         >[];
+
+    final conceptsDirectory = await getConceptsDirectory();
 
     debugPrint(
       'BrainStorage: iniciando carregamento das anotações.',
@@ -216,6 +711,15 @@ class BrainStorage {
 
       if (!entity.path.toLowerCase().endsWith(
         '.md',
+      )) {
+        continue;
+      }
+
+      // Não tratar os arquivos individuais de conceitos
+      // como anotações comuns.
+      if (_isInsideDirectory(
+        entity,
+        conceptsDirectory,
       )) {
         continue;
       }
@@ -266,10 +770,6 @@ class BrainStorage {
           notes.add(
             recoveredNote,
           );
-
-          debugPrint(
-            'BrainStorage: arquivo recuperado: ${entity.path}',
-          );
         }
       }
     }
@@ -293,9 +793,28 @@ class BrainStorage {
     return notes;
   }
 
-  // =========================================================
+  // ============================================================
+  // VERIFICAR SUBPASTA
+  // ============================================================
+
+  bool _isInsideDirectory(
+    File file,
+    Directory directory,
+  ) {
+    final directoryPath = directory.absolute.path;
+
+    final filePath = file.absolute.path;
+
+    return filePath ==
+            directoryPath ||
+        filePath.startsWith(
+          '$directoryPath${Platform.pathSeparator}',
+        );
+  }
+
+  // ============================================================
   // ABRIR NOTA
-  // =========================================================
+  // ============================================================
 
   Future<
     BrainFile
@@ -316,10 +835,6 @@ class BrainStorage {
     );
 
     if (!await file.exists()) {
-      debugPrint(
-        'BrainStorage: arquivo não encontrado: $cleanPath',
-      );
-
       throw FileSystemException(
         'A anotação não foi encontrada.',
         cleanPath,
@@ -327,30 +842,15 @@ class BrainStorage {
     }
 
     try {
-      final note = await _readFile(
+      return await _readFile(
         file,
       );
-
-      debugPrint(
-        'BrainStorage: anotação aberta: ${file.path}',
-      );
-
-      debugPrint(
-        'BrainStorage: conceitos abertos: '
-        '${note.concepts.length}',
-      );
-
-      return note;
     } catch (
       error,
       stackTrace
     ) {
       debugPrint(
         'BrainStorage: erro ao abrir ${file.path}',
-      );
-
-      debugPrint(
-        'BrainStorage: $error',
       );
 
       debugPrintStack(
@@ -370,9 +870,9 @@ class BrainStorage {
     }
   }
 
-  // =========================================================
+  // ============================================================
   // EXCLUIR NOTA
-  // =========================================================
+  // ============================================================
 
   Future<
     void
@@ -380,6 +880,11 @@ class BrainStorage {
   deleteNote(
     BrainFile note,
   ) async {
+    // Primeiro remove os conceitos separados.
+    await _deleteConceptFilesForNote(
+      note.path,
+    );
+
     final file = File(
       note.path,
     );
@@ -398,6 +903,14 @@ class BrainStorage {
       return;
     }
 
+    // Não remover a pasta principal do cérebro.
+    final brainDirectory = await getBrainDirectory();
+
+    if (parentDirectory.absolute.path ==
+        brainDirectory.absolute.path) {
+      return;
+    }
+
     final remainingEntities = await parentDirectory.list().toList();
 
     if (remainingEntities.isEmpty) {
@@ -410,9 +923,9 @@ class BrainStorage {
     }
   }
 
-  // =========================================================
+  // ============================================================
   // LEITURA INTERNA
-  // =========================================================
+  // ============================================================
 
   Future<
     BrainFile
@@ -452,9 +965,9 @@ class BrainStorage {
     );
   }
 
-  // =========================================================
+  // ============================================================
   // RECUPERAR ARQUIVO COM ERRO
-  // =========================================================
+  // ============================================================
 
   Future<
     BrainFile?
@@ -498,12 +1011,17 @@ class BrainStorage {
         topic: parentName.isEmpty
             ? 'Sem tema'
             : parentName,
+
         title: fallbackTitle.isEmpty
             ? 'Anotação recuperada'
             : fallbackTitle,
+
         path: file.path,
+
         content: markdown.trim(),
+
         concepts: const [],
+
         updatedAt: updatedAt,
       );
     } catch (
@@ -526,9 +1044,9 @@ class BrainStorage {
     }
   }
 
-  // =========================================================
-  // CRIAR MARKDOWN
-  // =========================================================
+  // ============================================================
+  // CRIAR MARKDOWN DA NOTA
+  // ============================================================
 
   String _createMarkdown({
     required String topic,
@@ -560,9 +1078,9 @@ $content
 ''';
   }
 
-  // =========================================================
+  // ============================================================
   // LER MARKDOWN
-  // =========================================================
+  // ============================================================
 
   _BrainMarkdownData _parseMarkdown(
     String markdown,
@@ -587,14 +1105,16 @@ $content
       '\n',
     );
 
-    String topic = 'Sem tema';
-    String title = 'Sem título';
-    String content = normalizedMarkdown.trim();
+    var topic = 'Sem tema';
 
-    List<
-      BrainConcept
-    >
-    concepts = [];
+    var title = 'Sem título';
+
+    var content = normalizedMarkdown.trim();
+
+    var concepts =
+        <
+          BrainConcept
+        >[];
 
     final frontMatterExpression = RegExp(
       r'^\s*---\s*\n([\s\S]*?)\n---\s*\n?',
@@ -612,11 +1132,9 @@ $content
           ) ??
           '';
 
-      final metadataLines = metadataText.split(
+      for (final line in metadataText.split(
         '\n',
-      );
-
-      for (final line in metadataLines) {
+      )) {
         final separatorIndex = line.indexOf(
           ':',
         );
@@ -645,14 +1163,12 @@ $content
             if (value.isNotEmpty) {
               topic = value;
             }
-
             break;
 
           case 'titulo':
             if (value.isNotEmpty) {
               title = value;
             }
-
             break;
 
           case 'conceitos':
@@ -661,20 +1177,16 @@ $content
                 value,
               );
             }
-
             break;
         }
       }
 
-      final fullFrontMatter =
-          frontMatterMatch.group(
-            0,
-          ) ??
-          '';
-
       content = normalizedMarkdown
           .replaceFirst(
-            fullFrontMatter,
+            frontMatterMatch.group(
+                  0,
+                ) ??
+                '',
             '',
           )
           .trim();
@@ -703,15 +1215,12 @@ $content
         title = markdownTitle;
       }
 
-      final fullTitle =
-          titleMatch.group(
-            0,
-          ) ??
-          '';
-
       content = content
           .replaceFirst(
-            fullTitle,
+            titleMatch.group(
+                  0,
+                ) ??
+                '',
             '',
           )
           .trim();
@@ -740,15 +1249,12 @@ $content
         topic = markdownTopic;
       }
 
-      final fullTopic =
-          topicMatch.group(
-            0,
-          ) ??
-          '';
-
       content = content
           .replaceFirst(
-            fullTopic,
+            topicMatch.group(
+                  0,
+                ) ??
+                '',
             '',
           )
           .trim();
@@ -762,9 +1268,9 @@ $content
     );
   }
 
-  // =========================================================
+  // ============================================================
   // CONVERTER CONCEITOS PARA TEXTO
-  // =========================================================
+  // ============================================================
 
   String _encodeConcepts(
     List<
@@ -781,8 +1287,11 @@ $content
           dynamic
         >{
           'id': concept.id,
+
           'title': concept.title,
+
           'description': concept.description,
+
           'type': concept.type.name,
         };
       },
@@ -801,9 +1310,9 @@ $content
     );
   }
 
-  // =========================================================
+  // ============================================================
   // CONVERTER TEXTO PARA CONCEITOS
-  // =========================================================
+  // ============================================================
 
   List<
     BrainConcept
@@ -836,10 +1345,6 @@ $content
 
       if (decodedData
           is! List) {
-        debugPrint(
-          'BrainStorage: os conceitos não estão em uma lista.',
-        );
-
         return [];
       }
 
@@ -854,43 +1359,42 @@ $content
           continue;
         }
 
+        final data =
+            Map<
+              String,
+              dynamic
+            >.from(
+              item,
+            );
+
         final id =
-            item['id']?.toString().trim() ??
+            data['id']?.toString().trim() ??
             '';
 
         final title =
-            item['title']?.toString().trim() ??
+            data['title']?.toString().trim() ??
             '';
 
         final description =
-            item['description']?.toString().trim() ??
+            data['description']?.toString().trim() ??
             '';
 
         final typeName =
-            item['type']?.toString().trim() ??
+            data['type']?.toString().trim() ??
             '';
 
         if (id.isEmpty ||
             title.isEmpty ||
             description.isEmpty) {
-          debugPrint(
-            'BrainStorage: conceito ignorado por possuir '
-            'campos vazios.',
-          );
-
           continue;
         }
 
-        final type = BrainConceptType.values.firstWhere(
-          (
-            conceptType,
-          ) {
-            return conceptType.name ==
-                typeName;
-          },
-          orElse: () {
-            return BrainConceptType.keep;
-          },
+        // ======================================================
+        // NOVO ENUM + COMPATIBILIDADE COM KEEP / MEMORIZE
+        // ======================================================
+
+        final type = BrainConceptTypeExtension.fromString(
+          typeName,
         );
 
         concepts.add(
@@ -924,40 +1428,49 @@ $content
     }
   }
 
-  // =========================================================
+  // ============================================================
   // NOME SEGURO PARA ARQUIVO
-  // =========================================================
+  // ============================================================
 
   String _sanitizeName(
     String value,
   ) {
     var result = value.trim().toLowerCase();
 
-    const replacements = {
-      'á': 'a',
-      'à': 'a',
-      'ã': 'a',
-      'â': 'a',
-      'ä': 'a',
-      'é': 'e',
-      'è': 'e',
-      'ê': 'e',
-      'ë': 'e',
-      'í': 'i',
-      'ì': 'i',
-      'î': 'i',
-      'ï': 'i',
-      'ó': 'o',
-      'ò': 'o',
-      'õ': 'o',
-      'ô': 'o',
-      'ö': 'o',
-      'ú': 'u',
-      'ù': 'u',
-      'û': 'u',
-      'ü': 'u',
-      'ç': 'c',
-    };
+    const replacements =
+        <
+          String,
+          String
+        >{
+          'á': 'a',
+          'à': 'a',
+          'ã': 'a',
+          'â': 'a',
+          'ä': 'a',
+
+          'é': 'e',
+          'è': 'e',
+          'ê': 'e',
+          'ë': 'e',
+
+          'í': 'i',
+          'ì': 'i',
+          'î': 'i',
+          'ï': 'i',
+
+          'ó': 'o',
+          'ò': 'o',
+          'õ': 'o',
+          'ô': 'o',
+          'ö': 'o',
+
+          'ú': 'u',
+          'ù': 'u',
+          'û': 'u',
+          'ü': 'u',
+
+          'ç': 'c',
+        };
 
     replacements.forEach(
       (
@@ -999,10 +1512,17 @@ $content
   }
 }
 
+// ============================================================
+// MARKDOWN DATA
+// ============================================================
+
 class _BrainMarkdownData {
   final String topic;
+
   final String title;
+
   final String content;
+
   final List<
     BrainConcept
   >
