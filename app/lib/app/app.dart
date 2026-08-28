@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../auth/auth_gate.dart';
 import '../core/theme/app_theme.dart';
 
 import '../screens/evolution/controllers/evolution_controller.dart';
+
 import '../screens/routine/screen/routine_screen.dart';
 import '../screens/study/study_screen.dart';
 import '../screens/training/training_screen.dart';
@@ -11,12 +13,16 @@ import '../screens/welcome/welcome_screen.dart';
 class GhostApp
     extends
         StatelessWidget {
-  final EvolutionController evolutionController;
-
   const GhostApp({
     super.key,
     required this.evolutionController,
   });
+
+  final EvolutionController evolutionController;
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(
@@ -24,23 +30,63 @@ class GhostApp
   ) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+
+      // ========================================================
+      // THEME
+      // ========================================================
       theme: AppTheme.theme,
-      home: WelcomeScreen(
-        controller: evolutionController,
+
+      // ========================================================
+      // AUTH
+      // ========================================================
+      //
+      // AuthGate decide:
+      //
+      // sem sessão
+      //      ↓
+      // LoginScreen
+      //
+      // com sessão
+      //      ↓
+      // WelcomeScreen
+      //
+      // ========================================================
+      home: AuthGate(
+        authenticatedBuilder:
+            (
+              context,
+              user,
+            ) {
+              return WelcomeScreen(
+                controller: evolutionController,
+              );
+            },
       ),
+
+      // ========================================================
+      // ROUTES
+      // ========================================================
       routes: {
         '/study':
             (
               context,
-            ) => const StudyScreen(),
+            ) {
+              return const StudyScreen();
+            },
+
         '/training':
             (
               context,
-            ) => const TrainingScreen(),
+            ) {
+              return const TrainingScreen();
+            },
+
         '/routine':
             (
               context,
-            ) => const RoutineScreen(),
+            ) {
+              return const RoutineScreen();
+            },
       },
     );
   }

@@ -13,10 +13,18 @@
 |      ↓
 | Repository
 |      ↓
-| LocalStorage
+| LocalStorage / Supabase
 |
 |--------------------------------------------------------------------------
 */
+
+// ======================================================
+// SUPABASE
+// ======================================================
+
+import 'package:supabase_flutter/supabase_flutter.dart'
+    hide
+        LocalStorage;
 
 // ======================================================
 // STORAGE
@@ -35,6 +43,14 @@ import '../../screens/evolution/controllers/evolution_controller.dart';
 import '../../screens/training/controllers/training_controller.dart';
 import '../../screens/evolution/my_journey/controllers/journey_controller.dart';
 import '../../screens/study/controllers/study_controller.dart';
+
+// ======================================================
+// ROUTINE
+// ======================================================
+
+import '../../screens/routine/data/datasources/routine_memory_datasource.dart';
+import '../../screens/routine/data/datasources/routine_remote_data_source.dart';
+import '../../screens/routine/data/repositories/routine_repository_impl.dart';
 
 // ======================================================
 // REPOSITORIES
@@ -66,6 +82,37 @@ import '../../screens/evolution/my_journey/services/journey_service.dart';
 // ======================================================
 
 final localStorage = LocalStorage();
+
+// ======================================================
+// SUPABASE
+// ======================================================
+
+SupabaseClient
+get supabaseClient => Supabase.instance.client;
+
+// ======================================================
+// ROUTINE LOCAL DATASOURCE
+// ======================================================
+
+final routineLocalDataSource = RoutineMemoryDataSource();
+
+// ======================================================
+// ROUTINE REMOTE DATASOURCE
+// ======================================================
+
+final routineRemoteDataSource = RoutineRemoteDataSource(
+  client: supabaseClient,
+);
+
+// ======================================================
+// ROUTINE REPOSITORY
+// ======================================================
+
+final routineRepository = RoutineRepositoryImpl(
+  localDataSource: routineLocalDataSource,
+  remoteDataSource: routineRemoteDataSource,
+  fallbackToLocalOnRemoteError: false,
+);
 
 // ======================================================
 // FINANCE
