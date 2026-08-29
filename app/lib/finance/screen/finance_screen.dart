@@ -61,7 +61,7 @@ class _FinanceScreenState
   bool _isRefreshingCryptoPrices = false;
 
   static const Duration _cryptoRefreshInterval = Duration(
-    minutes: 5,
+    minutes: 2,
   );
 
   // ============================================================
@@ -85,7 +85,22 @@ class _FinanceScreenState
       isMounted: () => mounted,
     );
 
-    _loadScreen();
+    _initializeScreen();
+  }
+
+  // ============================================================
+  // INITIALIZE
+  // ============================================================
+
+  Future<
+    void
+  >
+  _initializeScreen() async {
+    await _loadScreen();
+
+    if (!mounted) {
+      return;
+    }
 
     _startCryptoRefreshTimer();
   }
@@ -939,8 +954,7 @@ class _FinanceScreenState
       stackTrace
     ) {
       debugPrint(
-        '[FINANCE][CRYPTO][REFRESH] '
-        '$error',
+        '[FINANCE][CRYPTO][REFRESH] $error',
       );
 
       debugPrint(
