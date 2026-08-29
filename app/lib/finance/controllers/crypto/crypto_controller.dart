@@ -148,6 +148,10 @@ class CryptoController
     );
   }
 
+  // ============================================================
+  // PRICE FOR
+  // ============================================================
+
   double priceFor(
     String symbol,
   ) {
@@ -160,7 +164,7 @@ class CryptoController
   }
 
   // ============================================================
-  // GET QUANTITY BY SYMBOL
+  // QUANTITY FOR
   // ============================================================
 
   double quantityFor(
@@ -175,7 +179,7 @@ class CryptoController
   }
 
   // ============================================================
-  // GET INVESTED BY SYMBOL
+  // INVESTED FOR
   // ============================================================
 
   double investedFor(
@@ -190,7 +194,7 @@ class CryptoController
   }
 
   // ============================================================
-  // GET CURRENT VALUE BY SYMBOL
+  // CURRENT VALUE FOR
   // ============================================================
 
   double currentValueFor(
@@ -205,6 +209,133 @@ class CryptoController
   }
 
   // ============================================================
+  // PROFIT / LOSS FOR
+  // ============================================================
+  //
+  // valor atual
+  // -
+  // total investido
+  //
+  // ============================================================
+
+  double profitLossFor(
+    String symbol,
+  ) {
+    final normalizedSymbol = _normalizeSymbol(
+      symbol,
+    );
+
+    final currentValue = currentValueFor(
+      normalizedSymbol,
+    );
+
+    final investedValue = investedFor(
+      normalizedSymbol,
+    );
+
+    final result =
+        currentValue -
+        investedValue;
+
+    if (!result.isFinite) {
+      return 0;
+    }
+
+    return result;
+  }
+
+  // ============================================================
+  // PROFIT / LOSS PERCENT FOR
+  // ============================================================
+  //
+  // Exemplo:
+  //
+  // Investido:
+  // R$ 300
+  //
+  // Valor atual:
+  // R$ 327,40
+  //
+  // Lucro:
+  // R$ 27,40
+  //
+  // Percentual:
+  // +9,13%
+  //
+  // ============================================================
+
+  double profitLossPercentFor(
+    String symbol,
+  ) {
+    final normalizedSymbol = _normalizeSymbol(
+      symbol,
+    );
+
+    final investedValue = investedFor(
+      normalizedSymbol,
+    );
+
+    if (!investedValue.isFinite ||
+        investedValue <=
+            0) {
+      return 0;
+    }
+
+    final result = profitLossFor(
+      normalizedSymbol,
+    );
+
+    final percent =
+        (result /
+            investedValue) *
+        100;
+
+    if (!percent.isFinite) {
+      return 0;
+    }
+
+    return percent;
+  }
+
+  // ============================================================
+  // AVERAGE PURCHASE PRICE FOR
+  // ============================================================
+
+  double averagePurchasePriceFor(
+    String symbol,
+  ) {
+    final normalizedSymbol = _normalizeSymbol(
+      symbol,
+    );
+
+    final quantityValue = quantityFor(
+      normalizedSymbol,
+    );
+
+    final investedValue = investedFor(
+      normalizedSymbol,
+    );
+
+    if (!quantityValue.isFinite ||
+        quantityValue <=
+            0) {
+      return 0;
+    }
+
+    final result =
+        investedValue /
+        quantityValue;
+
+    if (!result.isFinite ||
+        result <
+            0) {
+      return 0;
+    }
+
+    return result;
+  }
+
+  // ============================================================
   // HAS CURRENT PRICE
   // ============================================================
 
@@ -212,6 +343,19 @@ class CryptoController
     String symbol,
   ) {
     return priceFor(
+          symbol,
+        ) >
+        0;
+  }
+
+  // ============================================================
+  // HAS POSITION
+  // ============================================================
+
+  bool hasPosition(
+    String symbol,
+  ) {
+    return quantityFor(
           symbol,
         ) >
         0;
@@ -256,12 +400,14 @@ class CryptoController
 
     if (normalizedSymbol.isEmpty) {
       clearCurrent();
+
       return;
     }
 
     currentSymbol = normalizedSymbol;
 
     isLoading = true;
+
     errorMessage = null;
 
     notifyListeners();
@@ -286,7 +432,7 @@ class CryptoController
       );
 
       // ========================================================
-      // TOTAL INVESTIDO
+      // INVESTIDO
       // ========================================================
 
       invested = _safeValue(
@@ -320,7 +466,7 @@ class CryptoController
       await _calculateCurrentSymbol();
 
       // ========================================================
-      // ATUALIZA MAPAS
+      // MAPAS
       // ========================================================
 
       quantities[normalizedSymbol] = quantity;
@@ -356,10 +502,6 @@ class CryptoController
   // ============================================================
   // LOAD WITH PRICE
   // ============================================================
-  //
-  // Útil quando a tela/API já possui a cotação atual.
-  //
-  // ============================================================
 
   Future<
     void
@@ -388,6 +530,7 @@ class CryptoController
   >
   loadPortfolio() async {
     isLoadingPortfolio = true;
+
     errorMessage = null;
 
     notifyListeners();
@@ -400,13 +543,13 @@ class CryptoController
       quantities = await service.allQuantities();
 
       // ========================================================
-      // TOTAL INVESTIDO POR MOEDA
+      // INVESTIDO POR MOEDA
       // ========================================================
 
       investedBySymbol = await service.allInvested();
 
       // ========================================================
-      // TOTAL INVESTIDO EM CRIPTO
+      // TOTAL INVESTIDO
       // ========================================================
 
       totalCryptoInvested = _safeValue(
@@ -467,8 +610,16 @@ class CryptoController
         _pricesBrl,
       );
 
+      if (!portfolioProfitLossBrl.isFinite) {
+        portfolioProfitLossBrl = 0;
+      }
+
+      if (!portfolioProfitLossPercent.isFinite) {
+        portfolioProfitLossPercent = 0;
+      }
+
       // ========================================================
-      // ATUALIZA MOEDA ATUAL
+      // MOEDA ATUAL
       // ========================================================
 
       if (currentSymbol.isNotEmpty) {
@@ -488,9 +639,8 @@ class CryptoController
           currentSymbol,
         );
 
-        averagePurchasePrice = _calculateAveragePrice(
-          quantity: quantity,
-          invested: invested,
+        averagePurchasePrice = averagePurchasePriceFor(
+          currentSymbol,
         );
 
         _calculateProfitLoss();
@@ -816,6 +966,14 @@ class CryptoController
       currentSymbol,
       currentPriceBrl: currentPriceBrl,
     );
+
+    if (!profitLossBrl.isFinite) {
+      profitLossBrl = 0;
+    }
+
+    if (!profitLossPercent.isFinite) {
+      profitLossPercent = 0;
+    }
   }
 
   // ============================================================
@@ -830,6 +988,12 @@ class CryptoController
     currentValueBrl =
         quantity *
         currentPriceBrl;
+
+    if (!currentValueBrl.isFinite ||
+        currentValueBrl <
+            0) {
+      currentValueBrl = 0;
+    }
 
     currentValuesBrl[currentSymbol] = currentValueBrl;
 
@@ -847,6 +1011,10 @@ class CryptoController
         currentValueBrl -
         invested;
 
+    if (!profitLossBrl.isFinite) {
+      profitLossBrl = 0;
+    }
+
     if (invested <=
         0) {
       profitLossPercent = 0;
@@ -858,6 +1026,10 @@ class CryptoController
         (profitLossBrl /
             invested) *
         100;
+
+    if (!profitLossPercent.isFinite) {
+      profitLossPercent = 0;
+    }
   }
 
   // ============================================================
@@ -882,9 +1054,16 @@ class CryptoController
           quantityValue *
           priceValue;
 
-      currentValuesBrl[symbol] = currentValue;
+      currentValuesBrl[symbol] =
+          currentValue.isFinite &&
+              currentValue >=
+                  0
+          ? currentValue
+          : 0;
 
-      currentTotal += currentValue;
+      currentTotal +=
+          currentValuesBrl[symbol] ??
+          0;
 
       investedTotal += investedFor(
         symbol,
@@ -899,6 +1078,10 @@ class CryptoController
         cryptoPatrimonyBrl -
         totalCryptoInvested;
 
+    if (!portfolioProfitLossBrl.isFinite) {
+      portfolioProfitLossBrl = 0;
+    }
+
     if (totalCryptoInvested <=
         0) {
       portfolioProfitLossPercent = 0;
@@ -910,23 +1093,10 @@ class CryptoController
         (portfolioProfitLossBrl /
             totalCryptoInvested) *
         100;
-  }
 
-  // ============================================================
-  // CALCULATE AVERAGE PRICE
-  // ============================================================
-
-  double _calculateAveragePrice({
-    required double quantity,
-    required double invested,
-  }) {
-    if (quantity <=
-        0) {
-      return 0;
+    if (!portfolioProfitLossPercent.isFinite) {
+      portfolioProfitLossPercent = 0;
     }
-
-    return invested /
-        quantity;
   }
 
   // ============================================================

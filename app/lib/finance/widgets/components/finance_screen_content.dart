@@ -10,10 +10,42 @@ class FinanceScreenContent
         StatelessWidget {
   const FinanceScreenContent({
     super.key,
+
+    // ==========================================================
+    // FINANCE
+    // ==========================================================
     required this.model,
     required this.balances,
     required this.patrimony,
     required this.objectiveName,
+
+    // ==========================================================
+    // BTC
+    // ==========================================================
+    required this.bitcoinCurrentValue,
+    required this.bitcoinProfitPercent,
+
+    // ==========================================================
+    // ETH
+    // ==========================================================
+    required this.ethereumCurrentValue,
+    required this.ethereumProfitPercent,
+
+    // ==========================================================
+    // SOL
+    // ==========================================================
+    required this.solanaCurrentValue,
+    required this.solanaProfitPercent,
+
+    // ==========================================================
+    // USDT
+    // ==========================================================
+    required this.usdtCurrentValue,
+    required this.usdtProfitPercent,
+
+    // ==========================================================
+    // ACTIONS
+    // ==========================================================
     required this.onPlanning,
     required this.onBalance,
     required this.onVault,
@@ -23,33 +55,81 @@ class FinanceScreenContent
     required this.onOpenEvolution,
     required this.onOpenLastContribution,
     required this.onContribution,
+
+    // ==========================================================
+    // VISIBILIDADE
+    // ==========================================================
     required this.showBalances,
   });
 
   // ============================================================
-  // DADOS
+  // MODEL
   // ============================================================
 
   final dynamic model;
 
+  // ============================================================
+  // BALANCES
+  // ============================================================
+
   final CryptoBalances balances;
+
+  // ============================================================
+  // PATRIMÔNIO
+  // ============================================================
 
   /// Patrimônio calculado pela camada superior.
   ///
-  /// Regra atual:
+  /// Regra:
   ///
-  /// Investido
+  /// investido
   /// +
-  /// valor atual das criptomoedas
+  /// valor atual das criptomoedas.
   ///
-  /// Este valor NÃO precisa ser persistido no model,
-  /// pois o valor das criptomoedas muda conforme a cotação.
+  /// O valor atual das criptomoedas NÃO deve ser persistido
+  /// porque muda conforme a cotação.
   final double patrimony;
+
+  // ============================================================
+  // OBJECTIVE
+  // ============================================================
 
   final String objectiveName;
 
   // ============================================================
-  // AÇÕES
+  // BTC
+  // ============================================================
+
+  final double bitcoinCurrentValue;
+
+  final double bitcoinProfitPercent;
+
+  // ============================================================
+  // ETH
+  // ============================================================
+
+  final double ethereumCurrentValue;
+
+  final double ethereumProfitPercent;
+
+  // ============================================================
+  // SOL
+  // ============================================================
+
+  final double solanaCurrentValue;
+
+  final double solanaProfitPercent;
+
+  // ============================================================
+  // USDT
+  // ============================================================
+
+  final double usdtCurrentValue;
+
+  final double usdtProfitPercent;
+
+  // ============================================================
+  // ACTIONS
   // ============================================================
 
   final VoidCallback onPlanning;
@@ -70,7 +150,7 @@ class FinanceScreenContent
   onCrypto;
 
   // ============================================================
-  // MODAIS EXISTENTES
+  // MODAIS
   // ============================================================
 
   final VoidCallback onOpenEvolution;
@@ -127,32 +207,19 @@ class FinanceScreenContent
           // ====================================================
           // CARTEIRA
           // ====================================================
-          //
-          // IMPORTANTE:
-          //
-          // O patrimônio não vem mais de:
-          //
-          // model.patrimony
-          //
-          // Agora ele é recebido já calculado.
-          //
-          // Exemplo:
-          //
-          // Investido     R$ 60
-          // BTC atual     R$ 150
-          // SOL atual     R$ 30
-          // USDT atual    R$ 5
-          //
-          // Patrimônio = R$ 245
-          //
-          // ====================================================
           WalletCard(
+            // ==================================================
+            // FINANCE
+            // ==================================================
             patrimony: safePatrimony,
 
             invested: _safeDouble(
               model.invested,
             ),
 
+            // ==================================================
+            // QUANTIDADES
+            // ==================================================
             bitcoin: balances.bitcoin,
 
             ethereum: balances.ethereum,
@@ -161,6 +228,53 @@ class FinanceScreenContent
 
             usdt: balances.usdt,
 
+            // ==================================================
+            // BTC
+            // ==================================================
+            bitcoinCurrentValue: _safeMoney(
+              bitcoinCurrentValue,
+            ),
+
+            bitcoinProfitPercent: _safePercent(
+              bitcoinProfitPercent,
+            ),
+
+            // ==================================================
+            // ETH
+            // ==================================================
+            ethereumCurrentValue: _safeMoney(
+              ethereumCurrentValue,
+            ),
+
+            ethereumProfitPercent: _safePercent(
+              ethereumProfitPercent,
+            ),
+
+            // ==================================================
+            // SOL
+            // ==================================================
+            solanaCurrentValue: _safeMoney(
+              solanaCurrentValue,
+            ),
+
+            solanaProfitPercent: _safePercent(
+              solanaProfitPercent,
+            ),
+
+            // ==================================================
+            // USDT
+            // ==================================================
+            usdtCurrentValue: _safeMoney(
+              usdtCurrentValue,
+            ),
+
+            usdtProfitPercent: _safePercent(
+              usdtProfitPercent,
+            ),
+
+            // ==================================================
+            // ACTIONS
+            // ==================================================
             onBalance: onBalance,
 
             onBitcoin: () {
@@ -189,6 +303,9 @@ class FinanceScreenContent
 
             onVault: onVault,
 
+            // ==================================================
+            // VISIBILIDADE
+            // ==================================================
             showBalances: showBalances,
           ),
 
@@ -507,6 +624,40 @@ class FinanceScreenContent
     return _currency(
       value,
     );
+  }
+
+  // ============================================================
+  // SAFE MONEY
+  // ============================================================
+
+  double _safeMoney(
+    double value,
+  ) {
+    if (!value.isFinite ||
+        value <
+            0) {
+      return 0;
+    }
+
+    return value;
+  }
+
+  // ============================================================
+  // SAFE PERCENT
+  // ============================================================
+  //
+  // Percentual pode ser negativo.
+  //
+  // ============================================================
+
+  double _safePercent(
+    double value,
+  ) {
+    if (!value.isFinite) {
+      return 0;
+    }
+
+    return value;
   }
 
   // ============================================================

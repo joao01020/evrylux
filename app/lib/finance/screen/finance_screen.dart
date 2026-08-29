@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -51,6 +53,18 @@ class _FinanceScreenState
   bool _showBalances = true;
 
   // ============================================================
+  // AUTO REFRESH CRYPTO
+  // ============================================================
+
+  Timer? _cryptoRefreshTimer;
+
+  bool _isRefreshingCryptoPrices = false;
+
+  static const Duration _cryptoRefreshInterval = Duration(
+    minutes: 5,
+  );
+
+  // ============================================================
   // INIT
   // ============================================================
 
@@ -72,6 +86,21 @@ class _FinanceScreenState
     );
 
     _loadScreen();
+
+    _startCryptoRefreshTimer();
+  }
+
+  // ============================================================
+  // DISPOSE
+  // ============================================================
+
+  @override
+  void dispose() {
+    _cryptoRefreshTimer?.cancel();
+
+    _cryptoRefreshTimer = null;
+
+    super.dispose();
   }
 
   // ============================================================
@@ -117,6 +146,25 @@ class _FinanceScreenState
 
     setState(
       () {},
+    );
+  }
+
+  // ============================================================
+  // AUTO REFRESH - START
+  // ============================================================
+
+  void _startCryptoRefreshTimer() {
+    _cryptoRefreshTimer?.cancel();
+
+    _cryptoRefreshTimer = Timer.periodic(
+      _cryptoRefreshInterval,
+      (
+        _,
+      ) async {
+        await _refreshCryptoPrices(
+          showMessage: false,
+        );
+      },
     );
   }
 
@@ -814,11 +862,27 @@ class _FinanceScreenState
         // ATUALIZAR COTAÇÕES
         // ======================================================
         IconButton(
-          tooltip: 'Atualizar cotações',
-          onPressed: _refreshCryptoPrices,
-          icon: const Icon(
-            Icons.refresh_rounded,
-          ),
+          tooltip: _isRefreshingCryptoPrices
+              ? 'Atualizando cotações...'
+              : 'Atualizar cotações',
+          onPressed: _isRefreshingCryptoPrices
+              ? null
+              : () {
+                  _refreshCryptoPrices(
+                    showMessage: true,
+                  );
+                },
+          icon: _isRefreshingCryptoPrices
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                  ),
+                )
+              : const Icon(
+                  Icons.refresh_rounded,
+                ),
         ),
       ],
     );
@@ -831,7 +895,23 @@ class _FinanceScreenState
   Future<
     void
   >
-  _refreshCryptoPrices() async {
+  _refreshCryptoPrices({
+    bool showMessage = true,
+  }) async {
+    if (_isRefreshingCryptoPrices) {
+      return;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(
+      () {
+        _isRefreshingCryptoPrices = true;
+      },
+    );
+
     try {
       await _controller.refreshCryptoPrices();
 
@@ -843,24 +923,42 @@ class _FinanceScreenState
         () {},
       );
 
-      _actions.showMessage(
-        'Cotações atualizadas.',
-      );
+      if (showMessage) {
+        if (_controller.cryptoPricesLoaded) {
+          _actions.showMessage(
+            'Cotações atualizadas.',
+          );
+        } else {
+          _actions.showMessage(
+            'Não foi possível atualizar as cotações.',
+          );
+        }
+      }
     } catch (
       error,
       stackTrace
     ) {
       debugPrint(
-        '[FINANCE][CRYPTO][REFRESH] $error',
+        '[FINANCE][CRYPTO][REFRESH] '
+        '$error',
       );
 
       debugPrint(
         '$stackTrace',
       );
 
-      if (mounted) {
+      if (mounted &&
+          showMessage) {
         _actions.showMessage(
           'Não foi possível atualizar as cotações.',
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(
+          () {
+            _isRefreshingCryptoPrices = false;
+          },
         );
       }
     }
@@ -1071,17 +1169,55 @@ class _FinanceScreenState
       balances: _controller.balances,
 
       // ========================================================
-      // PATRIMÔNIO CALCULADO
-      // ========================================================
-      //
-      // investido
-      // +
-      // valor atual das criptomoedas
-      //
+      // PATRIMÔNIO
       // ========================================================
       patrimony: _controller.investedPlusCrypto,
 
       objectiveName: _controller.objectiveName,
+
+      // ========================================================
+      // BITCOIN
+      // ========================================================
+      bitcoinCurrentValue: cryptoController.currentValueFor(
+        'BTC',
+      ),
+
+      bitcoinProfitPercent: cryptoController.profitLossPercentFor(
+        'BTC',
+      ),
+
+      // ========================================================
+      // ETHEREUM
+      // ========================================================
+      ethereumCurrentValue: cryptoController.currentValueFor(
+        'ETH',
+      ),
+
+      ethereumProfitPercent: cryptoController.profitLossPercentFor(
+        'ETH',
+      ),
+
+      // ========================================================
+      // SOLANA
+      // ========================================================
+      solanaCurrentValue: cryptoController.currentValueFor(
+        'SOL',
+      ),
+
+      solanaProfitPercent: cryptoController.profitLossPercentFor(
+        'SOL',
+      ),
+
+      // ========================================================
+      // USDT
+      // ========================================================
+      usdtCurrentValue: cryptoController.currentValueFor(
+        'USDT',
+      ),
+
+      usdtProfitPercent: cryptoController.profitLossPercentFor(
+        'USDT',
+      ),
 
       // ========================================================
       // AÇÕES
@@ -1111,7 +1247,7 @@ class _FinanceScreenState
       onContribution: _actions.openContribution,
 
       // ========================================================
-      // VISIBILIDADE DOS SALDOS
+      // VISIBILIDADE
       // ========================================================
       showBalances: _showBalances,
     );

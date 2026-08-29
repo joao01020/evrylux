@@ -5,34 +5,111 @@ class WalletCard
         StatelessWidget {
   const WalletCard({
     super.key,
+
+    // ==========================================================
+    // FINANCE
+    // ==========================================================
     required this.patrimony,
     required this.invested,
+
+    // ==========================================================
+    // QUANTIDADES
+    // ==========================================================
     required this.bitcoin,
     required this.ethereum,
     required this.solana,
     required this.usdt,
+
+    // ==========================================================
+    // VALORES ATUAIS
+    // ==========================================================
+    this.bitcoinCurrentValue = 0,
+    this.ethereumCurrentValue = 0,
+    this.solanaCurrentValue = 0,
+    this.usdtCurrentValue = 0,
+
+    // ==========================================================
+    // RESULTADO %
+    // ==========================================================
+    this.bitcoinProfitPercent = 0,
+    this.ethereumProfitPercent = 0,
+    this.solanaProfitPercent = 0,
+    this.usdtProfitPercent = 0,
+
+    // ==========================================================
+    // ACTIONS
+    // ==========================================================
     required this.onBalance,
     required this.onBitcoin,
     required this.onEthereum,
     required this.onSolana,
     required this.onUsdt,
     required this.onVault,
+
+    // ==========================================================
+    // VISIBILIDADE
+    // ==========================================================
     this.showBalances = true,
   });
 
+  // ============================================================
+  // FINANCE
+  // ============================================================
+
   final double patrimony;
+
   final double invested;
 
+  // ============================================================
+  // QUANTIDADES
+  // ============================================================
+
   final double bitcoin;
+
   final double ethereum;
+
   final double solana;
+
   final double usdt;
 
+  // ============================================================
+  // VALORES ATUAIS EM BRL
+  // ============================================================
+
+  final double bitcoinCurrentValue;
+
+  final double ethereumCurrentValue;
+
+  final double solanaCurrentValue;
+
+  final double usdtCurrentValue;
+
+  // ============================================================
+  // LUCRO / PREJUÍZO %
+  // ============================================================
+
+  final double bitcoinProfitPercent;
+
+  final double ethereumProfitPercent;
+
+  final double solanaProfitPercent;
+
+  final double usdtProfitPercent;
+
+  // ============================================================
+  // ACTIONS
+  // ============================================================
+
   final VoidCallback onBalance;
+
   final VoidCallback onBitcoin;
+
   final VoidCallback onEthereum;
+
   final VoidCallback onSolana;
+
   final VoidCallback onUsdt;
+
   final VoidCallback onVault;
 
   // ============================================================
@@ -93,6 +170,9 @@ class WalletCard
                 ),
               ),
 
+              // =================================================
+              // BTC
+              // =================================================
               IconButton(
                 tooltip: 'Bitcoin',
                 onPressed: onBitcoin,
@@ -101,6 +181,9 @@ class WalletCard
                 ),
               ),
 
+              // =================================================
+              // ETH
+              // =================================================
               IconButton(
                 tooltip: 'Ethereum',
                 onPressed: onEthereum,
@@ -109,6 +192,9 @@ class WalletCard
                 ),
               ),
 
+              // =================================================
+              // SOL
+              // =================================================
               IconButton(
                 tooltip: 'Solana',
                 onPressed: onSolana,
@@ -117,6 +203,9 @@ class WalletCard
                 ),
               ),
 
+              // =================================================
+              // USDT
+              // =================================================
               IconButton(
                 tooltip: 'USDT',
                 onPressed: onUsdt,
@@ -125,6 +214,9 @@ class WalletCard
                 ),
               ),
 
+              // =================================================
+              // COFRE
+              // =================================================
               IconButton(
                 tooltip: 'Cofre',
                 onPressed: onVault,
@@ -187,34 +279,54 @@ class WalletCard
           // ====================================================
           if (bitcoin >
               0)
-            _cryptoLine(
-              symbol: '₿',
-              value: bitcoin,
+            _CryptoLine(
+              icon: Icons.currency_bitcoin,
+              name: 'Bitcoin',
+              quantity: bitcoin,
               suffix: 'BTC',
+              currentValue: bitcoinCurrentValue,
+              profitPercent: bitcoinProfitPercent,
+              showBalances: showBalances,
+              onTap: onBitcoin,
             ),
 
           if (ethereum >
               0)
-            _cryptoLine(
-              symbol: 'Ξ',
-              value: ethereum,
+            _CryptoLine(
+              icon: Icons.view_stream_outlined,
+              name: 'Ethereum',
+              quantity: ethereum,
               suffix: 'ETH',
+              currentValue: ethereumCurrentValue,
+              profitPercent: ethereumProfitPercent,
+              showBalances: showBalances,
+              onTap: onEthereum,
             ),
 
           if (solana >
               0)
-            _cryptoLine(
-              symbol: '◎',
-              value: solana,
+            _CryptoLine(
+              icon: Icons.adjust_outlined,
+              name: 'Solana',
+              quantity: solana,
               suffix: 'SOL',
+              currentValue: solanaCurrentValue,
+              profitPercent: solanaProfitPercent,
+              showBalances: showBalances,
+              onTap: onSolana,
             ),
 
           if (usdt >
               0)
-            _cryptoLine(
-              symbol: '₮',
-              value: usdt,
+            _CryptoLine(
+              icon: Icons.currency_exchange_outlined,
+              name: 'Tether',
+              quantity: usdt,
               suffix: 'USDT',
+              currentValue: usdtCurrentValue,
+              profitPercent: usdtProfitPercent,
+              showBalances: showBalances,
+              onTap: onUsdt,
             ),
 
           // ====================================================
@@ -243,62 +355,6 @@ class WalletCard
   }
 
   // ============================================================
-  // CRYPTO
-  // ============================================================
-
-  Widget _cryptoLine({
-    required String symbol,
-    required double value,
-    required String suffix,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        vertical: 5,
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 24,
-            child: Text(
-              symbol,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-
-          const SizedBox(
-            width: 4,
-          ),
-
-          Text(
-            _cryptoValueText(
-              value,
-              suffix,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // VALOR CRIPTO
-  // ============================================================
-
-  String _cryptoValueText(
-    double value,
-    String suffix,
-  ) {
-    if (!showBalances) {
-      return '•••••• $suffix';
-    }
-
-    return '${_formatCrypto(value)} $suffix';
-  }
-
-  // ============================================================
   // VALOR MONETÁRIO
   // ============================================================
 
@@ -315,26 +371,345 @@ class WalletCard
   }
 
   // ============================================================
-  // FORMATAR CRIPTO
+  // FORMATAR MOEDA
   // ============================================================
 
-  String _formatCrypto(
+  String _currency(
     double value,
   ) {
     final safeValue = value.isFinite
         ? value
         : 0.0;
 
-    return safeValue.toStringAsFixed(
+    final negative =
+        safeValue <
+        0;
+
+    final absolute = safeValue.abs();
+
+    final parts = absolute
+        .toStringAsFixed(
+          2,
+        )
+        .split(
+          '.',
+        );
+
+    final integer = parts.first;
+
+    final decimal =
+        parts.length >
+            1
+        ? parts.last
+        : '00';
+
+    final reversed = integer
+        .split(
+          '',
+        )
+        .reversed
+        .toList();
+
+    final buffer = StringBuffer();
+
+    for (
+      int index = 0;
+      index <
+          reversed.length;
+      index++
+    ) {
+      if (index >
+              0 &&
+          index %
+                  3 ==
+              0) {
+        buffer.write(
+          '.',
+        );
+      }
+
+      buffer.write(
+        reversed[index],
+      );
+    }
+
+    final formattedInteger = buffer
+        .toString()
+        .split(
+          '',
+        )
+        .reversed
+        .join();
+
+    return '${negative ? '-' : ''}'
+        'R\$ $formattedInteger,$decimal';
+  }
+}
+
+// ============================================================
+// CRYPTO LINE
+// ============================================================
+
+class _CryptoLine
+    extends
+        StatelessWidget {
+  const _CryptoLine({
+    required this.icon,
+    required this.name,
+    required this.quantity,
+    required this.suffix,
+    required this.currentValue,
+    required this.profitPercent,
+    required this.showBalances,
+    required this.onTap,
+  });
+
+  // ============================================================
+  // DATA
+  // ============================================================
+
+  final IconData icon;
+
+  final String name;
+
+  final double quantity;
+
+  final String suffix;
+
+  final double currentValue;
+
+  final double profitPercent;
+
+  final bool showBalances;
+
+  final VoidCallback onTap;
+
+  // ============================================================
+  // BUILD
+  // ============================================================
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme = Theme.of(
+      context,
+    ).colorScheme;
+
+    final safeCurrentValue = currentValue.isFinite
+        ? currentValue
+        : 0.0;
+
+    final safeProfitPercent = profitPercent.isFinite
+        ? profitPercent
+        : 0.0;
+
+    final isPositive =
+        safeProfitPercent >
+        0;
+
+    final isNegative =
+        safeProfitPercent <
+        0;
+
+    final resultColor = isPositive
+        ? Colors.green
+        : isNegative
+        ? colorScheme.error
+        : colorScheme.onSurfaceVariant;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        vertical: 4,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(
+            12,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 6,
+              vertical: 10,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // =================================================
+                // ICON
+                // =================================================
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(
+                      11,
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(
+                    icon,
+                    size: 20,
+                    color: colorScheme.primary,
+                  ),
+                ),
+
+                const SizedBox(
+                  width: 12,
+                ),
+
+                // =================================================
+                // NAME + QUANTITY
+                // =================================================
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+
+                      const SizedBox(
+                        height: 3,
+                      ),
+
+                      Text(
+                        showBalances
+                            ? '${_formatCrypto(quantity)} $suffix'
+                            : '•••••• $suffix',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(
+                  width: 12,
+                ),
+
+                // =================================================
+                // BRL + %
+                // =================================================
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      showBalances
+                          ? _currency(
+                              safeCurrentValue,
+                            )
+                          : 'R\$ ••••••',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+
+                    const SizedBox(
+                      height: 4,
+                    ),
+
+                    if (showBalances)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (isPositive)
+                            Icon(
+                              Icons.arrow_drop_up_rounded,
+                              size: 18,
+                              color: resultColor,
+                            )
+                          else if (isNegative)
+                            Icon(
+                              Icons.arrow_drop_down_rounded,
+                              size: 18,
+                              color: resultColor,
+                            ),
+
+                          Text(
+                            _formatPercent(
+                              safeProfitPercent,
+                            ),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: resultColor,
+                            ),
+                          ),
+                        ],
+                      )
+                    else
+                      Text(
+                        '••••%',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // FORMAT CRYPTO
+  // ============================================================
+
+  static String _formatCrypto(
+    double value,
+  ) {
+    if (!value.isFinite ||
+        value <
+            0) {
+      return '0.00000000';
+    }
+
+    return value.toStringAsFixed(
       8,
     );
   }
 
   // ============================================================
-  // FORMATAR MOEDA
+  // FORMAT PERCENT
   // ============================================================
 
-  String _currency(
+  static String _formatPercent(
+    double value,
+  ) {
+    final safeValue = value.isFinite
+        ? value
+        : 0.0;
+
+    final sign =
+        safeValue >
+            0
+        ? '+'
+        : '';
+
+    return '$sign'
+        '${safeValue.toStringAsFixed(2).replaceAll('.', ',')}%';
+  }
+
+  // ============================================================
+  // CURRENCY
+  // ============================================================
+
+  static String _currency(
     double value,
   ) {
     final safeValue = value.isFinite
