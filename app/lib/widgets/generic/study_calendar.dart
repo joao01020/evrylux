@@ -11,12 +11,10 @@ class StudyCalendar
   });
 
   final DateTime selectedDate;
-
   final List<
     DateTime
   >
   completedDates;
-
   final ValueChanged<
     DateTime
   >
@@ -37,23 +35,19 @@ class _StudyCalendarState
           StudyCalendar
         > {
   // ============================================================
-  // COLORS
+  // COLORS — TEMA CLARO
   // ============================================================
 
   static const Color _background = Color(
-    0xFF090A0E,
+    0xFFFFFFFF,
   );
 
   static const Color _surface = Color(
-    0xFF111319,
-  );
-
-  static const Color _surfaceHover = Color(
-    0xFF171A22,
+    0xFFF7FAF7,
   );
 
   static const Color _border = Color(
-    0xFF292D38,
+    0xFFD7E3D9,
   );
 
   static const Color _primary = Color(
@@ -65,19 +59,19 @@ class _StudyCalendarState
   );
 
   static const Color _textPrimary = Color(
-    0xFFF5F7FA,
+    0xFF172019,
   );
 
   static const Color _textSecondary = Color(
-    0xFF8D93A1,
+    0xFF68746B,
   );
 
   static const Color _textMuted = Color(
-    0xFF5F6572,
+    0xFF9AA39C,
   );
 
   static const Color _success = Color(
-    0xFF7BE495,
+    0xFF198754,
   );
 
   // ============================================================
@@ -120,8 +114,6 @@ class _StudyCalendarState
   // ============================================================
 
   late DateTime _weekStart;
-
-  bool _expanded = false;
 
   // ============================================================
   // INIT
@@ -228,18 +220,6 @@ class _StudyCalendarState
   }
 
   // ============================================================
-  // EXPAND
-  // ============================================================
-
-  void _toggleExpanded() {
-    setState(
-      () {
-        _expanded = !_expanded;
-      },
-    );
-  }
-
-  // ============================================================
   // TITLE
   // ============================================================
 
@@ -259,7 +239,6 @@ class _StudyCalendarState
 
   String get _weekRange {
     final start = _weekStart;
-
     final end = _weekEnd;
 
     if (start.month ==
@@ -299,80 +278,55 @@ class _StudyCalendarState
   ) {
     return Container(
       width: double.infinity,
-
+      padding: const EdgeInsets.only(
+        bottom: 10,
+      ),
       decoration: BoxDecoration(
         color: _background,
-
         border: Border.all(
           color: _border,
         ),
-
         borderRadius: BorderRadius.circular(
           18,
         ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(
+              0x0D000000,
+            ),
+            blurRadius: 12,
+            offset: Offset(
+              0,
+              4,
+            ),
+          ),
+        ],
       ),
-
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           // ====================================================
           // HEADER
           // ====================================================
           Padding(
             padding: const EdgeInsets.fromLTRB(
-              0,
-              14,
-              0,
-              10,
+              2,
+              9,
+              2,
+              7,
             ),
-
             child: _buildHeader(),
           ),
 
           // ====================================================
-          // WEEK
+          // WEEK ONLY
           // ====================================================
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: 12,
             ),
-
             child: _buildWeek(),
           ),
-
-          // ====================================================
-          // EXPANDED MONTH
-          // ====================================================
-          AnimatedCrossFade(
-            duration: const Duration(
-              milliseconds: 220,
-            ),
-
-            crossFadeState: _expanded
-                ? CrossFadeState.showSecond
-                : CrossFadeState.showFirst,
-
-            firstChild: const SizedBox.shrink(),
-
-            secondChild: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                12,
-                18,
-                12,
-                8,
-              ),
-
-              child: _buildMonth(),
-            ),
-          ),
-
-          // ====================================================
-          // BOTTOM DIVIDER
-          // ====================================================
-          const SizedBox(
-            height: 14,
-          ),
-
-          _buildBottomToggle(),
         ],
       ),
     );
@@ -385,23 +339,14 @@ class _StudyCalendarState
   Widget _buildHeader() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
-
       children: [
         // ======================================================
         // PREVIOUS
         // ======================================================
-        Padding(
-          padding: const EdgeInsets.only(
-            left: 2,
-          ),
-
-          child: _navigationButton(
-            icon: Icons.chevron_left_rounded,
-
-            tooltip: 'Semana anterior',
-
-            onPressed: _previousWeek,
-          ),
+        _navigationButton(
+          icon: Icons.chevron_left_rounded,
+          tooltip: 'Semana anterior',
+          onPressed: _previousWeek,
         ),
 
         // ======================================================
@@ -409,31 +354,26 @@ class _StudyCalendarState
         // ======================================================
         Expanded(
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 _monthTitle,
-
                 style: const TextStyle(
                   color: _textPrimary,
-
                   fontSize: 16,
-
                   fontWeight: FontWeight.w800,
                 ),
               ),
 
               const SizedBox(
-                height: 2,
+                height: 1,
               ),
 
               Text(
                 _weekRange,
-
                 style: const TextStyle(
                   color: _textSecondary,
-
                   fontSize: 10,
-
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -444,18 +384,10 @@ class _StudyCalendarState
         // ======================================================
         // NEXT
         // ======================================================
-        Padding(
-          padding: const EdgeInsets.only(
-            right: 2,
-          ),
-
-          child: _navigationButton(
-            icon: Icons.chevron_right_rounded,
-
-            tooltip: 'Próxima semana',
-
-            onPressed: _nextWeek,
-          ),
+        _navigationButton(
+          icon: Icons.chevron_right_rounded,
+          tooltip: 'Próxima semana',
+          onPressed: _nextWeek,
         ),
       ],
     );
@@ -472,37 +404,27 @@ class _StudyCalendarState
   }) {
     return Tooltip(
       message: tooltip,
-
       child: InkWell(
         borderRadius: BorderRadius.circular(
-          12,
+          11,
         ),
-
         onTap: onPressed,
-
         child: Container(
-          width: 40,
-
-          height: 40,
-
+          width: 38,
+          height: 38,
           decoration: BoxDecoration(
             color: _surface,
-
             borderRadius: BorderRadius.circular(
-              12,
+              11,
             ),
-
             border: Border.all(
               color: _border,
             ),
           ),
-
           child: Icon(
             icon,
-
             color: _textPrimary,
-
-            size: 22,
+            size: 21,
           ),
         ),
       ),
@@ -516,7 +438,6 @@ class _StudyCalendarState
   Widget _buildWeek() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
-
       children: List.generate(
         7,
         (
@@ -533,10 +454,8 @@ class _StudyCalendarState
               padding: const EdgeInsets.symmetric(
                 horizontal: 4,
               ),
-
               child: _buildDayCard(
                 date: date,
-
                 weekDay: _weekNames[index],
               ),
             ),
@@ -570,9 +489,8 @@ class _StudyCalendarState
 
     return InkWell(
       borderRadius: BorderRadius.circular(
-        16,
+        14,
       ),
-
       onTap: () {
         widget.onDateSelected(
           DateTime(
@@ -582,75 +500,65 @@ class _StudyCalendarState
           ),
         );
       },
-
       child: AnimatedContainer(
         duration: const Duration(
           milliseconds: 180,
         ),
-
         curve: Curves.easeOut,
-
-        height: 92,
-
+        height: 74,
         decoration: BoxDecoration(
           color: selected
               ? _primary
               : _surface,
-
           borderRadius: BorderRadius.circular(
-            16,
+            14,
           ),
-
           border: Border.all(
             color: selected
                 ? _primarySoft
                 : today
                 ? _primary.withValues(
-                    alpha: 0.45,
+                    alpha: 0.55,
                   )
                 : _border,
           ),
-
           boxShadow: selected
               ? [
                   BoxShadow(
                     color: _primary.withValues(
                       alpha: 0.18,
                     ),
-
-                    blurRadius: 14,
+                    blurRadius: 12,
+                    offset: const Offset(
+                      0,
+                      4,
+                    ),
                   ),
                 ]
               : null,
         ),
-
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-
           children: [
             // ==================================================
             // WEEKDAY
             // ==================================================
             Text(
               weekDay,
-
               style: TextStyle(
                 color: selected
                     ? Colors.white.withValues(
-                        alpha: 0.78,
+                        alpha: 0.86,
                       )
                     : _textSecondary,
-
-                fontSize: 10,
-
+                fontSize: 9,
                 fontWeight: FontWeight.w800,
-
-                letterSpacing: 0.5,
+                letterSpacing: 0.45,
               ),
             ),
 
             const SizedBox(
-              height: 5,
+              height: 4,
             ),
 
             // ==================================================
@@ -658,20 +566,17 @@ class _StudyCalendarState
             // ==================================================
             Text(
               '${date.day}',
-
               style: TextStyle(
                 color: selected
                     ? Colors.white
                     : _textPrimary,
-
-                fontSize: 20,
-
+                fontSize: 19,
                 fontWeight: FontWeight.w800,
               ),
             ),
 
             const SizedBox(
-              height: 10,
+              height: 6,
             ),
 
             // ==================================================
@@ -681,296 +586,24 @@ class _StudyCalendarState
               width: completed
                   ? 6
                   : 4,
-
               height: completed
                   ? 6
                   : 4,
-
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-
                 color: completed
                     ? selected
                           ? Colors.white
                           : _success
                     : selected
                     ? Colors.white.withValues(
-                        alpha: 0.40,
+                        alpha: 0.48,
                       )
                     : _textMuted,
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // MONTH
-  // ============================================================
-
-  Widget _buildMonth() {
-    final centerDate = _weekStart.add(
-      const Duration(
-        days: 3,
-      ),
-    );
-
-    final firstDay = DateTime(
-      centerDate.year,
-      centerDate.month,
-      1,
-    );
-
-    final start = firstDay.subtract(
-      Duration(
-        days:
-            firstDay.weekday -
-            DateTime.monday,
-      ),
-    );
-
-    final dates = List.generate(
-      42,
-      (
-        index,
-      ) => start.add(
-        Duration(
-          days: index,
-        ),
-      ),
-    );
-
-    return Column(
-      children: [
-        // ======================================================
-        // WEEK NAMES
-        // ======================================================
-        Row(
-          children: _weekNames.map(
-            (
-              day,
-            ) {
-              return Expanded(
-                child: Center(
-                  child: Text(
-                    day,
-
-                    style: const TextStyle(
-                      color: _textMuted,
-
-                      fontSize: 9,
-
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              );
-            },
-          ).toList(),
-        ),
-
-        const SizedBox(
-          height: 8,
-        ),
-
-        // ======================================================
-        // MONTH GRID
-        // ======================================================
-        GridView.builder(
-          shrinkWrap: true,
-
-          physics: const NeverScrollableScrollPhysics(),
-
-          itemCount: dates.length,
-
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 7,
-
-            crossAxisSpacing: 5,
-
-            mainAxisSpacing: 5,
-
-            childAspectRatio: 1.35,
-          ),
-
-          itemBuilder:
-              (
-                context,
-                index,
-              ) {
-                final date = dates[index];
-
-                final selected = _sameDate(
-                  date,
-                  widget.selectedDate,
-                );
-
-                final completed = _isCompleted(
-                  date,
-                );
-
-                final currentMonth =
-                    date.month ==
-                        centerDate.month &&
-                    date.year ==
-                        centerDate.year;
-
-                return InkWell(
-                  borderRadius: BorderRadius.circular(
-                    10,
-                  ),
-
-                  onTap: () {
-                    widget.onDateSelected(
-                      DateTime(
-                        date.year,
-                        date.month,
-                        date.day,
-                      ),
-                    );
-
-                    setState(
-                      () {
-                        _weekStart = _startOfWeek(
-                          date,
-                        );
-                      },
-                    );
-                  },
-
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? _primary
-                          : Colors.transparent,
-
-                      borderRadius: BorderRadius.circular(
-                        10,
-                      ),
-
-                      border: Border.all(
-                        color: selected
-                            ? _primarySoft
-                            : Colors.transparent,
-                      ),
-                    ),
-
-                    child: Stack(
-                      alignment: Alignment.center,
-
-                      children: [
-                        Text(
-                          '${date.day}',
-
-                          style: TextStyle(
-                            color: selected
-                                ? Colors.white
-                                : currentMonth
-                                ? _textPrimary
-                                : _textMuted,
-
-                            fontSize: 11,
-
-                            fontWeight: selected
-                                ? FontWeight.w800
-                                : FontWeight.w500,
-                          ),
-                        ),
-
-                        if (completed)
-                          Positioned(
-                            bottom: 4,
-
-                            child: Container(
-                              width: 4,
-
-                              height: 4,
-
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-
-                                color: selected
-                                    ? Colors.white
-                                    : _success,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-        ),
-      ],
-    );
-  }
-
-  // ============================================================
-  // BOTTOM TOGGLE
-  // ============================================================
-
-  Widget _buildBottomToggle() {
-    return SizedBox(
-      height: 24,
-
-      child: Stack(
-        alignment: Alignment.center,
-
-        children: [
-          const Divider(
-            height: 1,
-
-            thickness: 1,
-
-            color: _border,
-          ),
-
-          InkWell(
-            borderRadius: BorderRadius.circular(
-              14,
-            ),
-
-            onTap: _toggleExpanded,
-
-            child: Container(
-              width: 46,
-
-              height: 24,
-
-              decoration: BoxDecoration(
-                color: _surface,
-
-                borderRadius: BorderRadius.circular(
-                  14,
-                ),
-
-                border: Border.all(
-                  color: _border,
-                ),
-              ),
-
-              child: AnimatedRotation(
-                duration: const Duration(
-                  milliseconds: 180,
-                ),
-
-                turns: _expanded
-                    ? 0.5
-                    : 0,
-
-                child: const Icon(
-                  Icons.keyboard_arrow_down_rounded,
-
-                  size: 17,
-
-                  color: _textSecondary,
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
