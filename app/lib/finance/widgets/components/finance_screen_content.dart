@@ -12,6 +12,7 @@ class FinanceScreenContent
     super.key,
     required this.model,
     required this.balances,
+    required this.patrimony,
     required this.objectiveName,
     required this.onPlanning,
     required this.onBalance,
@@ -32,6 +33,18 @@ class FinanceScreenContent
   final dynamic model;
 
   final CryptoBalances balances;
+
+  /// Patrimônio calculado pela camada superior.
+  ///
+  /// Regra atual:
+  ///
+  /// Investido
+  /// +
+  /// valor atual das criptomoedas
+  ///
+  /// Este valor NÃO precisa ser persistido no model,
+  /// pois o valor das criptomoedas muda conforme a cotação.
+  final double patrimony;
 
   final String objectiveName;
 
@@ -71,6 +84,20 @@ class FinanceScreenContent
   final bool showBalances;
 
   // ============================================================
+  // PATRIMÔNIO SEGURO
+  // ============================================================
+
+  double get safePatrimony {
+    if (!patrimony.isFinite ||
+        patrimony <
+            0) {
+      return 0;
+    }
+
+    return patrimony;
+  }
+
+  // ============================================================
   // BUILD
   // ============================================================
 
@@ -100,10 +127,31 @@ class FinanceScreenContent
           // ====================================================
           // CARTEIRA
           // ====================================================
+          //
+          // IMPORTANTE:
+          //
+          // O patrimônio não vem mais de:
+          //
+          // model.patrimony
+          //
+          // Agora ele é recebido já calculado.
+          //
+          // Exemplo:
+          //
+          // Investido     R$ 60
+          // BTC atual     R$ 150
+          // SOL atual     R$ 30
+          // USDT atual    R$ 5
+          //
+          // Patrimônio = R$ 245
+          //
+          // ====================================================
           WalletCard(
-            patrimony: model.patrimony,
+            patrimony: safePatrimony,
 
-            invested: model.invested,
+            invested: _safeDouble(
+              model.invested,
+            ),
 
             bitcoin: balances.bitcoin,
 
@@ -265,9 +313,9 @@ class FinanceScreenContent
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ============================================
+                  // ================================================
                   // HEADER
-                  // ============================================
+                  // ================================================
                   _FinanceModalHeader(
                     icon: Icons.track_changes_rounded,
                     title: 'Objetivo',
@@ -283,9 +331,9 @@ class FinanceScreenContent
                     height: 22,
                   ),
 
-                  // ============================================
+                  // ================================================
                   // CARD
-                  // ============================================
+                  // ================================================
                   _ObjectiveModalCard(
                     name: objectiveName,
                     value: _money(
@@ -299,9 +347,9 @@ class FinanceScreenContent
                     height: 18,
                   ),
 
-                  // ============================================
+                  // ================================================
                   // EDITAR
-                  // ============================================
+                  // ================================================
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
@@ -374,9 +422,9 @@ class FinanceScreenContent
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ============================================
+                  // ================================================
                   // HEADER
-                  // ============================================
+                  // ================================================
                   _FinanceModalHeader(
                     icon: Icons.bar_chart_rounded,
                     title: 'Ritmos',
@@ -392,9 +440,9 @@ class FinanceScreenContent
                     height: 22,
                   ),
 
-                  // ============================================
+                  // ================================================
                   // VALORES
-                  // ============================================
+                  // ================================================
                   _RhythmsModalCard(
                     minimum: _currency(
                       _toDouble(
@@ -417,9 +465,9 @@ class FinanceScreenContent
                     height: 18,
                   ),
 
-                  // ============================================
+                  // ================================================
                   // EDITAR PLANEJAMENTO
-                  // ============================================
+                  // ================================================
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
@@ -459,6 +507,26 @@ class FinanceScreenContent
     return _currency(
       value,
     );
+  }
+
+  // ============================================================
+  // SAFE DOUBLE
+  // ============================================================
+
+  double _safeDouble(
+    dynamic value,
+  ) {
+    final parsed = _toDouble(
+      value,
+    );
+
+    if (!parsed.isFinite ||
+        parsed <
+            0) {
+      return 0;
+    }
+
+    return parsed;
   }
 
   // ============================================================

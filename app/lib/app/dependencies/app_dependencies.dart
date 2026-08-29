@@ -13,7 +13,7 @@
 |      ↓
 | Repository
 |      ↓
-| LocalStorage / Supabase
+| LocalStorage / Supabase / API externa
 |
 |--------------------------------------------------------------------------
 */
@@ -72,6 +72,7 @@ import '../../study/services/study_service.dart';
 
 import '../../finance/services/persistence/finance_service.dart';
 import '../../finance/services/crypto/crypto_service.dart';
+import '../../finance/services/crypto/crypto_price_service.dart';
 
 import '../../evolution/services/evolution_service.dart';
 import '../../training/services/training_service.dart';
@@ -110,15 +111,15 @@ final routineRemoteDataSource = RoutineRemoteDataSource(
 
 final routineRepository = RoutineRepositoryImpl(
   localDataSource: routineLocalDataSource,
+
   remoteDataSource: routineRemoteDataSource,
+
   fallbackToLocalOnRemoteError: false,
 );
 
 // ======================================================
 // FINANCE
 // ======================================================
-//
-// Agora o FinanceRepository usa Supabase internamente.
 //
 // Fluxo:
 //
@@ -130,7 +131,7 @@ final routineRepository = RoutineRepositoryImpl(
 //      ↓
 // Supabase
 //
-// O FinanceRepository pega automaticamente:
+// O FinanceRepository utiliza:
 // Supabase.instance.client.auth.currentUser
 //
 // ======================================================
@@ -148,15 +149,21 @@ final financeController = FinanceController(
 );
 
 // ======================================================
-// CRYPTO
+// CRYPTO REPOSITORY
 // ======================================================
 //
-// Por enquanto continua usando LocalStorage.
+// Atualmente as transações de criptomoedas
+// continuam sendo persistidas em LocalStorage.
 //
-// Quando quisermos, podemos migrar também:
+// Fluxo:
+//
+// CryptoController
+//      ↓
+// CryptoService
+//      ↓
 // CryptoRepository
 //      ↓
-// Supabase
+// LocalStorage
 //
 // ======================================================
 
@@ -164,9 +171,37 @@ final cryptoRepository = CryptoRepository(
   storage: localStorage,
 );
 
+// ======================================================
+// CRYPTO SERVICE
+// ======================================================
+
 final cryptoService = CryptoService(
   repository: cryptoRepository,
 );
+
+// ======================================================
+// CRYPTO PRICE SERVICE
+// ======================================================
+//
+// Responsável por buscar:
+// BTC
+// ETH
+// SOL
+// USDT
+//
+// com cotação atual em BRL.
+//
+// Esse serviço NÃO salva transações.
+//
+// Ele apenas consulta preços atuais.
+//
+// ======================================================
+
+final cryptoPriceService = CryptoPriceService();
+
+// ======================================================
+// CRYPTO CONTROLLER
+// ======================================================
 
 final cryptoController = CryptoController(
   service: cryptoService,

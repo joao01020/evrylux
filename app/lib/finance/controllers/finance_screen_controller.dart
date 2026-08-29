@@ -5,6 +5,7 @@ import '../services/history/investment_history.dart';
 import '../models/crypto/crypto_balances.dart';
 
 import '../services/crypto/crypto_balance_service.dart';
+import '../services/crypto/crypto_price_service.dart';
 
 import '../services/finance/finance_contribution_service.dart';
 
@@ -25,6 +26,7 @@ import '../services/finance/finance_objective_service.dart';
 // - aportes;
 // - histórico;
 // - criptomoedas;
+// - cotações;
 // - persistência.
 //
 // Fluxo:
@@ -37,9 +39,10 @@ import '../services/finance/finance_objective_service.dart';
 //      ↓
 // Services
 //      ↓
-// Supabase / Storage
+// Supabase / Storage / API externa
 //
-// A tela NÃO deve acessar Supabase diretamente.
+// A tela NÃO deve acessar Supabase ou API diretamente.
+//
 // ============================================================
 
 class FinanceScreenController {
@@ -63,6 +66,8 @@ class FinanceScreenController {
 
   late final FinanceObjectiveService _objectiveService;
 
+  final CryptoPriceService cryptoPriceService;
+
   // ==========================================================
   // HISTORY
   // ==========================================================
@@ -77,6 +82,25 @@ class FinanceScreenController {
   // ==========================================================
 
   CryptoBalances balances = const CryptoBalances();
+
+  // ==========================================================
+  // CRYPTO PRICES
+  // ==========================================================
+
+  Map<
+    String,
+    double
+  >
+  cryptoPricesBrl = {
+    'BTC': 0,
+    'ETH': 0,
+    'SOL': 0,
+    'USDT': 0,
+  };
+
+  bool cryptoPricesLoaded = false;
+
+  String? cryptoPriceError;
 
   // ==========================================================
   // OBJECTIVE
@@ -97,6 +121,7 @@ class FinanceScreenController {
   FinanceScreenController({
     required this.financeController,
     required this.cryptoController,
+    required this.cryptoPriceService,
     FinanceObjectiveService? objectiveService,
   }) {
     // ========================================================
@@ -169,6 +194,94 @@ class FinanceScreenController {
   }
 
   // ==========================================================
+  // CRYPTO PATRIMONY
+  // ==========================================================
+
+  double get cryptoPatrimony {
+    final value = cryptoController.cryptoPatrimonyBrl;
+
+    if (value
+        is num) {
+      final result = value.toDouble();
+
+      if (!result.isFinite ||
+          result <
+              0) {
+        return 0;
+      }
+
+      return result;
+    }
+
+    return 0;
+  }
+
+  // ==========================================================
+  // TOTAL PATRIMONY
+  // ==========================================================
+  //
+  // Patrimônio base/manual
+  // +
+  // valor atual das criptomoedas
+  //
+  // ==========================================================
+
+  double get totalPatrimony {
+    final baseValue = model.patrimony;
+
+    final base =
+        baseValue
+            is num
+        ? baseValue.toDouble()
+        : 0.0;
+
+    final safeBase =
+        !base.isFinite ||
+            base <
+                0
+        ? 0.0
+        : base;
+
+    return safeBase +
+        cryptoPatrimony;
+  }
+
+  // ==========================================================
+  // INVESTED + CRYPTO
+  // ==========================================================
+  //
+  // Se sua regra de negócio for:
+  //
+  // patrimônio =
+  // valor investido
+  // +
+  // valor atual das criptos
+  //
+  // use este getter.
+  //
+  // ==========================================================
+
+  double get investedPlusCrypto {
+    final investedValue = model.invested;
+
+    final invested =
+        investedValue
+            is num
+        ? investedValue.toDouble()
+        : 0.0;
+
+    final safeInvested =
+        !invested.isFinite ||
+            invested <
+                0
+        ? 0.0
+        : invested;
+
+    return safeInvested +
+        cryptoPatrimony;
+  }
+
+  // ==========================================================
   // LOAD
   // ==========================================================
 
@@ -185,10 +298,6 @@ class FinanceScreenController {
       //
       // Carregamos primeiro o model principal.
       //
-      // Depois carregamos o objetivo.
-      //
-      // Caso exista um objetivo salvo no Supabase,
-      // target_value terá prioridade sobre o valor legado.
       // ======================================================
 
       await financeController.loadData();
@@ -211,7 +320,7 @@ class FinanceScreenController {
           );
 
       // ======================================================
-      // CRYPTO
+      // CRYPTO BALANCES
       // ======================================================
 
       balances =
@@ -234,6 +343,17 @@ class FinanceScreenController {
           storedHistory,
         );
 
+      history.sort(
+        (
+          first,
+          second,
+        ) {
+          return first.date.compareTo(
+            second.date,
+          );
+        },
+      );
+
       // ======================================================
       // OBJECTIVE
       // ======================================================
@@ -248,9 +368,87 @@ class FinanceScreenController {
 
         model.investmentGoal = objective.targetValue;
       }
+
+      // ======================================================
+      // CRYPTO PRICES
+      // ======================================================
+      //
+      // Não deixamos a tela inteira falhar se a API de preço
+      // estiver indisponível.
+      //
+      // ======================================================
+
+      await _loadCryptoPrices();
     } finally {
       isLoading = false;
     }
+  }
+
+  // ==========================================================
+  // LOAD CRYPTO PRICES
+  // ==========================================================
+
+  Future<
+    void
+  >
+  _loadCryptoPrices() async {
+    cryptoPriceError = null;
+
+    try {
+      final prices = await cryptoPriceService.getPricesBrl();
+
+      cryptoPricesBrl =
+          Map<
+            String,
+            double
+          >.from(
+            prices,
+          );
+
+      cryptoController.setPrices(
+        cryptoPricesBrl,
+        notify: false,
+      );
+
+      await cryptoController.loadPortfolio();
+
+      cryptoPricesLoaded = true;
+    } catch (
+      error,
+      stackTrace
+    ) {
+      cryptoPricesLoaded = false;
+
+      cryptoPriceError = error.toString();
+
+      // Mantém os saldos e demais dados financeiros
+      // funcionando mesmo se a cotação falhar.
+      //
+      // Apenas o valor atual das criptos ficará zerado
+      // até a próxima atualização.
+
+      // ignore: avoid_print
+      print(
+        '[FINANCE][CRYPTO PRICE] '
+        '$error',
+      );
+
+      // ignore: avoid_print
+      print(
+        stackTrace,
+      );
+    }
+  }
+
+  // ==========================================================
+  // REFRESH CRYPTO PRICES
+  // ==========================================================
+
+  Future<
+    void
+  >
+  refreshCryptoPrices() async {
+    await _loadCryptoPrices();
   }
 
   // ==========================================================
@@ -284,6 +482,24 @@ class FinanceScreenController {
   >
   refreshCryptoBalances() async {
     balances = await _cryptoBalanceService.loadBalances();
+
+    await cryptoController.loadPortfolio();
+  }
+
+  // ==========================================================
+  // REFRESH ALL CRYPTO
+  // ==========================================================
+
+  Future<
+    void
+  >
+  refreshCrypto() async {
+    await Future.wait(
+      [
+        refreshCryptoBalances(),
+        refreshCryptoPrices(),
+      ],
+    );
   }
 
   // ==========================================================
@@ -370,6 +586,12 @@ class FinanceScreenController {
   void updatePatrimony(
     double value,
   ) {
+    if (!value.isFinite ||
+        value <
+            0) {
+      return;
+    }
+
     model.patrimony = value;
   }
 
@@ -390,6 +612,12 @@ class FinanceScreenController {
   void updateInvestmentGoal(
     double value,
   ) {
+    if (!value.isFinite ||
+        value <
+            0) {
+      return;
+    }
+
     model.investmentGoal = value;
   }
 
@@ -418,18 +646,10 @@ class FinanceScreenController {
       );
     }
 
-    // ========================================================
-    // SAVE SUPABASE
-    // ========================================================
-
     final objective = await _objectiveService.save(
       name: normalized,
       targetValue: objectiveValue,
     );
-
-    // ========================================================
-    // UPDATE LOCAL STATE
-    // ========================================================
 
     objectiveName = objective.name;
 
@@ -448,10 +668,6 @@ class FinanceScreenController {
   updateObjectiveValue(
     double value,
   ) async {
-    // ========================================================
-    // VALIDATION
-    // ========================================================
-
     if (value.isNaN ||
         value.isInfinite) {
       throw ArgumentError(
@@ -466,32 +682,14 @@ class FinanceScreenController {
       );
     }
 
-    // ========================================================
-    // SAVE OBJECTIVE
-    // ========================================================
-
     final objective = await _objectiveService.save(
       name: objectiveName,
       targetValue: value,
     );
 
-    // ========================================================
-    // UPDATE MODEL
-    // ========================================================
-
     objectiveName = objective.name;
 
     model.investmentGoal = objective.targetValue;
-
-    // ========================================================
-    // SAVE LEGACY FINANCE MODEL
-    // ========================================================
-    //
-    // investmentGoal ainda é usado pelo restante do Finance.
-    //
-    // Portanto mantemos o model financeiro principal
-    // sincronizado.
-    // ========================================================
 
     await saveModel();
 
@@ -533,26 +731,14 @@ class FinanceScreenController {
       );
     }
 
-    // ========================================================
-    // SUPABASE
-    // ========================================================
-
     final objective = await _objectiveService.save(
       name: normalizedName,
       targetValue: value,
     );
 
-    // ========================================================
-    // LOCAL STATE
-    // ========================================================
-
     objectiveName = objective.name;
 
     model.investmentGoal = objective.targetValue;
-
-    // ========================================================
-    // LEGACY MODEL
-    // ========================================================
 
     await saveModel();
 

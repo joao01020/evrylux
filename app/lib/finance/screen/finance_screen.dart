@@ -32,7 +32,15 @@ class _FinanceScreenState
         State<
           FinanceScreen
         > {
+  // ============================================================
+  // CONTROLLER
+  // ============================================================
+
   late final FinanceScreenController _controller;
+
+  // ============================================================
+  // ACTIONS
+  // ============================================================
 
   late final FinanceScreenActions _actions;
 
@@ -53,6 +61,7 @@ class _FinanceScreenState
     _controller = FinanceScreenController(
       financeController: financeController,
       cryptoController: cryptoController,
+      cryptoPriceService: cryptoPriceService,
     );
 
     _actions = FinanceScreenActions(
@@ -76,8 +85,17 @@ class _FinanceScreenState
     try {
       await _controller.load();
     } catch (
-      _
+      error,
+      stackTrace
     ) {
+      debugPrint(
+        '[FINANCE][LOAD] $error',
+      );
+
+      debugPrint(
+        '$stackTrace',
+      );
+
       if (mounted) {
         _actions.showMessage(
           'Não foi possível carregar todos os dados financeiros.',
@@ -125,7 +143,11 @@ class _FinanceScreenState
   String _formatCurrency(
     double value,
   ) {
-    final fixed = value
+    final safeValue = value.isFinite
+        ? value
+        : 0.0;
+
+    final fixed = safeValue
         .toStringAsFixed(
           2,
         )
@@ -310,9 +332,9 @@ class _FinanceScreenState
                                     height: 10,
                                   ),
 
-                                  // ==============================
-                                  // NOME CLICÁVEL
-                                  // ==============================
+                                  // ====================================
+                                  // NOME
+                                  // ====================================
                                   InkWell(
                                     borderRadius: BorderRadius.circular(
                                       10,
@@ -369,9 +391,9 @@ class _FinanceScreenState
                                     height: 8,
                                   ),
 
-                                  // ==============================
-                                  // VALOR CLICÁVEL
-                                  // ==============================
+                                  // ====================================
+                                  // VALOR
+                                  // ====================================
                                   InkWell(
                                     borderRadius: BorderRadius.circular(
                                       10,
@@ -787,8 +809,61 @@ class _FinanceScreenState
             Icons.tune_outlined,
           ),
         ),
+
+        // ======================================================
+        // ATUALIZAR COTAÇÕES
+        // ======================================================
+        IconButton(
+          tooltip: 'Atualizar cotações',
+          onPressed: _refreshCryptoPrices,
+          icon: const Icon(
+            Icons.refresh_rounded,
+          ),
+        ),
       ],
     );
+  }
+
+  // ============================================================
+  // REFRESH CRYPTO PRICES
+  // ============================================================
+
+  Future<
+    void
+  >
+  _refreshCryptoPrices() async {
+    try {
+      await _controller.refreshCryptoPrices();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(
+        () {},
+      );
+
+      _actions.showMessage(
+        'Cotações atualizadas.',
+      );
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        '[FINANCE][CRYPTO][REFRESH] $error',
+      );
+
+      debugPrint(
+        '$stackTrace',
+      );
+
+      if (mounted) {
+        _actions.showMessage(
+          'Não foi possível atualizar as cotações.',
+        );
+      }
+    }
   }
 
   // ============================================================
@@ -848,9 +923,6 @@ class _FinanceScreenState
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ==========================================
-                    // HEADER
-                    // ==========================================
                     _FinanceModalHeader(
                       icon: Icons.trending_up_rounded,
                       title: 'Sua evolução',
@@ -866,9 +938,6 @@ class _FinanceScreenState
                       height: 22,
                     ),
 
-                    // ==========================================
-                    // CONTEÚDO
-                    // ==========================================
                     InvestmentProgress(
                       projection: _controller.projection,
                       showPatrimony: true,
@@ -924,9 +993,6 @@ class _FinanceScreenState
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ==========================================
-                    // HEADER
-                    // ==========================================
                     _FinanceModalHeader(
                       icon: Icons.savings_rounded,
                       title: 'Último aporte',
@@ -944,9 +1010,6 @@ class _FinanceScreenState
                       height: 22,
                     ),
 
-                    // ==========================================
-                    // CONTEÚDO
-                    // ==========================================
                     if (_controller.history.isEmpty)
                       const EmptyLastContribution()
                     else
@@ -962,9 +1025,6 @@ class _FinanceScreenState
                       height: 18,
                     ),
 
-                    // ==========================================
-                    // HISTÓRICO COMPLETO
-                    // ==========================================
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
@@ -1010,6 +1070,17 @@ class _FinanceScreenState
 
       balances: _controller.balances,
 
+      // ========================================================
+      // PATRIMÔNIO CALCULADO
+      // ========================================================
+      //
+      // investido
+      // +
+      // valor atual das criptomoedas
+      //
+      // ========================================================
+      patrimony: _controller.investedPlusCrypto,
+
       objectiveName: _controller.objectiveName,
 
       // ========================================================
@@ -1035,7 +1106,7 @@ class _FinanceScreenState
       onOpenLastContribution: _openLastContributionModal,
 
       // ========================================================
-      // NOVO BOTÃO +
+      // APORTE
       // ========================================================
       onContribution: _actions.openContribution,
 
@@ -1057,12 +1128,6 @@ class _FinanceScreenState
     return Scaffold(
       appBar: _buildAppBar(),
 
-      // ========================================================
-      // SEM FLOATING ACTION BUTTON
-      //
-      // O aporte agora é aberto pelo botão +
-      // junto dos atalhos.
-      // ========================================================
       body: _buildBody(),
     );
   }
