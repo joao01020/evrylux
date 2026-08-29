@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../app/dependencies/app_dependencies.dart';
@@ -45,6 +47,16 @@ class _CryptoDialogState
 
   String? errorMessage;
 
+  bool _controllerListenerAttached = false;
+
+  // ============================================================
+  // SYMBOL
+  // ============================================================
+
+  String get normalizedSymbol {
+    return widget.symbol.trim().toUpperCase();
+  }
+
   // ============================================================
   // INIT
   // ============================================================
@@ -53,7 +65,68 @@ class _CryptoDialogState
   void initState() {
     super.initState();
 
-    load();
+    WidgetsBinding.instance.addPostFrameCallback(
+      (
+        _,
+      ) {
+        if (!mounted) {
+          return;
+        }
+
+        _attachControllerListener();
+
+        load();
+      },
+    );
+  }
+
+  // ============================================================
+  // DISPOSE
+  // ============================================================
+
+  @override
+  void dispose() {
+    _detachControllerListener();
+
+    super.dispose();
+  }
+
+  // ============================================================
+  // CONTROLLER LISTENER
+  // ============================================================
+
+  void _attachControllerListener() {
+    if (_controllerListenerAttached) {
+      return;
+    }
+
+    cryptoController.addListener(
+      _onCryptoControllerChanged,
+    );
+
+    _controllerListenerAttached = true;
+  }
+
+  void _detachControllerListener() {
+    if (!_controllerListenerAttached) {
+      return;
+    }
+
+    cryptoController.removeListener(
+      _onCryptoControllerChanged,
+    );
+
+    _controllerListenerAttached = false;
+  }
+
+  void _onCryptoControllerChanged() {
+    if (!mounted) {
+      return;
+    }
+
+    setState(
+      () {},
+    );
   }
 
   // ============================================================
@@ -77,7 +150,7 @@ class _CryptoDialogState
 
     try {
       final result = await cryptoController.getBySymbol(
-        widget.symbol,
+        normalizedSymbol,
       );
 
       if (!mounted) {
@@ -112,7 +185,9 @@ class _CryptoDialogState
 
       setState(
         () {
-          errorMessage = 'Não foi possível carregar ${widget.symbol}.';
+          errorMessage =
+              'Não foi possível carregar '
+              '$normalizedSymbol.';
         },
       );
     } finally {
@@ -131,6 +206,16 @@ class _CryptoDialogState
   // ============================================================
 
   double get totalQuantity {
+    final controllerValue = cryptoController.quantityFor(
+      normalizedSymbol,
+    );
+
+    if (controllerValue.isFinite &&
+        controllerValue >=
+            0) {
+      return controllerValue;
+    }
+
     return transactions.fold<
       double
     >(
@@ -150,6 +235,16 @@ class _CryptoDialogState
   // ============================================================
 
   double get totalInvested {
+    final controllerValue = cryptoController.investedFor(
+      normalizedSymbol,
+    );
+
+    if (controllerValue.isFinite &&
+        controllerValue >=
+            0) {
+      return controllerValue;
+    }
+
     return transactions.fold<
       double
     >(
@@ -165,11 +260,79 @@ class _CryptoDialogState
   }
 
   // ============================================================
+  // CURRENT PRICE
+  // ============================================================
+
+  double get currentPrice {
+    final value = cryptoController.priceFor(
+      normalizedSymbol,
+    );
+
+    if (!value.isFinite ||
+        value <
+            0) {
+      return 0;
+    }
+
+    return value;
+  }
+
+  // ============================================================
+  // CURRENT VALUE
+  // ============================================================
+
+  double get currentValue {
+    final value = cryptoController.currentValueFor(
+      normalizedSymbol,
+    );
+
+    if (!value.isFinite ||
+        value <
+            0) {
+      return 0;
+    }
+
+    return value;
+  }
+
+  // ============================================================
+  // PROFIT / LOSS
+  // ============================================================
+
+  double get profitLoss {
+    final value = cryptoController.profitLossFor(
+      normalizedSymbol,
+    );
+
+    if (!value.isFinite) {
+      return 0;
+    }
+
+    return value;
+  }
+
+  // ============================================================
+  // PROFIT / LOSS %
+  // ============================================================
+
+  double get profitLossPercent {
+    final value = cryptoController.profitLossPercentFor(
+      normalizedSymbol,
+    );
+
+    if (!value.isFinite) {
+      return 0;
+    }
+
+    return value;
+  }
+
+  // ============================================================
   // TITLE
   // ============================================================
 
   String get cryptoTitle {
-    switch (widget.symbol.trim().toUpperCase()) {
+    switch (normalizedSymbol) {
       case 'BTC':
         return 'Bitcoin';
 
@@ -180,10 +343,10 @@ class _CryptoDialogState
         return 'Solana';
 
       case 'USDT':
-        return 'USDT';
+        return 'Tether';
 
       default:
-        return widget.symbol.toUpperCase();
+        return normalizedSymbol;
     }
   }
 
@@ -192,7 +355,7 @@ class _CryptoDialogState
   // ============================================================
 
   int get quantityDecimals {
-    switch (widget.symbol.trim().toUpperCase()) {
+    switch (normalizedSymbol) {
       case 'BTC':
         return 8;
 
@@ -211,13 +374,144 @@ class _CryptoDialogState
   }
 
   // ============================================================
+  // FORMAT QUANTITY
+  // ============================================================
+
+  String _formatQuantity(
+    double value,
+  ) {
+    final safeValue =
+        value.isFinite &&
+            value >=
+                0
+        ? value
+        : 0.0;
+
+    return safeValue.toStringAsFixed(
+      quantityDecimals,
+    );
+  }
+
+  // ============================================================
   // FORMAT CURRENCY
   // ============================================================
 
   String _formatCurrency(
     double value,
   ) {
-    return 'R\$ ${value.toStringAsFixed(2).replaceAll('.', ',')}';
+    final safeValue = value.isFinite
+        ? value
+        : 0.0;
+
+    final negative =
+        safeValue <
+        0;
+
+    final absolute = safeValue.abs();
+
+    final parts = absolute
+        .toStringAsFixed(
+          2,
+        )
+        .split(
+          '.',
+        );
+
+    final integer = parts.first;
+
+    final decimal =
+        parts.length >
+            1
+        ? parts[1]
+        : '00';
+
+    final reversed = integer
+        .split(
+          '',
+        )
+        .reversed
+        .toList();
+
+    final buffer = StringBuffer();
+
+    for (
+      var index = 0;
+      index <
+          reversed.length;
+      index++
+    ) {
+      if (index >
+              0 &&
+          index %
+                  3 ==
+              0) {
+        buffer.write(
+          '.',
+        );
+      }
+
+      buffer.write(
+        reversed[index],
+      );
+    }
+
+    final formattedInteger = buffer
+        .toString()
+        .split(
+          '',
+        )
+        .reversed
+        .join();
+
+    return '${negative ? '-' : ''}'
+        'R\$ $formattedInteger,$decimal';
+  }
+
+  // ============================================================
+  // FORMAT SIGNED CURRENCY
+  // ============================================================
+
+  String _formatSignedCurrency(
+    double value,
+  ) {
+    if (!value.isFinite) {
+      return 'R\$ 0,00';
+    }
+
+    if (value >
+        0) {
+      return '+ ${_formatCurrency(value)}';
+    }
+
+    if (value <
+        0) {
+      return '- ${_formatCurrency(value.abs())}';
+    }
+
+    return _formatCurrency(
+      0,
+    );
+  }
+
+  // ============================================================
+  // FORMAT PERCENT
+  // ============================================================
+
+  String _formatPercent(
+    double value,
+  ) {
+    final safeValue = value.isFinite
+        ? value
+        : 0.0;
+
+    final sign =
+        safeValue >
+            0
+        ? '+'
+        : '';
+
+    return '$sign'
+        '${safeValue.toStringAsFixed(2).replaceAll('.', ',')}%';
   }
 
   // ============================================================
@@ -238,7 +532,7 @@ class _CryptoDialogState
               dialogContext,
             ) {
               return AddCryptoDialog(
-                symbol: widget.symbol,
+                symbol: normalizedSymbol,
                 onSave:
                     (
                       transaction,
@@ -430,7 +724,7 @@ class _CryptoDialogState
               ),
 
               Text(
-                widget.symbol.toUpperCase(),
+                normalizedSymbol,
                 style: TextStyle(
                   fontSize: 13,
                   color: Theme.of(
@@ -441,6 +735,50 @@ class _CryptoDialogState
             ],
           ),
         ),
+
+        // ======================================================
+        // LIVE INDICATOR
+        // ======================================================
+        if (currentPrice >
+            0)
+          Container(
+            margin: const EdgeInsets.only(
+              right: 6,
+            ),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 9,
+              vertical: 5,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.green.withValues(
+                alpha: 0.10,
+              ),
+              borderRadius: BorderRadius.circular(
+                999,
+              ),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.circle,
+                  size: 7,
+                  color: Colors.green,
+                ),
+                SizedBox(
+                  width: 5,
+                ),
+                Text(
+                  'Atualizado',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.green,
+                  ),
+                ),
+              ],
+            ),
+          ),
 
         IconButton(
           tooltip: 'Fechar',
@@ -462,6 +800,24 @@ class _CryptoDialogState
   // ============================================================
 
   Widget _buildSummary() {
+    final colorScheme = Theme.of(
+      context,
+    ).colorScheme;
+
+    final positive =
+        profitLoss >
+        0;
+
+    final negative =
+        profitLoss <
+        0;
+
+    final resultColor = positive
+        ? Colors.green
+        : negative
+        ? colorScheme.error
+        : colorScheme.onSurfaceVariant;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(
@@ -470,6 +826,9 @@ class _CryptoDialogState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ==================================================
+            // SALDO
+            // ==================================================
             const Text(
               'Saldo',
               style: TextStyle(
@@ -482,8 +841,8 @@ class _CryptoDialogState
             ),
 
             Text(
-              '${totalQuantity.toStringAsFixed(quantityDecimals)} '
-              '${widget.symbol.toUpperCase()}',
+              '${_formatQuantity(totalQuantity)} '
+              '$normalizedSymbol',
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -491,15 +850,77 @@ class _CryptoDialogState
             ),
 
             const SizedBox(
-              height: 8,
+              height: 14,
             ),
 
             const Divider(),
 
             const SizedBox(
-              height: 8,
+              height: 14,
             ),
 
+            // ==================================================
+            // COTAÇÃO ATUAL
+            // ==================================================
+            const Text(
+              'Cotação atual',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(
+              height: 5,
+            ),
+
+            _AnimatedMarketText(
+              value: currentPrice,
+              text:
+                  currentPrice >
+                      0
+                  ? '${_formatCurrency(currentPrice)} / '
+                        '$normalizedSymbol'
+                  : 'Cotação indisponível',
+              normalColor: colorScheme.onSurface,
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+            ),
+
+            const SizedBox(
+              height: 16,
+            ),
+
+            // ==================================================
+            // VALOR ATUAL
+            // ==================================================
+            const Text(
+              'Valor atual',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(
+              height: 5,
+            ),
+
+            _AnimatedMarketText(
+              value: currentValue,
+              text: _formatCurrency(
+                currentValue,
+              ),
+              normalColor: colorScheme.onSurface,
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+            ),
+
+            const SizedBox(
+              height: 16,
+            ),
+
+            // ==================================================
+            // INVESTIDO
+            // ==================================================
             const Text(
               'Investido',
               style: TextStyle(
@@ -508,7 +929,7 @@ class _CryptoDialogState
             ),
 
             const SizedBox(
-              height: 4,
+              height: 5,
             ),
 
             Text(
@@ -519,6 +940,96 @@ class _CryptoDialogState
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
               ),
+            ),
+
+            const SizedBox(
+              height: 16,
+            ),
+
+            const Divider(),
+
+            const SizedBox(
+              height: 14,
+            ),
+
+            // ==================================================
+            // RESULTADO
+            // ==================================================
+            const Text(
+              'Resultado',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(
+              height: 7,
+            ),
+
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: _AnimatedMarketText(
+                    value: profitLoss,
+                    text: _formatSignedCurrency(
+                      profitLoss,
+                    ),
+                    normalColor: resultColor,
+                    fontSize: 21,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+
+                const SizedBox(
+                  width: 12,
+                ),
+
+                _AnimatedMarketText(
+                  value: profitLossPercent,
+                  text: _formatPercent(
+                    profitLossPercent,
+                  ),
+                  normalColor: resultColor,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
+              ],
+            ),
+
+            const SizedBox(
+              height: 8,
+            ),
+
+            Row(
+              children: [
+                Icon(
+                  positive
+                      ? Icons.trending_up_rounded
+                      : negative
+                      ? Icons.trending_down_rounded
+                      : Icons.trending_flat_rounded,
+                  size: 17,
+                  color: resultColor,
+                ),
+
+                const SizedBox(
+                  width: 5,
+                ),
+
+                Text(
+                  positive
+                      ? 'Acima do valor investido'
+                      : negative
+                      ? 'Abaixo do valor investido'
+                      : 'Sem variação',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: resultColor,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -674,6 +1185,151 @@ class _CryptoDialogState
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// ANIMATED MARKET TEXT
+// ============================================================
+//
+// Sempre que o valor recebido mudar:
+//
+// valor normal
+//      ↓
+// novo valor fica verde
+//      ↓
+// permanece verde por 900 ms
+//      ↓
+// retorna para sua cor original
+//
+// Isso funciona para:
+//
+// - cotação atual
+// - valor atual
+// - resultado em R$
+// - resultado em %
+//
+// ============================================================
+
+class _AnimatedMarketText
+    extends
+        StatefulWidget {
+  const _AnimatedMarketText({
+    required this.value,
+    required this.text,
+    required this.normalColor,
+    required this.fontSize,
+    required this.fontWeight,
+  });
+
+  final double value;
+
+  final String text;
+
+  final Color normalColor;
+
+  final double fontSize;
+
+  final FontWeight fontWeight;
+
+  @override
+  State<
+    _AnimatedMarketText
+  >
+  createState() {
+    return _AnimatedMarketTextState();
+  }
+}
+
+class _AnimatedMarketTextState
+    extends
+        State<
+          _AnimatedMarketText
+        > {
+  bool _highlight = false;
+
+  Timer? _timer;
+
+  // ============================================================
+  // UPDATE
+  // ============================================================
+
+  @override
+  void didUpdateWidget(
+    covariant _AnimatedMarketText oldWidget,
+  ) {
+    super.didUpdateWidget(
+      oldWidget,
+    );
+
+    if (oldWidget.value ==
+        widget.value) {
+      return;
+    }
+
+    _timer?.cancel();
+
+    setState(
+      () {
+        _highlight = true;
+      },
+    );
+
+    _timer = Timer(
+      const Duration(
+        milliseconds: 900,
+      ),
+      () {
+        if (!mounted) {
+          return;
+        }
+
+        setState(
+          () {
+            _highlight = false;
+          },
+        );
+      },
+    );
+  }
+
+  // ============================================================
+  // DISPOSE
+  // ============================================================
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+
+    _timer = null;
+
+    super.dispose();
+  }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return AnimatedDefaultTextStyle(
+      duration: const Duration(
+        milliseconds: 220,
+      ),
+      curve: Curves.easeOut,
+      style: TextStyle(
+        fontSize: widget.fontSize,
+        fontWeight: widget.fontWeight,
+        color: _highlight
+            ? Colors.green
+            : widget.normalColor,
+      ),
+      child: Text(
+        widget.text,
       ),
     );
   }

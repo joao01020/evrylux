@@ -37,6 +37,35 @@ class CryptoHistoryCard
   onEdit;
 
   // ============================================================
+  // TRANSAÇÕES ORDENADAS
+  // ============================================================
+
+  List<
+    CryptoTransactionModel
+  >
+  get sortedTransactions {
+    final items =
+        List<
+          CryptoTransactionModel
+        >.from(
+          transactions,
+        );
+
+    items.sort(
+      (
+        a,
+        b,
+      ) {
+        return b.date.compareTo(
+          a.date,
+        );
+      },
+    );
+
+    return items;
+  }
+
+  // ============================================================
   // BUILD
   // ============================================================
 
@@ -45,45 +74,59 @@ class CryptoHistoryCard
     BuildContext context,
   ) {
     if (transactions.isEmpty) {
-      return _buildEmptyState();
+      return _buildEmptyState(
+        context,
+      );
     }
+
+    final items = sortedTransactions;
 
     return Card(
       clipBehavior: Clip.antiAlias,
-      child: ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: transactions.length,
-        separatorBuilder:
-            (
-              context,
-              index,
-            ) {
-              return const Divider(
-                height: 1,
-              );
-            },
-        itemBuilder:
-            (
-              context,
-              index,
-            ) {
-              final transaction = transactions[index];
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // ====================================================
+          // LISTA
+          // ====================================================
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: items.length,
+            separatorBuilder:
+                (
+                  context,
+                  index,
+                ) {
+                  return const Divider(
+                    height: 1,
+                  );
+                },
+            itemBuilder:
+                (
+                  context,
+                  index,
+                ) {
+                  final transaction = items[index];
 
-              return CryptoTransactionTile(
-                transaction: transaction,
-                onEdit: () {
-                  onEdit(
-                    transaction,
+                  return CryptoTransactionTile(
+                    transaction: transaction,
+
+                    onEdit: () {
+                      onEdit(
+                        transaction,
+                      );
+                    },
+
+                    onDelete: () {
+                      onDelete(
+                        transaction,
+                      );
+                    },
                   );
                 },
-                onDelete: () {
-                  onDelete(
-                    transaction,
-                  );
-                },
-              );
-            },
+          ),
+        ],
       ),
     );
   }
@@ -92,10 +135,16 @@ class CryptoHistoryCard
   // EMPTY STATE
   // ============================================================
 
-  Widget _buildEmptyState() {
-    return const Card(
+  Widget _buildEmptyState(
+    BuildContext context,
+  ) {
+    final colorScheme = Theme.of(
+      context,
+    ).colorScheme;
+
+    return Card(
       child: Padding(
-        padding: EdgeInsets.all(
+        padding: const EdgeInsets.all(
           24,
         ),
         child: Column(
@@ -104,14 +153,14 @@ class CryptoHistoryCard
             Icon(
               Icons.currency_bitcoin_rounded,
               size: 42,
-              color: Colors.grey,
+              color: colorScheme.onSurfaceVariant,
             ),
 
-            SizedBox(
+            const SizedBox(
               height: 12,
             ),
 
-            Text(
+            const Text(
               'Nenhuma compra registrada.',
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -120,7 +169,7 @@ class CryptoHistoryCard
               ),
             ),
 
-            SizedBox(
+            const SizedBox(
               height: 4,
             ),
 
@@ -129,7 +178,7 @@ class CryptoHistoryCard
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
-                color: Colors.grey,
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
           ],

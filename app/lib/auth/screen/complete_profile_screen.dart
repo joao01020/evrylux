@@ -51,43 +51,43 @@ class _CompleteProfileScreenState
   // ============================================================
 
   static const Color _backgroundColor = Color(
-    0xFF090A0D,
+    0xFFF7FBF1,
   );
 
   static const Color _surfaceColor = Color(
-    0xFF111318,
+    0xFFFFFFFF,
   );
 
   static const Color _inputColor = Color(
-    0xFF171A20,
+    0xFFF3F8EE,
   );
 
   static const Color _borderColor = Color(
-    0xFF292D36,
+    0xFFC7DFC9,
   );
 
   static const Color _primaryColor = Color(
-    0xFF7C5CFF,
+    0xFFBCF0B4,
   );
 
   static const Color _primaryLightColor = Color(
-    0xFFA18CFF,
+    0xFF3B6939,
   );
 
   static const Color _textPrimary = Color(
-    0xFFF5F7FA,
+    0xFF172019,
   );
 
   static const Color _textSecondary = Color(
-    0xFF9BA1AD,
+    0xFF68746B,
   );
 
   static const Color _textMuted = Color(
-    0xFF676D78,
+    0xFF8A958C,
   );
 
   static const Color _errorColor = Color(
-    0xFFFF7E87,
+    0xFFB3261E,
   );
 
   // ============================================================
@@ -382,10 +382,6 @@ class _CompleteProfileScreenState
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildLogo(),
-        const SizedBox(
-          height: 34,
-        ),
         _buildHeader(),
         const SizedBox(
           height: 34,
@@ -407,38 +403,6 @@ class _CompleteProfileScreenState
         ),
         _buildFooter(),
       ],
-    );
-  }
-
-  // ============================================================
-  // LOGO
-  // ============================================================
-
-  Widget _buildLogo() {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        width: 54,
-        height: 54,
-        decoration: BoxDecoration(
-          color: _primaryColor.withValues(
-            alpha: 0.12,
-          ),
-          borderRadius: BorderRadius.circular(
-            16,
-          ),
-          border: Border.all(
-            color: _primaryColor.withValues(
-              alpha: 0.28,
-            ),
-          ),
-        ),
-        child: const Icon(
-          Icons.person_outline_rounded,
-          color: _primaryLightColor,
-          size: 27,
-        ),
-      ),
     );
   }
 
@@ -667,7 +631,7 @@ class _CompleteProfileScreenState
           disabledBackgroundColor: _primaryColor.withValues(
             alpha: 0.45,
           ),
-          foregroundColor: Colors.white,
+          foregroundColor: _primaryLightColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(
               14,
@@ -687,7 +651,7 @@ class _CompleteProfileScreenState
                   height: 21,
                   child: CircularProgressIndicator(
                     strokeWidth: 2.2,
-                    color: Colors.white,
+                    color: _primaryLightColor,
                   ),
                 )
               : const Row(

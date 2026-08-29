@@ -16,19 +16,55 @@ class FinanceBody
         StatelessWidget {
   const FinanceBody({
     super.key,
+
+    // ==========================================================
+    // PROJEÇÃO / HISTÓRICO
+    // ==========================================================
     required this.projection,
     required this.history,
+
+    // ==========================================================
+    // FINANCEIRO
+    // ==========================================================
     required this.patrimony,
     required this.invested,
+
+    // ==========================================================
+    // OBJETIVO
+    // ==========================================================
     required this.objectiveName,
     required this.investmentGoal,
     required this.minimumGoal,
     required this.mediumGoal,
     required this.maximumGoal,
+
+    // ==========================================================
+    // QUANTIDADES CRYPTO
+    // ==========================================================
     required this.bitcoin,
     required this.ethereum,
     required this.solana,
     required this.usdt,
+
+    // ==========================================================
+    // VALORES ATUAIS CRYPTO
+    // ==========================================================
+    required this.bitcoinCurrentValue,
+    required this.ethereumCurrentValue,
+    required this.solanaCurrentValue,
+    required this.usdtCurrentValue,
+
+    // ==========================================================
+    // LUCRO / PREJUÍZO %
+    // ==========================================================
+    required this.bitcoinProfitPercent,
+    required this.ethereumProfitPercent,
+    required this.solanaProfitPercent,
+    required this.usdtProfitPercent,
+
+    // ==========================================================
+    // AÇÕES
+    // ==========================================================
     required this.onBalance,
     required this.onCrypto,
     required this.onVault,
@@ -38,6 +74,10 @@ class FinanceBody
     required this.onEditGoal,
     required this.onDeleteContribution,
     required this.onHistoryItemTap,
+
+    // ==========================================================
+    // VISIBILIDADE
+    // ==========================================================
     this.showBalances = true,
   });
 
@@ -71,7 +111,7 @@ class FinanceBody
   final double maximumGoal;
 
   // ============================================================
-  // CRYPTO
+  // CRYPTO - QUANTIDADES
   // ============================================================
 
   final double bitcoin;
@@ -81,6 +121,30 @@ class FinanceBody
   final double solana;
 
   final double usdt;
+
+  // ============================================================
+  // CRYPTO - VALORES ATUAIS
+  // ============================================================
+
+  final double bitcoinCurrentValue;
+
+  final double ethereumCurrentValue;
+
+  final double solanaCurrentValue;
+
+  final double usdtCurrentValue;
+
+  // ============================================================
+  // CRYPTO - LUCRO / PREJUÍZO %
+  // ============================================================
+
+  final double bitcoinProfitPercent;
+
+  final double ethereumProfitPercent;
+
+  final double solanaProfitPercent;
+
+  final double usdtProfitPercent;
 
   // ============================================================
   // AÇÕES
@@ -120,6 +184,32 @@ class FinanceBody
   final bool showBalances;
 
   // ============================================================
+  // VALORES SEGUROS
+  // ============================================================
+
+  double _safeMoney(
+    double value,
+  ) {
+    if (!value.isFinite ||
+        value <
+            0) {
+      return 0;
+    }
+
+    return value;
+  }
+
+  double _safePercent(
+    double value,
+  ) {
+    if (!value.isFinite) {
+      return 0;
+    }
+
+    return value;
+  }
+
+  // ============================================================
   // BUILD
   // ============================================================
 
@@ -150,18 +240,83 @@ class FinanceBody
           // CARTEIRA
           // ====================================================
           WalletCard(
-            patrimony: patrimony,
+            // ==================================================
+            // FINANCEIRO
+            // ==================================================
+            patrimony: _safeMoney(
+              patrimony,
+            ),
 
-            invested: invested,
+            invested: _safeMoney(
+              invested,
+            ),
 
-            bitcoin: bitcoin,
+            // ==================================================
+            // QUANTIDADES
+            // ==================================================
+            bitcoin: _safeMoney(
+              bitcoin,
+            ),
 
-            ethereum: ethereum,
+            ethereum: _safeMoney(
+              ethereum,
+            ),
 
-            solana: solana,
+            solana: _safeMoney(
+              solana,
+            ),
 
-            usdt: usdt,
+            usdt: _safeMoney(
+              usdt,
+            ),
 
+            // ==================================================
+            // BTC
+            // ==================================================
+            bitcoinCurrentValue: _safeMoney(
+              bitcoinCurrentValue,
+            ),
+
+            bitcoinProfitPercent: _safePercent(
+              bitcoinProfitPercent,
+            ),
+
+            // ==================================================
+            // ETH
+            // ==================================================
+            ethereumCurrentValue: _safeMoney(
+              ethereumCurrentValue,
+            ),
+
+            ethereumProfitPercent: _safePercent(
+              ethereumProfitPercent,
+            ),
+
+            // ==================================================
+            // SOL
+            // ==================================================
+            solanaCurrentValue: _safeMoney(
+              solanaCurrentValue,
+            ),
+
+            solanaProfitPercent: _safePercent(
+              solanaProfitPercent,
+            ),
+
+            // ==================================================
+            // USDT
+            // ==================================================
+            usdtCurrentValue: _safeMoney(
+              usdtCurrentValue,
+            ),
+
+            usdtProfitPercent: _safePercent(
+              usdtProfitPercent,
+            ),
+
+            // ==================================================
+            // AÇÕES
+            // ==================================================
             onBalance: onBalance,
 
             onBitcoin: () {
@@ -190,6 +345,9 @@ class FinanceBody
 
             onVault: onVault,
 
+            // ==================================================
+            // VISIBILIDADE
+            // ==================================================
             showBalances: showBalances,
           ),
 
@@ -199,25 +357,25 @@ class FinanceBody
 
           // ====================================================
           // RESUMO FINANCEIRO
-          //
-          // Agora contém:
-          //
-          // - Nome do objetivo
-          // - Valor do objetivo
-          // - Ritmos
-          //
-          // O nome vem do FinanceScreenController.
           // ====================================================
           FinanceSummarySection(
             objectiveName: objectiveName,
 
-            investmentGoal: investmentGoal,
+            investmentGoal: _safeMoney(
+              investmentGoal,
+            ),
 
-            minimumGoal: minimumGoal,
+            minimumGoal: _safeMoney(
+              minimumGoal,
+            ),
 
-            mediumGoal: mediumGoal,
+            mediumGoal: _safeMoney(
+              mediumGoal,
+            ),
 
-            maximumGoal: maximumGoal,
+            maximumGoal: _safeMoney(
+              maximumGoal,
+            ),
 
             onObjectiveTap: onEditGoal,
 

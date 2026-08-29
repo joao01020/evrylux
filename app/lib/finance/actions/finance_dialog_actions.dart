@@ -86,13 +86,32 @@ class FinanceDialogActions {
     }
 
     try {
-      // Atualiza quantidade e valores depois que o
-      // CryptoDialog for fechado.
+      // ========================================================
+      // ATUALIZA CRYPTO
+      // ========================================================
+      //
+      // O CryptoDialog pode:
+      //
+      // - adicionar compra
+      // - editar compra
+      // - excluir compra
+      //
+      // Por isso, depois que ele fecha, recalculamos:
+      //
+      // - quantidades
+      // - investido
+      // - valor atual
+      // - lucro/prejuízo
+      //
+      // ========================================================
+
       await controller.refreshCryptoBalances();
 
-      if (isMounted()) {
-        refresh();
+      if (!isMounted()) {
+        return;
       }
+
+      refresh();
     } catch (
       error,
       stackTrace
@@ -123,6 +142,66 @@ class FinanceDialogActions {
   openCryptoBalance() async {
     final balances = controller.balances;
 
+    // ==========================================================
+    // BTC
+    // ==========================================================
+
+    final bitcoinCurrentValue = _cryptoCurrentValue(
+      symbol: 'BTC',
+      quantity: balances.bitcoin,
+    );
+
+    final bitcoinProfitPercent = _cryptoProfitPercent(
+      symbol: 'BTC',
+      currentValue: bitcoinCurrentValue,
+    );
+
+    // ==========================================================
+    // ETH
+    // ==========================================================
+
+    final ethereumCurrentValue = _cryptoCurrentValue(
+      symbol: 'ETH',
+      quantity: balances.ethereum,
+    );
+
+    final ethereumProfitPercent = _cryptoProfitPercent(
+      symbol: 'ETH',
+      currentValue: ethereumCurrentValue,
+    );
+
+    // ==========================================================
+    // SOL
+    // ==========================================================
+
+    final solanaCurrentValue = _cryptoCurrentValue(
+      symbol: 'SOL',
+      quantity: balances.solana,
+    );
+
+    final solanaProfitPercent = _cryptoProfitPercent(
+      symbol: 'SOL',
+      currentValue: solanaCurrentValue,
+    );
+
+    // ==========================================================
+    // USDT
+    // ==========================================================
+
+    final usdtCurrentValue = _cryptoCurrentValue(
+      symbol: 'USDT',
+      quantity: balances.usdt,
+    );
+
+    final usdtProfitPercent = _cryptoProfitPercent(
+      symbol: 'USDT',
+      currentValue: usdtCurrentValue,
+    );
+
+    // ==========================================================
+    // DIALOG
+    // ==========================================================
+
     await showDialog<
       void
     >(
@@ -132,10 +211,38 @@ class FinanceDialogActions {
             dialogContext,
           ) {
             return CryptoBalanceDialog(
+              // ====================================================
+              // SALDOS
+              // ====================================================
               bitcoin: balances.bitcoin,
+
               ethereum: balances.ethereum,
+
               solana: balances.solana,
+
               usdt: balances.usdt,
+
+              // ====================================================
+              // VALORES ATUAIS
+              // ====================================================
+              bitcoinCurrentValue: bitcoinCurrentValue,
+
+              ethereumCurrentValue: ethereumCurrentValue,
+
+              solanaCurrentValue: solanaCurrentValue,
+
+              usdtCurrentValue: usdtCurrentValue,
+
+              // ====================================================
+              // RESULTADO %
+              // ====================================================
+              bitcoinProfitPercent: bitcoinProfitPercent,
+
+              ethereumProfitPercent: ethereumProfitPercent,
+
+              solanaProfitPercent: solanaProfitPercent,
+
+              usdtProfitPercent: usdtProfitPercent,
 
               // ====================================================
               // BTC
@@ -198,6 +305,151 @@ class FinanceDialogActions {
   }
 
   // ============================================================
+  // VALOR ATUAL DA CRIPTOMOEDA
+  // ============================================================
+  //
+  // Usa:
+  //
+  // quantidade × cotação atual em BRL
+  //
+  // Exemplo:
+  //
+  // 0.001 BTC × R$ 400.000
+  //
+  // = R$ 400
+  //
+  // ============================================================
+
+  double _cryptoCurrentValue({
+    required String symbol,
+    required double quantity,
+  }) {
+    if (!quantity.isFinite ||
+        quantity <=
+            0) {
+      return 0;
+    }
+
+    try {
+      final price = controller.cryptoController.priceFor(
+        symbol,
+      );
+
+      final safePrice =
+          price
+              is num
+          ? price.toDouble()
+          : 0.0;
+
+      if (!safePrice.isFinite ||
+          safePrice <=
+              0) {
+        return 0;
+      }
+
+      final result =
+          quantity *
+          safePrice;
+
+      if (!result.isFinite ||
+          result <
+              0) {
+        return 0;
+      }
+
+      return result;
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        '[FINANCE DIALOG]'
+        '[CRYPTO CURRENT VALUE]'
+        '[$symbol] $error',
+      );
+
+      debugPrint(
+        '$stackTrace',
+      );
+
+      return 0;
+    }
+  }
+
+  // ============================================================
+  // RESULTADO %
+  // ============================================================
+  //
+  // Resultado:
+  //
+  // valor atual - investido
+  //
+  // Percentual:
+  //
+  // resultado / investido × 100
+  //
+  // ============================================================
+
+  double _cryptoProfitPercent({
+    required String symbol,
+    required double currentValue,
+  }) {
+    try {
+      final invested = controller.cryptoController.investedFor(
+        symbol,
+      );
+
+      final safeInvested =
+          invested
+              is num
+          ? invested.toDouble()
+          : 0.0;
+
+      if (!safeInvested.isFinite ||
+          safeInvested <=
+              0) {
+        return 0;
+      }
+
+      if (!currentValue.isFinite ||
+          currentValue <
+              0) {
+        return 0;
+      }
+
+      final result =
+          currentValue -
+          safeInvested;
+
+      final percent =
+          (result /
+              safeInvested) *
+          100;
+
+      if (!percent.isFinite) {
+        return 0;
+      }
+
+      return percent;
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        '[FINANCE DIALOG]'
+        '[CRYPTO PROFIT PERCENT]'
+        '[$symbol] $error',
+      );
+
+      debugPrint(
+        '$stackTrace',
+      );
+
+      return 0;
+    }
+  }
+
+  // ============================================================
   // EDITAR SALDO CRYPTO
   // ============================================================
 
@@ -252,7 +504,6 @@ class FinanceDialogActions {
                       ),
                     ],
                   ),
-
                   content: SizedBox(
                     width: 420,
                     child: Column(
@@ -275,11 +526,9 @@ class FinanceDialogActions {
                         TextField(
                           controller: textController,
                           autofocus: true,
-
                           keyboardType: const TextInputType.numberWithOptions(
                             decimal: true,
                           ),
-
                           inputFormatters: [
                             FilteringTextInputFormatter.allow(
                               RegExp(
@@ -287,9 +536,7 @@ class FinanceDialogActions {
                               ),
                             ),
                           ],
-
                           textInputAction: TextInputAction.done,
-
                           decoration: InputDecoration(
                             labelText: 'Saldo',
                             hintText: _cryptoHint(
@@ -298,7 +545,6 @@ class FinanceDialogActions {
                             suffixText: symbol,
                             border: const OutlineInputBorder(),
                           ),
-
                           onSubmitted:
                               (
                                 value,
@@ -327,7 +573,6 @@ class FinanceDialogActions {
                       ],
                     ),
                   ),
-
                   actions: [
                     TextButton(
                       onPressed: () {
@@ -394,7 +639,7 @@ class FinanceDialogActions {
       );
 
       // ========================================================
-      // SALVA NO SUPABASE
+      // SALVA
       // ========================================================
 
       await controller.saveModel();
@@ -417,7 +662,9 @@ class FinanceDialogActions {
       stackTrace
     ) {
       debugPrint(
-        '[FINANCE DIALOG][CRYPTO][UPDATE] $error',
+        '[FINANCE DIALOG]'
+        '[CRYPTO]'
+        '[UPDATE] $error',
       );
 
       debugPrint(
@@ -443,18 +690,22 @@ class FinanceDialogActions {
     switch (symbol.trim().toUpperCase()) {
       case 'BTC':
         controller.model.bitcoin = value;
+
         break;
 
       case 'ETH':
         controller.model.ethereum = value;
+
         break;
 
       case 'SOL':
         controller.model.solana = value;
+
         break;
 
       case 'USDT':
         controller.model.usdt = value;
+
         break;
 
       default:

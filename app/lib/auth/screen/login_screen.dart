@@ -51,43 +51,43 @@ class _LoginScreenState
   // ============================================================
 
   static const Color _background = Color(
-    0xFF090A0E,
+    0xFFF7FBF1,
   );
 
   static const Color _surface = Color(
-    0xFF111319,
+    0xFFFFFFFF,
   );
 
   static const Color _surfaceLight = Color(
-    0xFF171A22,
+    0xFFF3F8EE,
   );
 
   static const Color _border = Color(
-    0xFF272B36,
+    0xFFC7DFC9,
   );
 
   static const Color _primary = Color(
-    0xFF7C5CFF,
+    0xFFBCF0B4,
   );
 
   static const Color _primaryLight = Color(
-    0xFFA18CFF,
+    0xFF3B6939,
   );
 
   static const Color _text = Color(
-    0xFFF5F7FA,
+    0xFF172019,
   );
 
   static const Color _muted = Color(
-    0xFF9298A6,
+    0xFF68746B,
   );
 
   static const Color _error = Color(
-    0xFFFF8DAA,
+    0xFFB3261E,
   );
 
   static const Color _success = Color(
-    0xFF8BFFB0,
+    0xFF3B6939,
   );
 
   // ============================================================
@@ -635,39 +635,6 @@ class _LoginScreenState
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         // ======================================
-                        // LOGO
-                        // ======================================
-                        Align(
-                          alignment: Alignment.center,
-                          child: Container(
-                            width: 58,
-                            height: 58,
-                            decoration: BoxDecoration(
-                              color: _primary.withValues(
-                                alpha: .12,
-                              ),
-                              borderRadius: BorderRadius.circular(
-                                17,
-                              ),
-                              border: Border.all(
-                                color: _primary.withValues(
-                                  alpha: .35,
-                                ),
-                              ),
-                            ),
-                            child: const Icon(
-                              Icons.auto_awesome_outlined,
-                              color: _primaryLight,
-                              size: 29,
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(
-                          height: 18,
-                        ),
-
-                        // ======================================
                         // TITLE
                         // ======================================
                         Text(
@@ -873,7 +840,7 @@ class _LoginScreenState
                               disabledBackgroundColor: _primary.withValues(
                                 alpha: .45,
                               ),
-                              foregroundColor: Colors.white,
+                              foregroundColor: _primaryLight,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(
                                   13,
@@ -886,7 +853,7 @@ class _LoginScreenState
                                     height: 20,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      color: Colors.white,
+                                      color: _primaryLight,
                                     ),
                                   )
                                 : Row(
@@ -1027,7 +994,7 @@ class _AuthField
         ),
         hintStyle: const TextStyle(
           color: Color(
-            0xFF686F7C,
+            0xFF8A958C,
           ),
           fontSize: 12,
         ),
