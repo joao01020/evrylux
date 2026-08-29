@@ -6,6 +6,10 @@ import 'investment_history.dart';
 class FinanceHistoryStorage {
   const FinanceHistoryStorage();
 
+  // ============================================================
+  // TABLE
+  // ============================================================
+
   static const String _table = 'finance_contributions';
 
   // ============================================================
@@ -53,14 +57,9 @@ class FinanceHistoryStorage {
         '[FINANCE HISTORY] Salvando histórico...',
       );
 
-      // --------------------------------------------------------
-      // Estratégia:
-      //
-      // O controller trabalha com a lista completa em memória.
-      // Então, ao salvar, sincronizamos a lista inteira.
-      //
-      // Remove o histórico do usuário e grava novamente.
-      // --------------------------------------------------------
+      // ========================================================
+      // REMOVE HISTÓRICO ATUAL
+      // ========================================================
 
       await _client
           .from(
@@ -79,6 +78,10 @@ class FinanceHistoryStorage {
 
         return;
       }
+
+      // ========================================================
+      // PREPARAR REGISTROS
+      // ========================================================
 
       final rows = history.map(
         (
@@ -100,6 +103,10 @@ class FinanceHistoryStorage {
         },
       ).toList();
 
+      // ========================================================
+      // INSERT
+      // ========================================================
+
       await _client
           .from(
             _table,
@@ -109,25 +116,30 @@ class FinanceHistoryStorage {
           );
 
       debugPrint(
-        '[FINANCE HISTORY] ${rows.length} registros salvos.',
+        '[FINANCE HISTORY] '
+        '${rows.length} registros salvos.',
       );
     } on PostgrestException catch (
       error
     ) {
       debugPrint(
-        '[FINANCE HISTORY] Erro Supabase ao salvar.',
+        '[FINANCE HISTORY] '
+        'Erro Supabase ao salvar.',
       );
 
       debugPrint(
-        '[FINANCE HISTORY] Code: ${error.code}',
+        '[FINANCE HISTORY] '
+        'Code: ${error.code}',
       );
 
       debugPrint(
-        '[FINANCE HISTORY] Message: ${error.message}',
+        '[FINANCE HISTORY] '
+        'Message: ${error.message}',
       );
 
       debugPrint(
-        '[FINANCE HISTORY] Details: ${error.details}',
+        '[FINANCE HISTORY] '
+        'Details: ${error.details}',
       );
 
       rethrow;
@@ -135,7 +147,8 @@ class FinanceHistoryStorage {
       error
     ) {
       debugPrint(
-        '[FINANCE HISTORY] Erro ao salvar: $error',
+        '[FINANCE HISTORY] '
+        'Erro ao salvar: $error',
       );
 
       rethrow;
@@ -162,6 +175,7 @@ class FinanceHistoryStorage {
           .select(
             'value, '
             'contribution_date, '
+            'created_at, '
             'rhythm, '
             'objective_progress, '
             'time_progress',
@@ -172,7 +186,7 @@ class FinanceHistoryStorage {
           )
           .order(
             'contribution_date',
-            ascending: true,
+            ascending: false,
           );
 
       final history =
@@ -206,12 +220,17 @@ class FinanceHistoryStorage {
         );
       }
 
-      _sortByDate(
+      // ========================================================
+      // GARANTIR ORDEM
+      // ========================================================
+
+      _sortByDateDescending(
         history,
       );
 
       debugPrint(
-        '[FINANCE HISTORY] ${history.length} registros carregados.',
+        '[FINANCE HISTORY] '
+        '${history.length} registros carregados.',
       );
 
       return history;
@@ -219,15 +238,18 @@ class FinanceHistoryStorage {
       error
     ) {
       debugPrint(
-        '[FINANCE HISTORY] Erro Supabase ao carregar.',
+        '[FINANCE HISTORY] '
+        'Erro Supabase ao carregar.',
       );
 
       debugPrint(
-        '[FINANCE HISTORY] Code: ${error.code}',
+        '[FINANCE HISTORY] '
+        'Code: ${error.code}',
       );
 
       debugPrint(
-        '[FINANCE HISTORY] Message: ${error.message}',
+        '[FINANCE HISTORY] '
+        'Message: ${error.message}',
       );
 
       rethrow;
@@ -235,7 +257,8 @@ class FinanceHistoryStorage {
       error
     ) {
       debugPrint(
-        '[FINANCE HISTORY] Erro ao carregar: $error',
+        '[FINANCE HISTORY] '
+        'Erro ao carregar: $error',
       );
 
       rethrow;
@@ -295,10 +318,19 @@ class FinanceHistoryStorage {
 
     final date = contribution.date.toUtc().toIso8601String();
 
-    // ----------------------------------------------------------
-    // Como o modelo InvestmentHistory atual não possui ID,
-    // identificamos pelo usuário + data + valor.
-    // ----------------------------------------------------------
+    // ========================================================
+    // SEM ID NO MODEL
+    // ========================================================
+    //
+    // Identificação:
+    //
+    // user_id
+    // +
+    // contribution_date
+    // +
+    // value
+    //
+    // ========================================================
 
     await _client
         .from(
@@ -338,6 +370,7 @@ class FinanceHistoryStorage {
         .select(
           'value, '
           'contribution_date, '
+          'created_at, '
           'rhythm, '
           'objective_progress, '
           'time_progress',
@@ -405,7 +438,7 @@ class FinanceHistoryStorage {
           history,
         );
 
-    _sortByDate(
+    _sortByDateDescending(
       updatedHistory,
     );
 
@@ -437,7 +470,8 @@ class FinanceHistoryStorage {
         );
 
     debugPrint(
-      '[FINANCE HISTORY] Histórico removido.',
+      '[FINANCE HISTORY] '
+      'Histórico removido.',
     );
   }
 
@@ -480,10 +514,10 @@ class FinanceHistoryStorage {
   }
 
   // ============================================================
-  // SORT
+  // SORT DESCENDING
   // ============================================================
 
-  void _sortByDate(
+  void _sortByDateDescending(
     List<
       InvestmentHistory
     >
@@ -494,8 +528,8 @@ class FinanceHistoryStorage {
         first,
         second,
       ) {
-        return first.date.compareTo(
-          second.date,
+        return second.date.compareTo(
+          first.date,
         );
       },
     );
@@ -515,11 +549,20 @@ class FinanceHistoryStorage {
 
     if (value
         is num) {
-      return value.toDouble();
+      final result = value.toDouble();
+
+      if (!result.isFinite) {
+        return 0;
+      }
+
+      return result;
     }
 
     return double.tryParse(
-          value.toString(),
+          value.toString().trim().replaceAll(
+            ',',
+            '.',
+          ),
         ) ??
         0;
   }
@@ -533,13 +576,19 @@ class FinanceHistoryStorage {
   ) {
     if (value
         is DateTime) {
-      return value;
+      return value.toLocal();
     }
 
-    return DateTime.tryParse(
-          value?.toString() ??
-              '',
-        ) ??
-        DateTime.now();
+    final parsed = DateTime.tryParse(
+      value?.toString() ??
+          '',
+    );
+
+    if (parsed ==
+        null) {
+      return DateTime.now();
+    }
+
+    return parsed.toLocal();
   }
 }

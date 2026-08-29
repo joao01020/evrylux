@@ -1,8 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class InvestmentMoneyField
     extends
         StatelessWidget {
+  const InvestmentMoneyField({
+    super.key,
+    required this.controller,
+    required this.label,
+    required this.hint,
+    required this.icon,
+    this.onChanged,
+    this.enabled = true,
+  });
+
+  // ============================================================
+  // DADOS
+  // ============================================================
+
   final TextEditingController controller;
 
   final String label;
@@ -11,17 +26,16 @@ class InvestmentMoneyField
 
   final IconData icon;
 
-  const InvestmentMoneyField({
-    super.key,
+  final ValueChanged<
+    String
+  >?
+  onChanged;
 
-    required this.controller,
+  final bool enabled;
 
-    required this.label,
-
-    required this.hint,
-
-    required this.icon,
-  });
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(
@@ -30,9 +44,21 @@ class InvestmentMoneyField
     return TextField(
       controller: controller,
 
+      enabled: enabled,
+
       keyboardType: const TextInputType.numberWithOptions(
         decimal: true,
       ),
+
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(
+          RegExp(
+            r'^\d*[.,]?\d{0,2}',
+          ),
+        ),
+      ],
+
+      onChanged: onChanged,
 
       decoration: InputDecoration(
         labelText: label,
@@ -44,6 +70,17 @@ class InvestmentMoneyField
         ),
 
         border: const OutlineInputBorder(),
+
+        enabledBorder: const OutlineInputBorder(),
+
+        focusedBorder: OutlineInputBorder(
+          borderSide: BorderSide(
+            color: Theme.of(
+              context,
+            ).colorScheme.primary,
+            width: 1.5,
+          ),
+        ),
       ),
     );
   }

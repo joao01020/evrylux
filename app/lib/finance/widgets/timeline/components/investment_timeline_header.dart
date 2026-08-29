@@ -1,48 +1,97 @@
 import 'package:flutter/material.dart';
 
-class InvestmentTimelineHeader extends StatelessWidget {
+class InvestmentTimelineHeader
+    extends
+        StatelessWidget {
+  const InvestmentTimelineHeader({
+    super.key,
+    required this.contributionCount,
+  });
+
+  // ============================================================
+  // DADOS
+  // ============================================================
+
   final int contributionCount;
 
-  const InvestmentTimelineHeader({super.key, required this.contributionCount});
+  // ============================================================
+  // TEXTO
+  // ============================================================
+
+  String get _subtitle {
+    if (contributionCount <=
+        0) {
+      return 'Seus aportes aparecerão aqui.';
+    }
+
+    if (contributionCount ==
+        1) {
+      return '1 aporte registrado.';
+    }
+
+    return '$contributionCount aportes registrados.';
+  }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme = Theme.of(
+      context,
+    ).colorScheme;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // ======================================================
+        // ÍCONE
+        // ======================================================
         Container(
           width: 46,
           height: 46,
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(14),
+            color: colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(
+              14,
+            ),
           ),
           child: Icon(
             Icons.history_outlined,
-            color: Theme.of(context).colorScheme.onPrimaryContainer,
+            color: colorScheme.onPrimaryContainer,
           ),
         ),
 
-        const SizedBox(width: 12),
+        const SizedBox(
+          width: 12,
+        ),
 
+        // ======================================================
+        // TEXTOS
+        // ======================================================
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
                 'Histórico de aportes',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
 
-              const SizedBox(height: 4),
+              const SizedBox(
+                height: 4,
+              ),
 
               Text(
-                contributionCount == 0
-                    ? 'Seus aportes aparecerão aqui.'
-                    : '$contributionCount '
-                          '${contributionCount == 1 ? 'aporte registrado' : 'aportes registrados'}.',
+                _subtitle,
                 style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
             ],

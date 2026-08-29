@@ -14,6 +14,10 @@ class InvestmentTimeline
     this.showBalances = true,
   });
 
+  // ============================================================
+  // DADOS
+  // ============================================================
+
   final List<
     InvestmentHistory
   >
@@ -33,6 +37,10 @@ class InvestmentTimeline
 
   final bool showBalances;
 
+  // ============================================================
+  // TOTAL
+  // ============================================================
+
   double get total {
     double result = 0;
 
@@ -43,6 +51,10 @@ class InvestmentTimeline
     return result;
   }
 
+  // ============================================================
+  // MÉDIA
+  // ============================================================
+
   double get average {
     if (history.isEmpty) {
       return 0;
@@ -52,6 +64,10 @@ class InvestmentTimeline
         history.length;
   }
 
+  // ============================================================
+  // BUILD
+  // ============================================================
+
   @override
   Widget build(
     BuildContext context,
@@ -60,24 +76,33 @@ class InvestmentTimeline
       return const SizedBox.shrink();
     }
 
+    final colorScheme = Theme.of(
+      context,
+    ).colorScheme;
+
     return Container(
       width: double.infinity,
+
       padding: const EdgeInsets.all(
         16,
       ),
+
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(
           22,
         ),
+
         border: Border.all(
-          color: Theme.of(
-            context,
-          ).colorScheme.outlineVariant,
+          color: colorScheme.outlineVariant,
         ),
       ),
+
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ====================================================
+          // HEADER
+          // ====================================================
           if (showHeader) ...[
             const Text(
               'Histórico',
@@ -86,6 +111,7 @@ class InvestmentTimeline
                 fontWeight: FontWeight.w800,
               ),
             ),
+
             const SizedBox(
               height: 14,
             ),
@@ -99,9 +125,11 @@ class InvestmentTimeline
               Expanded(
                 child: _TimelineMetric(
                   icon: Icons.account_balance_wallet_outlined,
+
                   value: _money(
                     total,
                   ),
+
                   label: 'Total aportado',
                 ),
               ),
@@ -113,9 +141,11 @@ class InvestmentTimeline
               Expanded(
                 child: _TimelineMetric(
                   icon: Icons.bar_chart_rounded,
+
                   value: _money(
                     average,
                   ),
+
                   label: 'Média por aporte',
                 ),
               ),
@@ -127,7 +157,9 @@ class InvestmentTimeline
               Expanded(
                 child: _TimelineMetric(
                   icon: Icons.format_list_numbered_rounded,
+
                   value: '${history.length}',
+
                   label: 'Aportes',
                 ),
               ),
@@ -138,6 +170,9 @@ class InvestmentTimeline
             height: 20,
           ),
 
+          // ====================================================
+          // APORTES
+          // ====================================================
           ...history.map(
             (
               item,
@@ -153,41 +188,61 @@ class InvestmentTimeline
     );
   }
 
+  // ============================================================
+  // ITEM
+  // ============================================================
+
   Widget _buildItem(
     BuildContext context,
     InvestmentHistory item,
   ) {
+    final colorScheme = Theme.of(
+      context,
+    ).colorScheme;
+
     return InkWell(
       onTap: () {
         onTap(
           item,
         );
       },
+
       borderRadius: BorderRadius.circular(
         14,
       ),
+
       child: Container(
         width: double.infinity,
+
         margin: const EdgeInsets.only(
           bottom: 10,
         ),
+
         padding: const EdgeInsets.all(
           14,
         ),
+
         decoration: BoxDecoration(
-          color: Theme.of(
-            context,
-          ).colorScheme.surfaceContainerLow,
+          color: colorScheme.surfaceContainerLow,
+
           borderRadius: BorderRadius.circular(
             14,
           ),
         ),
+
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            // ==================================================
+            // CONTEÚDO
+            // ==================================================
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ============================================
+                  // VALOR
+                  // ============================================
                   Text(
                     _money(
                       item.safeValue,
@@ -202,20 +257,62 @@ class InvestmentTimeline
                     height: 4,
                   ),
 
+                  // ============================================
+                  // RITMO
+                  // ============================================
                   Text(
                     item.normalizedRhythm,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+
+                  const SizedBox(
+                    height: 6,
+                  ),
+
+                  // ============================================
+                  // DATA
+                  // ============================================
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_month_outlined,
+                        size: 14,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+
+                      const SizedBox(
+                        width: 5,
+                      ),
+
+                      Text(
+                        item.formattedDateTime,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
 
+            // ==================================================
+            // DELETE
+            // ==================================================
             IconButton(
               tooltip: 'Excluir',
+
               onPressed: () {
                 onDelete(
                   item,
                 );
               },
+
               icon: const Icon(
                 Icons.delete_outline_rounded,
               ),
@@ -225,6 +322,10 @@ class InvestmentTimeline
       ),
     );
   }
+
+  // ============================================================
+  // MONEY
+  // ============================================================
 
   String _money(
     double value,
@@ -237,6 +338,10 @@ class InvestmentTimeline
   }
 }
 
+// ============================================================
+// TIMELINE METRIC
+// ============================================================
+
 class _TimelineMetric
     extends
         StatelessWidget {
@@ -247,25 +352,32 @@ class _TimelineMetric
   });
 
   final IconData icon;
+
   final String value;
+
   final String label;
 
   @override
   Widget build(
     BuildContext context,
   ) {
+    final colorScheme = Theme.of(
+      context,
+    ).colorScheme;
+
     return Container(
       padding: const EdgeInsets.all(
         14,
       ),
+
       decoration: BoxDecoration(
-        color: Theme.of(
-          context,
-        ).colorScheme.surfaceContainerHighest,
+        color: colorScheme.surfaceContainerHighest,
+
         borderRadius: BorderRadius.circular(
           15,
         ),
       ),
+
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
