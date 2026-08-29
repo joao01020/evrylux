@@ -4,7 +4,11 @@ import '../../app/dependencies/app_dependencies.dart';
 
 import '../actions/finance_screen_actions.dart';
 import '../controllers/finance_screen_controller.dart';
+import '../services/history/investment_history.dart';
+import '../widgets/common/empty_last_contribution.dart';
 import '../widgets/components/finance_screen_content.dart';
+import '../widgets/progress/investment_progress.dart';
+import '../widgets/timeline/investment_timeline.dart';
 
 class FinanceScreen
     extends
@@ -30,14 +34,6 @@ class _FinanceScreenState
   late final FinanceScreenController _controller;
 
   late final FinanceScreenActions _actions;
-
-  // ============================================================
-  // EXPANSÃO DOS CARDS
-  // ============================================================
-
-  bool _showEvolutionDetails = false;
-
-  bool _showLastContributionDetails = false;
 
   // ============================================================
   // VISIBILIDADE GLOBAL DOS SALDOS
@@ -106,7 +102,7 @@ class _FinanceScreenState
   }
 
   // ============================================================
-  // MOSTRAR / OCULTAR TODOS OS SALDOS
+  // MOSTRAR / OCULTAR SALDOS
   // ============================================================
 
   void _toggleBalances() {
@@ -122,38 +118,6 @@ class _FinanceScreenState
   }
 
   // ============================================================
-  // TOGGLE EVOLUTION
-  // ============================================================
-
-  void _toggleEvolutionDetails() {
-    if (!mounted) {
-      return;
-    }
-
-    setState(
-      () {
-        _showEvolutionDetails = !_showEvolutionDetails;
-      },
-    );
-  }
-
-  // ============================================================
-  // TOGGLE LAST CONTRIBUTION
-  // ============================================================
-
-  void _toggleLastContributionDetails() {
-    if (!mounted) {
-      return;
-    }
-
-    setState(
-      () {
-        _showLastContributionDetails = !_showLastContributionDetails;
-      },
-    );
-  }
-
-  // ============================================================
   // APP BAR
   // ============================================================
 
@@ -164,7 +128,7 @@ class _FinanceScreenState
       ),
       actions: [
         // ======================================================
-        // OLHO - VISIBILIDADE GLOBAL
+        // OLHO
         // ======================================================
         IconButton(
           tooltip: _showBalances
@@ -204,18 +168,202 @@ class _FinanceScreenState
   }
 
   // ============================================================
-  // CONTRIBUTION BUTTON
+  // ÚLTIMO APORTE
   // ============================================================
 
-  Widget _buildContributionButton() {
-    return FloatingActionButton.extended(
-      onPressed: _actions.openContribution,
-      icon: const Icon(
-        Icons.add,
+  List<
+    InvestmentHistory
+  >
+  get _latestContribution {
+    if (_controller.history.isEmpty) {
+      return [];
+    }
+
+    return [
+      _controller.history.last,
+    ];
+  }
+
+  // ============================================================
+  // MODAL - SUA EVOLUÇÃO
+  // ============================================================
+
+  Future<
+    void
+  >
+  _openEvolutionModal() async {
+    await showModalBottomSheet<
+      void
+    >(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      backgroundColor: Theme.of(
+        context,
+      ).colorScheme.surface,
+      constraints: const BoxConstraints(
+        maxWidth: 660,
       ),
-      label: const Text(
-        'Registrar aporte',
+      builder:
+          (
+            modalContext,
+          ) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                4,
+                20,
+                24 +
+                    MediaQuery.of(
+                      modalContext,
+                    ).viewInsets.bottom,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ==========================================
+                    // HEADER
+                    // ==========================================
+                    _FinanceModalHeader(
+                      icon: Icons.trending_up_rounded,
+                      title: 'Sua evolução',
+                      subtitle: 'O objetivo cresce enquanto o tempo restante diminui.',
+                      onClose: () {
+                        Navigator.of(
+                          modalContext,
+                        ).pop();
+                      },
+                    ),
+
+                    const SizedBox(
+                      height: 22,
+                    ),
+
+                    // ==========================================
+                    // CONTEÚDO
+                    // ==========================================
+                    InvestmentProgress(
+                      projection: _controller.projection,
+                      showPatrimony: true,
+                      showAverageContribution: true,
+                      showEstimatedTime: true,
+                      showBalances: _showBalances,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+    );
+  }
+
+  // ============================================================
+  // MODAL - ÚLTIMO APORTE
+  // ============================================================
+
+  Future<
+    void
+  >
+  _openLastContributionModal() async {
+    await showModalBottomSheet<
+      void
+    >(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      backgroundColor: Theme.of(
+        context,
+      ).colorScheme.surface,
+      constraints: const BoxConstraints(
+        maxWidth: 660,
       ),
+      builder:
+          (
+            modalContext,
+          ) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                4,
+                20,
+                24 +
+                    MediaQuery.of(
+                      modalContext,
+                    ).viewInsets.bottom,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ==========================================
+                    // HEADER
+                    // ==========================================
+                    _FinanceModalHeader(
+                      icon: Icons.savings_rounded,
+                      title: 'Último aporte',
+                      subtitle: _controller.history.isEmpty
+                          ? 'Nenhum aporte registrado.'
+                          : 'Seu aporte mais recente.',
+                      onClose: () {
+                        Navigator.of(
+                          modalContext,
+                        ).pop();
+                      },
+                    ),
+
+                    const SizedBox(
+                      height: 22,
+                    ),
+
+                    // ==========================================
+                    // CONTEÚDO
+                    // ==========================================
+                    if (_controller.history.isEmpty)
+                      const EmptyLastContribution()
+                    else
+                      InvestmentTimeline(
+                        history: _latestContribution,
+                        showHeader: false,
+                        onDelete: _actions.deleteContribution,
+                        onTap: _actions.showHistoryItem,
+                        showBalances: _showBalances,
+                      ),
+
+                    const SizedBox(
+                      height: 18,
+                    ),
+
+                    // ==========================================
+                    // HISTÓRICO COMPLETO
+                    // ==========================================
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.of(
+                            modalContext,
+                          ).pop();
+
+                          _actions.openHistory();
+                        },
+                        icon: const Icon(
+                          Icons.history_rounded,
+                        ),
+                        label: const Text(
+                          'Ver todos os aportes',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
     );
   }
 
@@ -236,18 +384,12 @@ class _FinanceScreenState
       // ========================================================
       model: _controller.model,
 
-      projection: _controller.projection,
-
       balances: _controller.balances,
-
-      history: _controller.history,
 
       // ========================================================
       // AÇÕES
       // ========================================================
       onPlanning: _actions.openPlanning,
-
-      onHistory: _actions.openHistory,
 
       onBalance: _actions.openCryptoBalance,
 
@@ -259,28 +401,22 @@ class _FinanceScreenState
 
       onCrypto: _actions.openCrypto,
 
-      onHistoryItem: _actions.showHistoryItem,
+      // ========================================================
+      // MODAIS
+      // ========================================================
+      onOpenEvolution: _openEvolutionModal,
 
-      onDeleteContribution: _actions.deleteContribution,
+      onOpenLastContribution: _openLastContributionModal,
 
       // ========================================================
-      // VISIBILIDADE GLOBAL DOS SALDOS
+      // NOVO BOTÃO +
+      // ========================================================
+      onContribution: _actions.openContribution,
+
+      // ========================================================
+      // VISIBILIDADE DOS SALDOS
       // ========================================================
       showBalances: _showBalances,
-
-      // ========================================================
-      // EVOLUÇÃO
-      // ========================================================
-      showEvolutionDetails: _showEvolutionDetails,
-
-      onToggleEvolution: _toggleEvolutionDetails,
-
-      // ========================================================
-      // ÚLTIMO APORTE
-      // ========================================================
-      showLastContributionDetails: _showLastContributionDetails,
-
-      onToggleLastContribution: _toggleLastContributionDetails,
     );
   }
 
@@ -295,9 +431,103 @@ class _FinanceScreenState
     return Scaffold(
       appBar: _buildAppBar(),
 
-      floatingActionButton: _buildContributionButton(),
-
+      // ========================================================
+      // SEM FLOATING ACTION BUTTON
+      //
+      // O aporte agora é aberto pelo botão +
+      // junto dos atalhos.
+      // ========================================================
       body: _buildBody(),
+    );
+  }
+}
+
+// ============================================================
+// HEADER DOS MODAIS
+// ============================================================
+
+class _FinanceModalHeader
+    extends
+        StatelessWidget {
+  const _FinanceModalHeader({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onClose,
+  });
+
+  final IconData icon;
+
+  final String title;
+
+  final String subtitle;
+
+  final VoidCallback onClose;
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme = Theme.of(
+      context,
+    ).colorScheme;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            color: colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(
+              14,
+            ),
+          ),
+          child: Icon(
+            icon,
+            color: colorScheme.primary,
+          ),
+        ),
+
+        const SizedBox(
+          width: 12,
+        ),
+
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+
+              const SizedBox(
+                height: 3,
+              ),
+
+              Text(
+                subtitle,
+                style: TextStyle(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        IconButton(
+          tooltip: 'Fechar',
+          onPressed: onClose,
+          icon: const Icon(
+            Icons.close_rounded,
+          ),
+        ),
+      ],
     );
   }
 }

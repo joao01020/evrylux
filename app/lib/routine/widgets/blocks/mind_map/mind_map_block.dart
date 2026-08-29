@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../controllers/mind_map_controller.dart';
 import '../../../models/board_block.dart';
+
 import 'mind_map_canvas.dart';
 
 class MindMapBlock
@@ -14,6 +15,7 @@ class MindMapBlock
   });
 
   final BoardBlock block;
+
   final MindMapController controller;
 
   @override

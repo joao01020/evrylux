@@ -57,11 +57,11 @@ class _StudyCalendarState
   );
 
   static const Color _primary = Color(
-    0xFF7C5CFF,
+    0xFF7BE495,
   );
 
   static const Color _primarySoft = Color(
-    0xFF9B87FF,
+    0xFFA8F0B8,
   );
 
   static const Color _textPrimary = Color(

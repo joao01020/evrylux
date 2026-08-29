@@ -5,25 +5,33 @@ class FinanceSummarySection
         StatelessWidget {
   const FinanceSummarySection({
     super.key,
-    required this.patrimony,
     required this.investmentGoal,
     required this.minimumGoal,
     required this.mediumGoal,
     required this.maximumGoal,
-    required this.onPatrimonyTap,
     required this.onObjectiveTap,
     required this.onRhythmsTap,
     this.showBalances = true,
   });
 
-  final double patrimony;
+  // ============================================================
+  // DADOS
+  // ============================================================
+
   final double investmentGoal;
+
   final double minimumGoal;
+
   final double mediumGoal;
+
   final double maximumGoal;
 
-  final VoidCallback onPatrimonyTap;
+  // ============================================================
+  // AÇÕES
+  // ============================================================
+
   final VoidCallback onObjectiveTap;
+
   final VoidCallback onRhythmsTap;
 
   // ============================================================
@@ -46,74 +54,60 @@ class FinanceSummarySection
             context,
             constraints,
           ) {
-            final cards = [
-              // ==================================================
-              // PATRIMÔNIO
-              // ==================================================
-              _FinanceSummaryCard(
-                icon: Icons.work_outline_rounded,
-                title: 'Patrimônio',
-                content: _money(
-                  patrimony,
-                ),
-                onTap: onPatrimonyTap,
-              ),
+            // ==================================================
+            // OBJETIVO
+            // ==================================================
 
-              // ==================================================
-              // OBJETIVO
-              // ==================================================
-              _FinanceSummaryCard(
-                icon: Icons.track_changes_rounded,
-                title: 'Objetivo',
-                content: _money(
-                  investmentGoal,
-                ),
-                onTap: onObjectiveTap,
+            final objectiveCard = _FinanceSummaryCard(
+              icon: Icons.track_changes_rounded,
+              title: 'Objetivo',
+              content: _money(
+                investmentGoal,
               ),
+              onTap: onObjectiveTap,
+            );
 
-              // ==================================================
-              // RITMOS
-              //
-              // Ritmos permanecem sempre visíveis.
-              // ==================================================
-              _FinanceSummaryCard(
-                icon: Icons.bar_chart_rounded,
-                title: 'Ritmos',
-                content: _rhythmsText(),
-                onTap: onRhythmsTap,
-              ),
-            ];
+            // ==================================================
+            // RITMOS
+            // ==================================================
 
-            // ====================================================
+            final rhythmsCard = _FinanceSummaryCard(
+              icon: Icons.bar_chart_rounded,
+              title: 'Ritmos',
+              content: _rhythmsText(),
+              onTap: onRhythmsTap,
+              compactContent: true,
+            );
+
+            // ==================================================
             // MOBILE
-            // ====================================================
+            // ==================================================
 
             if (constraints.maxWidth <
                 760) {
               return Column(
-                children: cards
-                    .map(
-                      (
-                        card,
-                      ) => Padding(
-                        padding: const EdgeInsets.only(
-                          bottom: 10,
-                        ),
-                        child: card,
-                      ),
-                    )
-                    .toList(),
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  objectiveCard,
+
+                  const SizedBox(
+                    height: 8,
+                  ),
+
+                  rhythmsCard,
+                ],
               );
             }
 
-            // ====================================================
+            // ==================================================
             // DESKTOP
-            // ====================================================
+            // ==================================================
 
             return Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
-                  child: cards[0],
+                  child: objectiveCard,
                 ),
 
                 const SizedBox(
@@ -121,15 +115,7 @@ class FinanceSummarySection
                 ),
 
                 Expanded(
-                  child: cards[1],
-                ),
-
-                const SizedBox(
-                  width: 10,
-                ),
-
-                Expanded(
-                  child: cards[2],
+                  child: rhythmsCard,
                 ),
               ],
             );
@@ -140,8 +126,7 @@ class FinanceSummarySection
   // ============================================================
   // RITMOS
   //
-  // NÃO respeita showBalances.
-  // Deve permanecer sempre visível.
+  // Os ritmos continuam sempre visíveis.
   // ============================================================
 
   String _rhythmsText() {
@@ -153,10 +138,7 @@ class FinanceSummarySection
   // ============================================================
   // MONEY
   //
-  // Usado apenas nos valores que devem ser ocultados:
-  //
-  // - Patrimônio
-  // - Objetivo
+  // O objetivo respeita o olho global.
   // ============================================================
 
   String _money(
@@ -262,6 +244,7 @@ class _FinanceSummaryCard
     required this.title,
     required this.content,
     required this.onTap,
+    this.compactContent = false,
   });
 
   final IconData icon;
@@ -272,57 +255,110 @@ class _FinanceSummaryCard
 
   final VoidCallback onTap;
 
+  final bool compactContent;
+
+  // ============================================================
+  // BUILD
+  // ============================================================
+
   @override
   Widget build(
     BuildContext context,
   ) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(
-        16,
-      ),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(
-          18,
-        ),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(
-            16,
-          ),
-          border: Border.all(
-            color: Theme.of(
-              context,
-            ).colorScheme.outlineVariant,
-          ),
-        ),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              size: 24,
-            ),
+    final colorScheme = Theme.of(
+      context,
+    ).colorScheme;
 
-            const SizedBox(
-              height: 10,
-            ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(
+          15,
+        ),
+        child: Container(
+          width: double.infinity,
 
-            Text(
-              title,
-              style: const TextStyle(
-                fontWeight: FontWeight.w700,
+          // ====================================================
+          // ALTURA COMPACTA
+          // ====================================================
+          height: 96,
+
+          padding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 8,
+          ),
+
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(
+              15,
+            ),
+            border: Border.all(
+              color: colorScheme.outlineVariant,
+            ),
+          ),
+
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // =================================================
+              // ÍCONE
+              // =================================================
+              Icon(
+                icon,
+                size: 19,
+                color: colorScheme.onSurface,
               ),
-            ),
 
-            const SizedBox(
-              height: 7,
-            ),
+              const SizedBox(
+                height: 5,
+              ),
 
-            Text(
-              content,
-              textAlign: TextAlign.center,
-            ),
-          ],
+              // =================================================
+              // TÍTULO
+              // =================================================
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+
+              SizedBox(
+                height: compactContent
+                    ? 2
+                    : 4,
+              ),
+
+              // =================================================
+              // CONTEÚDO
+              // =================================================
+              Flexible(
+                child: Text(
+                  content,
+                  textAlign: TextAlign.center,
+                  maxLines: compactContent
+                      ? 3
+                      : 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: compactContent
+                        ? 11.5
+                        : 13,
+                    height: compactContent
+                        ? 1.12
+                        : 1,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

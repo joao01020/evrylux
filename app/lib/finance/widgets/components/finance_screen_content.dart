@@ -1,33 +1,42 @@
 import 'package:flutter/material.dart';
 
-import '../../projections/finance_projection.dart';
-import '../../services/history/investment_history.dart';
-import '../progress/investment_progress.dart';
-import '../timeline/investment_timeline.dart';
-import '../wallet/wallet_card.dart';
 import '../../models/crypto/crypto_balances.dart';
-import '../common/empty_last_contribution.dart';
+
 import '../sections/finance_intro.dart';
-import '../sections/finance_section_header.dart';
-import '../sections/finance_summary_section.dart';
+import '../wallet/wallet_card.dart';
 
 class FinanceScreenContent
     extends
         StatelessWidget {
-  final dynamic model;
+  const FinanceScreenContent({
+    super.key,
+    required this.model,
+    required this.balances,
+    required this.onPlanning,
+    required this.onBalance,
+    required this.onVault,
+    required this.onPatrimony,
+    required this.onObjective,
+    required this.onCrypto,
+    required this.onOpenEvolution,
+    required this.onOpenLastContribution,
+    required this.onContribution,
+    required this.showBalances,
+  });
 
-  final FinanceProjection projection;
+  // ============================================================
+  // DADOS
+  // ============================================================
+
+  final dynamic model;
 
   final CryptoBalances balances;
 
-  final List<
-    InvestmentHistory
-  >
-  history;
+  // ============================================================
+  // AÇÕES
+  // ============================================================
 
   final VoidCallback onPlanning;
-
-  final VoidCallback onHistory;
 
   final VoidCallback onBalance;
 
@@ -37,104 +46,26 @@ class FinanceScreenContent
 
   final VoidCallback onObjective;
 
+  final VoidCallback onContribution;
+
   final ValueChanged<
     String
   >
   onCrypto;
 
-  final ValueChanged<
-    InvestmentHistory
-  >
-  onHistoryItem;
+  // ============================================================
+  // MODAIS EXISTENTES
+  // ============================================================
 
-  final ValueChanged<
-    InvestmentHistory
-  >
-  onDeleteContribution;
+  final VoidCallback onOpenEvolution;
+
+  final VoidCallback onOpenLastContribution;
 
   // ============================================================
-  // VISIBILIDADE DOS SALDOS
+  // SALDOS
   // ============================================================
 
   final bool showBalances;
-
-  // ============================================================
-  // MOSTRAR MAIS / MENOS
-  // ============================================================
-
-  final bool showEvolutionDetails;
-
-  final VoidCallback onToggleEvolution;
-
-  final bool showLastContributionDetails;
-
-  final VoidCallback onToggleLastContribution;
-
-  const FinanceScreenContent({
-    super.key,
-    required this.model,
-    required this.projection,
-    required this.balances,
-    required this.history,
-    required this.onPlanning,
-    required this.onHistory,
-    required this.onBalance,
-    required this.onVault,
-    required this.onPatrimony,
-    required this.onObjective,
-    required this.onCrypto,
-    required this.onHistoryItem,
-    required this.onDeleteContribution,
-    required this.showBalances,
-    required this.showEvolutionDetails,
-    required this.onToggleEvolution,
-    required this.showLastContributionDetails,
-    required this.onToggleLastContribution,
-  });
-
-  // ============================================================
-  // ÚLTIMO APORTE
-  // ============================================================
-
-  List<
-    InvestmentHistory
-  >
-  get latestContribution {
-    if (history.isEmpty) {
-      return [];
-    }
-
-    return [
-      history.last,
-    ];
-  }
-
-  // ============================================================
-  // TOTAL APORTADO
-  // ============================================================
-
-  double get totalContributed {
-    double total = 0;
-
-    for (final item in history) {
-      total += item.safeValue;
-    }
-
-    return total;
-  }
-
-  // ============================================================
-  // MÉDIA
-  // ============================================================
-
-  double get averageContribution {
-    if (history.isEmpty) {
-      return 0;
-    }
-
-    return totalContributed /
-        history.length;
-  }
 
   // ============================================================
   // BUILD
@@ -149,7 +80,7 @@ class FinanceScreenContent
         20,
         20,
         20,
-        110,
+        32,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -168,377 +99,116 @@ class FinanceScreenContent
           // ====================================================
           WalletCard(
             patrimony: model.patrimony,
+
             invested: model.invested,
+
             bitcoin: balances.bitcoin,
+
             ethereum: balances.ethereum,
+
             solana: balances.solana,
+
             usdt: balances.usdt,
+
             onBalance: onBalance,
-            onBitcoin: () => onCrypto(
-              'BTC',
-            ),
-            onEthereum: () => onCrypto(
-              'ETH',
-            ),
-            onSolana: () => onCrypto(
-              'SOL',
-            ),
-            onUsdt: () => onCrypto(
-              'USDT',
-            ),
+
+            onBitcoin: () {
+              onCrypto(
+                'BTC',
+              );
+            },
+
+            onEthereum: () {
+              onCrypto(
+                'ETH',
+              );
+            },
+
+            onSolana: () {
+              onCrypto(
+                'SOL',
+              );
+            },
+
+            onUsdt: () {
+              onCrypto(
+                'USDT',
+              );
+            },
+
             onVault: onVault,
 
-            // ==================================================
-            // OLHO GLOBAL
-            // ==================================================
             showBalances: showBalances,
           ),
 
           const SizedBox(
-            height: 20,
+            height: 16,
           ),
 
           // ====================================================
-          // RESUMO
+          // ATALHOS
           // ====================================================
-          FinanceSummarySection(
-            patrimony: model.patrimony,
-            investmentGoal: model.investmentGoal,
-            minimumGoal: model.minimumGoal,
-            mediumGoal: model.mediumGoal,
-            maximumGoal: model.maximumGoal,
-            onPatrimonyTap: onPatrimony,
-            onObjectiveTap: onObjective,
-            onRhythmsTap: onPlanning,
-
-            // ==================================================
-            // OLHO GLOBAL
-            //
-            // Patrimônio e Objetivo serão ocultados.
-            // Ritmos permanecem visíveis.
-            // ==================================================
-            showBalances: showBalances,
-          ),
-
-          const SizedBox(
-            height: 32,
-          ),
-
-          // ====================================================
-          // SUA EVOLUÇÃO
-          // ====================================================
-          FinanceSectionHeader(
-            title: 'Sua evolução',
-            subtitle: 'O objetivo cresce enquanto o tempo restante diminui.',
-            trailing: _buildToggleButton(
-              expanded: showEvolutionDetails,
-              onPressed: onToggleEvolution,
-            ),
-          ),
-
-          const SizedBox(
-            height: 14,
-          ),
-
-          // ====================================================
-          // SUA EVOLUÇÃO - MENOS
-          // ====================================================
-          if (!showEvolutionDetails)
-            _buildCollapsedEvolution(
-              context,
-            ),
-
-          // ====================================================
-          // SUA EVOLUÇÃO - MAIS
-          // ====================================================
-          if (showEvolutionDetails)
-            InvestmentProgress(
-              projection: projection,
-              showPatrimony: true,
-              showAverageContribution: true,
-              showEstimatedTime: true,
-
-              // ================================================
-              // OLHO GLOBAL
-              // ================================================
-              showBalances: showBalances,
-            ),
-
-          const SizedBox(
-            height: 32,
-          ),
-
-          // ====================================================
-          // ÚLTIMO APORTE
-          // ====================================================
-          FinanceSectionHeader(
-            title: 'Último aporte',
-            subtitle: history.isEmpty
-                ? 'Nenhum aporte registrado.'
-                : 'Seu aporte mais recente.',
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextButton.icon(
-                  onPressed: onHistory,
-                  icon: const Icon(
-                    Icons.history,
-                    size: 18,
-                  ),
-                  label: const Text(
-                    'Ver todos',
-                  ),
-                ),
-
-                const SizedBox(
-                  width: 4,
-                ),
-
-                _buildToggleButton(
-                  expanded: showLastContributionDetails,
-                  onPressed: onToggleLastContribution,
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(
-            height: 14,
-          ),
-
-          // ====================================================
-          // ÚLTIMO APORTE - MENOS
-          // ====================================================
-          if (!showLastContributionDetails)
-            _buildContributionSummary(
-              context,
-            ),
-
-          // ====================================================
-          // ÚLTIMO APORTE - MAIS
-          // ====================================================
-          if (showLastContributionDetails)
-            if (history.isEmpty)
-              const EmptyLastContribution()
-            else
-              InvestmentTimeline(
-                history: latestContribution,
-                showHeader: false,
-                onDelete: onDeleteContribution,
-                onTap: onHistoryItem,
-
-                // ==============================================
-                // OLHO GLOBAL
-                // ==============================================
-                showBalances: showBalances,
-              ),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // BOTÃO MOSTRAR MAIS / MENOS
-  // ============================================================
-
-  Widget _buildToggleButton({
-    required bool expanded,
-    required VoidCallback onPressed,
-  }) {
-    return TextButton.icon(
-      onPressed: onPressed,
-      icon: AnimatedRotation(
-        turns: expanded
-            ? 0.5
-            : 0,
-        duration: const Duration(
-          milliseconds: 200,
-        ),
-        child: const Icon(
-          Icons.expand_more_rounded,
-          size: 18,
-        ),
-      ),
-      label: Text(
-        expanded
-            ? 'Mostrar menos'
-            : 'Mostrar mais',
-      ),
-    );
-  }
-
-  // ============================================================
-  // SUA EVOLUÇÃO RECOLHIDA
-  // ============================================================
-
-  Widget _buildCollapsedEvolution(
-    BuildContext context,
-  ) {
-    final colorScheme = Theme.of(
-      context,
-    ).colorScheme;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(
-        16,
-      ),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(
-          22,
-        ),
-        border: Border.all(
-          color: colorScheme.outlineVariant,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ====================================================
-          // CABEÇALHO
-          // ====================================================
-          Row(
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
             children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(
-                    14,
-                  ),
-                ),
-                child: Icon(
-                  Icons.trending_up_rounded,
-                  color: colorScheme.primary,
-                ),
+              // =================================================
+              // EVOLUÇÃO
+              // =================================================
+              _FinanceShortcutButton(
+                tooltip: 'Sua evolução',
+                icon: Icons.trending_up_rounded,
+                onTap: onOpenEvolution,
               ),
 
-              const SizedBox(
-                width: 12,
+              // =================================================
+              // ÚLTIMO APORTE
+              // =================================================
+              _FinanceShortcutButton(
+                tooltip: 'Último aporte',
+                icon: Icons.savings_rounded,
+                onTap: onOpenLastContribution,
               ),
 
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Evolução do objetivo',
-                      style: TextStyle(
-                        fontSize: 19,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+              // =================================================
+              // REGISTRAR APORTE
+              // =================================================
+              _FinanceShortcutButton(
+                tooltip: 'Registrar aporte',
+                icon: Icons.add_rounded,
+                onTap: onContribution,
+              ),
 
-                    SizedBox(
-                      height: 4,
-                    ),
+              // =================================================
+              // OBJETIVO
+              // =================================================
+              _FinanceShortcutButton(
+                tooltip: 'Objetivo',
+                icon: Icons.track_changes_rounded,
+                onTap: () {
+                  _showObjectiveModal(
+                    context,
+                  );
+                },
+              ),
 
-                    Text(
-                      'Cada aporte avança seu objetivo e reduz o tempo restante.',
-                    ),
-                  ],
-                ),
+              // =================================================
+              // RITMOS
+              // =================================================
+              _FinanceShortcutButton(
+                tooltip: 'Ritmos',
+                icon: Icons.bar_chart_rounded,
+                onTap: () {
+                  _showRhythmsModal(
+                    context,
+                  );
+                },
               ),
             ],
           ),
 
           const SizedBox(
-            height: 26,
-          ),
-
-          // ====================================================
-          // OBJETIVO / FALTA
-          // ====================================================
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 15,
-            ),
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(
-                18,
-              ),
-            ),
-            child: Row(
-              children: [
-                // ==================================================
-                // OBJETIVO FINAL
-                // ==================================================
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Objetivo final',
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodySmall,
-                      ),
-
-                      const SizedBox(
-                        height: 4,
-                      ),
-
-                      Text(
-                        _balanceText(
-                          _toDouble(
-                            model.investmentGoal,
-                          ),
-                        ),
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // ==================================================
-                // DIVISOR
-                // ==================================================
-                Container(
-                  width: 1,
-                  height: 46,
-                  color: colorScheme.outlineVariant,
-                ),
-
-                // ==================================================
-                // AINDA FALTA
-                // ==================================================
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        'Ainda falta',
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodySmall,
-                      ),
-
-                      const SizedBox(
-                        height: 4,
-                      ),
-
-                      Text(
-                        _balanceText(
-                          projection.missingMoney,
-                        ),
-                        textAlign: TextAlign.end,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+            height: 30,
           ),
         ],
       ),
@@ -546,150 +216,236 @@ class FinanceScreenContent
   }
 
   // ============================================================
-  // RESUMO ÚLTIMO APORTE
+  // MODAL - OBJETIVO
   // ============================================================
 
-  Widget _buildContributionSummary(
+  Future<
+    void
+  >
+  _showObjectiveModal(
     BuildContext context,
-  ) {
-    final colorScheme = Theme.of(
-      context,
-    ).colorScheme;
+  ) async {
+    await showModalBottomSheet<
+      void
+    >(
+      context: context,
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(
-        16,
+      isScrollControlled: true,
+
+      useSafeArea: true,
+
+      showDragHandle: true,
+
+      backgroundColor: Theme.of(
+        context,
+      ).colorScheme.surface,
+
+      constraints: const BoxConstraints(
+        maxWidth: 660,
       ),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(
-          22,
-        ),
-        border: Border.all(
-          color: colorScheme.outlineVariant,
-        ),
-      ),
-      child: Row(
-        children: [
-          // ====================================================
-          // TOTAL
-          // ====================================================
-          Expanded(
-            child: _buildContributionMetric(
-              context: context,
-              icon: Icons.account_balance_wallet_outlined,
-              value: _balanceText(
-                totalContributed,
+
+      builder:
+          (
+            modalContext,
+          ) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                4,
+                20,
+                24 +
+                    MediaQuery.of(
+                      modalContext,
+                    ).viewInsets.bottom,
               ),
-              label: 'Total aportado',
-            ),
-          ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ============================================
+                  // HEADER
+                  // ============================================
+                  _FinanceModalHeader(
+                    icon: Icons.track_changes_rounded,
+                    title: 'Objetivo',
+                    subtitle: 'Defina o patrimônio que você deseja alcançar.',
+                    onClose: () {
+                      Navigator.of(
+                        modalContext,
+                      ).pop();
+                    },
+                  ),
 
-          const SizedBox(
-            width: 10,
-          ),
+                  const SizedBox(
+                    height: 22,
+                  ),
 
-          // ====================================================
-          // MÉDIA
-          // ====================================================
-          Expanded(
-            child: _buildContributionMetric(
-              context: context,
-              icon: Icons.bar_chart_rounded,
-              value: _balanceText(
-                averageContribution,
+                  // ============================================
+                  // CARD
+                  // ============================================
+                  _ObjectiveModalCard(
+                    value: _money(
+                      _toDouble(
+                        model.investmentGoal,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(
+                    height: 18,
+                  ),
+
+                  // ============================================
+                  // EDITAR
+                  // ============================================
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () {
+                        Navigator.of(
+                          modalContext,
+                        ).pop();
+
+                        onObjective();
+                      },
+                      icon: const Icon(
+                        Icons.edit_outlined,
+                      ),
+                      label: const Text(
+                        'Editar objetivo',
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              label: 'Média por aporte',
-            ),
-          ),
-
-          const SizedBox(
-            width: 10,
-          ),
-
-          // ====================================================
-          // QUANTIDADE
-          //
-          // Não é saldo monetário, permanece visível.
-          // ====================================================
-          Expanded(
-            child: _buildContributionMetric(
-              context: context,
-              icon: Icons.format_list_numbered_rounded,
-              value: '${history.length}',
-              label: 'Aportes',
-            ),
-          ),
-        ],
-      ),
+            );
+          },
     );
   }
 
   // ============================================================
-  // MÉTRICA
+  // MODAL - RITMOS
   // ============================================================
 
-  Widget _buildContributionMetric({
-    required BuildContext context,
-    required IconData icon,
-    required String value,
-    required String label,
-  }) {
-    final colorScheme = Theme.of(
-      context,
-    ).colorScheme;
+  Future<
+    void
+  >
+  _showRhythmsModal(
+    BuildContext context,
+  ) async {
+    await showModalBottomSheet<
+      void
+    >(
+      context: context,
 
-    return Container(
-      padding: const EdgeInsets.all(
-        14,
+      isScrollControlled: true,
+
+      useSafeArea: true,
+
+      showDragHandle: true,
+
+      backgroundColor: Theme.of(
+        context,
+      ).colorScheme.surface,
+
+      constraints: const BoxConstraints(
+        maxWidth: 660,
       ),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(
-          15,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            icon,
-            size: 18,
-            color: colorScheme.primary,
-          ),
 
-          const SizedBox(
-            height: 12,
-          ),
+      builder:
+          (
+            modalContext,
+          ) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                4,
+                20,
+                24 +
+                    MediaQuery.of(
+                      modalContext,
+                    ).viewInsets.bottom,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ============================================
+                  // HEADER
+                  // ============================================
+                  _FinanceModalHeader(
+                    icon: Icons.bar_chart_rounded,
+                    title: 'Ritmos',
+                    subtitle: 'Veja os seus três níveis de aporte planejados.',
+                    onClose: () {
+                      Navigator.of(
+                        modalContext,
+                      ).pop();
+                    },
+                  ),
 
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
+                  const SizedBox(
+                    height: 22,
+                  ),
 
-          const SizedBox(
-            height: 5,
-          ),
+                  // ============================================
+                  // VALORES
+                  // ============================================
+                  _RhythmsModalCard(
+                    minimum: _currency(
+                      _toDouble(
+                        model.minimumGoal,
+                      ),
+                    ),
+                    medium: _currency(
+                      _toDouble(
+                        model.mediumGoal,
+                      ),
+                    ),
+                    maximum: _currency(
+                      _toDouble(
+                        model.maximumGoal,
+                      ),
+                    ),
+                  ),
 
-          Text(
-            label,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall,
-          ),
-        ],
-      ),
+                  const SizedBox(
+                    height: 18,
+                  ),
+
+                  // ============================================
+                  // EDITAR PLANEJAMENTO
+                  // ============================================
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () {
+                        Navigator.of(
+                          modalContext,
+                        ).pop();
+
+                        onPlanning();
+                      },
+                      icon: const Icon(
+                        Icons.tune_rounded,
+                      ),
+                      label: const Text(
+                        'Editar planejamento',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
     );
   }
 
   // ============================================================
-  // SALDO VISÍVEL / OCULTO
+  // MONEY
   // ============================================================
 
-  String _balanceText(
+  String _money(
     double value,
   ) {
     if (!showBalances) {
@@ -702,7 +458,7 @@ class FinanceScreenContent
   }
 
   // ============================================================
-  // CONVERTER DOUBLE
+  // DOUBLE
   // ============================================================
 
   double _toDouble(
@@ -721,32 +477,36 @@ class FinanceScreenContent
   }
 
   // ============================================================
-  // MOEDA
+  // CURRENCY
   // ============================================================
 
   String _currency(
     double value,
   ) {
+    final safeValue = value.isFinite
+        ? value
+        : 0.0;
+
     final negative =
-        value <
+        safeValue <
         0;
 
-    final safeValue = value.abs();
+    final absolute = safeValue.abs();
 
-    final fixed = safeValue.toStringAsFixed(
-      2,
-    );
-
-    final parts = fixed.split(
-      '.',
-    );
+    final parts = absolute
+        .toStringAsFixed(
+          2,
+        )
+        .split(
+          '.',
+        );
 
     final integer = parts.first;
 
     final decimal =
         parts.length >
             1
-        ? parts[1]
+        ? parts.last
         : '00';
 
     final reversed = integer
@@ -756,7 +516,7 @@ class FinanceScreenContent
         .reversed
         .toList();
 
-    final formatted = StringBuffer();
+    final buffer = StringBuffer();
 
     for (
       int index = 0;
@@ -769,17 +529,17 @@ class FinanceScreenContent
           index %
                   3 ==
               0) {
-        formatted.write(
+        buffer.write(
           '.',
         );
       }
 
-      formatted.write(
+      buffer.write(
         reversed[index],
       );
     }
 
-    final finalInteger = formatted
+    final formattedInteger = buffer
         .toString()
         .split(
           '',
@@ -787,7 +547,371 @@ class FinanceScreenContent
         .reversed
         .join();
 
-    return '${negative ? '-' : ''}'
-        'R\$ $finalInteger,$decimal';
+    final sign = negative
+        ? '-'
+        : '';
+
+    return '${sign}R\$ $formattedInteger,$decimal';
+  }
+}
+
+// ============================================================
+// BOTÃO DE ATALHO
+// ============================================================
+
+class _FinanceShortcutButton
+    extends
+        StatelessWidget {
+  const _FinanceShortcutButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String tooltip;
+
+  final IconData icon;
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme = Theme.of(
+      context,
+    ).colorScheme;
+
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(
+          13,
+        ),
+        child: Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            color: colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(
+              13,
+            ),
+            border: Border.all(
+              color: colorScheme.primary.withValues(
+                alpha: 0.16,
+              ),
+            ),
+          ),
+          child: Icon(
+            icon,
+            size: 22,
+            color: colorScheme.primary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// HEADER DOS MODAIS
+// ============================================================
+
+class _FinanceModalHeader
+    extends
+        StatelessWidget {
+  const _FinanceModalHeader({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onClose,
+  });
+
+  final IconData icon;
+
+  final String title;
+
+  final String subtitle;
+
+  final VoidCallback onClose;
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme = Theme.of(
+      context,
+    ).colorScheme;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            color: colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(
+              14,
+            ),
+          ),
+          child: Icon(
+            icon,
+            color: colorScheme.primary,
+          ),
+        ),
+
+        const SizedBox(
+          width: 12,
+        ),
+
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+
+              const SizedBox(
+                height: 3,
+              ),
+
+              Text(
+                subtitle,
+                style: TextStyle(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        IconButton(
+          tooltip: 'Fechar',
+          onPressed: onClose,
+          icon: const Icon(
+            Icons.close_rounded,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ============================================================
+// CARD - OBJETIVO
+// ============================================================
+
+class _ObjectiveModalCard
+    extends
+        StatelessWidget {
+  const _ObjectiveModalCard({
+    required this.value,
+  });
+
+  final String value;
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme = Theme.of(
+      context,
+    ).colorScheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(
+        18,
+      ),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(
+          18,
+        ),
+        border: Border.all(
+          color: colorScheme.outlineVariant,
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.track_changes_rounded,
+            size: 28,
+            color: colorScheme.primary,
+          ),
+
+          const SizedBox(
+            height: 10,
+          ),
+
+          const Text(
+            'Objetivo financeiro',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+
+          const SizedBox(
+            height: 8,
+          ),
+
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================
+// CARD - RITMOS
+// ============================================================
+
+class _RhythmsModalCard
+    extends
+        StatelessWidget {
+  const _RhythmsModalCard({
+    required this.minimum,
+    required this.medium,
+    required this.maximum,
+  });
+
+  final String minimum;
+
+  final String medium;
+
+  final String maximum;
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return Row(
+      children: [
+        Expanded(
+          child: _RhythmItem(
+            title: 'Mínimo',
+            value: minimum,
+            icon: Icons.speed_rounded,
+          ),
+        ),
+
+        const SizedBox(
+          width: 10,
+        ),
+
+        Expanded(
+          child: _RhythmItem(
+            title: 'Médio',
+            value: medium,
+            icon: Icons.trending_up_rounded,
+          ),
+        ),
+
+        const SizedBox(
+          width: 10,
+        ),
+
+        Expanded(
+          child: _RhythmItem(
+            title: 'Máximo',
+            value: maximum,
+            icon: Icons.rocket_launch_outlined,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ============================================================
+// ITEM DO RITMO
+// ============================================================
+
+class _RhythmItem
+    extends
+        StatelessWidget {
+  const _RhythmItem({
+    required this.title,
+    required this.value,
+    required this.icon,
+  });
+
+  final String title;
+
+  final String value;
+
+  final IconData icon;
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme = Theme.of(
+      context,
+    ).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 16,
+      ),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(
+          16,
+        ),
+        border: Border.all(
+          color: colorScheme.outlineVariant,
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            icon,
+            size: 22,
+            color: colorScheme.primary,
+          ),
+
+          const SizedBox(
+            height: 8,
+          ),
+
+          Text(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+
+          const SizedBox(
+            height: 5,
+          ),
+
+          Text(
+            value,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

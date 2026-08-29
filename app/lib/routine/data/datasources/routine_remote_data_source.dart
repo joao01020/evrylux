@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class RoutineRemoteDataSource {
@@ -388,6 +390,23 @@ class RoutineRemoteDataSource {
   // ============================================================
   // LOAD MIND MAP NODES
   // ============================================================
+  //
+  // O banco antigo usa:
+  //
+  // - mind_map_block_id
+  // - title
+  // - x
+  // - y
+  //
+  // O modelo atual do app usa:
+  //
+  // - block_id
+  // - label
+  // - position_x
+  // - position_y
+  //
+  // Aqui fazemos a conversão para manter compatibilidade.
+  // ============================================================
 
   Future<
     List<
@@ -406,28 +425,68 @@ class RoutineRemoteDataSource {
         )
         .select()
         .eq(
-          'block_id',
+          'mind_map_block_id',
           blockId,
         );
 
-    return response
-        .map<
-          Map<
-            String,
-            dynamic
-          >
-        >(
-          (
-            row,
-          ) =>
-              Map<
-                String,
-                dynamic
-              >.from(
-                row,
-              ),
-        )
-        .toList();
+    return response.map<
+      Map<
+        String,
+        dynamic
+      >
+    >(
+      (
+        row,
+      ) {
+        final map =
+            Map<
+              String,
+              dynamic
+            >.from(
+              row,
+            );
+
+        final metadata = _jsonMap(
+          map['metadata'],
+        );
+
+        return {
+          ...map,
+
+          // ====================================================
+          // NOMES ESPERADOS PELO DTO ATUAL
+          // ====================================================
+          'block_id':
+              map['mind_map_block_id'] ??
+              '',
+
+          'label':
+              map['title'] ??
+              'Novo nó',
+
+          'position_x':
+              map['x'] ??
+              0,
+
+          'position_y':
+              map['y'] ??
+              0,
+
+          'is_root':
+              map['is_root'] ??
+              false,
+
+          // ====================================================
+          // CAMPOS DO MODELO ATUAL SALVOS EM METADATA
+          // ====================================================
+          'parent_id': metadata['parent_id'],
+
+          'source_port': metadata['source_port'],
+
+          'target_port': metadata['target_port'],
+        };
+      },
+    ).toList();
   }
 
   // ============================================================
@@ -1011,6 +1070,37 @@ class RoutineRemoteDataSource {
   // ============================================================
   // SAVE MIND MAP NODES
   // ============================================================
+  //
+  // Compatibilidade entre o modelo atual e o schema do Supabase:
+  //
+  // app                      banco
+  // ------------------------------------------------------------
+  // block_id             ->  mind_map_block_id
+  // label                ->  title
+  // position_x           ->  x
+  // position_y           ->  y
+  // parent_id            ->  metadata.parent_id
+  // source_port          ->  metadata.source_port
+  // target_port          ->  metadata.target_port
+  //
+  // IMPORTANTE:
+  //
+  // Os IDs locais do mapa podem ter formatos como:
+  //
+  // <uuid-do-bloco>-node-<timestamp>
+  //
+  // Isso NÃO é um UUID PostgreSQL válido.
+  //
+  // Antes de salvar:
+  //
+  // 1. preservamos IDs que já são UUID válidos;
+  // 2. geramos UUID v4 para IDs locais inválidos;
+  // 3. remapeamos parent_id para o novo UUID;
+  // 4. salvamos o ID local original em metadata.client_id.
+  //
+  // Assim a coluna "id uuid" do Supabase nunca recebe strings
+  // inválidas e as relações entre os nós continuam consistentes.
+  // ============================================================
 
   Future<
     void
@@ -1035,13 +1125,49 @@ class RoutineRemoteDataSource {
         )
         .delete()
         .eq(
-          'block_id',
+          'mind_map_block_id',
           blockId,
         );
 
     if (nodes.isEmpty) {
       return;
     }
+
+    // ----------------------------------------------------------
+    // MAPA DE IDs LOCAIS -> UUIDS DO BANCO
+    // ----------------------------------------------------------
+    //
+    // Fazemos esse passo antes de montar o payload porque um nó
+    // pode apontar para outro por parent_id.
+    // ----------------------------------------------------------
+
+    final idMap =
+        <
+          String,
+          String
+        >{};
+
+    for (final rawNode in nodes) {
+      final localId = _nullableString(
+        rawNode['id'],
+      );
+
+      if (localId ==
+          null) {
+        continue;
+      }
+
+      idMap[localId] =
+          _isUuid(
+            localId,
+          )
+          ? localId
+          : _generateUuidV4();
+    }
+
+    // ----------------------------------------------------------
+    // PAYLOAD
+    // ----------------------------------------------------------
 
     final payload =
         <
@@ -1051,26 +1177,242 @@ class RoutineRemoteDataSource {
           >
         >[];
 
-    for (final node in nodes) {
-      final value =
+    for (
+      var index = 0;
+      index <
+          nodes.length;
+      index++
+    ) {
+      final node =
           Map<
             String,
             dynamic
           >.from(
-            node,
+            nodes[index],
           );
 
-      value['block_id'] = blockId;
+      final existingMetadata = _jsonMap(
+        node['metadata'],
+      );
 
-      // Campo antigo não deve ser enviado.
-      value.remove(
-        'mind_map_block_id',
+      final metadata =
+          <
+            String,
+            dynamic
+          >{
+            ...existingMetadata,
+          };
+
+      // --------------------------------------------------------
+      // ID DO NÓ
+      // --------------------------------------------------------
+
+      final localId = _nullableString(
+        node['id'],
+      );
+
+      final databaseId =
+          localId ==
+              null
+          ? _generateUuidV4()
+          : idMap[localId] ??
+                (_isUuid(
+                      localId,
+                    )
+                    ? localId
+                    : _generateUuidV4());
+
+      // Guarda o ID original apenas quando ele era diferente
+      // do UUID realmente salvo no banco.
+      if (localId !=
+              null &&
+          localId !=
+              databaseId) {
+        metadata['client_id'] = localId;
+      }
+
+      // --------------------------------------------------------
+      // PARENT ID
+      // --------------------------------------------------------
+
+      final rawParentId = _nullableString(
+        node['parent_id'] ??
+            node['parentId'],
+      );
+
+      if (rawParentId !=
+          null) {
+        final mappedParentId =
+            idMap[rawParentId] ??
+            (_isUuid(
+                  rawParentId,
+                )
+                ? rawParentId
+                : null);
+
+        if (mappedParentId !=
+            null) {
+          metadata['parent_id'] = mappedParentId;
+        } else {
+          // Mantém o valor original apenas em client_parent_id
+          // para diagnóstico, mas não o usa como UUID de relação.
+          metadata['client_parent_id'] = rawParentId;
+          metadata.remove(
+            'parent_id',
+          );
+        }
+      } else {
+        metadata.remove(
+          'parent_id',
+        );
+      }
+
+      // --------------------------------------------------------
+      // PORTAS
+      // --------------------------------------------------------
+
+      final sourcePort = _nullableString(
+        node['source_port'] ??
+            node['sourcePort'],
+      );
+
+      if (sourcePort !=
+          null) {
+        metadata['source_port'] = sourcePort;
+      } else {
+        metadata.remove(
+          'source_port',
+        );
+      }
+
+      final targetPort = _nullableString(
+        node['target_port'] ??
+            node['targetPort'],
+      );
+
+      if (targetPort !=
+          null) {
+        metadata['target_port'] = targetPort;
+      } else {
+        metadata.remove(
+          'target_port',
+        );
+      }
+
+      // --------------------------------------------------------
+      // MAPA FINAL PARA O SUPABASE
+      // --------------------------------------------------------
+
+      final map =
+          <
+            String,
+            dynamic
+          >{
+            // ==================================================
+            // CHAVE PRIMÁRIA UUID VÁLIDA
+            // ==================================================
+            'id': databaseId,
+
+            // ==================================================
+            // RELAÇÃO
+            // ==================================================
+            'mind_map_block_id': blockId,
+
+            // ==================================================
+            // TEXTO
+            // ==================================================
+            'title':
+                node['label'] ??
+                node['title'] ??
+                'Novo nó',
+
+            'content': node['content'],
+
+            // ==================================================
+            // POSIÇÃO
+            // ==================================================
+            'x':
+                node['position_x'] ??
+                node['positionX'] ??
+                node['x'] ??
+                0,
+
+            'y':
+                node['position_y'] ??
+                node['positionY'] ??
+                node['y'] ??
+                0,
+
+            // ==================================================
+            // TAMANHO
+            // ==================================================
+            'width':
+                node['width'] ??
+                180,
+
+            'height':
+                node['height'] ??
+                80,
+
+            // ==================================================
+            // VISUAL / ESTADO
+            // ==================================================
+            'z_index':
+                node['z_index'] ??
+                node['zIndex'] ??
+                index,
+
+            'color': node['color'],
+
+            'icon': node['icon'],
+
+            'node_type':
+                node['node_type'] ??
+                node['nodeType'] ??
+                'default',
+
+            'is_selected': _boolValue(
+              node['is_selected'] ??
+                  node['isSelected'],
+            ),
+
+            'is_collapsed': _boolValue(
+              node['is_collapsed'] ??
+                  node['isCollapsed'],
+            ),
+
+            'is_root': _boolValue(
+              node['is_root'] ??
+                  node['isRoot'],
+            ),
+
+            // ==================================================
+            // CAMPOS EXTRAS DO MODELO ATUAL
+            // ==================================================
+            'metadata': metadata,
+          };
+
+      // --------------------------------------------------------
+      // NÃO ENVIAR NULL EM CAMPOS OPCIONAIS
+      // --------------------------------------------------------
+
+      map.removeWhere(
+        (
+          key,
+          value,
+        ) =>
+            value ==
+            null,
       );
 
       payload.add(
-        value,
+        map,
       );
     }
+
+    // ----------------------------------------------------------
+    // INSERT
+    // ----------------------------------------------------------
 
     await _client
         .from(
@@ -1243,6 +1585,105 @@ class RoutineRemoteDataSource {
               ),
         )
         .toList();
+  }
+
+  // ============================================================
+  // JSON MAP
+  // ============================================================
+
+  Map<
+    String,
+    dynamic
+  >
+  _jsonMap(
+    Object? value,
+  ) {
+    if (value
+        is Map) {
+      return Map<
+        String,
+        dynamic
+      >.from(
+        value,
+      );
+    }
+
+    return <
+      String,
+      dynamic
+    >{};
+  }
+
+  // ============================================================
+  // UUID
+  // ============================================================
+
+  bool _isUuid(
+    String value,
+  ) {
+    return RegExp(
+      r'^[0-9a-fA-F]{8}-'
+      r'[0-9a-fA-F]{4}-'
+      r'[1-5][0-9a-fA-F]{3}-'
+      r'[89abAB][0-9a-fA-F]{3}-'
+      r'[0-9a-fA-F]{12}$',
+    ).hasMatch(
+      value,
+    );
+  }
+
+  String _generateUuidV4() {
+    final random = Random.secure();
+
+    final bytes =
+        List<
+          int
+        >.generate(
+          16,
+          (
+            _,
+          ) => random.nextInt(
+            256,
+          ),
+        );
+
+    // UUID v4
+    bytes[6] =
+        (bytes[6] &
+            0x0f) |
+        0x40;
+
+    // RFC 4122 variant
+    bytes[8] =
+        (bytes[8] &
+            0x3f) |
+        0x80;
+
+    String hex(
+      int value,
+    ) {
+      return value
+          .toRadixString(
+            16,
+          )
+          .padLeft(
+            2,
+            '0',
+          );
+    }
+
+    final values = bytes
+        .map(
+          hex,
+        )
+        .toList();
+
+    return '${values[0]}${values[1]}${values[2]}${values[3]}-'
+        '${values[4]}${values[5]}-'
+        '${values[6]}${values[7]}-'
+        '${values[8]}${values[9]}-'
+        '${values[10]}${values[11]}${values[12]}'
+        '${values[13]}${values[14]}${values[15]}';
   }
 
   String _requiredString(

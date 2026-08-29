@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../controllers/mind_map_controller.dart';
 import '../../../models/board_block.dart';
+
 import 'mind_map_connections_painter.dart';
 import 'mind_map_node_widget.dart';
 
@@ -16,14 +17,18 @@ class MindMapCanvas
   });
 
   final BoardBlock block;
+
   final MindMapController controller;
+
   final double height;
 
   @override
   State<
     MindMapCanvas
   >
-  createState() => _MindMapCanvasState();
+  createState() {
+    return _MindMapCanvasState();
+  }
 }
 
 class _MindMapCanvasState
@@ -31,16 +36,30 @@ class _MindMapCanvasState
         State<
           MindMapCanvas
         > {
+  // ============================================================
+  // STATE
+  // ============================================================
+
   String? _hoveredNodeId;
+
+  // ============================================================
+  // INIT
+  // ============================================================
 
   @override
   void initState() {
     super.initState();
+
     widget.controller.addListener(
       _refresh,
     );
+
     _ensureRootAfterBuild();
   }
+
+  // ============================================================
+  // DID UPDATE
+  // ============================================================
 
   @override
   void didUpdateWidget(
@@ -55,6 +74,7 @@ class _MindMapCanvasState
       oldWidget.controller.removeListener(
         _refresh,
       );
+
       widget.controller.addListener(
         _refresh,
       );
@@ -66,35 +86,56 @@ class _MindMapCanvasState
     }
   }
 
+  // ============================================================
+  // DISPOSE
+  // ============================================================
+
   @override
   void dispose() {
     widget.controller.removeListener(
       _refresh,
     );
+
     super.dispose();
   }
 
+  // ============================================================
+  // REFRESH
+  // ============================================================
+
   void _refresh() {
-    if (mounted) {
-      setState(
-        () {},
-      );
+    if (!mounted) {
+      return;
     }
+
+    setState(
+      () {},
+    );
   }
+
+  // ============================================================
+  // ROOT
+  // ============================================================
 
   void _ensureRootAfterBuild() {
     WidgetsBinding.instance.addPostFrameCallback(
       (
         _,
       ) {
-        if (mounted) {
-          widget.controller.ensureRoot(
-            widget.block,
-          );
+        if (!mounted) {
+          return;
         }
+
+        widget.controller.ensureRoot(
+          widget.block,
+        );
       },
     );
   }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(
@@ -129,6 +170,9 @@ class _MindMapCanvasState
                 ),
                 child: Stack(
                   children: [
+                    // =================================================
+                    // CONEXÕES
+                    // =================================================
                     Positioned.fill(
                       child: CustomPaint(
                         painter: MindMapConnectionsPainter(
@@ -139,6 +183,10 @@ class _MindMapCanvasState
                         ),
                       ),
                     ),
+
+                    // =================================================
+                    // NÓS
+                    // =================================================
                     for (final node in widget.block.mindNodes)
                       Positioned(
                         key: ValueKey(
@@ -161,6 +209,10 @@ class _MindMapCanvasState
                               (
                                 hovered,
                               ) {
+                                if (!mounted) {
+                                  return;
+                                }
+
                                 setState(
                                   () {
                                     _hoveredNodeId = hovered
@@ -171,6 +223,10 @@ class _MindMapCanvasState
                               },
                         ),
                       ),
+
+                    // =================================================
+                    // DICA
+                    // =================================================
                     Positioned(
                       left: 12,
                       bottom: 10,
