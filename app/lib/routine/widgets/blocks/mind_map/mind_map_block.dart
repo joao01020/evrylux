@@ -5,6 +5,20 @@ import '../../../models/board_block.dart';
 
 import 'mind_map_canvas.dart';
 
+// ============================================================
+// MIND MAP BLOCK
+// ============================================================
+//
+// Este widget representa a versão ENCAIXADA da lousa.
+//
+// Quando a janela externa está aberta, RoutineScreen troca
+// temporariamente este widget por um resumo compacto.
+//
+// Quando a janela externa é fechada, RoutineScreen detecta
+// a remoção através de onWindowsChanged e volta a renderizar
+// este MindMapBlock automaticamente.
+// ============================================================
+
 class MindMapBlock
     extends
         StatelessWidget {
@@ -15,7 +29,6 @@ class MindMapBlock
   });
 
   final BoardBlock block;
-
   final MindMapController controller;
 
   @override

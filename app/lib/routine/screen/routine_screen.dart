@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'dart:math' as math;
 
+import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../controllers/board_controller.dart';
@@ -22,6 +25,24 @@ import '../widgets/blocks/task_block.dart';
 import '../widgets/calendar/routine_calendar_panel.dart';
 import '../widgets/dialogs/add_block_sheet.dart';
 import '../widgets/dialogs/routine_text_editor.dart';
+
+// ============================================================
+// MIND MAP WINDOW CHANNEL
+// ============================================================
+//
+// A janela externa NÃO é destruída ao clicar no X.
+// Ela é apenas escondida e envia "mind_map_dock" para a
+// janela principal.
+//
+// Isso evita o crash do Flutter/Linux ao tentar remover a
+// implicit view da engine secundária.
+// ============================================================
+
+const WindowMethodChannel
+_mindMapWindowChannel = WindowMethodChannel(
+  'routine_mind_map_window',
+  mode: ChannelMode.unidirectional,
+);
 
 class RoutineScreen
     extends
@@ -92,6 +113,35 @@ class _RoutineScreenState
   bool _initializingRoutine = true;
   String? _initializationError;
 
+  // ============================================================
+  // MIND MAP WINDOWS
+  // ============================================================
+  //
+  // Enquanto uma lousa estiver destacada, guardamos o blockId.
+  //
+  // Ao clicar no X da janela externa:
+  //
+  // janela externa
+  //      ↓
+  // mind_map_dock
+  //      ↓
+  // RoutineScreen
+  //      ↓
+  // remove blockId daqui
+  //      ↓
+  // MindMapBlock volta para o card
+  //
+  // A janela externa continua viva e apenas fica escondida.
+  // ============================================================
+
+  final Set<
+    String
+  >
+  _detachedMindMapBlockIds =
+      <
+        String
+      >{};
+
   @override
   void initState() {
     super.initState();
@@ -109,6 +159,27 @@ class _RoutineScreenState
     );
 
     _initializeRoutine();
+
+    // ==========================================================
+    // CROSS-WINDOW CHANNEL
+    // ==========================================================
+    //
+    // A janela principal é a única handler deste canal.
+    //
+    // As janelas de mapa mental enviam:
+    //
+    // mind_map_dock
+    //
+    // quando o usuário:
+    //
+    // - clica no X;
+    // - clica em "Encaixar lousa".
+    //
+    // ==========================================================
+
+    _mindMapWindowChannel.setMethodCallHandler(
+      _handleMindMapWindowCall,
+    );
   }
 
   Future<
@@ -327,6 +398,10 @@ class _RoutineScreenState
 
   @override
   void dispose() {
+    _mindMapWindowChannel.setMethodCallHandler(
+      null,
+    );
+
     if (_routineControllerReady) {
       _routineController.removeListener(
         _onRoutineChanged,
@@ -759,6 +834,13 @@ class _RoutineScreenState
           day,
           block,
         ),
+        onOpenMindMap:
+            block.type ==
+                BlockType.mindMap
+            ? () => _openMindMapWindow(
+                block,
+              )
+            : null,
         child: _blockContent(
           block,
         ),
@@ -807,9 +889,363 @@ class _RoutineScreenState
           ),
         );
       case BlockType.mindMap:
+        if (_isMindMapDetached(
+          block,
+        )) {
+          return _MindMapCompactSummary(
+            block: block,
+            onOpen: () => _openMindMapWindow(
+              block,
+            ),
+          );
+        }
+
         return MindMapBlock(
           block: block,
           controller: _mindMapController,
+        );
+    }
+  }
+
+  // ============================================================
+  // MIND MAP WINDOW CHANNEL HANDLER
+  // ============================================================
+
+  Future<
+    dynamic
+  >
+  _handleMindMapWindowCall(
+    MethodCall call,
+  ) async {
+    switch (call.method) {
+      // ========================================================
+      // DOCK
+      // ========================================================
+
+      case 'mind_map_dock':
+        final arguments = call.arguments;
+
+        Map<
+          String,
+          dynamic
+        >
+        data =
+            <
+              String,
+              dynamic
+            >{};
+
+        if (arguments
+            is Map) {
+          data =
+              Map<
+                String,
+                dynamic
+              >.from(
+                arguments,
+              );
+        }
+
+        final blockId = data['block_id']?.toString().trim();
+
+        if (blockId ==
+                null ||
+            blockId.isEmpty) {
+          return false;
+        }
+
+        if (!mounted) {
+          return false;
+        }
+
+        setState(
+          () {
+            _detachedMindMapBlockIds.remove(
+              blockId,
+            );
+          },
+        );
+
+        // ======================================================
+        // RELOAD
+        // ======================================================
+        //
+        // A janela externa trabalha com uma cópia do BoardBlock.
+        // Ao encaixar, recarregamos do Supabase para o card
+        // recuperar o estado persistido mais recente.
+        //
+        // ======================================================
+
+        if (_routineControllerReady) {
+          await _routineController.loadWeek();
+        }
+
+        return true;
+
+      default:
+        throw MissingPluginException(
+          'Método não implementado no canal da lousa: ${call.method}',
+        );
+    }
+  }
+
+  // ============================================================
+  // IS MIND MAP DETACHED
+  // ============================================================
+
+  bool _isMindMapDetached(
+    BoardBlock block,
+  ) {
+    return _detachedMindMapBlockIds.contains(
+      block.id,
+    );
+  }
+
+  // ============================================================
+  // PARSE WINDOW BLOCK ID
+  // ============================================================
+
+  String? _mindMapBlockIdFromArguments(
+    String rawArguments,
+  ) {
+    final raw = rawArguments.trim();
+
+    if (raw.isEmpty) {
+      return null;
+    }
+
+    try {
+      final decoded = jsonDecode(
+        raw,
+      );
+
+      if (decoded
+          is! Map) {
+        return null;
+      }
+
+      final map =
+          Map<
+            String,
+            dynamic
+          >.from(
+            decoded,
+          );
+
+      if (map['window']?.toString().trim() !=
+          'mind_map') {
+        return null;
+      }
+
+      final blockId = map['block_id']?.toString().trim();
+
+      if (blockId ==
+              null ||
+          blockId.isEmpty) {
+        return null;
+      }
+
+      return blockId;
+    } catch (
+      _
+    ) {
+      return null;
+    }
+  }
+
+  // ============================================================
+  // FIND EXISTING MIND MAP WINDOW
+  // ============================================================
+  //
+  // A janela é escondida ao encaixar, não destruída.
+  //
+  // Portanto, ao destacar novamente procuramos a janela já
+  // existente e apenas chamamos show().
+  //
+  // Isso evita criar engines repetidas para o mesmo bloco.
+  // ============================================================
+
+  Future<
+    WindowController?
+  >
+  _findMindMapWindow(
+    String blockId,
+  ) async {
+    final windows = await WindowController.getAll();
+
+    for (final window in windows) {
+      final currentBlockId = _mindMapBlockIdFromArguments(
+        window.arguments,
+      );
+
+      if (currentBlockId ==
+          blockId) {
+        return window;
+      }
+    }
+
+    return null;
+  }
+
+  // ============================================================
+  // OPEN MIND MAP WINDOW
+  // ============================================================
+  //
+  // Ao destacar:
+  //
+  // 1. salvamos o dia atual;
+  // 2. procuramos uma janela escondida já existente;
+  // 3. se existir, apenas fazemos show();
+  // 4. se não existir, criamos uma nova;
+  // 5. o card passa a mostrar o resumo compacto.
+  //
+  // Ao fechar a janela externa, ela envia "mind_map_dock"
+  // e o canvas volta para dentro do card.
+  //
+  // ============================================================
+
+  Future<
+    void
+  >
+  _openMindMapWindow(
+    BoardBlock block,
+  ) async {
+    if (block.type !=
+        BlockType.mindMap) {
+      return;
+    }
+
+    try {
+      // Se já existir uma janela para este bloco,
+      // apenas garante que ela esteja visível.
+      final existingWindow = await _findMindMapWindow(
+        block.id,
+      );
+
+      if (existingWindow !=
+          null) {
+        await existingWindow.show();
+
+        if (mounted) {
+          setState(
+            () {
+              _detachedMindMapBlockIds.add(
+                block.id,
+              );
+            },
+          );
+        }
+
+        return;
+      }
+
+      _mindMapController.ensureRoot(
+        block,
+      );
+
+      // A janela secundária carrega o bloco pelo Supabase.
+      // Por isso salvamos antes de destacar.
+      await _routineController.saveSelectedDay();
+
+      if (!mounted) {
+        return;
+      }
+
+      final arguments = jsonEncode(
+        {
+          'window': 'mind_map',
+          'block_id': block.id,
+          'title': block.title.trim().isEmpty
+              ? 'Nova ideia'
+              : block.title.trim(),
+        },
+      );
+
+      final window = await WindowController.create(
+        WindowConfiguration(
+          hiddenAtLaunch: true,
+          arguments: arguments,
+        ),
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(
+        () {
+          _detachedMindMapBlockIds.add(
+            block.id,
+          );
+        },
+      );
+
+      await window.show();
+    } catch (
+      error,
+      stackTrace
+    ) {
+      // Se a criação falhar, a lousa volta a ficar encaixada.
+      if (mounted) {
+        setState(
+          () {
+            _detachedMindMapBlockIds.remove(
+              block.id,
+            );
+          },
+        );
+      }
+
+      debugPrint(
+        '',
+      );
+
+      debugPrint(
+        '============================================================',
+      );
+
+      debugPrint(
+        '[ROUTINE][MIND MAP WINDOW] ERRO',
+      );
+
+      debugPrint(
+        '------------------------------------------------------------',
+      );
+
+      debugPrint(
+        '$error',
+      );
+
+      debugPrint(
+        '$stackTrace',
+      );
+
+      debugPrint(
+        '============================================================',
+      );
+
+      debugPrint(
+        '',
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(
+          context,
+        )
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            backgroundColor: _surfaceLight,
+            content: Text(
+              'Não foi possível abrir a lousa: $error',
+              style: const TextStyle(
+                color: _text,
+              ),
+            ),
+          ),
         );
     }
   }
@@ -1383,6 +1819,7 @@ class _BoardCard
     required this.onDuplicate,
     required this.onDelete,
     required this.child,
+    this.onOpenMindMap,
   });
 
   final BoardBlock block;
@@ -1393,6 +1830,7 @@ class _BoardCard
   final VoidCallback onEdit;
   final VoidCallback onDuplicate;
   final VoidCallback onDelete;
+  final VoidCallback? onOpenMindMap;
   final Widget child;
 
   @override
@@ -1449,8 +1887,8 @@ class _BoardCard
                         width: 34,
                         height: 34,
                         decoration: BoxDecoration(
-                          color: block.color.withOpacity(
-                            .13,
+                          color: block.color.withValues(
+                            alpha: .13,
                           ),
                           borderRadius: BorderRadius.circular(
                             10,
@@ -1477,6 +1915,19 @@ class _BoardCard
                           ),
                         ),
                       ),
+                      if (onOpenMindMap !=
+                          null)
+                        IconButton(
+                          tooltip: 'Abrir lousa',
+                          onPressed: onOpenMindMap,
+                          icon: const Icon(
+                            Icons.open_in_new_rounded,
+                            color: Color(
+                              0xFF7BE495,
+                            ),
+                            size: 18,
+                          ),
+                        ),
                       IconButton(
                         tooltip: 'Editar',
                         onPressed: onEdit,
@@ -1560,6 +2011,149 @@ class _BoardCard
   }
 }
 
+// ============================================================
+// MIND MAP COMPACT SUMMARY
+// ============================================================
+//
+// Substitui o canvas que antes ficava dentro do card.
+//
+// Agora o card mostra apenas um resumo compacto.
+// A lousa real abre em uma janela desktop independente.
+// ============================================================
+
+class _MindMapCompactSummary
+    extends
+        StatelessWidget {
+  const _MindMapCompactSummary({
+    required this.block,
+    required this.onOpen,
+  });
+
+  final BoardBlock block;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final nodeCount = block.mindNodes.length;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        14,
+        2,
+        14,
+        2,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onOpen,
+          borderRadius: BorderRadius.circular(
+            13,
+          ),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 12,
+            ),
+            decoration: BoxDecoration(
+              color: const Color(
+                0xFF111319,
+              ),
+              borderRadius: BorderRadius.circular(
+                13,
+              ),
+              border: Border.all(
+                color: _RoutineScreenState._border,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: const Color(
+                      0xFF173626,
+                    ),
+                    borderRadius: BorderRadius.circular(
+                      11,
+                    ),
+                    border: Border.all(
+                      color:
+                          const Color(
+                            0xFF7BE495,
+                          ).withValues(
+                            alpha: .18,
+                          ),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.account_tree_rounded,
+                    color: Color(
+                      0xFF7BE495,
+                    ),
+                    size: 19,
+                  ),
+                ),
+
+                const SizedBox(
+                  width: 11,
+                ),
+
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Lousa externa',
+                        style: TextStyle(
+                          color: _RoutineScreenState._text,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+
+                      const SizedBox(
+                        height: 3,
+                      ),
+
+                      Text(
+                        nodeCount ==
+                                1
+                            ? '1 nó • clique para abrir'
+                            : '$nodeCount nós • clique para abrir',
+                        style: const TextStyle(
+                          color: _RoutineScreenState._muted,
+                          fontSize: 10.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(
+                  width: 8,
+                ),
+
+                const Icon(
+                  Icons.open_in_new_rounded,
+                  color: Color(
+                    0xFF7BE495,
+                  ),
+                  size: 18,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 enum _BlockAction {
   duplicate,
   delete,
@@ -1629,8 +2223,8 @@ class _EmptyBoard
               width: 56,
               height: 56,
               decoration: BoxDecoration(
-                color: _RoutineScreenState._primary.withOpacity(
-                  .12,
+                color: _RoutineScreenState._primary.withValues(
+                  alpha: .12,
                 ),
                 borderRadius: BorderRadius.circular(
                   17,
@@ -1764,8 +2358,8 @@ class _GridPainter
       ..color =
           const Color(
             0xFF242731,
-          ).withOpacity(
-            .42,
+          ).withValues(
+            alpha: .42,
           )
       ..strokeWidth = 1;
 

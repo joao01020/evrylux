@@ -14,12 +14,19 @@ dependencies:
 
   cupertino_icons: ^1.0.8
   uuid: ^4.5.1
-
+  desktop_multi_window: ^0.3.0
   shared_preferences: ^2.5.3
   path_provider: ^2.1.5
 
   supabase_flutter: ^2.17.2
   flutter_dotenv: ^6.0.1
+
+  window_manager:
+    git:
+      url: https://github.com/boyan01/window_manager.git
+      path: packages/window_manager
+      ref: 6fae92d21b4c80ce1b8f71c1190d7970cf722bd4
+
 
 dev_dependencies:
   flutter_test:
