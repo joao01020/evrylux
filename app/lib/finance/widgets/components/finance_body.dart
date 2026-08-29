@@ -20,6 +20,7 @@ class FinanceBody
     required this.history,
     required this.patrimony,
     required this.invested,
+    required this.objectiveName,
     required this.investmentGoal,
     required this.minimumGoal,
     required this.mediumGoal,
@@ -55,6 +56,12 @@ class FinanceBody
 
   final double invested;
 
+  // ============================================================
+  // OBJETIVO
+  // ============================================================
+
+  final String objectiveName;
+
   final double investmentGoal;
 
   final double minimumGoal;
@@ -62,6 +69,10 @@ class FinanceBody
   final double mediumGoal;
 
   final double maximumGoal;
+
+  // ============================================================
+  // CRYPTO
+  // ============================================================
 
   final double bitcoin;
 
@@ -189,13 +200,17 @@ class FinanceBody
           // ====================================================
           // RESUMO FINANCEIRO
           //
-          // Agora contém apenas:
-          // - Objetivo
+          // Agora contém:
+          //
+          // - Nome do objetivo
+          // - Valor do objetivo
           // - Ritmos
           //
-          // Patrimônio foi removido do FinanceSummarySection.
+          // O nome vem do FinanceScreenController.
           // ====================================================
           FinanceSummarySection(
+            objectiveName: objectiveName,
+
             investmentGoal: investmentGoal,
 
             minimumGoal: minimumGoal,

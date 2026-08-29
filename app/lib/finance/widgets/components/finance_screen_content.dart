@@ -12,6 +12,7 @@ class FinanceScreenContent
     super.key,
     required this.model,
     required this.balances,
+    required this.objectiveName,
     required this.onPlanning,
     required this.onBalance,
     required this.onVault,
@@ -31,6 +32,8 @@ class FinanceScreenContent
   final dynamic model;
 
   final CryptoBalances balances;
+
+  final String objectiveName;
 
   // ============================================================
   // AÇÕES
@@ -284,6 +287,7 @@ class FinanceScreenContent
                   // CARD
                   // ============================================
                   _ObjectiveModalCard(
+                    name: objectiveName,
                     value: _money(
                       _toDouble(
                         model.investmentGoal,
@@ -712,8 +716,11 @@ class _ObjectiveModalCard
     extends
         StatelessWidget {
   const _ObjectiveModalCard({
+    required this.name,
     required this.value,
   });
+
+  final String name;
 
   final String value;
 
@@ -751,9 +758,14 @@ class _ObjectiveModalCard
             height: 10,
           ),
 
-          const Text(
-            'Objetivo financeiro',
-            style: TextStyle(
+          Text(
+            name.trim().isEmpty
+                ? 'Objetivo financeiro'
+                : name.trim(),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
             ),

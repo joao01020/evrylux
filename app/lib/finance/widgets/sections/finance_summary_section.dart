@@ -5,6 +5,7 @@ class FinanceSummarySection
         StatelessWidget {
   const FinanceSummarySection({
     super.key,
+    required this.objectiveName,
     required this.investmentGoal,
     required this.minimumGoal,
     required this.mediumGoal,
@@ -17,6 +18,8 @@ class FinanceSummarySection
   // ============================================================
   // DADOS
   // ============================================================
+
+  final String objectiveName;
 
   final double investmentGoal;
 
@@ -58,9 +61,13 @@ class FinanceSummarySection
             // OBJETIVO
             // ==================================================
 
+            final normalizedObjectiveName = objectiveName.trim().isEmpty
+                ? 'Objetivo financeiro'
+                : objectiveName.trim();
+
             final objectiveCard = _FinanceSummaryCard(
               icon: Icons.track_changes_rounded,
-              title: 'Objetivo',
+              title: normalizedObjectiveName,
               content: _money(
                 investmentGoal,
               ),
