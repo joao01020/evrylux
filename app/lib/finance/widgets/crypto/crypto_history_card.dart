@@ -6,112 +6,134 @@ import 'crypto_transaction_tile.dart';
 class CryptoHistoryCard
     extends
         StatelessWidget {
+  const CryptoHistoryCard({
+    super.key,
+    required this.transactions,
+    required this.onDelete,
+    required this.onEdit,
+  });
+
+  // ============================================================
+  // DADOS
+  // ============================================================
+
   final List<
     CryptoTransactionModel
   >
   transactions;
 
-  final Function(
-    CryptoTransactionModel,
-  )
+  // ============================================================
+  // AÇÕES
+  // ============================================================
+
+  final ValueChanged<
+    CryptoTransactionModel
+  >
   onDelete;
 
-  final Function(
-    CryptoTransactionModel,
-  )
+  final ValueChanged<
+    CryptoTransactionModel
+  >
   onEdit;
 
-  const CryptoHistoryCard({
-    super.key,
-
-    required this.transactions,
-
-    required this.onDelete,
-
-    required this.onEdit,
-  });
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(
     BuildContext context,
   ) {
     if (transactions.isEmpty) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(
-            20,
-          ),
-
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-
-            children: [
-              const Icon(
-                Icons.currency_bitcoin,
-                size: 42,
-                color: Colors.grey,
-              ),
-
-              const SizedBox(
-                height: 12,
-              ),
-
-              const Text(
-                "Nenhuma compra registrada.",
-
-                style: TextStyle(
-                  fontSize: 16,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+      return _buildEmptyState();
     }
 
     return Card(
       clipBehavior: Clip.antiAlias,
-
       child: ListView.separated(
         shrinkWrap: true,
-
         physics: const NeverScrollableScrollPhysics(),
-
         itemCount: transactions.length,
-
         separatorBuilder:
             (
-              _,
+              context,
               index,
             ) {
               return const Divider(
                 height: 1,
               );
             },
-
         itemBuilder:
             (
               context,
               index,
             ) {
-              final item = transactions[index];
+              final transaction = transactions[index];
 
               return CryptoTransactionTile(
-                transaction: item,
-
-                onDelete: () {
-                  onDelete(
-                    item,
-                  );
-                },
-
+                transaction: transaction,
                 onEdit: () {
                   onEdit(
-                    item,
+                    transaction,
+                  );
+                },
+                onDelete: () {
+                  onDelete(
+                    transaction,
                   );
                 },
               );
             },
+      ),
+    );
+  }
+
+  // ============================================================
+  // EMPTY STATE
+  // ============================================================
+
+  Widget _buildEmptyState() {
+    return const Card(
+      child: Padding(
+        padding: EdgeInsets.all(
+          24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.currency_bitcoin_rounded,
+              size: 42,
+              color: Colors.grey,
+            ),
+
+            SizedBox(
+              height: 12,
+            ),
+
+            Text(
+              'Nenhuma compra registrada.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+
+            SizedBox(
+              height: 4,
+            ),
+
+            Text(
+              'As compras adicionadas aparecerão aqui.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

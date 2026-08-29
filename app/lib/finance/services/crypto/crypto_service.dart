@@ -2,11 +2,19 @@ import '../../data/repository/crypto/crypto_repository.dart';
 import '../../models/crypto/crypto_transaction_model.dart';
 
 class CryptoService {
-  final CryptoRepository repository;
-
-  CryptoService({
+  const CryptoService({
     required this.repository,
   });
+
+  // ============================================================
+  // REPOSITORY
+  // ============================================================
+
+  final CryptoRepository repository;
+
+  // ============================================================
+  // CARREGAR TRANSAÇÕES
+  // ============================================================
 
   Future<
     List<
@@ -21,6 +29,10 @@ class CryptoService {
     );
   }
 
+  // ============================================================
+  // ADICIONAR
+  // ============================================================
+
   Future<
     void
   >
@@ -31,6 +43,10 @@ class CryptoService {
       transaction,
     );
   }
+
+  // ============================================================
+  // EDITAR
+  // ============================================================
 
   Future<
     void
@@ -43,6 +59,10 @@ class CryptoService {
     );
   }
 
+  // ============================================================
+  // EXCLUIR
+  // ============================================================
+
   Future<
     void
   >
@@ -54,6 +74,10 @@ class CryptoService {
     );
   }
 
+  // ============================================================
+  // TOTAL DE QUANTIDADE
+  // ============================================================
+
   Future<
     double
   >
@@ -64,6 +88,10 @@ class CryptoService {
       symbol,
     );
   }
+
+  // ============================================================
+  // TOTAL INVESTIDO
+  // ============================================================
 
   Future<
     double

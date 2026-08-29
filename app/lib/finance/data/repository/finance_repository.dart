@@ -8,7 +8,15 @@ class FinanceRepository {
            client ??
            Supabase.instance.client;
 
+  // ============================================================
+  // CLIENT
+  // ============================================================
+
   final SupabaseClient _client;
+
+  // ============================================================
+  // TABLE
+  // ============================================================
 
   static const String _table = 'finance_data';
 
@@ -45,13 +53,8 @@ class FinanceRepository {
   ) async {
     final user = _requireUser();
 
-    // ----------------------------------------------------------
-    // CLEAR
-    // ----------------------------------------------------------
-
     if (data.isEmpty) {
       await clear();
-
       return;
     }
 
@@ -70,11 +73,14 @@ class FinanceRepository {
           )
           .upsert(
             {
+              // ====================================================
+              // USER
+              // ====================================================
               'user_id': user.id,
 
-              // ================================================
+              // ====================================================
               // PATRIMÔNIO
-              // ================================================
+              // ====================================================
               'patrimony': _double(
                 data['patrimony'],
               ),
@@ -91,9 +97,9 @@ class FinanceRepository {
                 data['investmentGoal'],
               ),
 
-              // ================================================
+              // ====================================================
               // PLANEJAMENTO
-              // ================================================
+              // ====================================================
               'minimum_goal': _double(
                 data['minimumGoal'],
               ),
@@ -111,9 +117,9 @@ class FinanceRepository {
                 fallback: 10,
               ),
 
-              // ================================================
+              // ====================================================
               // HISTÓRICO / TOTAIS
-              // ================================================
+              // ====================================================
               'total_invested': _double(
                 data['totalInvested'],
               ),
@@ -126,9 +132,9 @@ class FinanceRepository {
                 data['averageContribution'],
               ),
 
-              // ================================================
+              // ====================================================
               // CRYPTO
-              // ================================================
+              // ====================================================
               'bitcoin': _double(
                 data['bitcoin'],
               ),
@@ -145,9 +151,9 @@ class FinanceRepository {
                 data['usdt'],
               ),
 
-              // ================================================
+              // ====================================================
               // OUTROS
-              // ================================================
+              // ====================================================
               'completed_days': completedDays,
 
               'selected_day': data['selectedDay']?.toString(),
@@ -331,12 +337,368 @@ class FinanceRepository {
         '[FINANCE REPOSITORY] Message: ${error.message}',
       );
 
+      debugPrint(
+        '[FINANCE REPOSITORY] Details: ${error.details}',
+      );
+
       rethrow;
     } catch (
       error
     ) {
       debugPrint(
         '[FINANCE REPOSITORY] Erro ao carregar: $error',
+      );
+
+      rethrow;
+    }
+  }
+
+  // ============================================================
+  // UPDATE CRYPTO BALANCE
+  // ============================================================
+  //
+  // Atualiza somente o saldo atual de UMA criptomoeda.
+  //
+  // Exemplo:
+  //
+  // await repository.updateCryptoBalance(
+  //   symbol: 'BTC',
+  //   value: 0.00124567,
+  // );
+  //
+  // Não altera:
+  //
+  // - patrimônio
+  // - valor investido
+  // - metas
+  // - histórico
+  //
+  // ============================================================
+
+  Future<
+    void
+  >
+  updateCryptoBalance({
+    required String symbol,
+    required double value,
+  }) async {
+    final user = _requireUser();
+
+    if (!value.isFinite ||
+        value <
+            0) {
+      throw ArgumentError.value(
+        value,
+        'value',
+        'O saldo da criptomoeda deve ser maior ou igual a zero.',
+      );
+    }
+
+    final column = _cryptoColumn(
+      symbol,
+    );
+
+    try {
+      debugPrint(
+        '[FINANCE REPOSITORY] Atualizando saldo '
+        '${symbol.toUpperCase()} para $value...',
+      );
+
+      // Primeiro garante que exista um registro para o usuário.
+      await _ensureFinanceRow(
+        user.id,
+      );
+
+      await _client
+          .from(
+            _table,
+          )
+          .update(
+            {
+              column: value,
+              'updated_at': DateTime.now().toUtc().toIso8601String(),
+            },
+          )
+          .eq(
+            'user_id',
+            user.id,
+          );
+
+      debugPrint(
+        '[FINANCE REPOSITORY] Saldo '
+        '${symbol.toUpperCase()} atualizado.',
+      );
+    } on PostgrestException catch (
+      error
+    ) {
+      debugPrint(
+        '[FINANCE REPOSITORY][CRYPTO] Erro Supabase.',
+      );
+
+      debugPrint(
+        '[FINANCE REPOSITORY][CRYPTO] Code: ${error.code}',
+      );
+
+      debugPrint(
+        '[FINANCE REPOSITORY][CRYPTO] Message: ${error.message}',
+      );
+
+      debugPrint(
+        '[FINANCE REPOSITORY][CRYPTO] Details: ${error.details}',
+      );
+
+      rethrow;
+    } catch (
+      error
+    ) {
+      debugPrint(
+        '[FINANCE REPOSITORY][CRYPTO] '
+        'Erro ao atualizar saldo: $error',
+      );
+
+      rethrow;
+    }
+  }
+
+  // ============================================================
+  // UPDATE ALL CRYPTO BALANCES
+  // ============================================================
+  //
+  // Permite atualizar todos os saldos de uma vez.
+  //
+  // Parâmetros nulos não são modificados.
+  //
+  // ============================================================
+
+  Future<
+    void
+  >
+  updateCryptoBalances({
+    double? bitcoin,
+    double? ethereum,
+    double? solana,
+    double? usdt,
+  }) async {
+    final user = _requireUser();
+
+    final updates =
+        <
+          String,
+          dynamic
+        >{};
+
+    if (bitcoin !=
+        null) {
+      _validateCryptoValue(
+        bitcoin,
+        'bitcoin',
+      );
+
+      updates['bitcoin'] = bitcoin;
+    }
+
+    if (ethereum !=
+        null) {
+      _validateCryptoValue(
+        ethereum,
+        'ethereum',
+      );
+
+      updates['ethereum'] = ethereum;
+    }
+
+    if (solana !=
+        null) {
+      _validateCryptoValue(
+        solana,
+        'solana',
+      );
+
+      updates['solana'] = solana;
+    }
+
+    if (usdt !=
+        null) {
+      _validateCryptoValue(
+        usdt,
+        'usdt',
+      );
+
+      updates['usdt'] = usdt;
+    }
+
+    if (updates.isEmpty) {
+      return;
+    }
+
+    updates['updated_at'] = DateTime.now().toUtc().toIso8601String();
+
+    try {
+      debugPrint(
+        '[FINANCE REPOSITORY] '
+        'Atualizando saldos de criptomoedas...',
+      );
+
+      await _ensureFinanceRow(
+        user.id,
+      );
+
+      await _client
+          .from(
+            _table,
+          )
+          .update(
+            updates,
+          )
+          .eq(
+            'user_id',
+            user.id,
+          );
+
+      debugPrint(
+        '[FINANCE REPOSITORY] '
+        'Saldos de criptomoedas atualizados.',
+      );
+    } on PostgrestException catch (
+      error
+    ) {
+      debugPrint(
+        '[FINANCE REPOSITORY][CRYPTO] Erro Supabase.',
+      );
+
+      debugPrint(
+        '[FINANCE REPOSITORY][CRYPTO] Code: ${error.code}',
+      );
+
+      debugPrint(
+        '[FINANCE REPOSITORY][CRYPTO] Message: ${error.message}',
+      );
+
+      debugPrint(
+        '[FINANCE REPOSITORY][CRYPTO] Details: ${error.details}',
+      );
+
+      rethrow;
+    } catch (
+      error
+    ) {
+      debugPrint(
+        '[FINANCE REPOSITORY][CRYPTO] '
+        'Erro ao atualizar saldos: $error',
+      );
+
+      rethrow;
+    }
+  }
+
+  // ============================================================
+  // UPDATE PATRIMONY
+  // ============================================================
+
+  Future<
+    void
+  >
+  updatePatrimony(
+    double value,
+  ) async {
+    final user = _requireUser();
+
+    if (!value.isFinite ||
+        value <
+            0) {
+      throw ArgumentError.value(
+        value,
+        'value',
+        'O patrimônio deve ser maior ou igual a zero.',
+      );
+    }
+
+    try {
+      await _ensureFinanceRow(
+        user.id,
+      );
+
+      await _client
+          .from(
+            _table,
+          )
+          .update(
+            {
+              'patrimony': value,
+              'updated_at': DateTime.now().toUtc().toIso8601String(),
+            },
+          )
+          .eq(
+            'user_id',
+            user.id,
+          );
+
+      debugPrint(
+        '[FINANCE REPOSITORY] Patrimônio atualizado: $value',
+      );
+    } catch (
+      error
+    ) {
+      debugPrint(
+        '[FINANCE REPOSITORY] '
+        'Erro ao atualizar patrimônio: $error',
+      );
+
+      rethrow;
+    }
+  }
+
+  // ============================================================
+  // UPDATE INVESTED
+  // ============================================================
+
+  Future<
+    void
+  >
+  updateInvested(
+    double value,
+  ) async {
+    final user = _requireUser();
+
+    if (!value.isFinite ||
+        value <
+            0) {
+      throw ArgumentError.value(
+        value,
+        'value',
+        'O valor investido deve ser maior ou igual a zero.',
+      );
+    }
+
+    try {
+      await _ensureFinanceRow(
+        user.id,
+      );
+
+      await _client
+          .from(
+            _table,
+          )
+          .update(
+            {
+              'invested': value,
+              'updated_at': DateTime.now().toUtc().toIso8601String(),
+            },
+          )
+          .eq(
+            'user_id',
+            user.id,
+          );
+
+      debugPrint(
+        '[FINANCE REPOSITORY] Valor investido atualizado: $value',
+      );
+    } catch (
+      error
+    ) {
+      debugPrint(
+        '[FINANCE REPOSITORY] '
+        'Erro ao atualizar valor investido: $error',
       );
 
       rethrow;
@@ -379,7 +741,126 @@ class FinanceRepository {
   }
 
   // ============================================================
-  // HELPERS
+  // ENSURE FINANCE ROW
+  // ============================================================
+  //
+  // Garante que finance_data possua uma linha para o usuário
+  // antes dos updates específicos.
+  //
+  // ============================================================
+
+  Future<
+    void
+  >
+  _ensureFinanceRow(
+    String userId,
+  ) async {
+    final existing = await _client
+        .from(
+          _table,
+        )
+        .select(
+          'user_id',
+        )
+        .eq(
+          'user_id',
+          userId,
+        )
+        .maybeSingle();
+
+    if (existing !=
+        null) {
+      return;
+    }
+
+    await _client
+        .from(
+          _table,
+        )
+        .insert(
+          {
+            'user_id': userId,
+            'patrimony': 0,
+            'invested': 0,
+            'monthly_goal': 0,
+            'investment_goal': 0,
+            'minimum_goal': 0,
+            'medium_goal': 0,
+            'maximum_goal': 0,
+            'projection_years': 10,
+            'total_invested': 0,
+            'invested_months': 0,
+            'average_contribution': 0,
+            'bitcoin': 0,
+            'ethereum': 0,
+            'solana': 0,
+            'usdt': 0,
+            'completed_days':
+                List<
+                  bool
+                >.filled(
+                  7,
+                  false,
+                ),
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          },
+        );
+  }
+
+  // ============================================================
+  // CRYPTO COLUMN
+  // ============================================================
+
+  String _cryptoColumn(
+    String symbol,
+  ) {
+    switch (symbol.trim().toUpperCase()) {
+      case 'BTC':
+      case 'BITCOIN':
+        return 'bitcoin';
+
+      case 'ETH':
+      case 'ETHEREUM':
+        return 'ethereum';
+
+      case 'SOL':
+      case 'SOLANA':
+        return 'solana';
+
+      case 'USDT':
+      case 'TETHER':
+        return 'usdt';
+
+      default:
+        throw ArgumentError.value(
+          symbol,
+          'symbol',
+          'Criptomoeda não suportada.',
+        );
+    }
+  }
+
+  // ============================================================
+  // VALIDATE CRYPTO VALUE
+  // ============================================================
+
+  void _validateCryptoValue(
+    double value,
+    String name,
+  ) {
+    if (!value.isFinite ||
+        value <
+            0) {
+      throw ArgumentError.value(
+        value,
+        name,
+        'O saldo deve ser maior ou igual a zero.',
+      );
+    }
+  }
+
+  // ============================================================
+  // DOUBLE
   // ============================================================
 
   double _double(
@@ -410,6 +891,10 @@ class FinanceRepository {
         0;
   }
 
+  // ============================================================
+  // INTEGER
+  // ============================================================
+
   int _integer(
     dynamic value, {
     int fallback = 0,
@@ -434,6 +919,10 @@ class FinanceRepository {
         ) ??
         fallback;
   }
+
+  // ============================================================
+  // COMPLETED DAYS
+  // ============================================================
 
   List<
     bool

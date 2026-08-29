@@ -1,9 +1,6 @@
-import 'dart:convert';
 import 'dart:math' as math;
 
-import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../controllers/board_controller.dart';
@@ -25,24 +22,6 @@ import '../widgets/blocks/task_block.dart';
 import '../widgets/calendar/routine_calendar_panel.dart';
 import '../widgets/dialogs/add_block_sheet.dart';
 import '../widgets/dialogs/routine_text_editor.dart';
-
-// ============================================================
-// MIND MAP WINDOW CHANNEL
-// ============================================================
-//
-// A janela externa NÃO é destruída ao clicar no X.
-// Ela é apenas escondida e envia "mind_map_dock" para a
-// janela principal.
-//
-// Isso evita o crash do Flutter/Linux ao tentar remover a
-// implicit view da engine secundária.
-// ============================================================
-
-const WindowMethodChannel
-_mindMapWindowChannel = WindowMethodChannel(
-  'routine_mind_map_window',
-  mode: ChannelMode.unidirectional,
-);
 
 class RoutineScreen
     extends
@@ -82,26 +61,36 @@ class _RoutineScreenState
         State<
           RoutineScreen
         > {
+  // ============================================================
+  // TEMA CLARO — BRANCO + VERDE
+  // ============================================================
+  //
+  // Fundo claro, superfícies brancas, contraste alto para textos
+  // e verde como cor principal. Os tons foram escolhidos para
+  // manter boa leitura em botões, cards, menus, erros e lousa.
+  //
+  // ============================================================
+
   static const Color _background = Color(
-    0xFF090A0E,
+    0xFFF7FAF7,
   );
   static const Color _surface = Color(
-    0xFF111319,
+    0xFFFFFFFF,
   );
   static const Color _surfaceLight = Color(
-    0xFF171A22,
+    0xFFF1F7F2,
   );
   static const Color _border = Color(
-    0xFF272B36,
+    0xFFD7E3D9,
   );
   static const Color _primary = Color(
-    0xFF7C5CFF,
+    0xFF198754,
   );
   static const Color _text = Color(
-    0xFFF5F7FA,
+    0xFF172019,
   );
   static const Color _muted = Color(
-    0xFF9298A6,
+    0xFF68746B,
   );
 
   late final RoutineController _routineController;
@@ -114,33 +103,12 @@ class _RoutineScreenState
   String? _initializationError;
 
   // ============================================================
-  // MIND MAP WINDOWS
-  // ============================================================
-  //
-  // Enquanto uma lousa estiver destacada, guardamos o blockId.
-  //
-  // Ao clicar no X da janela externa:
-  //
-  // janela externa
-  //      ↓
-  // mind_map_dock
-  //      ↓
-  // RoutineScreen
-  //      ↓
-  // remove blockId daqui
-  //      ↓
-  // MindMapBlock volta para o card
-  //
-  // A janela externa continua viva e apenas fica escondida.
+  // LOUSA EXPANDIDA
   // ============================================================
 
-  final Set<
-    String
-  >
-  _detachedMindMapBlockIds =
-      <
-        String
-      >{};
+  /// Expande a mesma lousa dentro da tela atual.
+  /// Nenhuma janela externa é criada.
+  bool _boardExpanded = false;
 
   @override
   void initState() {
@@ -159,27 +127,6 @@ class _RoutineScreenState
     );
 
     _initializeRoutine();
-
-    // ==========================================================
-    // CROSS-WINDOW CHANNEL
-    // ==========================================================
-    //
-    // A janela principal é a única handler deste canal.
-    //
-    // As janelas de mapa mental enviam:
-    //
-    // mind_map_dock
-    //
-    // quando o usuário:
-    //
-    // - clica no X;
-    // - clica em "Encaixar lousa".
-    //
-    // ==========================================================
-
-    _mindMapWindowChannel.setMethodCallHandler(
-      _handleMindMapWindowCall,
-    );
   }
 
   Future<
@@ -398,10 +345,6 @@ class _RoutineScreenState
 
   @override
   void dispose() {
-    _mindMapWindowChannel.setMethodCallHandler(
-      null,
-    );
-
     if (_routineControllerReady) {
       _routineController.removeListener(
         _onRoutineChanged,
@@ -490,35 +433,37 @@ class _RoutineScreenState
     return Scaffold(
       backgroundColor: _background,
       body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(
-              state,
-            ),
-            RoutineCalendarPanel(
-              state: state,
-              onPreviousWeek: _routineController.previousWeek,
-              onNextWeek: _routineController.nextWeek,
-              onSelectDay: _routineController.selectDay,
-              onToggleExpanded: _routineController.toggleCalendarExpanded,
-            ),
-            if (state.hasError)
-              _buildError(
-                state.errorMessage!,
-              ),
-            Expanded(
-              child: state.loading
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        color: _primary,
-                      ),
-                    )
-                  : _buildSelectedDay(
-                      _routineController.selectedDay,
+        child: _boardExpanded
+            ? _buildExpandedBoard()
+            : Column(
+                children: [
+                  _buildHeader(
+                    state,
+                  ),
+                  RoutineCalendarPanel(
+                    state: state,
+                    onPreviousWeek: _routineController.previousWeek,
+                    onNextWeek: _routineController.nextWeek,
+                    onSelectDay: _routineController.selectDay,
+                    onToggleExpanded: _routineController.toggleCalendarExpanded,
+                  ),
+                  if (state.hasError)
+                    _buildError(
+                      state.errorMessage!,
                     ),
-            ),
-          ],
-        ),
+                  Expanded(
+                    child: state.loading
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                              color: _primary,
+                            ),
+                          )
+                        : _buildSelectedDay(
+                            _routineController.selectedDay,
+                          ),
+                  ),
+                ],
+              ),
       ),
     );
   }
@@ -632,14 +577,14 @@ class _RoutineScreenState
       ),
       decoration: BoxDecoration(
         color: const Color(
-          0xFF3A1F29,
+          0xFFFFF1F3,
         ),
         borderRadius: BorderRadius.circular(
           12,
         ),
         border: Border.all(
           color: const Color(
-            0xFF7C3047,
+            0xFFF0B7C0,
           ),
         ),
       ),
@@ -648,7 +593,7 @@ class _RoutineScreenState
           const Icon(
             Icons.error_outline_rounded,
             color: Color(
-              0xFFFF8DAA,
+              0xFFC43A52,
             ),
           ),
           const SizedBox(
@@ -691,6 +636,7 @@ class _RoutineScreenState
                     700
                 ? 12.0
                 : 20.0;
+
             final boardWidth = math
                 .max(
                   1.0,
@@ -699,6 +645,7 @@ class _RoutineScreenState
                           2),
                 )
                 .toDouble();
+
             final minimumHeight = math
                 .max(
                   480.0,
@@ -733,9 +680,11 @@ class _RoutineScreenState
                     onEditFocus: _editFocus,
                     onAddBlock: _addBlock,
                   ),
+
                   const SizedBox(
                     height: 12,
                   ),
+
                   Container(
                     width: boardWidth,
                     height: boardHeight,
@@ -752,27 +701,83 @@ class _RoutineScreenState
                       borderRadius: BorderRadius.circular(
                         18,
                       ),
-                      child: day.blocks.isEmpty
-                          ? _EmptyBoard(
-                              onAddBlock: _addBlock,
-                            )
-                          : Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                Positioned.fill(
-                                  child: CustomPaint(
-                                    painter: const _GridPainter(),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          const Positioned.fill(
+                            child: CustomPaint(
+                              painter: _GridPainter(),
+                            ),
+                          ),
+
+                          if (day.blocks.isEmpty)
+                            Positioned.fill(
+                              child: _EmptyBoard(
+                                onAddBlock: _addBlock,
+                              ),
+                            ),
+
+                          for (final block in day.blocks)
+                            _positionedBlock(
+                              day: day,
+                              block: block,
+                              boardWidth: boardWidth,
+                              boardHeight: boardHeight,
+                            ),
+
+                          // Botão exatamente no canto superior direito da lousa.
+                          Positioned(
+                            top: 12,
+                            right: 12,
+                            child: Tooltip(
+                              message: 'Expandir lousa',
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: _expandBoard,
+                                  borderRadius: BorderRadius.circular(
+                                    12,
+                                  ),
+                                  child: Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      color: const Color(
+                                        0xFFF1F7F2,
+                                      ),
+                                      borderRadius: BorderRadius.circular(
+                                        12,
+                                      ),
+                                      border: Border.all(
+                                        color: const Color(
+                                          0xFFC7DFC9,
+                                        ),
+                                      ),
+                                      boxShadow: const [
+                                        BoxShadow(
+                                          color: Color(
+                                            0x14000000,
+                                          ),
+                                          blurRadius: 8,
+                                          offset: Offset(
+                                            0,
+                                            3,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    child: const Icon(
+                                      Icons.open_in_full_rounded,
+                                      color: _primary,
+                                      size: 19,
+                                    ),
                                   ),
                                 ),
-                                for (final block in day.blocks)
-                                  _positionedBlock(
-                                    day: day,
-                                    block: block,
-                                    boardWidth: boardWidth,
-                                    boardHeight: boardHeight,
-                                  ),
-                              ],
+                              ),
                             ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -780,6 +785,285 @@ class _RoutineScreenState
             );
           },
     );
+  }
+
+  // ============================================================
+  // EXPANDIR / RECOLHER LOUSA
+  // ============================================================
+
+  void _expandBoard() {
+    if (!mounted) {
+      return;
+    }
+
+    setState(
+      () {
+        _boardExpanded = true;
+      },
+    );
+  }
+
+  void _collapseBoard() {
+    if (!mounted) {
+      return;
+    }
+
+    setState(
+      () {
+        _boardExpanded = false;
+      },
+    );
+  }
+
+  // ============================================================
+  // LOUSA EXPANDIDA NA MESMA TELA
+  // ============================================================
+
+  Widget _buildExpandedBoard() {
+    final day = _routineController.selectedDay;
+
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 10,
+          ),
+          decoration: const BoxDecoration(
+            color: _surface,
+            border: Border(
+              bottom: BorderSide(
+                color: _border,
+              ),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: const Color(
+                    0xFFE8F5EC,
+                  ),
+                  borderRadius: BorderRadius.circular(
+                    11,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.dashboard_customize_outlined,
+                  color: _primary,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(
+                width: 11,
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'LOUSA',
+                      style: TextStyle(
+                        color: _text,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.3,
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 2,
+                    ),
+                    Text(
+                      _expandedBoardDate(
+                        day.date,
+                      ),
+                      style: const TextStyle(
+                        color: _muted,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: _routineController.state.saving
+                    ? null
+                    : _routineController.saveSelectedDay,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _text,
+                  side: const BorderSide(
+                    color: _border,
+                  ),
+                ),
+                icon: _routineController.state.saving
+                    ? const SizedBox(
+                        width: 15,
+                        height: 15,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: _primary,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.cloud_done_outlined,
+                        size: 18,
+                      ),
+                label: Text(
+                  _routineController.state.saving
+                      ? 'Salvando'
+                      : 'Salvar',
+                ),
+              ),
+              const SizedBox(
+                width: 8,
+              ),
+              FilledButton.icon(
+                onPressed: _addBlock,
+                style: FilledButton.styleFrom(
+                  backgroundColor: _primary,
+                  foregroundColor: Colors.white,
+                ),
+                icon: const Icon(
+                  Icons.add_rounded,
+                  size: 18,
+                ),
+                label: const Text(
+                  'Bloco',
+                ),
+              ),
+              const SizedBox(
+                width: 8,
+              ),
+              IconButton(
+                tooltip: 'Recolher lousa',
+                onPressed: _collapseBoard,
+                style: IconButton.styleFrom(
+                  foregroundColor: _primary,
+                  backgroundColor: const Color(
+                    0xFFE8F5EC,
+                  ),
+                  side: const BorderSide(
+                    color: Color(
+                      0xFFC7DFC9,
+                    ),
+                  ),
+                ),
+                icon: const Icon(
+                  Icons.close_fullscreen_rounded,
+                  size: 19,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        Expanded(
+          child: LayoutBuilder(
+            builder:
+                (
+                  context,
+                  viewport,
+                ) {
+                  const horizontalPadding = 12.0;
+                  const verticalPadding = 12.0;
+
+                  final boardWidth = math
+                      .max(
+                        1.0,
+                        viewport.maxWidth -
+                            (horizontalPadding *
+                                2),
+                      )
+                      .toDouble();
+
+                  final minimumHeight = math
+                      .max(
+                        620.0,
+                        viewport.maxHeight -
+                            (verticalPadding *
+                                2),
+                      )
+                      .toDouble();
+
+                  _boardController.initializePositions(
+                    day: day,
+                    boardWidth: boardWidth,
+                  );
+
+                  final boardHeight = _boardController.canvasHeight(
+                    day: day,
+                    minimumHeight: minimumHeight,
+                    estimatedBlockHeight: 430,
+                    bottomPadding: 140,
+                  );
+
+                  return SingleChildScrollView(
+                    padding: const EdgeInsets.all(
+                      12,
+                    ),
+                    child: Container(
+                      width: boardWidth,
+                      height: boardHeight,
+                      decoration: BoxDecoration(
+                        color: _surface,
+                        borderRadius: BorderRadius.circular(
+                          18,
+                        ),
+                        border: Border.all(
+                          color: _border,
+                        ),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(
+                          18,
+                        ),
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            const Positioned.fill(
+                              child: CustomPaint(
+                                painter: _GridPainter(),
+                              ),
+                            ),
+                            if (day.blocks.isEmpty)
+                              Positioned.fill(
+                                child: _EmptyBoard(
+                                  onAddBlock: _addBlock,
+                                ),
+                              ),
+                            for (final block in day.blocks)
+                              _positionedBlock(
+                                day: day,
+                                block: block,
+                                boardWidth: boardWidth,
+                                boardHeight: boardHeight,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _expandedBoardDate(
+    DateTime date,
+  ) {
+    String
+    two(
+      int value,
+    ) => value.toString().padLeft(
+      2,
+      '0',
+    );
+
+    return '${two(date.day)}/${two(date.month)}/${date.year}';
   }
 
   Widget _positionedBlock({
@@ -834,13 +1118,6 @@ class _RoutineScreenState
           day,
           block,
         ),
-        onOpenMindMap:
-            block.type ==
-                BlockType.mindMap
-            ? () => _openMindMapWindow(
-                block,
-              )
-            : null,
         child: _blockContent(
           block,
         ),
@@ -889,363 +1166,9 @@ class _RoutineScreenState
           ),
         );
       case BlockType.mindMap:
-        if (_isMindMapDetached(
-          block,
-        )) {
-          return _MindMapCompactSummary(
-            block: block,
-            onOpen: () => _openMindMapWindow(
-              block,
-            ),
-          );
-        }
-
         return MindMapBlock(
           block: block,
           controller: _mindMapController,
-        );
-    }
-  }
-
-  // ============================================================
-  // MIND MAP WINDOW CHANNEL HANDLER
-  // ============================================================
-
-  Future<
-    dynamic
-  >
-  _handleMindMapWindowCall(
-    MethodCall call,
-  ) async {
-    switch (call.method) {
-      // ========================================================
-      // DOCK
-      // ========================================================
-
-      case 'mind_map_dock':
-        final arguments = call.arguments;
-
-        Map<
-          String,
-          dynamic
-        >
-        data =
-            <
-              String,
-              dynamic
-            >{};
-
-        if (arguments
-            is Map) {
-          data =
-              Map<
-                String,
-                dynamic
-              >.from(
-                arguments,
-              );
-        }
-
-        final blockId = data['block_id']?.toString().trim();
-
-        if (blockId ==
-                null ||
-            blockId.isEmpty) {
-          return false;
-        }
-
-        if (!mounted) {
-          return false;
-        }
-
-        setState(
-          () {
-            _detachedMindMapBlockIds.remove(
-              blockId,
-            );
-          },
-        );
-
-        // ======================================================
-        // RELOAD
-        // ======================================================
-        //
-        // A janela externa trabalha com uma cópia do BoardBlock.
-        // Ao encaixar, recarregamos do Supabase para o card
-        // recuperar o estado persistido mais recente.
-        //
-        // ======================================================
-
-        if (_routineControllerReady) {
-          await _routineController.loadWeek();
-        }
-
-        return true;
-
-      default:
-        throw MissingPluginException(
-          'Método não implementado no canal da lousa: ${call.method}',
-        );
-    }
-  }
-
-  // ============================================================
-  // IS MIND MAP DETACHED
-  // ============================================================
-
-  bool _isMindMapDetached(
-    BoardBlock block,
-  ) {
-    return _detachedMindMapBlockIds.contains(
-      block.id,
-    );
-  }
-
-  // ============================================================
-  // PARSE WINDOW BLOCK ID
-  // ============================================================
-
-  String? _mindMapBlockIdFromArguments(
-    String rawArguments,
-  ) {
-    final raw = rawArguments.trim();
-
-    if (raw.isEmpty) {
-      return null;
-    }
-
-    try {
-      final decoded = jsonDecode(
-        raw,
-      );
-
-      if (decoded
-          is! Map) {
-        return null;
-      }
-
-      final map =
-          Map<
-            String,
-            dynamic
-          >.from(
-            decoded,
-          );
-
-      if (map['window']?.toString().trim() !=
-          'mind_map') {
-        return null;
-      }
-
-      final blockId = map['block_id']?.toString().trim();
-
-      if (blockId ==
-              null ||
-          blockId.isEmpty) {
-        return null;
-      }
-
-      return blockId;
-    } catch (
-      _
-    ) {
-      return null;
-    }
-  }
-
-  // ============================================================
-  // FIND EXISTING MIND MAP WINDOW
-  // ============================================================
-  //
-  // A janela é escondida ao encaixar, não destruída.
-  //
-  // Portanto, ao destacar novamente procuramos a janela já
-  // existente e apenas chamamos show().
-  //
-  // Isso evita criar engines repetidas para o mesmo bloco.
-  // ============================================================
-
-  Future<
-    WindowController?
-  >
-  _findMindMapWindow(
-    String blockId,
-  ) async {
-    final windows = await WindowController.getAll();
-
-    for (final window in windows) {
-      final currentBlockId = _mindMapBlockIdFromArguments(
-        window.arguments,
-      );
-
-      if (currentBlockId ==
-          blockId) {
-        return window;
-      }
-    }
-
-    return null;
-  }
-
-  // ============================================================
-  // OPEN MIND MAP WINDOW
-  // ============================================================
-  //
-  // Ao destacar:
-  //
-  // 1. salvamos o dia atual;
-  // 2. procuramos uma janela escondida já existente;
-  // 3. se existir, apenas fazemos show();
-  // 4. se não existir, criamos uma nova;
-  // 5. o card passa a mostrar o resumo compacto.
-  //
-  // Ao fechar a janela externa, ela envia "mind_map_dock"
-  // e o canvas volta para dentro do card.
-  //
-  // ============================================================
-
-  Future<
-    void
-  >
-  _openMindMapWindow(
-    BoardBlock block,
-  ) async {
-    if (block.type !=
-        BlockType.mindMap) {
-      return;
-    }
-
-    try {
-      // Se já existir uma janela para este bloco,
-      // apenas garante que ela esteja visível.
-      final existingWindow = await _findMindMapWindow(
-        block.id,
-      );
-
-      if (existingWindow !=
-          null) {
-        await existingWindow.show();
-
-        if (mounted) {
-          setState(
-            () {
-              _detachedMindMapBlockIds.add(
-                block.id,
-              );
-            },
-          );
-        }
-
-        return;
-      }
-
-      _mindMapController.ensureRoot(
-        block,
-      );
-
-      // A janela secundária carrega o bloco pelo Supabase.
-      // Por isso salvamos antes de destacar.
-      await _routineController.saveSelectedDay();
-
-      if (!mounted) {
-        return;
-      }
-
-      final arguments = jsonEncode(
-        {
-          'window': 'mind_map',
-          'block_id': block.id,
-          'title': block.title.trim().isEmpty
-              ? 'Nova ideia'
-              : block.title.trim(),
-        },
-      );
-
-      final window = await WindowController.create(
-        WindowConfiguration(
-          hiddenAtLaunch: true,
-          arguments: arguments,
-        ),
-      );
-
-      if (!mounted) {
-        return;
-      }
-
-      setState(
-        () {
-          _detachedMindMapBlockIds.add(
-            block.id,
-          );
-        },
-      );
-
-      await window.show();
-    } catch (
-      error,
-      stackTrace
-    ) {
-      // Se a criação falhar, a lousa volta a ficar encaixada.
-      if (mounted) {
-        setState(
-          () {
-            _detachedMindMapBlockIds.remove(
-              block.id,
-            );
-          },
-        );
-      }
-
-      debugPrint(
-        '',
-      );
-
-      debugPrint(
-        '============================================================',
-      );
-
-      debugPrint(
-        '[ROUTINE][MIND MAP WINDOW] ERRO',
-      );
-
-      debugPrint(
-        '------------------------------------------------------------',
-      );
-
-      debugPrint(
-        '$error',
-      );
-
-      debugPrint(
-        '$stackTrace',
-      );
-
-      debugPrint(
-        '============================================================',
-      );
-
-      debugPrint(
-        '',
-      );
-
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(
-          context,
-        )
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            backgroundColor: _surfaceLight,
-            content: Text(
-              'Não foi possível abrir a lousa: $error',
-              style: const TextStyle(
-                color: _text,
-              ),
-            ),
-          ),
         );
     }
   }
@@ -1483,7 +1406,7 @@ class _RoutineScreenState
                         'Excluir',
                         style: TextStyle(
                           color: Color(
-                            0xFFFF7E9D,
+                            0xFFC43A52,
                           ),
                         ),
                       ),
@@ -1531,7 +1454,7 @@ class _RoutineScreenState
           action: SnackBarAction(
             label: 'Editar',
             textColor: const Color(
-              0xFF65C7FF,
+              0xFF198754,
             ),
             onPressed: () => _editBlock(
               block,
@@ -1579,7 +1502,7 @@ class _RoutineInitializationError
                 ),
                 border: Border.all(
                   color: const Color(
-                    0xFF7C3047,
+                    0xFFF0B7C0,
                   ),
                 ),
               ),
@@ -1589,7 +1512,7 @@ class _RoutineInitializationError
                   const Icon(
                     Icons.cloud_off_rounded,
                     color: Color(
-                      0xFFFF8DAA,
+                      0xFFC43A52,
                     ),
                     size: 34,
                   ),
@@ -1819,7 +1742,6 @@ class _BoardCard
     required this.onDuplicate,
     required this.onDelete,
     required this.child,
-    this.onOpenMindMap,
   });
 
   final BoardBlock block;
@@ -1830,7 +1752,6 @@ class _BoardCard
   final VoidCallback onEdit;
   final VoidCallback onDuplicate;
   final VoidCallback onDelete;
-  final VoidCallback? onOpenMindMap;
   final Widget child;
 
   @override
@@ -1851,7 +1772,7 @@ class _BoardCard
           boxShadow: const [
             BoxShadow(
               color: Color(
-                0x44000000,
+                0x14000000,
               ),
               blurRadius: 18,
               offset: Offset(
@@ -1915,19 +1836,6 @@ class _BoardCard
                           ),
                         ),
                       ),
-                      if (onOpenMindMap !=
-                          null)
-                        IconButton(
-                          tooltip: 'Abrir lousa',
-                          onPressed: onOpenMindMap,
-                          icon: const Icon(
-                            Icons.open_in_new_rounded,
-                            color: Color(
-                              0xFF7BE495,
-                            ),
-                            size: 18,
-                          ),
-                        ),
                       IconButton(
                         tooltip: 'Editar',
                         onPressed: onEdit,
@@ -1942,7 +1850,7 @@ class _BoardCard
                       >(
                         tooltip: 'Opções do bloco',
                         color: const Color(
-                          0xFF20232C,
+                          0xFFFFFFFF,
                         ),
                         icon: const Icon(
                           Icons.more_vert_rounded,
@@ -1978,7 +1886,7 @@ class _BoardCard
                                   icon: Icons.delete_outline_rounded,
                                   text: 'Excluir',
                                   color: Color(
-                                    0xFFFF8DAA,
+                                    0xFFC43A52,
                                   ),
                                 ),
                               ),
@@ -2005,149 +1913,6 @@ class _BoardCard
               child: child,
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-// ============================================================
-// MIND MAP COMPACT SUMMARY
-// ============================================================
-//
-// Substitui o canvas que antes ficava dentro do card.
-//
-// Agora o card mostra apenas um resumo compacto.
-// A lousa real abre em uma janela desktop independente.
-// ============================================================
-
-class _MindMapCompactSummary
-    extends
-        StatelessWidget {
-  const _MindMapCompactSummary({
-    required this.block,
-    required this.onOpen,
-  });
-
-  final BoardBlock block;
-  final VoidCallback onOpen;
-
-  @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final nodeCount = block.mindNodes.length;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        14,
-        2,
-        14,
-        2,
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onOpen,
-          borderRadius: BorderRadius.circular(
-            13,
-          ),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 12,
-            ),
-            decoration: BoxDecoration(
-              color: const Color(
-                0xFF111319,
-              ),
-              borderRadius: BorderRadius.circular(
-                13,
-              ),
-              border: Border.all(
-                color: _RoutineScreenState._border,
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: const Color(
-                      0xFF173626,
-                    ),
-                    borderRadius: BorderRadius.circular(
-                      11,
-                    ),
-                    border: Border.all(
-                      color:
-                          const Color(
-                            0xFF7BE495,
-                          ).withValues(
-                            alpha: .18,
-                          ),
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons.account_tree_rounded,
-                    color: Color(
-                      0xFF7BE495,
-                    ),
-                    size: 19,
-                  ),
-                ),
-
-                const SizedBox(
-                  width: 11,
-                ),
-
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Lousa externa',
-                        style: TextStyle(
-                          color: _RoutineScreenState._text,
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-
-                      const SizedBox(
-                        height: 3,
-                      ),
-
-                      Text(
-                        nodeCount ==
-                                1
-                            ? '1 nó • clique para abrir'
-                            : '$nodeCount nós • clique para abrir',
-                        style: const TextStyle(
-                          color: _RoutineScreenState._muted,
-                          fontSize: 10.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(
-                  width: 8,
-                ),
-
-                const Icon(
-                  Icons.open_in_new_rounded,
-                  color: Color(
-                    0xFF7BE495,
-                  ),
-                  size: 18,
-                ),
-              ],
-            ),
-          ),
         ),
       ),
     );
@@ -2233,7 +1998,7 @@ class _EmptyBoard
               child: const Icon(
                 Icons.dashboard_customize_outlined,
                 color: Color(
-                  0xFFA996FF,
+                  0xFF198754,
                 ),
                 size: 27,
               ),
@@ -2268,11 +2033,11 @@ class _EmptyBoard
               onPressed: onAddBlock,
               style: OutlinedButton.styleFrom(
                 foregroundColor: const Color(
-                  0xFFA996FF,
+                  0xFF198754,
                 ),
                 side: const BorderSide(
                   color: Color(
-                    0xFF5E4BAA,
+                    0xFF86B996,
                   ),
                 ),
                 shape: RoundedRectangleBorder(
@@ -2357,7 +2122,7 @@ class _GridPainter
     final paint = Paint()
       ..color =
           const Color(
-            0xFF242731,
+            0xFFD7E3D9,
           ).withValues(
             alpha: .42,
           )

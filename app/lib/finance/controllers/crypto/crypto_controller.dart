@@ -6,11 +6,19 @@ import '../../services/crypto/crypto_service.dart';
 class CryptoController
     extends
         ChangeNotifier {
-  final CryptoService service;
-
   CryptoController({
     required this.service,
   });
+
+  // ============================================================
+  // SERVICE
+  // ============================================================
+
+  final CryptoService service;
+
+  // ============================================================
+  // STATE
+  // ============================================================
 
   List<
     CryptoTransactionModel
@@ -21,7 +29,15 @@ class CryptoController
 
   double invested = 0;
 
-  String currentSymbol = "";
+  String currentSymbol = '';
+
+  bool isLoading = false;
+
+  String? errorMessage;
+
+  // ============================================================
+  // GET BY SYMBOL
+  // ============================================================
 
   Future<
     List<
@@ -38,28 +54,67 @@ class CryptoController
     return transactions;
   }
 
+  // ============================================================
+  // LOAD
+  // ============================================================
+
   Future<
     void
   >
   load(
     String symbol,
   ) async {
-    currentSymbol = symbol;
+    final normalizedSymbol = symbol.trim().toUpperCase();
 
-    transactions = await service.load(
-      symbol,
-    );
+    if (normalizedSymbol.isEmpty) {
+      clear();
+      return;
+    }
 
-    quantity = await service.totalQuantity(
-      symbol,
-    );
+    currentSymbol = normalizedSymbol;
 
-    invested = await service.totalInvested(
-      symbol,
-    );
+    isLoading = true;
+    errorMessage = null;
 
     notifyListeners();
+
+    try {
+      transactions = await service.load(
+        normalizedSymbol,
+      );
+
+      quantity = await service.totalQuantity(
+        normalizedSymbol,
+      );
+
+      invested = await service.totalInvested(
+        normalizedSymbol,
+      );
+    } catch (
+      error,
+      stackTrace
+    ) {
+      errorMessage = 'Não foi possível carregar os dados de $normalizedSymbol.';
+
+      debugPrint(
+        '[CRYPTO CONTROLLER][LOAD] $error',
+      );
+
+      debugPrint(
+        '$stackTrace',
+      );
+
+      rethrow;
+    } finally {
+      isLoading = false;
+
+      notifyListeners();
+    }
   }
+
+  // ============================================================
+  // ADD
+  // ============================================================
 
   Future<
     void
@@ -67,14 +122,39 @@ class CryptoController
   add(
     CryptoTransactionModel transaction,
   ) async {
-    await service.add(
-      transaction,
-    );
+    errorMessage = null;
 
-    await load(
-      transaction.symbol,
-    );
+    try {
+      await service.add(
+        transaction,
+      );
+
+      await load(
+        transaction.symbol,
+      );
+    } catch (
+      error,
+      stackTrace
+    ) {
+      errorMessage = 'Não foi possível adicionar a compra.';
+
+      debugPrint(
+        '[CRYPTO CONTROLLER][ADD] $error',
+      );
+
+      debugPrint(
+        '$stackTrace',
+      );
+
+      notifyListeners();
+
+      rethrow;
+    }
   }
+
+  // ============================================================
+  // UPDATE
+  // ============================================================
 
   Future<
     void
@@ -82,14 +162,39 @@ class CryptoController
   update(
     CryptoTransactionModel transaction,
   ) async {
-    await service.update(
-      transaction,
-    );
+    errorMessage = null;
 
-    await load(
-      transaction.symbol,
-    );
+    try {
+      await service.update(
+        transaction,
+      );
+
+      await load(
+        transaction.symbol,
+      );
+    } catch (
+      error,
+      stackTrace
+    ) {
+      errorMessage = 'Não foi possível atualizar a compra.';
+
+      debugPrint(
+        '[CRYPTO CONTROLLER][UPDATE] $error',
+      );
+
+      debugPrint(
+        '$stackTrace',
+      );
+
+      notifyListeners();
+
+      rethrow;
+    }
   }
+
+  // ============================================================
+  // DELETE
+  // ============================================================
 
   Future<
     void
@@ -97,16 +202,75 @@ class CryptoController
   delete(
     String id,
   ) async {
-    await service.delete(
-      id,
-    );
+    errorMessage = null;
 
-    if (currentSymbol.isNotEmpty) {
-      await load(
-        currentSymbol,
+    try {
+      await service.delete(
+        id,
       );
+
+      if (currentSymbol.isNotEmpty) {
+        await load(
+          currentSymbol,
+        );
+      } else {
+        notifyListeners();
+      }
+    } catch (
+      error,
+      stackTrace
+    ) {
+      errorMessage = 'Não foi possível excluir a compra.';
+
+      debugPrint(
+        '[CRYPTO CONTROLLER][DELETE] $error',
+      );
+
+      debugPrint(
+        '$stackTrace',
+      );
+
+      notifyListeners();
+
+      rethrow;
     }
   }
+
+  // ============================================================
+  // REFRESH
+  // ============================================================
+
+  Future<
+    void
+  >
+  refresh() async {
+    if (currentSymbol.isEmpty) {
+      return;
+    }
+
+    await load(
+      currentSymbol,
+    );
+  }
+
+  // ============================================================
+  // CLEAR ERROR
+  // ============================================================
+
+  void clearError() {
+    if (errorMessage ==
+        null) {
+      return;
+    }
+
+    errorMessage = null;
+
+    notifyListeners();
+  }
+
+  // ============================================================
+  // CLEAR
+  // ============================================================
 
   void clear() {
     transactions = [];
@@ -115,7 +279,11 @@ class CryptoController
 
     invested = 0;
 
-    currentSymbol = "";
+    currentSymbol = '';
+
+    isLoading = false;
+
+    errorMessage = null;
 
     notifyListeners();
   }

@@ -13,6 +13,10 @@ class WeekDayCard
     required this.onTap,
   });
 
+  // ============================================================
+  // DADOS
+  // ============================================================
+
   final DateTime day;
   final bool selected;
   final bool today;
@@ -20,14 +24,46 @@ class WeekDayCard
   final bool hasContent;
   final VoidCallback onTap;
 
+  // ============================================================
+  // CORES
+  // ============================================================
+
+  static const Color _green = Color(
+    0xFF347A3D,
+  );
+
+  static const Color _greenLight = Color(
+    0xFFC9F2C5,
+  );
+
+  static const Color _greenBorder = Color(
+    0xFFA9DEA5,
+  );
+
+  static const Color _surface = Color(
+    0xFFFFFFFF,
+  );
+
+  static const Color _border = Color(
+    0xFFDCE8DA,
+  );
+
+  static const Color _text = Color(
+    0xFF172019,
+  );
+
+  static const Color _muted = Color(
+    0xFF68746B,
+  );
+
+  // ============================================================
+  // BUILD
+  // ============================================================
+
   @override
   Widget build(
     BuildContext context,
   ) {
-    const primary = Color(
-      0xFF7C5CFF,
-    );
-
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(
@@ -43,55 +79,80 @@ class WeekDayCard
         ),
         decoration: BoxDecoration(
           color: selected
-              ? primary
-              : const Color(
-                  0xFF111319,
-                ),
+              ? _greenLight
+              : _surface,
           borderRadius: BorderRadius.circular(
             16,
           ),
           border: Border.all(
             color: selected
-                ? primary
+                ? _greenBorder
                 : today
-                ? primary.withValues(
-                    alpha: .7,
+                ? _green.withValues(
+                    alpha: .65,
                   )
-                : const Color(
-                    0xFF272B36,
-                  ),
+                : _border,
+            width:
+                selected ||
+                    today
+                ? 1.4
+                : 1,
           ),
+          boxShadow: [
+            if (selected)
+              const BoxShadow(
+                color: Color(
+                  0x14000000,
+                ),
+                blurRadius: 8,
+                offset: Offset(
+                  0,
+                  3,
+                ),
+              ),
+          ],
         ),
         child: Column(
           children: [
+            // ==================================================
+            // DIA DA SEMANA
+            // ==================================================
             Text(
               _shortWeekday(
                 day.weekday,
               ),
               style: TextStyle(
                 color: selected
-                    ? Colors.white70
-                    : const Color(
-                        0xFF9298A6,
-                      ),
+                    ? _green
+                    : _muted,
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
               ),
             ),
+
             const SizedBox(
               height: 4,
             ),
+
+            // ==================================================
+            // NÚMERO DO DIA
+            // ==================================================
             Text(
               '${day.day}',
-              style: const TextStyle(
-                color: Color(
-                  0xFFF5F7FA,
-                ),
+              style: TextStyle(
+                color: selected
+                    ? _green
+                    : _text,
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
               ),
             ),
+
             const Spacer(),
+
+            // ==================================================
+            // PROGRESSO
+            // ==================================================
             if (hasContent)
               SizedBox(
                 width: 35,
@@ -106,20 +167,31 @@ class WeekDayCard
                   borderRadius: BorderRadius.circular(
                     4,
                   ),
-                  backgroundColor: Colors.white12,
-                  valueColor: AlwaysStoppedAnimation(
-                    selected
-                        ? Colors.white
-                        : primary,
-                  ),
+                  backgroundColor: selected
+                      ? const Color(
+                          0xFFB8E8B5,
+                        )
+                      : const Color(
+                          0xFFE4ECE4,
+                        ),
+                  valueColor:
+                      const AlwaysStoppedAnimation<
+                        Color
+                      >(
+                        _green,
+                      ),
                 ),
               )
             else
               Container(
-                width: 4,
-                height: 4,
-                decoration: const BoxDecoration(
-                  color: Colors.white24,
+                width: 5,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: selected
+                      ? _green
+                      : const Color(
+                          0xFFC7D4C8,
+                        ),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -128,6 +200,10 @@ class WeekDayCard
       ),
     );
   }
+
+  // ============================================================
+  // DIA DA SEMANA
+  // ============================================================
 
   String _shortWeekday(
     int weekday,

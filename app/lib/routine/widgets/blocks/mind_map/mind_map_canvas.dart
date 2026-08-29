@@ -37,6 +37,30 @@ class _MindMapCanvasState
           MindMapCanvas
         > {
   // ============================================================
+  // CORES
+  // ============================================================
+
+  static const Color _green = Color(
+    0xFF347A3D,
+  );
+
+  static const Color _canvasBackground = Color(
+    0xFF0D0F15,
+  );
+
+  static const Color _canvasBorder = Color(
+    0xFF272B36,
+  );
+
+  static const Color _hintBackground = Color(
+    0xCC171A22,
+  );
+
+  static const Color _muted = Color(
+    0xFF9298A6,
+  );
+
+  // ============================================================
   // STATE
   // ============================================================
 
@@ -152,17 +176,25 @@ class _MindMapCanvasState
             return Container(
               height: widget.height,
               decoration: BoxDecoration(
-                color: const Color(
-                  0xFF0D0F15,
-                ),
+                color: _canvasBackground,
                 borderRadius: BorderRadius.circular(
                   15,
                 ),
                 border: Border.all(
-                  color: const Color(
-                    0xFF272B36,
-                  ),
+                  color: _canvasBorder,
                 ),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(
+                      0x33000000,
+                    ),
+                    blurRadius: 12,
+                    offset: Offset(
+                      0,
+                      5,
+                    ),
+                  ),
+                ],
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(
@@ -171,13 +203,31 @@ class _MindMapCanvasState
                 child: Stack(
                   children: [
                     // =================================================
+                    // FUNDO
+                    // =================================================
+                    const Positioned.fill(
+                      child: ColoredBox(
+                        color: _canvasBackground,
+                      ),
+                    ),
+
+                    // =================================================
+                    // GRID
+                    // =================================================
+                    const Positioned.fill(
+                      child: CustomPaint(
+                        painter: _MindMapGridPainter(),
+                      ),
+                    ),
+
+                    // =================================================
                     // CONEXÕES
                     // =================================================
                     Positioned.fill(
                       child: CustomPaint(
                         painter: MindMapConnectionsPainter(
                           nodes: widget.block.mindNodes,
-                          color: widget.block.color,
+                          color: _green,
                           nodeWidth: MindMapController.nodeWidth,
                           nodeHeight: MindMapController.nodeHeight,
                         ),
@@ -236,21 +286,36 @@ class _MindMapCanvasState
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(
-                            0xCC171A22,
-                          ),
+                          color: _hintBackground,
                           borderRadius: BorderRadius.circular(
                             9,
                           ),
-                        ),
-                        child: const Text(
-                          'Passe o mouse • escolha uma porta • arraste os nós',
-                          style: TextStyle(
-                            color: Color(
-                              0xFF9298A6,
-                            ),
-                            fontSize: 10,
+                          border: Border.all(
+                            color: _canvasBorder,
                           ),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.account_tree_outlined,
+                              color: _green,
+                              size: 13,
+                            ),
+
+                            SizedBox(
+                              width: 6,
+                            ),
+
+                            Text(
+                              'Passe o mouse • escolha uma porta • arraste os nós',
+                              style: TextStyle(
+                                color: _muted,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -260,5 +325,62 @@ class _MindMapCanvasState
             );
           },
     );
+  }
+}
+
+// ============================================================
+// GRID
+// ============================================================
+
+class _MindMapGridPainter
+    extends
+        CustomPainter {
+  const _MindMapGridPainter();
+
+  @override
+  void paint(
+    Canvas canvas,
+    Size size,
+  ) {
+    const spacing = 24.0;
+
+    final paint = Paint()
+      ..color =
+          const Color(
+            0xFF242731,
+          ).withValues(
+            alpha: .55,
+          )
+      ..strokeWidth = 1;
+
+    for (
+      double x = spacing;
+      x <
+          size.width;
+      x += spacing
+    ) {
+      for (
+        double y = spacing;
+        y <
+            size.height;
+        y += spacing
+      ) {
+        canvas.drawCircle(
+          Offset(
+            x,
+            y,
+          ),
+          1,
+          paint,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(
+    covariant _MindMapGridPainter oldDelegate,
+  ) {
+    return false;
   }
 }

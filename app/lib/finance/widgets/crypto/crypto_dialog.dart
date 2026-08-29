@@ -4,25 +4,27 @@ import '../../../app/dependencies/app_dependencies.dart';
 
 import '../../models/crypto/crypto_transaction_model.dart';
 
-import 'crypto_history_card.dart';
 import 'add_crypto_dialog.dart';
+import 'crypto_history_card.dart';
 import 'edit_crypto_dialog.dart';
 
 class CryptoDialog
     extends
         StatefulWidget {
-  final String symbol;
-
   const CryptoDialog({
     super.key,
     required this.symbol,
   });
 
+  final String symbol;
+
   @override
   State<
     CryptoDialog
   >
-  createState() => _CryptoDialogState();
+  createState() {
+    return _CryptoDialogState();
+  }
 }
 
 class _CryptoDialogState
@@ -30,10 +32,22 @@ class _CryptoDialogState
         State<
           CryptoDialog
         > {
+  // ============================================================
+  // STATE
+  // ============================================================
+
   List<
     CryptoTransactionModel
   >
   transactions = [];
+
+  bool isLoading = true;
+
+  String? errorMessage;
+
+  // ============================================================
+  // INIT
+  // ============================================================
 
   @override
   void initState() {
@@ -42,26 +56,85 @@ class _CryptoDialogState
     load();
   }
 
+  // ============================================================
+  // LOAD
+  // ============================================================
+
   Future<
     void
   >
   load() async {
-    final result = await cryptoController.getBySymbol(
-      widget.symbol,
-    );
-
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     setState(
       () {
-        transactions = result;
+        isLoading = true;
+        errorMessage = null;
       },
     );
+
+    try {
+      final result = await cryptoController.getBySymbol(
+        widget.symbol,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(
+        () {
+          transactions =
+              List<
+                CryptoTransactionModel
+              >.from(
+                result,
+              );
+        },
+      );
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        '[CRYPTO DIALOG][LOAD] $error',
+      );
+
+      debugPrint(
+        '$stackTrace',
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(
+        () {
+          errorMessage = 'Não foi possível carregar ${widget.symbol}.';
+        },
+      );
+    } finally {
+      if (mounted) {
+        setState(
+          () {
+            isLoading = false;
+          },
+        );
+      }
+    }
   }
 
+  // ============================================================
+  // TOTAL QUANTITY
+  // ============================================================
+
   double get totalQuantity {
-    return transactions.fold(
-      0.0,
+    return transactions.fold<
+      double
+    >(
+      0,
       (
         total,
         item,
@@ -72,9 +145,15 @@ class _CryptoDialogState
     );
   }
 
+  // ============================================================
+  // TOTAL INVESTED
+  // ============================================================
+
   double get totalInvested {
-    return transactions.fold(
-      0.0,
+    return transactions.fold<
+      double
+    >(
+      0,
       (
         total,
         item,
@@ -85,53 +164,121 @@ class _CryptoDialogState
     );
   }
 
-  String title() {
-    switch (widget.symbol) {
-      case "BTC":
-        return "Bitcoin";
+  // ============================================================
+  // TITLE
+  // ============================================================
 
-      case "ETH":
-        return "Ethereum";
+  String get cryptoTitle {
+    switch (widget.symbol.trim().toUpperCase()) {
+      case 'BTC':
+        return 'Bitcoin';
 
-      case "SOL":
-        return "Solana";
+      case 'ETH':
+        return 'Ethereum';
 
-      case "USDT":
-        return "USDT";
+      case 'SOL':
+        return 'Solana';
+
+      case 'USDT':
+        return 'USDT';
 
       default:
-        return widget.symbol;
+        return widget.symbol.toUpperCase();
     }
   }
+
+  // ============================================================
+  // DECIMALS
+  // ============================================================
+
+  int get quantityDecimals {
+    switch (widget.symbol.trim().toUpperCase()) {
+      case 'BTC':
+        return 8;
+
+      case 'ETH':
+        return 8;
+
+      case 'SOL':
+        return 8;
+
+      case 'USDT':
+        return 8;
+
+      default:
+        return 8;
+    }
+  }
+
+  // ============================================================
+  // FORMAT CURRENCY
+  // ============================================================
+
+  String _formatCurrency(
+    double value,
+  ) {
+    return 'R\$ ${value.toStringAsFixed(2).replaceAll('.', ',')}';
+  }
+
+  // ============================================================
+  // ADD
+  // ============================================================
 
   Future<
     void
   >
   add() async {
-    await showDialog(
-      context: context,
-
-      builder:
-          (
-            context,
-          ) {
-            return AddCryptoDialog(
-              symbol: widget.symbol,
-
-              onSave:
-                  (
-                    transaction,
-                  ) {
-                    return cryptoController.add(
+    try {
+      await showDialog<
+        void
+      >(
+        context: context,
+        builder:
+            (
+              dialogContext,
+            ) {
+              return AddCryptoDialog(
+                symbol: widget.symbol,
+                onSave:
+                    (
                       transaction,
-                    );
-                  },
-            );
-          },
-    );
+                    ) {
+                      return cryptoController.add(
+                        transaction,
+                      );
+                    },
+              );
+            },
+      );
 
-    load();
+      if (!mounted) {
+        return;
+      }
+
+      await load();
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        '[CRYPTO DIALOG][ADD] $error',
+      );
+
+      debugPrint(
+        '$stackTrace',
+      );
+
+      if (mounted) {
+        _showMessage(
+          'Não foi possível adicionar a compra.',
+        );
+      }
+    }
   }
+
+  // ============================================================
+  // EDIT
+  // ============================================================
 
   Future<
     void
@@ -139,30 +286,57 @@ class _CryptoDialogState
   edit(
     CryptoTransactionModel transaction,
   ) async {
-    await showDialog(
-      context: context,
-
-      builder:
-          (
-            context,
-          ) {
-            return EditCryptoDialog(
-              transaction: transaction,
-
-              onSave:
-                  (
-                    updated,
-                  ) {
-                    return cryptoController.update(
+    try {
+      await showDialog<
+        void
+      >(
+        context: context,
+        builder:
+            (
+              dialogContext,
+            ) {
+              return EditCryptoDialog(
+                transaction: transaction,
+                onSave:
+                    (
                       updated,
-                    );
-                  },
-            );
-          },
-    );
+                    ) {
+                      return cryptoController.update(
+                        updated,
+                      );
+                    },
+              );
+            },
+      );
 
-    load();
+      if (!mounted) {
+        return;
+      }
+
+      await load();
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        '[CRYPTO DIALOG][EDIT] $error',
+      );
+
+      debugPrint(
+        '$stackTrace',
+      );
+
+      if (mounted) {
+        _showMessage(
+          'Não foi possível atualizar a compra.',
+        );
+      }
+    }
   }
+
+  // ============================================================
+  // REMOVE
+  // ============================================================
 
   Future<
     void
@@ -170,12 +344,277 @@ class _CryptoDialogState
   remove(
     CryptoTransactionModel transaction,
   ) async {
-    await cryptoController.delete(
-      transaction.id,
-    );
+    try {
+      await cryptoController.delete(
+        transaction.id,
+      );
 
-    load();
+      if (!mounted) {
+        return;
+      }
+
+      await load();
+
+      if (mounted) {
+        _showMessage(
+          'Compra excluída.',
+        );
+      }
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        '[CRYPTO DIALOG][DELETE] $error',
+      );
+
+      debugPrint(
+        '$stackTrace',
+      );
+
+      if (mounted) {
+        _showMessage(
+          'Não foi possível excluir a compra.',
+        );
+      }
+    }
   }
+
+  // ============================================================
+  // MESSAGE
+  // ============================================================
+
+  void _showMessage(
+    String message,
+  ) {
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).hideCurrentSnackBar();
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // HEADER
+  // ============================================================
+
+  Widget _buildHeader() {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                cryptoTitle,
+                style: const TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+              const SizedBox(
+                height: 2,
+              ),
+
+              Text(
+                widget.symbol.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        IconButton(
+          tooltip: 'Fechar',
+          onPressed: () {
+            Navigator.of(
+              context,
+            ).pop();
+          },
+          icon: const Icon(
+            Icons.close_rounded,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ============================================================
+  // SUMMARY
+  // ============================================================
+
+  Widget _buildSummary() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(
+          16,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Saldo',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(
+              height: 4,
+            ),
+
+            Text(
+              '${totalQuantity.toStringAsFixed(quantityDecimals)} '
+              '${widget.symbol.toUpperCase()}',
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(
+              height: 8,
+            ),
+
+            const Divider(),
+
+            const SizedBox(
+              height: 8,
+            ),
+
+            const Text(
+              'Investido',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(
+              height: 4,
+            ),
+
+            Text(
+              _formatCurrency(
+                totalInvested,
+              ),
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // ADD BUTTON
+  // ============================================================
+
+  Widget _buildAddButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton.icon(
+        onPressed: isLoading
+            ? null
+            : add,
+        icon: const Icon(
+          Icons.add_rounded,
+        ),
+        label: const Text(
+          'Adicionar compra',
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // HISTORY
+  // ============================================================
+
+  Widget _buildHistory() {
+    if (isLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(
+          vertical: 32,
+        ),
+        child: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (errorMessage !=
+        null) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(
+            20,
+          ),
+          child: Column(
+            children: [
+              const Icon(
+                Icons.error_outline_rounded,
+                size: 36,
+              ),
+
+              const SizedBox(
+                height: 10,
+              ),
+
+              Text(
+                errorMessage!,
+                textAlign: TextAlign.center,
+              ),
+
+              const SizedBox(
+                height: 12,
+              ),
+
+              OutlinedButton.icon(
+                onPressed: load,
+                icon: const Icon(
+                  Icons.refresh_rounded,
+                ),
+                label: const Text(
+                  'Tentar novamente',
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return CryptoHistoryCard(
+      transactions: transactions,
+      onDelete: remove,
+      onEdit: edit,
+    );
+  }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(
@@ -187,144 +626,52 @@ class _CryptoDialogState
           20,
         ),
       ),
-
-      child: Padding(
-        padding: const EdgeInsets.all(
-          20,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          maxWidth: 560,
         ),
+        child: Padding(
+          padding: const EdgeInsets.all(
+            20,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(),
 
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+                const SizedBox(
+                  height: 20,
+                ),
 
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                _buildSummary(),
 
-                children: [
-                  Text(
-                    title(),
+                const SizedBox(
+                  height: 20,
+                ),
 
-                    style: const TextStyle(
-                      fontSize: 26,
+                _buildAddButton(),
 
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                const SizedBox(
+                  height: 24,
+                ),
 
-                  IconButton(
-                    onPressed: () {
-                      Navigator.pop(
-                        context,
-                      );
-                    },
-
-                    icon: const Icon(
-                      Icons.close,
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(
-                height: 20,
-              ),
-
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(
-                    16,
-                  ),
-
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-
-                    children: [
-                      const Text(
-                        "Saldo",
-
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-
-                      Text(
-                        "${totalQuantity.toStringAsFixed(8)} ${widget.symbol}",
-
-                        style: const TextStyle(
-                          fontSize: 24,
-
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-
-                      const Divider(),
-
-                      const Text(
-                        "Investido",
-
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-
-                      Text(
-                        "R\$ ${totalInvested.toStringAsFixed(2)}",
-
-                        style: const TextStyle(
-                          fontSize: 20,
-                        ),
-                      ),
-                    ],
+                const Text(
+                  'Histórico',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
 
-              const SizedBox(
-                height: 20,
-              ),
-
-              SizedBox(
-                width: double.infinity,
-
-                child: ElevatedButton.icon(
-                  onPressed: add,
-
-                  icon: const Icon(
-                    Icons.add,
-                  ),
-
-                  label: const Text(
-                    "Adicionar compra",
-                  ),
+                const SizedBox(
+                  height: 10,
                 ),
-              ),
 
-              const SizedBox(
-                height: 20,
-              ),
-
-              const Text(
-                "Histórico",
-
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(
-                height: 10,
-              ),
-
-              CryptoHistoryCard(
-                transactions: transactions,
-
-                onDelete: remove,
-
-                onEdit: edit,
-              ),
-            ],
+                _buildHistory(),
+              ],
+            ),
           ),
         ),
       ),

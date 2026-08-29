@@ -1,4 +1,16 @@
 class CryptoTransactionModel {
+  const CryptoTransactionModel({
+    required this.id,
+    required this.symbol,
+    required this.date,
+    required this.quantity,
+    required this.invested,
+  });
+
+  // ============================================================
+  // FIELDS
+  // ============================================================
+
   final String id;
 
   final String symbol;
@@ -9,13 +21,9 @@ class CryptoTransactionModel {
 
   final double invested;
 
-  const CryptoTransactionModel({
-    required this.id,
-    required this.symbol,
-    required this.date,
-    required this.quantity,
-    required this.invested,
-  });
+  // ============================================================
+  // TO MAP
+  // ============================================================
 
   Map<
     String,
@@ -23,13 +31,17 @@ class CryptoTransactionModel {
   >
   toMap() {
     return {
-      "id": id,
-      "symbol": symbol,
-      "date": date.toIso8601String(),
-      "quantity": quantity,
-      "invested": invested,
+      'id': id,
+      'symbol': symbol.trim().toUpperCase(),
+      'date': date.toUtc().toIso8601String(),
+      'quantity': quantity,
+      'invested': invested,
     };
   }
+
+  // ============================================================
+  // FROM MAP
+  // ============================================================
 
   factory CryptoTransactionModel.fromMap(
     Map<
@@ -40,24 +52,26 @@ class CryptoTransactionModel {
   ) {
     return CryptoTransactionModel(
       id:
-          map["id"] ??
-          "",
+          map['id']?.toString() ??
+          '',
       symbol:
-          map["symbol"] ??
-          "",
-      date: DateTime.parse(
-        map["date"],
+          map['symbol']?.toString().trim().toUpperCase() ??
+          '',
+      date: _parseDate(
+        map['date'],
       ),
-      quantity:
-          (map["quantity"] ??
-                  0)
-              .toDouble(),
-      invested:
-          (map["invested"] ??
-                  0)
-              .toDouble(),
+      quantity: _parseDouble(
+        map['quantity'],
+      ),
+      invested: _parseDouble(
+        map['invested'],
+      ),
     );
   }
+
+  // ============================================================
+  // COPY WITH
+  // ============================================================
 
   CryptoTransactionModel copyWith({
     String? id,
@@ -83,5 +97,84 @@ class CryptoTransactionModel {
           invested ??
           this.invested,
     );
+  }
+
+  // ============================================================
+  // PARSE DOUBLE
+  // ============================================================
+
+  static double _parseDouble(
+    dynamic value,
+  ) {
+    if (value ==
+        null) {
+      return 0;
+    }
+
+    if (value
+        is num) {
+      return value.toDouble();
+    }
+
+    return double.tryParse(
+          value.toString().replaceAll(
+            ',',
+            '.',
+          ),
+        ) ??
+        0;
+  }
+
+  // ============================================================
+  // PARSE DATE
+  // ============================================================
+
+  static DateTime _parseDate(
+    dynamic value,
+  ) {
+    if (value
+        is DateTime) {
+      return value;
+    }
+
+    if (value ==
+        null) {
+      return DateTime.now();
+    }
+
+    return DateTime.tryParse(
+          value.toString(),
+        ) ??
+        DateTime.now();
+  }
+
+  // ============================================================
+  // VALIDATION
+  // ============================================================
+
+  bool get isValid {
+    return id.trim().isNotEmpty &&
+        symbol.trim().isNotEmpty &&
+        quantity >=
+            0 &&
+        invested >=
+            0 &&
+        quantity.isFinite &&
+        invested.isFinite;
+  }
+
+  // ============================================================
+  // DEBUG
+  // ============================================================
+
+  @override
+  String toString() {
+    return 'CryptoTransactionModel('
+        'id: $id, '
+        'symbol: $symbol, '
+        'date: $date, '
+        'quantity: $quantity, '
+        'invested: $invested'
+        ')';
   }
 }

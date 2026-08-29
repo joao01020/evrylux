@@ -16,14 +16,54 @@ class RoutineCalendarPanel
     required this.onToggleExpanded,
   });
 
+  // ============================================================
+  // CORES
+  // ============================================================
+
+  static const Color _green = Color(
+    0xFF347A3D,
+  );
+
+  static const Color _greenLight = Color(
+    0xFFC9F2C5,
+  );
+
+  static const Color _greenBorder = Color(
+    0xFFA9DEA5,
+  );
+
+  static const Color _panelBackground = Color(
+    0xFFF8FCF6,
+  );
+
+  static const Color _border = Color(
+    0xFFDCE8DA,
+  );
+
+  // ============================================================
+  // STATE
+  // ============================================================
+
   final RoutineState state;
+
+  // ============================================================
+  // ACTIONS
+  // ============================================================
+
   final VoidCallback onPreviousWeek;
+
   final VoidCallback onNextWeek;
+
   final ValueChanged<
     DateTime
   >
   onSelectDay;
+
   final VoidCallback onToggleExpanded;
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(
@@ -31,22 +71,28 @@ class RoutineCalendarPanel
   ) {
     return Container(
       decoration: const BoxDecoration(
+        color: _panelBackground,
         border: Border(
           bottom: BorderSide(
-            color: Color(
-              0xFF272B36,
-            ),
+            color: _border,
           ),
         ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // ====================================================
+          // NAVEGAÇÃO DA SEMANA
+          // ====================================================
           WeekNavigation(
             weekStart: state.weekStart,
             onPrevious: onPreviousWeek,
             onNext: onNextWeek,
           ),
+
+          // ====================================================
+          // CALENDÁRIO
+          // ====================================================
           AnimatedSize(
             duration: const Duration(
               milliseconds: 280,
@@ -64,6 +110,10 @@ class RoutineCalendarPanel
                     width: double.infinity,
                   ),
           ),
+
+          // ====================================================
+          // BOTÃO EXPANDIR / RECOLHER
+          // ====================================================
           Transform.translate(
             offset: const Offset(
               0,
@@ -73,40 +123,53 @@ class RoutineCalendarPanel
               message: state.calendarExpanded
                   ? 'Recolher calendário'
                   : 'Expandir calendário',
-              child: InkWell(
-                onTap: onToggleExpanded,
-                borderRadius: BorderRadius.circular(
-                  20,
-                ),
-                child: Container(
-                  width: 46,
-                  height: 22,
-                  decoration: BoxDecoration(
-                    color: const Color(
-                      0xFF171A22,
-                    ),
-                    borderRadius: BorderRadius.circular(
-                      20,
-                    ),
-                    border: Border.all(
-                      color: const Color(
-                        0xFF272B36,
-                      ),
-                    ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: onToggleExpanded,
+                  borderRadius: BorderRadius.circular(
+                    20,
                   ),
-                  child: AnimatedRotation(
-                    turns: state.calendarExpanded
-                        ? 0
-                        : .5,
+                  child: AnimatedContainer(
                     duration: const Duration(
-                      milliseconds: 220,
+                      milliseconds: 180,
                     ),
-                    child: const Icon(
-                      Icons.keyboard_arrow_up_rounded,
-                      color: Color(
-                        0xFF9298A6,
+                    width: 48,
+                    height: 26,
+                    decoration: BoxDecoration(
+                      color: _greenLight,
+                      borderRadius: BorderRadius.circular(
+                        20,
                       ),
-                      size: 18,
+                      border: Border.all(
+                        color: _greenBorder,
+                      ),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(
+                            0x12000000,
+                          ),
+                          blurRadius: 6,
+                          offset: Offset(
+                            0,
+                            2,
+                          ),
+                        ),
+                      ],
+                    ),
+                    child: AnimatedRotation(
+                      turns: state.calendarExpanded
+                          ? 0
+                          : .5,
+                      duration: const Duration(
+                        milliseconds: 220,
+                      ),
+                      curve: Curves.easeOutCubic,
+                      child: const Icon(
+                        Icons.keyboard_arrow_up_rounded,
+                        color: _green,
+                        size: 19,
+                      ),
                     ),
                   ),
                 ),

@@ -20,16 +20,55 @@ class MindMapNodeWidget
     required this.onHoverChanged,
   });
 
+  // ============================================================
+  // DADOS
+  // ============================================================
+
   final BoardBlock block;
   final MindMapNode node;
   final MindMapController controller;
+
   final double canvasWidth;
   final double canvasHeight;
+
   final bool hovered;
+
   final ValueChanged<
     bool
   >
   onHoverChanged;
+
+  // ============================================================
+  // CORES
+  // ============================================================
+
+  static const Color _green = Color(
+    0xFF347A3D,
+  );
+
+  static const Color _greenLight = Color(
+    0xFFEAF6EC,
+  );
+
+  static const Color _greenBorder = Color(
+    0xFFA9DEA5,
+  );
+
+  static const Color _surface = Color(
+    0xFFFFFFFF,
+  );
+
+  static const Color _text = Color(
+    0xFF172019,
+  );
+
+  static const Color _muted = Color(
+    0xFF68746B,
+  );
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(
@@ -42,15 +81,19 @@ class MindMapNodeWidget
       onEnter:
           (
             _,
-          ) => onHoverChanged(
-            true,
-          ),
+          ) {
+            onHoverChanged(
+              true,
+            );
+          },
       onExit:
           (
             _,
-          ) => onHoverChanged(
-            false,
-          ),
+          ) {
+            onHoverChanged(
+              false,
+            );
+          },
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onPanUpdate:
@@ -64,9 +107,11 @@ class MindMapNodeWidget
                 canvasHeight: canvasHeight,
               );
             },
-        onDoubleTap: () => controller.startEditing(
-          node,
-        ),
+        onDoubleTap: () {
+          controller.startEditing(
+            node,
+          );
+        },
         child: Stack(
           children: [
             Positioned.fill(
@@ -74,10 +119,14 @@ class MindMapNodeWidget
                 context,
               ),
             ),
+
+            // ==================================================
+            // PORTAS
+            // ==================================================
             for (final port in NodePort.values)
               MindMapPortWidget(
                 port: port,
-                color: block.color,
+                color: _green,
                 visible:
                     hovered &&
                     !node.isEditing,
@@ -97,35 +146,43 @@ class MindMapNodeWidget
     );
   }
 
+  // ============================================================
+  // NODE BODY
+  // ============================================================
+
   Widget _nodeBody(
     BuildContext context,
   ) {
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(
+        milliseconds: 160,
+      ),
       decoration: BoxDecoration(
         color: node.isRoot
-            ? block.color
-            : const Color(
-                0xFF171A22,
-              ),
+            ? _greenLight
+            : _surface,
         borderRadius: BorderRadius.circular(
           13,
         ),
         border: Border.all(
           color: node.isRoot
-              ? block.color
-              : block.color.withValues(
-                  alpha: .75,
-                ),
+              ? _green
+              : hovered
+              ? _green
+              : _greenBorder,
+          width: node.isRoot
+              ? 1.6
+              : 1.2,
         ),
         boxShadow: const [
           BoxShadow(
             color: Color(
-              0x55000000,
+              0x14000000,
             ),
-            blurRadius: 12,
+            blurRadius: 10,
             offset: Offset(
               0,
-              5,
+              4,
             ),
           ),
         ],
@@ -135,11 +192,19 @@ class MindMapNodeWidget
           const SizedBox(
             width: 12,
           ),
+
+          // ====================================================
+          // LABEL / EDITOR
+          // ====================================================
           Expanded(
             child: node.isEditing
                 ? _editor()
                 : _label(),
           ),
+
+          // ====================================================
+          // DELETE
+          // ====================================================
           if (!node.isRoot &&
               !node.isEditing)
             InkWell(
@@ -159,12 +224,11 @@ class MindMapNodeWidget
                 child: Icon(
                   Icons.close_rounded,
                   size: 13,
-                  color: Color(
-                    0xFF9298A6,
-                  ),
+                  color: _muted,
                 ),
               ),
             ),
+
           const SizedBox(
             width: 8,
           ),
@@ -172,6 +236,10 @@ class MindMapNodeWidget
       ),
     );
   }
+
+  // ============================================================
+  // EDITOR
+  // ============================================================
 
   Widget _editor() {
     return TextFormField(
@@ -205,18 +273,20 @@ class MindMapNodeWidget
       onChanged:
           (
             value,
-          ) => node.label = value,
+          ) {
+            node.label = value;
+          },
       style: const TextStyle(
-        color: Colors.white,
+        color: _text,
         fontSize: 11,
         fontWeight: FontWeight.w700,
       ),
-      cursorColor: Colors.white,
+      cursorColor: _green,
       decoration: const InputDecoration(
         isDense: true,
         hintText: 'Digite...',
         hintStyle: TextStyle(
-          color: Colors.white54,
+          color: _muted,
           fontSize: 11,
         ),
         border: InputBorder.none,
@@ -227,13 +297,19 @@ class MindMapNodeWidget
     );
   }
 
+  // ============================================================
+  // LABEL
+  // ============================================================
+
   Widget _label() {
     return Text(
       node.label,
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
-      style: const TextStyle(
-        color: Colors.white,
+      style: TextStyle(
+        color: node.isRoot
+            ? _green
+            : _text,
         fontSize: 11,
         fontWeight: FontWeight.w700,
       ),

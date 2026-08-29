@@ -17,6 +17,42 @@ class PhotoBlock
   final VoidCallback? onOpen;
 
   // ============================================================
+  // CORES
+  // ============================================================
+
+  static const Color _background = Color(
+    0xFFF4F6F5,
+  );
+
+  static const Color _previewBackground = Color(
+    0xFFE5E7EB,
+  );
+
+  static const Color _border = Color(
+    0xFFD1D5DB,
+  );
+
+  static const Color _text = Color(
+    0xFF172019,
+  );
+
+  static const Color _muted = Color(
+    0xFF68746B,
+  );
+
+  static const Color _green = Color(
+    0xFF198754,
+  );
+
+  static const Color _greenLight = Color(
+    0xFFDDF1E4,
+  );
+
+  static const Color _greenBorder = Color(
+    0xFFA9D2B5,
+  );
+
+  // ============================================================
   // BUILD
   // ============================================================
 
@@ -52,16 +88,12 @@ class PhotoBlock
           child: Container(
             width: double.infinity,
             decoration: BoxDecoration(
-              color: const Color(
-                0xFF111319,
-              ),
+              color: _background,
               borderRadius: BorderRadius.circular(
                 13,
               ),
               border: Border.all(
-                color: const Color(
-                  0xFF272B36,
-                ),
+                color: _border,
               ),
             ),
             child: ClipRRect(
@@ -124,19 +156,7 @@ class PhotoBlock
     }
 
     // ==========================================================
-    // STORAGE PATH
-    // ==========================================================
-    //
-    // Exemplo:
-    //
-    // user-id/routine-id/image.jpg
-    //
-    // Esse valor é o caminho privado do Supabase Storage.
-    //
-    // Para exibir a imagem será necessário gerar uma signed URL
-    // no service/controller e colocar essa URL em block.content
-    // ou passar a URL resolvida para este widget.
-    //
+    // SUPABASE STORAGE
     // ==========================================================
 
     return _buildStoragePlaceholder();
@@ -231,41 +251,43 @@ class PhotoBlock
   Widget _buildPlaceholder() {
     return Container(
       height: 170,
-      color: const Color(
-        0xFF0D0F14,
-      ),
+      color: _previewBackground,
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // ==================================================
+            // ÍCONE
+            // ==================================================
             Container(
-              width: 52,
-              height: 52,
+              width: 54,
+              height: 54,
               decoration: BoxDecoration(
-                color: block.color.withValues(
-                  alpha: .12,
-                ),
+                color: _greenLight,
                 borderRadius: BorderRadius.circular(
                   14,
                 ),
+                border: Border.all(
+                  color: _greenBorder,
+                ),
               ),
-              child: Icon(
+              child: const Icon(
                 Icons.add_photo_alternate_outlined,
-                color: block.color,
+                color: _green,
                 size: 27,
               ),
             ),
+
             const SizedBox(
               height: 12,
             ),
+
             const Text(
               'Nenhuma imagem selecionada',
               style: TextStyle(
-                color: Color(
-                  0xFF9298A6,
-                ),
+                color: _muted,
                 fontSize: 12,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -281,52 +303,51 @@ class PhotoBlock
   Widget _buildStoragePlaceholder() {
     return Container(
       height: 170,
-      color: const Color(
-        0xFF0D0F14,
-      ),
+      color: _previewBackground,
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 52,
-              height: 52,
+              width: 54,
+              height: 54,
               decoration: BoxDecoration(
-                color: block.color.withValues(
-                  alpha: .12,
-                ),
+                color: _greenLight,
                 borderRadius: BorderRadius.circular(
                   14,
                 ),
+                border: Border.all(
+                  color: _greenBorder,
+                ),
               ),
-              child: Icon(
+              child: const Icon(
                 Icons.cloud_outlined,
-                color: block.color,
+                color: _green,
                 size: 27,
               ),
             ),
+
             const SizedBox(
               height: 12,
             ),
+
             const Text(
               'Imagem armazenada',
               style: TextStyle(
-                color: Color(
-                  0xFFF5F7FA,
-                ),
+                color: _text,
                 fontSize: 12,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
               ),
             ),
+
             const SizedBox(
               height: 4,
             ),
+
             const Text(
               'Supabase Storage',
               style: TextStyle(
-                color: Color(
-                  0xFF686F7C,
-                ),
+                color: _muted,
                 fontSize: 10,
               ),
             ),
@@ -341,15 +362,16 @@ class PhotoBlock
   // ============================================================
 
   Widget _buildLoading() {
-    return Container(
+    return const SizedBox(
       height: 210,
-      color: const Color(
-        0xFF0D0F14,
-      ),
-      alignment: Alignment.center,
-      child: CircularProgressIndicator(
-        strokeWidth: 2,
-        color: block.color,
+      child: ColoredBox(
+        color: _previewBackground,
+        child: Center(
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: _green,
+          ),
+        ),
       ),
     );
   }
@@ -364,7 +386,7 @@ class PhotoBlock
     return Container(
       height: 170,
       color: const Color(
-        0xFF0D0F14,
+        0xFFF5E7E9,
       ),
       alignment: Alignment.center,
       child: Padding(
@@ -377,21 +399,24 @@ class PhotoBlock
             const Icon(
               Icons.broken_image_outlined,
               color: Color(
-                0xFFFF6B7A,
+                0xFFB4233C,
               ),
               size: 28,
             ),
+
             const SizedBox(
               height: 8,
             ),
+
             Text(
               message,
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: Color(
-                  0xFF9298A6,
+                  0xFF8F3343,
                 ),
                 fontSize: 11,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],
@@ -417,22 +442,26 @@ class PhotoBlock
       ),
       child: Row(
         children: [
+          // ====================================================
+          // ÍCONE
+          // ====================================================
           Container(
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: block.color.withValues(
-                alpha: .10,
-              ),
+              color: _greenLight,
               borderRadius: BorderRadius.circular(
                 9,
+              ),
+              border: Border.all(
+                color: _greenBorder,
               ),
             ),
             child: Icon(
               hasReference
                   ? Icons.image_outlined
                   : Icons.add_photo_alternate_outlined,
-              color: block.color,
+              color: _green,
               size: 18,
             ),
           ),
@@ -441,6 +470,9 @@ class PhotoBlock
             width: 10,
           ),
 
+          // ====================================================
+          // TEXTO
+          // ====================================================
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -452,11 +484,9 @@ class PhotoBlock
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: Color(
-                      0xFFF5F7FA,
-                    ),
+                    color: _text,
                     fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
 
@@ -471,9 +501,7 @@ class PhotoBlock
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: Color(
-                        0xFF686F7C,
-                      ),
+                      color: _muted,
                       fontSize: 10,
                     ),
                   ),
@@ -482,17 +510,18 @@ class PhotoBlock
             ),
           ),
 
+          // ====================================================
+          // ABRIR
+          // ====================================================
           if (hasReference &&
               onOpen !=
                   null) ...[
             const SizedBox(
               width: 8,
             ),
-            Icon(
+            const Icon(
               Icons.open_in_new_rounded,
-              color: block.color.withValues(
-                alpha: .85,
-              ),
+              color: _green,
               size: 17,
             ),
           ],
@@ -544,14 +573,14 @@ class PhotoBlock
       return true;
     }
 
-    // Linux / macOS.
+    // Linux / macOS
     if (value.startsWith(
       '/',
     )) {
       return true;
     }
 
-    // Windows.
+    // Windows
     if (RegExp(
       r'^[a-zA-Z]:[\\/]',
     ).hasMatch(

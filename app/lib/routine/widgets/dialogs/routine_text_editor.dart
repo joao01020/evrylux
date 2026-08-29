@@ -16,6 +16,10 @@ class RoutineTextEditor
   final String initialValue;
   final int maxLines;
 
+  // ============================================================
+  // SHOW
+  // ============================================================
+
   static Future<
     String?
   >
@@ -39,10 +43,10 @@ class RoutineTextEditor
       barrierDismissible: true,
       barrierLabel: 'Fechar editor',
       barrierColor: Colors.black.withValues(
-        alpha: .72,
+        alpha: .42,
       ),
       transitionDuration: const Duration(
-        milliseconds: 240,
+        milliseconds: 220,
       ),
       transitionBuilder:
           (
@@ -64,7 +68,7 @@ class RoutineTextEditor
                     Tween<
                           double
                         >(
-                          begin: .96,
+                          begin: .97,
                           end: 1,
                         )
                         .animate(
@@ -94,7 +98,9 @@ class RoutineTextEditor
   State<
     RoutineTextEditor
   >
-  createState() => _RoutineTextEditorState();
+  createState() {
+    return _RoutineTextEditorState();
+  }
 }
 
 class _RoutineTextEditorState
@@ -102,21 +108,83 @@ class _RoutineTextEditorState
         State<
           RoutineTextEditor
         > {
+  // ============================================================
+  // CORES
+  // ============================================================
+
+  static const Color _background = Color(
+    0xFFFFFFFF,
+  );
+
+  static const Color _surface = Color(
+    0xFFF4F6F5,
+  );
+
+  static const Color _surfaceDark = Color(
+    0xFFE5E7EB,
+  );
+
+  static const Color _border = Color(
+    0xFFD1D5DB,
+  );
+
+  static const Color _green = Color(
+    0xFF198754,
+  );
+
+  static const Color _greenLight = Color(
+    0xFFDDF1E4,
+  );
+
+  static const Color _greenBorder = Color(
+    0xFFA9D2B5,
+  );
+
+  static const Color _text = Color(
+    0xFF172019,
+  );
+
+  static const Color _muted = Color(
+    0xFF68746B,
+  );
+
+  static const Color _mutedLight = Color(
+    0xFF8A918C,
+  );
+
+  // ============================================================
+  // CONTROLLER
+  // ============================================================
+
   late final TextEditingController _controller;
+
+  // ============================================================
+  // INIT
+  // ============================================================
 
   @override
   void initState() {
     super.initState();
+
     _controller = TextEditingController(
       text: widget.initialValue,
     );
   }
 
+  // ============================================================
+  // DISPOSE
+  // ============================================================
+
   @override
   void dispose() {
     _controller.dispose();
+
     super.dispose();
   }
+
+  // ============================================================
+  // SAVE
+  // ============================================================
 
   void _save() {
     Navigator.pop(
@@ -124,6 +192,10 @@ class _RoutineTextEditorState
       _controller.text.trim(),
     );
   }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(
@@ -148,34 +220,23 @@ class _RoutineTextEditorState
         ),
         child: Container(
           decoration: BoxDecoration(
-            color: const Color(
-              0xFF141720,
-            ),
+            color: _background,
             borderRadius: BorderRadius.circular(
               24,
             ),
             border: Border.all(
-              color: const Color(
-                0xFF2B3040,
-              ),
+              color: _border,
             ),
             boxShadow: const [
               BoxShadow(
                 color: Color(
-                  0x66000000,
+                  0x24000000,
                 ),
-                blurRadius: 42,
+                blurRadius: 32,
                 offset: Offset(
                   0,
-                  20,
+                  14,
                 ),
-              ),
-              BoxShadow(
-                color: Color(
-                  0x207C5CFF,
-                ),
-                blurRadius: 38,
-                spreadRadius: -12,
               ),
             ],
           ),
@@ -197,10 +258,18 @@ class _RoutineTextEditorState
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ==================================================
+                  // HEADER
+                  // ==================================================
                   _header(),
+
                   const SizedBox(
                     height: 22,
                   ),
+
+                  // ==================================================
+                  // CAMPO
+                  // ==================================================
                   TextField(
                     controller: _controller,
                     autofocus: true,
@@ -216,49 +285,44 @@ class _RoutineTextEditorState
                             1
                         ? (
                             _,
-                          ) => _save()
+                          ) {
+                            _save();
+                          }
                         : null,
                     style: const TextStyle(
-                      color: Color(
-                        0xFFF5F7FA,
-                      ),
+                      color: _text,
                       fontSize: 14,
                       height: 1.45,
                     ),
-                    cursorColor: const Color(
-                      0xFFA996FF,
-                    ),
+                    cursorColor: _green,
                     decoration: InputDecoration(
                       hintText: widget.hint,
                       hintStyle: const TextStyle(
-                        color: Color(
-                          0xFF6F7584,
-                        ),
+                        color: _mutedLight,
                         fontSize: 14,
                       ),
                       filled: true,
-                      fillColor: const Color(
-                        0xFF0E1016,
-                      ),
+                      fillColor: _surface,
                       contentPadding: const EdgeInsets.all(
                         17,
                       ),
-                      enabledBorder: _border(
-                        const Color(
-                          0xFF292E3A,
-                        ),
+                      enabledBorder: _borderStyle(
+                        _border,
                       ),
-                      focusedBorder: _border(
-                        const Color(
-                          0xFF8D73FF,
-                        ),
-                        width: 1.4,
+                      focusedBorder: _borderStyle(
+                        _green,
+                        width: 1.5,
                       ),
                     ),
                   ),
+
                   const SizedBox(
                     height: 18,
                   ),
+
+                  // ==================================================
+                  // ACTIONS
+                  // ==================================================
                   _actions(),
                 ],
               ),
@@ -269,35 +333,43 @@ class _RoutineTextEditorState
     );
   }
 
+  // ============================================================
+  // HEADER
+  // ============================================================
+
   Widget _header() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // ======================================================
+        // ÍCONE
+        // ======================================================
         Container(
           width: 42,
           height: 42,
           decoration: BoxDecoration(
-            color:
-                const Color(
-                  0xFF7C5CFF,
-                ).withValues(
-                  alpha: .14,
-                ),
+            color: _greenLight,
             borderRadius: BorderRadius.circular(
               13,
+            ),
+            border: Border.all(
+              color: _greenBorder,
             ),
           ),
           child: const Icon(
             Icons.edit_note_rounded,
-            color: Color(
-              0xFFA996FF,
-            ),
+            color: _green,
             size: 22,
           ),
         ),
+
         const SizedBox(
           width: 13,
         ),
+
+        // ======================================================
+        // TEXTOS
+        // ======================================================
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -305,43 +377,53 @@ class _RoutineTextEditorState
               Text(
                 widget.title,
                 style: const TextStyle(
-                  color: Color(
-                    0xFFF5F7FA,
-                  ),
+                  color: _text,
                   fontSize: 19,
                   fontWeight: FontWeight.w800,
                 ),
               ),
+
               const SizedBox(
                 height: 4,
               ),
+
               const Text(
                 'Registre com clareza. Você poderá editar depois.',
                 style: TextStyle(
-                  color: Color(
-                    0xFF9298A6,
-                  ),
+                  color: _muted,
                   fontSize: 12,
                 ),
               ),
             ],
           ),
         ),
+
+        // ======================================================
+        // FECHAR
+        // ======================================================
         IconButton(
           tooltip: 'Fechar',
-          onPressed: () => Navigator.pop(
-            context,
+          onPressed: () {
+            Navigator.pop(
+              context,
+            );
+          },
+          style: IconButton.styleFrom(
+            foregroundColor: _muted,
+            backgroundColor: _surfaceDark,
           ),
           icon: const Icon(
             Icons.close_rounded,
-            color: Color(
-              0xFF9298A6,
-            ),
+            size: 20,
           ),
         ),
       ],
     );
   }
+
+  // ============================================================
+  // ACTIONS
+  // ============================================================
 
   Widget _actions() {
     return Row(
@@ -350,33 +432,53 @@ class _RoutineTextEditorState
           child: Text(
             'ESC para fechar',
             style: TextStyle(
-              color: Color(
-                0xFF666C79,
-              ),
+              color: _mutedLight,
               fontSize: 11,
             ),
           ),
         ),
+
+        // ======================================================
+        // CANCELAR
+        // ======================================================
         TextButton(
-          onPressed: () => Navigator.pop(
-            context,
+          onPressed: () {
+            Navigator.pop(
+              context,
+            );
+          },
+          style: TextButton.styleFrom(
+            foregroundColor: _muted,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 13,
+            ),
           ),
           child: const Text(
             'Cancelar',
           ),
         ),
+
         const SizedBox(
           width: 8,
         ),
+
+        // ======================================================
+        // SALVAR
+        // ======================================================
         FilledButton.icon(
           onPressed: _save,
           style: FilledButton.styleFrom(
-            backgroundColor: const Color(
-              0xFF7C5CFF,
-            ),
+            backgroundColor: _green,
+            foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(
               horizontal: 20,
               vertical: 15,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(
+                12,
+              ),
             ),
           ),
           icon: const Icon(
@@ -391,7 +493,11 @@ class _RoutineTextEditorState
     );
   }
 
-  OutlineInputBorder _border(
+  // ============================================================
+  // BORDER
+  // ============================================================
+
+  OutlineInputBorder _borderStyle(
     Color color, {
     double width = 1,
   }) {
