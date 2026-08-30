@@ -489,10 +489,10 @@ class _RoutineScreenState
       return;
     }
 
-    final error =
-        _commentController.errorMessage;
+    final error = _commentController.errorMessage;
 
-    if (error != null &&
+    if (error !=
+            null &&
         error.trim().isNotEmpty) {
       debugPrint(
         '[COMMENT][CONTROLLER] $error',
@@ -531,15 +531,17 @@ class _RoutineScreenState
   // CARREGAR COMENTÁRIOS DO DIA SELECIONADO
   // ============================================================
 
-  Future<void> _loadCommentsForSelectedDay({
+  Future<
+    void
+  >
+  _loadCommentsForSelectedDay({
     bool force = false,
   }) async {
     if (!_routineControllerReady) {
       return;
     }
 
-    final selectedDay =
-        _routineController.selectedDay;
+    final selectedDay = _routineController.selectedDay;
 
     final dayId = _commentDayId(
       selectedDay,
@@ -563,8 +565,7 @@ class _RoutineScreenState
       return;
     }
 
-    _loadingCommentDayId =
-        dayId;
+    _loadingCommentDayId = dayId;
 
     debugPrint(
       '',
@@ -593,15 +594,13 @@ class _RoutineScreenState
 
       // Só confirmamos como carregado se o usuário ainda estiver
       // no mesmo dia quando a requisição terminar.
-      final currentDayId =
-          _commentDayId(
+      final currentDayId = _commentDayId(
         _routineController.selectedDay,
       );
 
       if (currentDayId ==
           dayId) {
-        _loadedCommentDayId =
-            dayId;
+        _loadedCommentDayId = dayId;
       }
 
       debugPrint(
@@ -610,7 +609,7 @@ class _RoutineScreenState
       );
     } catch (
       error,
-      stackTrace,
+      stackTrace
     ) {
       debugPrint(
         '[COMMENT][LOAD] ERRO: $error',
@@ -623,14 +622,12 @@ class _RoutineScreenState
       // Permite tentar novamente na próxima mudança/rebuild.
       if (_loadedCommentDayId ==
           dayId) {
-        _loadedCommentDayId =
-            null;
+        _loadedCommentDayId = null;
       }
     } finally {
       if (_loadingCommentDayId ==
           dayId) {
-        _loadingCommentDayId =
-            null;
+        _loadingCommentDayId = null;
       }
 
       debugPrint(
@@ -647,7 +644,10 @@ class _RoutineScreenState
   // RECARREGAR COMENTÁRIOS
   // ============================================================
 
-  Future<void> _reloadCommentsForSelectedDay() {
+  Future<
+    void
+  >
+  _reloadCommentsForSelectedDay() {
     return _loadCommentsForSelectedDay(
       force: true,
     );
@@ -749,8 +749,7 @@ class _RoutineScreenState
       return;
     }
 
-    _loadedCommentDayId =
-        created.dayId;
+    _loadedCommentDayId = created.dayId;
 
     debugPrint(
       '[COMMENT][CREATE] Salvo com sucesso: ${created.id}',
@@ -912,7 +911,10 @@ class _RoutineScreenState
   // TROCAR DIA
   // ============================================================
 
-  Future<void> _selectRoutineDay(
+  Future<
+    void
+  >
+  _selectRoutineDay(
     DateTime date,
   ) async {
     _pendingCommentPosition = null;
@@ -1208,14 +1210,12 @@ class _RoutineScreenState
                   RoutineCalendarPanel(
                     state: state,
                     onPreviousWeek: () {
-                      _loadedCommentDayId =
-                          null;
+                      _loadedCommentDayId = null;
 
                       _routineController.previousWeek();
                     },
                     onNextWeek: () {
-                      _loadedCommentDayId =
-                          null;
+                      _loadedCommentDayId = null;
 
                       _routineController.nextWeek();
                     },
