@@ -3,6 +3,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../app/dependencies/app_dependencies.dart';
+import '../../reminders/widgets/reminder_dialog.dart';
+
 import '../controllers/board_controller.dart';
 import '../controllers/mind_map_controller.dart';
 import '../controllers/routine_controller.dart';
@@ -1114,6 +1117,9 @@ class _RoutineScreenState
 
           _notifyRoutineMutation();
         },
+        onReminder: () => _createReminderForBlock(
+          block,
+        ),
         onDelete: () => _deleteBlock(
           day,
           block,
@@ -1356,6 +1362,141 @@ class _RoutineScreenState
     );
     _notifyRoutineMutation();
   }
+
+  // ============================================================
+  // CRIAR LEMBRETE PARA BLOCO
+  // ============================================================
+  //
+  // Qualquer bloco da lousa pode gerar um lembrete.
+  //
+  // O conteúdo do bloco é enviado para o ReminderDialog e
+  // o vínculo com a lousa é salvo em:
+  //
+  // source_type = routine_block
+  // source_id   = ID do bloco
+  //
+  // ============================================================
+
+  Future<
+    void
+  >
+  _createReminderForBlock(
+    BoardBlock block,
+  ) async {
+    final initialTitle = block.title.trim().isEmpty
+        ? 'Lembrete da lousa'
+        : block.title.trim();
+
+    final initialMessage = _reminderMessageForBlock(
+      block,
+    );
+
+    final created = await ReminderDialog.show(
+      context,
+      controller: reminderController,
+      initialTitle: initialTitle,
+      initialMessage: initialMessage,
+      sourceType: 'routine_block',
+      sourceId: block.id,
+    );
+
+    if (!mounted ||
+        created !=
+            true) {
+      return;
+    }
+
+    ScaffoldMessenger.of(
+        context,
+      )
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Color(
+            0xFF3B6939,
+          ),
+          content: Row(
+            children: [
+              Icon(
+                Icons.notifications_active_outlined,
+                color: Colors.white,
+                size: 18,
+              ),
+              SizedBox(
+                width: 9,
+              ),
+              Expanded(
+                child: Text(
+                  'Lembrete criado com sucesso.',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+  }
+
+  // ============================================================
+  // TEXTO DO LEMBRETE
+  // ============================================================
+
+  String _reminderMessageForBlock(
+    BoardBlock block,
+  ) {
+    switch (block.type) {
+      case BlockType.tasks:
+        final items = block.items;
+
+        if (items.isEmpty) {
+          return block.title.trim().isEmpty
+              ? 'Tarefa da sua rotina.'
+              : block.title.trim();
+        }
+
+        return items
+            .map(
+              (
+                item,
+              ) {
+                final marker = item.done
+                    ? '✓'
+                    : '•';
+
+                return '$marker ${item.text}';
+              },
+            )
+            .join(
+              '\n',
+            );
+
+      case BlockType.note:
+      case BlockType.content:
+      case BlockType.photo:
+        final content = block.content.trim();
+
+        if (content.isNotEmpty) {
+          return content;
+        }
+
+        return block.title.trim().isEmpty
+            ? 'Lembrete da sua rotina.'
+            : block.title.trim();
+
+      case BlockType.mindMap:
+        return block.title.trim().isEmpty
+            ? 'Revisar mapa mental.'
+            : block.title.trim();
+    }
+  }
+
+  // ============================================================
+  // EXCLUIR BLOCO
+  // ============================================================
 
   Future<
     void
@@ -1740,6 +1881,7 @@ class _BoardCard
     required this.onDrag,
     required this.onEdit,
     required this.onDuplicate,
+    required this.onReminder,
     required this.onDelete,
     required this.child,
   });
@@ -1751,6 +1893,7 @@ class _BoardCard
   onDrag;
   final VoidCallback onEdit;
   final VoidCallback onDuplicate;
+  final VoidCallback onReminder;
   final VoidCallback onDelete;
   final Widget child;
 
@@ -1836,6 +1979,56 @@ class _BoardCard
                           ),
                         ),
                       ),
+
+                      // =================================================
+                      // CRIAR LEMBRETE — AÇÃO VISÍVEL
+                      // =================================================
+                      Tooltip(
+                        message: 'Criar lembrete para este bloco',
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: onReminder,
+                            borderRadius: BorderRadius.circular(
+                              10,
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(
+                                  0xFFBCF0B4,
+                                ),
+                                borderRadius: BorderRadius.circular(
+                                  10,
+                                ),
+                                border: Border.all(
+                                  color: const Color(
+                                    0xFFC7DFC9,
+                                  ),
+                                ),
+                              ),
+                              child: const Text(
+                                '🔔 Criar lembrete',
+                                style: TextStyle(
+                                  color: Color(
+                                    0xFF3B6939,
+                                  ),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(
+                        width: 4,
+                      ),
+
                       IconButton(
                         tooltip: 'Editar',
                         onPressed: onEdit,
@@ -1864,6 +2057,7 @@ class _BoardCard
                                 case _BlockAction.duplicate:
                                   onDuplicate();
                                   break;
+
                                 case _BlockAction.delete:
                                   onDelete();
                                   break;

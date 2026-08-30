@@ -40,16 +40,27 @@ import '../../finance/controllers/finance_controller.dart';
 import '../../finance/controllers/crypto/crypto_controller.dart';
 
 import '../../evolution/controllers/evolution_controller.dart';
+
 import '../../training/controllers/training_controller.dart';
+
 import '../../evolution/my_journey/controllers/journey_controller.dart';
+
 import '../../study/controllers/study_controller.dart';
+
+// ======================================================
+// REMINDERS CONTROLLER
+// ======================================================
+
+import '../../reminders/controllers/reminder_controller.dart';
 
 // ======================================================
 // ROUTINE
 // ======================================================
 
 import '../../routine/data/datasources/routine_memory_datasource.dart';
+
 import '../../routine/data/datasources/routine_remote_data_source.dart';
+
 import '../../routine/data/repositories/routine_repository_impl.dart';
 
 // ======================================================
@@ -57,12 +68,22 @@ import '../../routine/data/repositories/routine_repository_impl.dart';
 // ======================================================
 
 import '../../finance/data/repository/finance_repository.dart';
+
 import '../../finance/data/repository/crypto/crypto_repository.dart';
 
 import '../../evolution/data/repository/evolution_repository.dart';
+
 import '../../study/data/repository/study_repository.dart';
+
 import '../../training/data/training_repository.dart';
+
 import '../../evolution/my_journey/data/repository/journey_repository.dart';
+
+// ======================================================
+// REMINDERS REPOSITORY
+// ======================================================
+
+import '../../reminders/data/reminder_repository.dart';
 
 // ======================================================
 // SERVICES
@@ -71,12 +92,22 @@ import '../../evolution/my_journey/data/repository/journey_repository.dart';
 import '../../study/services/study_service.dart';
 
 import '../../finance/services/persistence/finance_service.dart';
+
 import '../../finance/services/crypto/crypto_service.dart';
+
 import '../../finance/services/crypto/crypto_price_service.dart';
 
 import '../../evolution/services/evolution_service.dart';
+
 import '../../training/services/training_service.dart';
+
 import '../../evolution/my_journey/services/journey_service.dart';
+
+// ======================================================
+// REMINDERS SERVICE
+// ======================================================
+
+import '../../reminders/services/reminder_service.dart';
 
 // ======================================================
 // STORAGE
@@ -89,7 +120,9 @@ final localStorage = LocalStorage();
 // ======================================================
 
 SupabaseClient
-get supabaseClient => Supabase.instance.client;
+get supabaseClient {
+  return Supabase.instance.client;
+}
 
 // ======================================================
 // ROUTINE LOCAL DATASOURCE
@@ -132,6 +165,7 @@ final routineRepository = RoutineRepositoryImpl(
 // Supabase
 //
 // O FinanceRepository utiliza:
+//
 // Supabase.instance.client.auth.currentUser
 //
 // ======================================================
@@ -184,6 +218,7 @@ final cryptoService = CryptoService(
 // ======================================================
 //
 // Responsável por buscar:
+//
 // BTC
 // ETH
 // SOL
@@ -279,4 +314,73 @@ final journeyService = JourneyService(
 
 final journeyController = JourneyController(
   service: journeyService,
+);
+
+// ======================================================
+// REMINDERS
+// ======================================================
+//
+// Fluxo:
+//
+// ReminderService
+//      ↓
+// ReminderController
+//      ↓
+// ReminderRepository
+//      ↓
+// Supabase
+//
+// A tabela utilizada é:
+//
+// public.reminders
+//
+// O usuário é identificado através de:
+//
+// Supabase.instance.client.auth.currentUser
+//
+// ======================================================
+
+// ======================================================
+// REMINDER REPOSITORY
+// ======================================================
+
+final reminderRepository = ReminderRepository(
+  client: supabaseClient,
+);
+
+// ======================================================
+// REMINDER CONTROLLER
+// ======================================================
+
+final reminderController = ReminderController(
+  repository: reminderRepository,
+);
+
+// ======================================================
+// REMINDER SERVICE
+// ======================================================
+//
+// O serviço é global, mas ainda NÃO começa o timer
+// automaticamente.
+//
+// Ele será iniciado depois que tivermos acesso ao
+// contexto global da interface.
+//
+// Isso permite mostrar a notificação do lembrete
+// dentro do aplicativo.
+//
+// ======================================================
+
+final reminderService = ReminderService(
+  controller: reminderController,
+
+  // ----------------------------------------------------
+  // A cada 30 segundos verificamos se existe algum
+  // lembrete vencido.
+  //
+  // Depois podemos aumentar ou diminuir esse intervalo.
+  // ----------------------------------------------------
+  checkInterval: const Duration(
+    seconds: 30,
+  ),
 );
