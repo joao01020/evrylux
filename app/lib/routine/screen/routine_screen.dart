@@ -83,6 +83,26 @@ class _RoutineScreenState
   static const Color _surfaceLight = Color(
     0xFFF1F7F2,
   );
+
+  // ============================================================
+  // CARDS DA LOUSA
+  // ============================================================
+  //
+  // Cinza exclusivo dos cards arrastáveis.
+  //
+  // Mantemos _surfaceLight para os demais componentes da tela,
+  // evitando alterar botões, diálogos e outras superfícies.
+  //
+  // ============================================================
+
+  static const Color _cardBackground = Color(
+    0xFFE5E7EB,
+  );
+
+  static const Color _cardBorder = Color(
+    0xFFC7CBD1,
+  );
+
   static const Color _border = Color(
     0xFFD7E3D9,
   );
@@ -1905,12 +1925,17 @@ class _BoardCard
       color: Colors.transparent,
       child: Container(
         decoration: BoxDecoration(
-          color: _RoutineScreenState._surfaceLight,
+          // ====================================================
+          // FUNDO EXCLUSIVO DOS CARDS ARRASTÁVEIS
+          // ====================================================
+          color: _RoutineScreenState._cardBackground,
+
           borderRadius: BorderRadius.circular(
             16,
           ),
+
           border: Border.all(
-            color: _RoutineScreenState._border,
+            color: _RoutineScreenState._cardBorder,
           ),
           boxShadow: const [
             BoxShadow(
@@ -2098,7 +2123,7 @@ class _BoardCard
             ),
             const Divider(
               height: 1,
-              color: _RoutineScreenState._border,
+              color: _RoutineScreenState._cardBorder,
             ),
             Padding(
               padding: const EdgeInsets.symmetric(
