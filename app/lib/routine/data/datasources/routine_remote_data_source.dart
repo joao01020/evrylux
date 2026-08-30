@@ -313,6 +313,21 @@ class RoutineRemoteDataSource {
               block['content_status'] ??
               'idea',
 
+          // ====================================================
+          // TAMANHO PERSONALIZADO DO BLOCO
+          // ====================================================
+          //
+          // Usado principalmente pelo bloco de mapa mental.
+          //
+          // Mantemos as duas chaves exatamente como o model/DTO
+          // espera para que o tamanho salvo volte corretamente ao
+          // reabrir a rotina.
+          //
+          // ====================================================
+          'width': block['width'],
+
+          'height': block['height'],
+
           'items': items,
 
           'mind_map_nodes': mindMapNodes,
@@ -884,7 +899,18 @@ class RoutineRemoteDataSource {
             'position_y':
                 raw['position_y'] ??
                 raw['positionY'],
+
+            // ==================================================
+            // TAMANHO PERSONALIZADO
+            // ==================================================
+            //
+            // Esses campos permitem persistir o tamanho do mapa
+            // mental. Para outros tipos de bloco podem ficar null.
+            //
+            // ==================================================
             'width': raw['width'],
+
+            'height': raw['height'],
 
             // Mantém posição de lista também.
             'position':

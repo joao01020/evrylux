@@ -1860,19 +1860,315 @@ class _RoutineScreenState
     return '${two(date.day)}/${two(date.month)}/${date.year}';
   }
 
+  // ============================================================
+  // REDIMENSIONAR MAPA MENTAL
+  // ============================================================
+  //
+  // Somente o bloco de mapa mental usa tamanho personalizado.
+  //
+  // O redimensionamento pode acontecer pelos 4 lados e pelos
+  // 4 cantos, de forma parecida com ferramentas como o Miro.
+  //
+  // ============================================================
+
+  void _resizeMindMapBlock(
+    BoardBlock block,
+    _ResizeHandle handle,
+    Offset delta, {
+    required double boardWidth,
+    required double boardHeight,
+  }) {
+    if (block.type !=
+        BlockType.mindMap) {
+      return;
+    }
+
+    const minWidth = 420.0;
+    const minHeight = 320.0;
+    const margin = 8.0;
+
+    var position =
+        block.position ??
+        Offset.zero;
+
+    var width =
+        block.width ??
+        math
+            .min(
+              620.0,
+              math.max(
+                minWidth,
+                boardWidth -
+                    position.dx -
+                    margin,
+              ),
+            )
+            .toDouble();
+
+    var height =
+        block.height ??
+        430.0;
+
+    final originalRight =
+        position.dx +
+        width;
+
+    final originalBottom =
+        position.dy +
+        height;
+
+    final resizeLeft =
+        handle ==
+            _ResizeHandle.left ||
+        handle ==
+            _ResizeHandle.topLeft ||
+        handle ==
+            _ResizeHandle.bottomLeft;
+
+    final resizeRight =
+        handle ==
+            _ResizeHandle.right ||
+        handle ==
+            _ResizeHandle.topRight ||
+        handle ==
+            _ResizeHandle.bottomRight;
+
+    final resizeTop =
+        handle ==
+            _ResizeHandle.top ||
+        handle ==
+            _ResizeHandle.topLeft ||
+        handle ==
+            _ResizeHandle.topRight;
+
+    final resizeBottom =
+        handle ==
+            _ResizeHandle.bottom ||
+        handle ==
+            _ResizeHandle.bottomLeft ||
+        handle ==
+            _ResizeHandle.bottomRight;
+
+    // ==========================================================
+    // ESQUERDA
+    // ==========================================================
+
+    if (resizeLeft) {
+      final maxLeft =
+          originalRight -
+          minWidth;
+
+      final nextLeft =
+          (position.dx +
+                  delta.dx)
+              .clamp(
+                margin,
+                math.max(
+                  margin,
+                  maxLeft,
+                ),
+              )
+              .toDouble();
+
+      width =
+          originalRight -
+          nextLeft;
+
+      position = Offset(
+        nextLeft,
+        position.dy,
+      );
+    }
+
+    // ==========================================================
+    // DIREITA
+    // ==========================================================
+
+    if (resizeRight) {
+      final maxWidth = math
+          .max(
+            minWidth,
+            boardWidth -
+                position.dx -
+                margin,
+          )
+          .toDouble();
+
+      width =
+          (width +
+                  delta.dx)
+              .clamp(
+                minWidth,
+                maxWidth,
+              )
+              .toDouble();
+    }
+
+    // ==========================================================
+    // TOPO
+    // ==========================================================
+
+    if (resizeTop) {
+      final maxTop =
+          originalBottom -
+          minHeight;
+
+      final nextTop =
+          (position.dy +
+                  delta.dy)
+              .clamp(
+                margin,
+                math.max(
+                  margin,
+                  maxTop,
+                ),
+              )
+              .toDouble();
+
+      height =
+          originalBottom -
+          nextTop;
+
+      position = Offset(
+        position.dx,
+        nextTop,
+      );
+    }
+
+    // ==========================================================
+    // BASE
+    // ==========================================================
+
+    if (resizeBottom) {
+      final maxHeight = math
+          .max(
+            minHeight,
+            boardHeight -
+                position.dy -
+                margin,
+          )
+          .toDouble();
+
+      height =
+          (height +
+                  delta.dy)
+              .clamp(
+                minHeight,
+                maxHeight,
+              )
+              .toDouble();
+    }
+
+    block.position = position;
+
+    block.width = width;
+
+    block.height = height;
+
+    // ==========================================================
+    // APENAS ATUALIZA A INTERFACE DURANTE O RESIZE
+    // ==========================================================
+    //
+    // Não chamamos _notifyRoutineMutation() aqui.
+    //
+    // Esse método é executado várias vezes por segundo enquanto
+    // o mouse é arrastado. Salvar/recarregar o Supabase aqui fazia
+    // o bloco receber novamente o tamanho anterior no meio do
+    // redimensionamento.
+    //
+    // O salvamento acontece uma única vez em _finishMindMapResize().
+    //
+    // ==========================================================
+
+    _refreshBoard();
+  }
+
+  // ============================================================
+  // FINALIZAR REDIMENSIONAMENTO DO MAPA MENTAL
+  // ============================================================
+
+  void _finishMindMapResize() {
+    if (!_routineControllerReady) {
+      return;
+    }
+
+    // Persiste uma única vez depois que o usuário solta o mouse.
+    _notifyRoutineMutation();
+  }
+
   Widget _positionedBlock({
     required RoutineDay day,
     required BoardBlock block,
     required double boardWidth,
     required double boardHeight,
   }) {
-    final width = _boardController.blockWidth(
-      block: block,
-      boardWidth: boardWidth,
-    );
     final position =
         block.position ??
         Offset.zero;
+
+    final isMindMap =
+        block.type ==
+        BlockType.mindMap;
+
+    final defaultWidth = _boardController.blockWidth(
+      block: block,
+      boardWidth: boardWidth,
+    );
+
+    final maxMindMapWidth = math
+        .max(
+          420.0,
+          boardWidth -
+              position.dx -
+              8,
+        )
+        .toDouble();
+
+    final width = isMindMap
+        ? (block.width ??
+                  math.min(
+                    620.0,
+                    maxMindMapWidth,
+                  ))
+              .clamp(
+                math.min(
+                  420.0,
+                  maxMindMapWidth,
+                ),
+                maxMindMapWidth,
+              )
+              .toDouble()
+        : defaultWidth;
+
+    final maxMindMapHeight = math
+        .max(
+          320.0,
+          boardHeight -
+              position.dy -
+              8,
+        )
+        .toDouble();
+
+    final double? height = isMindMap
+        ? (block.height ??
+                  430.0)
+              .clamp(
+                math.min(
+                  320.0,
+                  maxMindMapHeight,
+                ),
+                maxMindMapHeight,
+              )
+              .toDouble()
+        : null;
+
+    // Mantém o model sincronizado com o tamanho efetivamente
+    // utilizado na tela.
+    if (isMindMap) {
+      block.width = width;
+
+      block.height = height;
+    }
 
     return Positioned(
       key: ValueKey(
@@ -1881,6 +2177,7 @@ class _RoutineScreenState
       left: position.dx,
       top: position.dy,
       width: width,
+      height: height,
       child: _BoardCard(
         block: block,
         onDrag:
@@ -1897,6 +2194,23 @@ class _RoutineScreenState
 
               _notifyRoutineMutation();
             },
+        onResize: isMindMap
+            ? (
+                handle,
+                delta,
+              ) {
+                _resizeMindMapBlock(
+                  block,
+                  handle,
+                  delta,
+                  boardWidth: boardWidth,
+                  boardHeight: boardHeight,
+                );
+              }
+            : null,
+        onResizeEnd: isMindMap
+            ? _finishMindMapResize
+            : null,
         onEdit: () => _editBlock(
           block,
         ),
@@ -2017,6 +2331,8 @@ class _RoutineScreenState
         id: BoardBlock.createId(),
         type: type,
         title: 'Nova ideia',
+        width: 620,
+        height: 430,
       );
       final root = _mindMapController.ensureRoot(
         block,
@@ -2667,6 +2983,17 @@ class _DayHeader
   }
 }
 
+enum _ResizeHandle {
+  topLeft,
+  top,
+  topRight,
+  right,
+  bottomRight,
+  bottom,
+  bottomLeft,
+  left,
+}
+
 class _BoardCard
     extends
         StatelessWidget {
@@ -2678,36 +3005,47 @@ class _BoardCard
     required this.onReminder,
     required this.onDelete,
     required this.child,
+    this.onResize,
+    this.onResizeEnd,
   });
 
   final BoardBlock block;
+
   final ValueChanged<
     Offset
   >
   onDrag;
+
+  final void Function(
+    _ResizeHandle handle,
+    Offset delta,
+  )?
+  onResize;
+
+  final VoidCallback? onResizeEnd;
+
   final VoidCallback onEdit;
   final VoidCallback onDuplicate;
   final VoidCallback onReminder;
   final VoidCallback onDelete;
   final Widget child;
 
+  bool get _resizable =>
+      onResize !=
+      null;
+
   @override
   Widget build(
     BuildContext context,
   ) {
-    return Material(
+    final card = Material(
       color: Colors.transparent,
       child: Container(
         decoration: BoxDecoration(
-          // ====================================================
-          // FUNDO EXCLUSIVO DOS CARDS ARRASTÁVEIS
-          // ====================================================
           color: _RoutineScreenState._cardBackground,
-
           borderRadius: BorderRadius.circular(
             16,
           ),
-
           border: Border.all(
             color: _RoutineScreenState._cardBorder,
           ),
@@ -2724,188 +3062,387 @@ class _BoardCard
             ),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            MouseRegion(
-              cursor: SystemMouseCursors.move,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onPanUpdate:
-                    (
-                      details,
-                    ) => onDrag(
-                      details.delta,
-                    ),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    13,
-                    10,
-                    7,
-                    8,
+        child: _resizable
+            ? Column(
+                children: [
+                  _buildHeader(),
+
+                  const Divider(
+                    height: 1,
+                    color: _RoutineScreenState._cardBorder,
                   ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          color: block.color.withValues(
-                            alpha: .13,
-                          ),
-                          borderRadius: BorderRadius.circular(
-                            10,
-                          ),
-                        ),
-                        child: Icon(
-                          block.icon,
-                          color: block.color,
-                          size: 18,
-                        ),
-                      ),
-                      const SizedBox(
-                        width: 10,
-                      ),
-                      Expanded(
-                        child: Text(
-                          block.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: _RoutineScreenState._text,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
 
-                      // =================================================
-                      // CRIAR LEMBRETE — AÇÃO VISÍVEL
-                      // =================================================
-                      Tooltip(
-                        message: 'Criar lembrete para este bloco',
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: onReminder,
-                            borderRadius: BorderRadius.circular(
-                              10,
-                            ),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(
-                                  0xFFBCF0B4,
-                                ),
-                                borderRadius: BorderRadius.circular(
-                                  10,
-                                ),
-                                border: Border.all(
-                                  color: const Color(
-                                    0xFFC7DFC9,
-                                  ),
-                                ),
-                              ),
-                              child: const Text(
-                                '🔔 Criar lembrete',
-                                style: TextStyle(
-                                  color: Color(
-                                    0xFF3B6939,
-                                  ),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 13,
                       ),
+                      child: child,
+                    ),
+                  ),
+                ],
+              )
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildHeader(),
 
-                      const SizedBox(
-                        width: 4,
-                      ),
+                  const Divider(
+                    height: 1,
+                    color: _RoutineScreenState._cardBorder,
+                  ),
 
-                      IconButton(
-                        tooltip: 'Editar',
-                        onPressed: onEdit,
-                        icon: const Icon(
-                          Icons.edit_outlined,
-                          color: _RoutineScreenState._muted,
-                          size: 18,
-                        ),
-                      ),
-                      PopupMenuButton<
-                        _BlockAction
-                      >(
-                        tooltip: 'Opções do bloco',
-                        color: const Color(
-                          0xFFFFFFFF,
-                        ),
-                        icon: const Icon(
-                          Icons.more_vert_rounded,
-                          color: _RoutineScreenState._muted,
-                        ),
-                        onSelected:
-                            (
-                              action,
-                            ) {
-                              switch (action) {
-                                case _BlockAction.duplicate:
-                                  onDuplicate();
-                                  break;
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 13,
+                    ),
+                    child: child,
+                  ),
+                ],
+              ),
+      ),
+    );
 
-                                case _BlockAction.delete:
-                                  onDelete();
-                                  break;
-                              }
-                            },
-                        itemBuilder:
-                            (
-                              _,
-                            ) => const [
-                              PopupMenuItem(
-                                value: _BlockAction.duplicate,
-                                child: _MenuLabel(
-                                  icon: Icons.copy_rounded,
-                                  text: 'Duplicar',
-                                ),
-                              ),
-                              PopupMenuItem(
-                                value: _BlockAction.delete,
-                                child: _MenuLabel(
-                                  icon: Icons.delete_outline_rounded,
-                                  text: 'Excluir',
-                                  color: Color(
-                                    0xFFC43A52,
-                                  ),
-                                ),
-                              ),
-                            ],
-                      ),
-                      const Icon(
-                        Icons.drag_indicator_rounded,
-                        color: _RoutineScreenState._muted,
-                        size: 18,
-                      ),
-                    ],
+    if (!_resizable) {
+      return card;
+    }
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned.fill(
+          child: card,
+        ),
+
+        // ======================================================
+        // CANTOS
+        // ======================================================
+        _resizeHandle(
+          handle: _ResizeHandle.topLeft,
+          alignment: Alignment.topLeft,
+          cursor: SystemMouseCursors.resizeUpLeftDownRight,
+        ),
+
+        _resizeHandle(
+          handle: _ResizeHandle.topRight,
+          alignment: Alignment.topRight,
+          cursor: SystemMouseCursors.resizeUpRightDownLeft,
+        ),
+
+        _resizeHandle(
+          handle: _ResizeHandle.bottomRight,
+          alignment: Alignment.bottomRight,
+          cursor: SystemMouseCursors.resizeUpLeftDownRight,
+        ),
+
+        _resizeHandle(
+          handle: _ResizeHandle.bottomLeft,
+          alignment: Alignment.bottomLeft,
+          cursor: SystemMouseCursors.resizeUpRightDownLeft,
+        ),
+
+        // ======================================================
+        // LADOS
+        // ======================================================
+        _resizeHandle(
+          handle: _ResizeHandle.top,
+          alignment: Alignment.topCenter,
+          cursor: SystemMouseCursors.resizeUpDown,
+          horizontal: true,
+        ),
+
+        _resizeHandle(
+          handle: _ResizeHandle.bottom,
+          alignment: Alignment.bottomCenter,
+          cursor: SystemMouseCursors.resizeUpDown,
+          horizontal: true,
+        ),
+
+        _resizeHandle(
+          handle: _ResizeHandle.left,
+          alignment: Alignment.centerLeft,
+          cursor: SystemMouseCursors.resizeLeftRight,
+          vertical: true,
+        ),
+
+        _resizeHandle(
+          handle: _ResizeHandle.right,
+          alignment: Alignment.centerRight,
+          cursor: SystemMouseCursors.resizeLeftRight,
+          vertical: true,
+        ),
+      ],
+    );
+  }
+
+  // ============================================================
+  // HEADER
+  // ============================================================
+
+  Widget _buildHeader() {
+    return MouseRegion(
+      cursor: SystemMouseCursors.move,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onPanUpdate:
+            (
+              details,
+            ) {
+              onDrag(
+                details.delta,
+              );
+            },
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            13,
+            10,
+            7,
+            8,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: block.color.withValues(
+                    alpha: .13,
+                  ),
+                  borderRadius: BorderRadius.circular(
+                    10,
+                  ),
+                ),
+                child: Icon(
+                  block.icon,
+                  color: block.color,
+                  size: 18,
+                ),
+              ),
+
+              const SizedBox(
+                width: 10,
+              ),
+
+              Expanded(
+                child: Text(
+                  block.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: _RoutineScreenState._text,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
-            ),
-            const Divider(
-              height: 1,
-              color: _RoutineScreenState._cardBorder,
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                vertical: 13,
+
+              Tooltip(
+                message: 'Criar lembrete para este bloco',
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: onReminder,
+                    borderRadius: BorderRadius.circular(
+                      10,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(
+                          0xFFBCF0B4,
+                        ),
+                        borderRadius: BorderRadius.circular(
+                          10,
+                        ),
+                        border: Border.all(
+                          color: const Color(
+                            0xFFC7DFC9,
+                          ),
+                        ),
+                      ),
+                      child: const Text(
+                        '🔔 Criar lembrete',
+                        style: TextStyle(
+                          color: Color(
+                            0xFF3B6939,
+                          ),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
-              child: child,
+
+              const SizedBox(
+                width: 4,
+              ),
+
+              IconButton(
+                tooltip: 'Editar',
+                onPressed: onEdit,
+                icon: const Icon(
+                  Icons.edit_outlined,
+                  color: _RoutineScreenState._muted,
+                  size: 18,
+                ),
+              ),
+
+              PopupMenuButton<
+                _BlockAction
+              >(
+                tooltip: 'Opções do bloco',
+                color: const Color(
+                  0xFFFFFFFF,
+                ),
+                icon: const Icon(
+                  Icons.more_vert_rounded,
+                  color: _RoutineScreenState._muted,
+                ),
+                onSelected:
+                    (
+                      action,
+                    ) {
+                      switch (action) {
+                        case _BlockAction.duplicate:
+                          onDuplicate();
+                          break;
+
+                        case _BlockAction.delete:
+                          onDelete();
+                          break;
+                      }
+                    },
+                itemBuilder:
+                    (
+                      _,
+                    ) => const [
+                      PopupMenuItem(
+                        value: _BlockAction.duplicate,
+                        child: _MenuLabel(
+                          icon: Icons.copy_rounded,
+                          text: 'Duplicar',
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: _BlockAction.delete,
+                        child: _MenuLabel(
+                          icon: Icons.delete_outline_rounded,
+                          text: 'Excluir',
+                          color: Color(
+                            0xFFC43A52,
+                          ),
+                        ),
+                      ),
+                    ],
+              ),
+
+              const Icon(
+                Icons.drag_indicator_rounded,
+                color: _RoutineScreenState._muted,
+                size: 18,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // HANDLE DE REDIMENSIONAMENTO
+  // ============================================================
+
+  Widget _resizeHandle({
+    required _ResizeHandle handle,
+    required Alignment alignment,
+    required MouseCursor cursor,
+    bool horizontal = false,
+    bool vertical = false,
+  }) {
+    final callback = onResize;
+
+    if (callback ==
+        null) {
+      return const SizedBox.shrink();
+    }
+
+    final width = vertical
+        ? 12.0
+        : horizontal
+        ? 56.0
+        : 18.0;
+
+    final height = horizontal
+        ? 12.0
+        : vertical
+        ? 56.0
+        : 18.0;
+
+    return Positioned.fill(
+      child: Align(
+        alignment: alignment,
+        child: MouseRegion(
+          cursor: cursor,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onPanUpdate:
+                (
+                  details,
+                ) {
+                  callback(
+                    handle,
+                    details.delta,
+                  );
+                },
+            onPanEnd:
+                (
+                  _,
+                ) {
+                  onResizeEnd?.call();
+                },
+            onPanCancel: () {
+              onResizeEnd?.call();
+            },
+            child: Container(
+              width: width,
+              height: height,
+              decoration: BoxDecoration(
+                color:
+                    handle ==
+                        _ResizeHandle.bottomRight
+                    ? const Color(
+                        0xFFF5F7F5,
+                      )
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(
+                  6,
+                ),
+                border:
+                    handle ==
+                        _ResizeHandle.bottomRight
+                    ? Border.all(
+                        color: const Color(
+                          0xFF9AA59C,
+                        ),
+                      )
+                    : null,
+              ),
+              child:
+                  handle ==
+                      _ResizeHandle.bottomRight
+                  ? const Icon(
+                      Icons.open_in_full_rounded,
+                      size: 11,
+                      color: _RoutineScreenState._muted,
+                    )
+                  : null,
             ),
-          ],
+          ),
         ),
       ),
     );

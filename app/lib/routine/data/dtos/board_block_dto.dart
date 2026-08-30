@@ -119,6 +119,7 @@ class BoardBlockDto {
     this.positionX,
     this.positionY,
     this.width,
+    this.height,
     this.items = const [],
     this.mindMapNodes = const [],
   });
@@ -140,6 +141,8 @@ class BoardBlockDto {
   final double? positionY;
 
   final double? width;
+
+  final double? height;
 
   final List<
     CheckItemDto
@@ -165,6 +168,7 @@ class BoardBlockDto {
     double? positionX,
     double? positionY,
     double? width,
+    double? height,
     List<
       CheckItemDto
     >?
@@ -202,6 +206,9 @@ class BoardBlockDto {
       width:
           width ??
           this.width,
+      height:
+          height ??
+          this.height,
       items:
           items ??
           this.items,
@@ -242,6 +249,8 @@ class BoardBlockDto {
       'position_y': positionY,
 
       'width': width,
+
+      'height': height,
 
       if (includeRelations)
         'items': items
@@ -307,6 +316,8 @@ class BoardBlockDto {
       'position_y': positionY,
 
       'width': width,
+
+      'height': height,
     };
   }
 
@@ -362,6 +373,9 @@ class BoardBlockDto {
       width: _nullableDouble(
         map['width'],
       ),
+      height: _nullableDouble(
+        map['height'],
+      ),
       items: _mapList(
         map['items'],
         CheckItemDto.fromMap,
@@ -389,6 +403,7 @@ class BoardBlockDto {
       positionX: positionX,
       positionY: positionY,
       width: width,
+      height: height,
     );
   }
 

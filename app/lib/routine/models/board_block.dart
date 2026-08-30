@@ -15,6 +15,8 @@ class BoardBlock {
     this.content = '',
     this.status = content_model.ContentStatus.idea,
     this.position,
+    this.width,
+    this.height,
     List<
       check_model.CheckItem
     >?
@@ -114,6 +116,8 @@ class BoardBlock {
       id: createId(),
       type: block_model.BlockType.mindMap,
       title: title,
+      width: 620,
+      height: 430,
       mindNodes: nodes,
     );
   }
@@ -133,6 +137,21 @@ class BoardBlock {
   content_model.ContentStatus status;
 
   Offset? position;
+
+  // ============================================================
+  // TAMANHO PERSONALIZADO
+  // ============================================================
+  //
+  // Usado principalmente pelo bloco de mapa mental.
+  //
+  // Os demais blocos podem continuar com null para que a tela
+  // utilize o tamanho padrão calculado pelo BoardController.
+  //
+  // ============================================================
+
+  double? width;
+
+  double? height;
 
   final List<
     check_model.CheckItem
@@ -179,6 +198,20 @@ class BoardBlock {
   bool get hasPosition =>
       position !=
       null;
+
+  bool get hasCustomSize =>
+      width !=
+          null ||
+      height !=
+          null;
+
+  double get mindMapWidth =>
+      width ??
+      620;
+
+  double get mindMapHeight =>
+      height ??
+      430;
 
   // ============================================================
   // TASK STATS
@@ -291,6 +324,30 @@ class BoardBlock {
   }
 
   // ============================================================
+  // UPDATE SIZE
+  // ============================================================
+
+  void updateSize({
+    double? width,
+    double? height,
+  }) {
+    if (width !=
+        null) {
+      this.width = width;
+    }
+
+    if (height !=
+        null) {
+      this.height = height;
+    }
+  }
+
+  void clearCustomSize() {
+    width = null;
+    height = null;
+  }
+
+  // ============================================================
   // COPY WITH
   // ============================================================
 
@@ -302,6 +359,9 @@ class BoardBlock {
     content_model.ContentStatus? status,
     Offset? position,
     bool removePosition = false,
+    double? width,
+    double? height,
+    bool removeCustomSize = false,
     List<
       check_model.CheckItem
     >?
@@ -331,6 +391,14 @@ class BoardBlock {
           ? null
           : position ??
                 this.position,
+      width: removeCustomSize
+          ? null
+          : width ??
+                this.width,
+      height: removeCustomSize
+          ? null
+          : height ??
+                this.height,
       items:
           items ??
           List<
@@ -436,6 +504,8 @@ class BoardBlock {
               position!.dy +
                   24,
             ),
+      width: width,
+      height: height,
       items: copiedItems,
       mindNodes: copiedNodes,
     );
@@ -558,7 +628,9 @@ class BoardBlock {
         'content: ${content.length} chars, '
         'items: ${items.length}, '
         'mindNodes: ${mindNodes.length}, '
-        'position: $position'
+        'position: $position, '
+        'width: $width, '
+        'height: $height'
         ')';
   }
 }

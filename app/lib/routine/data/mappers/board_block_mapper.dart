@@ -8,6 +8,10 @@ import '../dtos/board_block_dto.dart';
 import 'mind_map_node_mapper.dart';
 
 abstract final class BoardBlockMapper {
+  // ============================================================
+  // DTO -> MODEL
+  // ============================================================
+
   static board_model.BoardBlock toModel(
     BoardBlockDto dto,
   ) {
@@ -33,6 +37,13 @@ abstract final class BoardBlockMapper {
               dto.positionY!,
             )
           : null,
+
+      // ========================================================
+      // TAMANHO PERSONALIZADO
+      // ========================================================
+      width: dto.width,
+      height: dto.height,
+
       items: dto.items
           .map(
             _checkItemToModel,
@@ -44,10 +55,20 @@ abstract final class BoardBlockMapper {
     );
   }
 
+  // ============================================================
+  // MODEL -> DTO
+  // ============================================================
+  //
+  // Mantive width/height opcionais por compatibilidade.
+  // Se não forem passados manualmente, usa o valor do model.
+  //
+  // ============================================================
+
   static BoardBlockDto toDto({
     required board_model.BoardBlock model,
     String? routineDayId,
     double? width,
+    double? height,
   }) {
     return BoardBlockDto(
       id: model.id,
@@ -58,7 +79,17 @@ abstract final class BoardBlockMapper {
       contentStatus: model.status.databaseValue,
       positionX: model.position?.dx,
       positionY: model.position?.dy,
-      width: width,
+
+      // ========================================================
+      // TAMANHO PERSONALIZADO
+      // ========================================================
+      width:
+          width ??
+          model.width,
+      height:
+          height ??
+          model.height,
+
       items: model.items
           .asMap()
           .entries
@@ -79,6 +110,10 @@ abstract final class BoardBlockMapper {
     );
   }
 
+  // ============================================================
+  // DTO LIST -> MODEL LIST
+  // ============================================================
+
   static List<
     board_model.BoardBlock
   >
@@ -94,6 +129,10 @@ abstract final class BoardBlockMapper {
         )
         .toList();
   }
+
+  // ============================================================
+  // MODEL LIST -> DTO LIST
+  // ============================================================
 
   static List<
     BoardBlockDto
@@ -117,6 +156,10 @@ abstract final class BoardBlockMapper {
         .toList();
   }
 
+  // ============================================================
+  // CHECK ITEM DTO -> MODEL
+  // ============================================================
+
   static check_item_model.CheckItem _checkItemToModel(
     CheckItemDto dto,
   ) {
@@ -126,6 +169,10 @@ abstract final class BoardBlockMapper {
       done: dto.completed,
     );
   }
+
+  // ============================================================
+  // CHECK ITEM MODEL -> DTO
+  // ============================================================
 
   static CheckItemDto _checkItemToDto(
     check_item_model.CheckItem item, {

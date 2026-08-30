@@ -6,19 +6,37 @@ abstract final class RoutineDayMapper {
   // ============================================================
   // DTO -> MODEL
   // ============================================================
+  //
+  // Toda conversão dos blocos fica centralizada no
+  // BoardBlockMapper.
+  //
+  // Isso é importante porque propriedades específicas do bloco,
+  // como:
+  //
+  // - position
+  // - width
+  // - height
+  // - items
+  // - mindMapNodes
+  //
+  // precisam ser preservadas pelo BoardBlockMapper.
+  //
+  // ============================================================
 
   static RoutineDay toModel(
     RoutineDayDto dto,
   ) {
+    final blocks = BoardBlockMapper.toModelList(
+      dto.blocks,
+    );
+
     return RoutineDay(
       id: dto.id,
       date: _dateOnly(
         dto.date,
       ),
       focus: dto.focus,
-      blocks: BoardBlockMapper.toModelList(
-        dto.blocks,
-      ),
+      blocks: blocks,
     );
   }
 
@@ -30,15 +48,14 @@ abstract final class RoutineDayMapper {
     required RoutineDay model,
     required String userId,
   }) {
-    final normalizedUserId = userId.trim();
+    final normalizedUserId = _validateUserId(
+      userId,
+    );
 
-    if (normalizedUserId.isEmpty) {
-      throw ArgumentError.value(
-        userId,
-        'userId',
-        'O userId não pode estar vazio.',
-      );
-    }
+    final blocks = BoardBlockMapper.toDtoList(
+      models: model.blocks,
+      routineDayId: model.id,
+    );
 
     return RoutineDayDto(
       id: model.id,
@@ -47,10 +64,7 @@ abstract final class RoutineDayMapper {
         model.normalizedDate,
       ),
       focus: model.focus,
-      blocks: BoardBlockMapper.toDtoList(
-        models: model.blocks,
-        routineDayId: model.id,
-      ),
+      blocks: blocks,
     );
   }
 
@@ -69,7 +83,11 @@ abstract final class RoutineDayMapper {
   ) {
     final models = dtos
         .map(
-          toModel,
+          (
+            dto,
+          ) => toModel(
+            dto,
+          ),
         )
         .toList();
 
@@ -77,9 +95,11 @@ abstract final class RoutineDayMapper {
       (
         first,
         second,
-      ) => first.normalizedDate.compareTo(
-        second.normalizedDate,
-      ),
+      ) {
+        return first.normalizedDate.compareTo(
+          second.normalizedDate,
+        );
+      },
     );
 
     return models;
@@ -99,34 +119,30 @@ abstract final class RoutineDayMapper {
     models,
     required String userId,
   }) {
-    final normalizedUserId = userId.trim();
+    final normalizedUserId = _validateUserId(
+      userId,
+    );
 
-    if (normalizedUserId.isEmpty) {
-      throw ArgumentError.value(
-        userId,
-        'userId',
-        'O userId não pode estar vazio.',
-      );
-    }
-
-    final dtos = models
-        .map(
-          (
-            model,
-          ) => toDto(
-            model: model,
-            userId: normalizedUserId,
-          ),
-        )
-        .toList();
+    final dtos = models.map(
+      (
+        model,
+      ) {
+        return toDto(
+          model: model,
+          userId: normalizedUserId,
+        );
+      },
+    ).toList();
 
     dtos.sort(
       (
         first,
         second,
-      ) => first.date.compareTo(
-        second.date,
-      ),
+      ) {
+        return first.date.compareTo(
+          second.date,
+        );
+      },
     );
 
     return dtos;
@@ -136,10 +152,11 @@ abstract final class RoutineDayMapper {
   // MODEL -> DTO WITH DAY ID
   // ============================================================
   //
-  // Útil quando o dia foi salvo no Supabase e ganhou um ID.
+  // Usado quando o dia já possui um ID confirmado pelo Supabase.
   //
-  // Assim conseguimos reconstruir os blocos com o
-  // routine_day_id correto.
+  // Nesse caso, todos os blocos recebem o mesmo routine_day_id
+  // durante a conversão.
+  //
   // ============================================================
 
   static RoutineDayDto toDtoWithDayId({
@@ -147,25 +164,18 @@ abstract final class RoutineDayMapper {
     required String userId,
     required String routineDayId,
   }) {
-    final normalizedUserId = userId.trim();
+    final normalizedUserId = _validateUserId(
+      userId,
+    );
 
-    final normalizedDayId = routineDayId.trim();
+    final normalizedDayId = _validateRoutineDayId(
+      routineDayId,
+    );
 
-    if (normalizedUserId.isEmpty) {
-      throw ArgumentError.value(
-        userId,
-        'userId',
-        'O userId não pode estar vazio.',
-      );
-    }
-
-    if (normalizedDayId.isEmpty) {
-      throw ArgumentError.value(
-        routineDayId,
-        'routineDayId',
-        'O routineDayId não pode estar vazio.',
-      );
-    }
+    final blocks = BoardBlockMapper.toDtoList(
+      models: model.blocks,
+      routineDayId: normalizedDayId,
+    );
 
     return RoutineDayDto(
       id: normalizedDayId,
@@ -174,15 +184,20 @@ abstract final class RoutineDayMapper {
         model.normalizedDate,
       ),
       focus: model.focus,
-      blocks: BoardBlockMapper.toDtoList(
-        models: model.blocks,
-        routineDayId: normalizedDayId,
-      ),
+      blocks: blocks,
     );
   }
 
   // ============================================================
   // NORMALIZE MODEL
+  // ============================================================
+  //
+  // Não recriamos individualmente os BoardBlock aqui.
+  //
+  // Mantemos as mesmas instâncias porque propriedades mutáveis
+  // de interface, como width e height do mapa mental, precisam
+  // continuar preservadas.
+  //
   // ============================================================
 
   static RoutineDay normalizeModel(
@@ -194,10 +209,50 @@ abstract final class RoutineDayMapper {
         model.date,
       ),
       focus: model.focus,
-      blocks: List.from(
+      blocks: List.of(
         model.blocks,
       ),
     );
+  }
+
+  // ============================================================
+  // VALIDATE USER ID
+  // ============================================================
+
+  static String _validateUserId(
+    String userId,
+  ) {
+    final normalized = userId.trim();
+
+    if (normalized.isEmpty) {
+      throw ArgumentError.value(
+        userId,
+        'userId',
+        'O userId não pode estar vazio.',
+      );
+    }
+
+    return normalized;
+  }
+
+  // ============================================================
+  // VALIDATE ROUTINE DAY ID
+  // ============================================================
+
+  static String _validateRoutineDayId(
+    String routineDayId,
+  ) {
+    final normalized = routineDayId.trim();
+
+    if (normalized.isEmpty) {
+      throw ArgumentError.value(
+        routineDayId,
+        'routineDayId',
+        'O routineDayId não pode estar vazio.',
+      );
+    }
+
+    return normalized;
   }
 
   // ============================================================

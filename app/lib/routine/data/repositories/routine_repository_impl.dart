@@ -777,17 +777,146 @@ class RoutineRepositoryImpl
   RoutineDay _recordToModel(
     RoutineRecord record,
   ) {
+    final rawRecord =
+        Map<
+          String,
+          dynamic
+        >.from(
+          record,
+        );
+
     final dto = RoutineDayDto.fromMap(
-      Map<
-        String,
-        dynamic
-      >.from(
-        record,
-      ),
+      rawRecord,
     );
 
-    return RoutineDayMapper.toModel(
+    final model = RoutineDayMapper.toModel(
       dto,
+    );
+
+    // ==========================================================
+    // RESTAURAR TAMANHO PERSONALIZADO DOS BLOCOS
+    // ==========================================================
+    //
+    // O Supabase devolve width/height dentro de blocks.
+    //
+    // Mesmo que alguma camada intermediária/mapper antigo ainda
+    // descarte esses campos, restauramos os valores diretamente
+    // do registro remoto antes de entregar o RoutineDay ao
+    // controller.
+    //
+    // Isso evita o mapa mental voltar para 620x430 depois de um
+    // save/reload.
+    //
+    // ==========================================================
+
+    _restoreBlockDimensionsFromRecord(
+      model: model,
+      record: rawRecord,
+    );
+
+    return model;
+  }
+
+  // ============================================================
+  // RESTAURAR DIMENSÕES DOS BLOCOS
+  // ============================================================
+
+  void _restoreBlockDimensionsFromRecord({
+    required RoutineDay model,
+    required Map<
+      String,
+      dynamic
+    >
+    record,
+  }) {
+    final rawBlocks = record['blocks'];
+
+    if (rawBlocks
+        is! List) {
+      return;
+    }
+
+    final dimensionsById =
+        <
+          String,
+          Map<
+            String,
+            dynamic
+          >
+        >{};
+
+    for (final rawBlock in rawBlocks) {
+      if (rawBlock
+          is! Map) {
+        continue;
+      }
+
+      final map =
+          Map<
+            String,
+            dynamic
+          >.from(
+            rawBlock,
+          );
+
+      final id = map['id']?.toString().trim();
+
+      if (id ==
+              null ||
+          id.isEmpty) {
+        continue;
+      }
+
+      dimensionsById[id] = map;
+    }
+
+    for (final block in model.blocks) {
+      final raw = dimensionsById[block.id];
+
+      if (raw ==
+          null) {
+        continue;
+      }
+
+      final width = _nullableDouble(
+        raw['width'],
+      );
+
+      final height = _nullableDouble(
+        raw['height'],
+      );
+
+      if (width !=
+          null) {
+        block.width = width;
+      }
+
+      if (height !=
+          null) {
+        block.height = height;
+      }
+    }
+  }
+
+  // ============================================================
+  // NULLABLE DOUBLE
+  // ============================================================
+
+  double? _nullableDouble(
+    Object? value,
+  ) {
+    if (value ==
+        null) {
+      return null;
+    }
+
+    if (value
+        is num) {
+      return value.toDouble();
+    }
+
+    return double.tryParse(
+      value.toString().trim(),
     );
   }
 
