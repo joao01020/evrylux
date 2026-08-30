@@ -102,3 +102,6 @@ app.*.map.json
 # ============================================================
 
 /windows/flutter/ephemeral/
+
+# Node / Supabase CLI
+node_modules/
