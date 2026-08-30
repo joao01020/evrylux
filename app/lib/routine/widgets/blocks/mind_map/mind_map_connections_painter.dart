@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../controllers/mind_map_controller.dart';
 import '../../../models/mind_map_node.dart';
 import '../../../models/node_port.dart';
 
@@ -8,9 +9,8 @@ class MindMapConnectionsPainter
         CustomPainter {
   const MindMapConnectionsPainter({
     required this.nodes,
+    required this.controller,
     required this.color,
-    required this.nodeWidth,
-    required this.nodeHeight,
   });
 
   // ============================================================
@@ -22,15 +22,9 @@ class MindMapConnectionsPainter
   >
   nodes;
 
-  /// Mantido no construtor por compatibilidade.
-  ///
-  /// As conexões agora usam o verde padrão do mapa mental
-  /// para manter contraste com a lousa escura.
+  final MindMapController controller;
+
   final Color color;
-
-  final double nodeWidth;
-
-  final double nodeHeight;
 
   // ============================================================
   // CORES
@@ -53,6 +47,10 @@ class MindMapConnectionsPainter
     Canvas canvas,
     Size size,
   ) {
+    if (nodes.isEmpty) {
+      return;
+    }
+
     // ==========================================================
     // LINHA PRINCIPAL
     // ==========================================================
@@ -109,6 +107,14 @@ class MindMapConnectionsPainter
     // ==========================================================
     // CONEXÕES
     // ==========================================================
+    //
+    // Usa parentId para manter a estrutura atual.
+    //
+    // Não desenhamos ponta de seta.
+    //
+    // Apenas a conexão curva entre os nós.
+    //
+    // ==========================================================
 
     for (final node in nodes) {
       final parentId = node.parentId;
@@ -126,15 +132,15 @@ class MindMapConnectionsPainter
       }
 
       // ========================================================
-      // INÍCIO / FIM
+      // INÍCIO / FIM DINÂMICOS
       // ========================================================
 
-      final start = _portOffset(
+      final start = controller.portPosition(
         parent,
         node.sourcePort,
       );
 
-      final end = _portOffset(
+      final end = controller.portPosition(
         node,
         node.targetPort,
       );
@@ -194,7 +200,7 @@ class MindMapConnectionsPainter
         );
 
       // ========================================================
-      // DESENHAR BRILHO PRIMEIRO
+      // BRILHO
       // ========================================================
 
       canvas.drawPath(
@@ -246,47 +252,6 @@ class MindMapConnectionsPainter
   }
 
   // ============================================================
-  // OFFSET DA PORTA
-  // ============================================================
-
-  Offset _portOffset(
-    MindMapNode node,
-    NodePort port,
-  ) {
-    return switch (port) {
-      NodePort.top => Offset(
-        node.position.dx +
-            nodeWidth /
-                2,
-        node.position.dy,
-      ),
-
-      NodePort.right => Offset(
-        node.position.dx +
-            nodeWidth,
-        node.position.dy +
-            nodeHeight /
-                2,
-      ),
-
-      NodePort.bottom => Offset(
-        node.position.dx +
-            nodeWidth /
-                2,
-        node.position.dy +
-            nodeHeight,
-      ),
-
-      NodePort.left => Offset(
-        node.position.dx,
-        node.position.dy +
-            nodeHeight /
-                2,
-      ),
-    };
-  }
-
-  // ============================================================
   // DIREÇÃO DA PORTA
   // ============================================================
 
@@ -324,13 +289,6 @@ class MindMapConnectionsPainter
   bool shouldRepaint(
     covariant MindMapConnectionsPainter oldDelegate,
   ) {
-    return oldDelegate.nodes !=
-            nodes ||
-        oldDelegate.nodeWidth !=
-            nodeWidth ||
-        oldDelegate.nodeHeight !=
-            nodeHeight ||
-        oldDelegate.color !=
-            color;
+    return true;
   }
 }

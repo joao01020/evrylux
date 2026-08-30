@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../controllers/mind_map_controller.dart';
 import '../../../models/board_block.dart';
+import '../../../models/mind_map_node.dart';
 
 import 'mind_map_connections_painter.dart';
 import 'mind_map_node_widget.dart';
@@ -227,9 +228,8 @@ class _MindMapCanvasState
                       child: CustomPaint(
                         painter: MindMapConnectionsPainter(
                           nodes: widget.block.mindNodes,
+                          controller: widget.controller,
                           color: _green,
-                          nodeWidth: MindMapController.nodeWidth,
-                          nodeHeight: MindMapController.nodeHeight,
                         ),
                       ),
                     ),
@@ -238,40 +238,9 @@ class _MindMapCanvasState
                     // NÓS
                     // =================================================
                     for (final node in widget.block.mindNodes)
-                      Positioned(
-                        key: ValueKey(
-                          node.id,
-                        ),
-                        left: node.position.dx,
-                        top: node.position.dy,
-                        width: MindMapController.nodeWidth,
-                        height: MindMapController.nodeHeight,
-                        child: MindMapNodeWidget(
-                          block: widget.block,
-                          node: node,
-                          controller: widget.controller,
-                          canvasWidth: canvasWidth,
-                          canvasHeight: widget.height,
-                          hovered:
-                              _hoveredNodeId ==
-                              node.id,
-                          onHoverChanged:
-                              (
-                                hovered,
-                              ) {
-                                if (!mounted) {
-                                  return;
-                                }
-
-                                setState(
-                                  () {
-                                    _hoveredNodeId = hovered
-                                        ? node.id
-                                        : null;
-                                  },
-                                );
-                              },
-                        ),
+                      _positionedNode(
+                        node: node,
+                        canvasWidth: canvasWidth,
                       ),
 
                     // =================================================
@@ -324,6 +293,62 @@ class _MindMapCanvasState
               ),
             );
           },
+    );
+  }
+
+  // ============================================================
+  // POSITIONED NODE
+  // ============================================================
+  //
+  // Usa o tamanho calculado pelo MindMapController.
+  //
+  // Assim o nó pode crescer em largura/altura conforme o texto,
+  // sem cortar conteúdo com ellipsis.
+  //
+  // ============================================================
+
+  Widget _positionedNode({
+    required MindMapNode node,
+    required double canvasWidth,
+  }) {
+    final size = widget.controller.nodeSize(
+      node,
+    );
+
+    return Positioned(
+      key: ValueKey(
+        node.id,
+      ),
+      left: node.position.dx,
+      top: node.position.dy,
+      width: size.width,
+      height: size.height,
+      child: MindMapNodeWidget(
+        block: widget.block,
+        node: node,
+        controller: widget.controller,
+        canvasWidth: canvasWidth,
+        canvasHeight: widget.height,
+        hovered:
+            _hoveredNodeId ==
+            node.id,
+        onHoverChanged:
+            (
+              hovered,
+            ) {
+              if (!mounted) {
+                return;
+              }
+
+              setState(
+                () {
+                  _hoveredNodeId = hovered
+                      ? node.id
+                      : null;
+                },
+              );
+            },
+      ),
     );
   }
 }

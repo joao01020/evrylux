@@ -25,10 +25,13 @@ class MindMapNodeWidget
   // ============================================================
 
   final BoardBlock block;
+
   final MindMapNode node;
+
   final MindMapController controller;
 
   final double canvasWidth;
+
   final double canvasHeight;
 
   final bool hovered;
@@ -67,6 +70,14 @@ class MindMapNodeWidget
   );
 
   // ============================================================
+  // TEXTO
+  // ============================================================
+
+  static const double _fontSize = 13;
+
+  static const double _lineHeight = 1.25;
+
+  // ============================================================
   // BUILD
   // ============================================================
 
@@ -96,24 +107,38 @@ class MindMapNodeWidget
           },
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onPanUpdate:
-            (
-              details,
-            ) {
-              controller.moveNode(
-                node: node,
-                delta: details.delta,
-                canvasWidth: canvasWidth,
-                canvasHeight: canvasHeight,
-              );
-            },
+
+        // ========================================================
+        // MOVER NÓ
+        // ========================================================
+        onPanUpdate: node.isEditing
+            ? null
+            : (
+                details,
+              ) {
+                controller.moveNode(
+                  node: node,
+                  delta: details.delta,
+                  canvasWidth: canvasWidth,
+                  canvasHeight: canvasHeight,
+                );
+              },
+
+        // ========================================================
+        // EDITAR
+        // ========================================================
         onDoubleTap: () {
           controller.startEditing(
             node,
           );
         },
+
         child: Stack(
+          clipBehavior: Clip.none,
           children: [
+            // ==================================================
+            // CORPO
+            // ==================================================
             Positioned.fill(
               child: _nodeBody(
                 context,
@@ -187,52 +212,65 @@ class MindMapNodeWidget
           ),
         ],
       ),
-      child: Row(
-        children: [
-          const SizedBox(
-            width: 12,
-          ),
 
-          // ====================================================
-          // LABEL / EDITOR
-          // ====================================================
-          Expanded(
-            child: node.isEditing
-                ? _editor()
-                : _label(),
-          ),
-
-          // ====================================================
-          // DELETE
-          // ====================================================
-          if (!node.isRoot &&
-              !node.isEditing)
-            InkWell(
-              onTap: () {
-                controller.deleteNode(
-                  block: block,
-                  nodeId: node.id,
-                );
-              },
-              borderRadius: BorderRadius.circular(
-                8,
-              ),
-              child: const Padding(
-                padding: EdgeInsets.all(
-                  8,
-                ),
-                child: Icon(
-                  Icons.close_rounded,
-                  size: 13,
-                  color: _muted,
-                ),
-              ),
+      // ========================================================
+      // PADDING
+      // ========================================================
+      //
+      // Mantemos padding vertical para o texto poder crescer
+      // sem encostar nas bordas do nó.
+      //
+      // ========================================================
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 10,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // ====================================================
+            // LABEL / EDITOR
+            // ====================================================
+            Expanded(
+              child: node.isEditing
+                  ? _editor()
+                  : _label(),
             ),
 
-          const SizedBox(
-            width: 8,
-          ),
-        ],
+            // ====================================================
+            // DELETE
+            // ====================================================
+            if (!node.isRoot &&
+                !node.isEditing) ...[
+              const SizedBox(
+                width: 6,
+              ),
+
+              InkWell(
+                onTap: () {
+                  controller.deleteNode(
+                    block: block,
+                    nodeId: node.id,
+                  );
+                },
+                borderRadius: BorderRadius.circular(
+                  8,
+                ),
+                child: const Padding(
+                  padding: EdgeInsets.all(
+                    4,
+                  ),
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 14,
+                    color: _muted,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -246,20 +284,29 @@ class MindMapNodeWidget
       key: ValueKey(
         'edit-${node.id}',
       ),
+
       initialValue: node.label,
+
       autofocus: true,
-      maxLines: 1,
-      textInputAction: TextInputAction.done,
-      onFieldSubmitted:
-          (
-            value,
-          ) {
-            controller.finishEditing(
-              block: block,
-              node: node,
-              value: value,
-            );
-          },
+
+      // ========================================================
+      // MULTILINHA
+      // ========================================================
+      //
+      // Agora o editor cresce conforme o texto.
+      //
+      // ========================================================
+      minLines: 1,
+
+      maxLines: null,
+
+      keyboardType: TextInputType.multiline,
+
+      textInputAction: TextInputAction.newline,
+
+      // ========================================================
+      // FINALIZAR AO CLICAR FORA
+      // ========================================================
       onTapOutside:
           (
             _,
@@ -270,28 +317,55 @@ class MindMapNodeWidget
               value: node.label,
             );
           },
+
+      // ========================================================
+      // ATUALIZAÇÃO EM TEMPO REAL
+      // ========================================================
+      //
+      // O label é alterado enquanto o usuário digita.
+      //
+      // Também notificamos o controller para o canvas poder
+      // recalcular o tamanho do nó conforme o texto cresce.
+      //
+      // ========================================================
       onChanged:
           (
             value,
           ) {
             node.label = value;
+
+            controller.startEditing(
+              node,
+            );
           },
+
       style: const TextStyle(
         color: _text,
-        fontSize: 11,
-        fontWeight: FontWeight.w700,
+        fontSize: _fontSize,
+        fontWeight: FontWeight.w600,
+        height: _lineHeight,
       ),
+
       cursorColor: _green,
+
       decoration: const InputDecoration(
         isDense: true,
+
         hintText: 'Digite...',
+
         hintStyle: TextStyle(
           color: _muted,
-          fontSize: 11,
+          fontSize: _fontSize,
+          fontWeight: FontWeight.w500,
+          height: _lineHeight,
         ),
+
         border: InputBorder.none,
+
         enabledBorder: InputBorder.none,
+
         focusedBorder: InputBorder.none,
+
         contentPadding: EdgeInsets.zero,
       ),
     );
@@ -302,16 +376,38 @@ class MindMapNodeWidget
   // ============================================================
 
   Widget _label() {
+    final value = node.label.trim().isEmpty
+        ? 'Nova ideia'
+        : node.label;
+
     return Text(
-      node.label,
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
+      value,
+
+      // ========================================================
+      // TEXTO COMPLETO
+      // ========================================================
+      //
+      // Não usamos:
+      //
+      // maxLines
+      // TextOverflow.ellipsis
+      //
+      // Portanto o texto pode ocupar quantas linhas precisar.
+      //
+      // ========================================================
+      softWrap: true,
+
+      overflow: TextOverflow.visible,
+
+      textAlign: TextAlign.left,
+
       style: TextStyle(
         color: node.isRoot
             ? _green
             : _text,
-        fontSize: 11,
-        fontWeight: FontWeight.w700,
+        fontSize: _fontSize,
+        fontWeight: FontWeight.w600,
+        height: _lineHeight,
       ),
     );
   }
