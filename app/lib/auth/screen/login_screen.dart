@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class LoginScreen
@@ -41,6 +42,8 @@ class _LoginScreenState
   bool _obscurePassword = true;
 
   bool _obscureConfirmPassword = true;
+
+  bool _rememberEmail = false;
 
   String? _errorMessage;
 
@@ -95,6 +98,179 @@ class _LoginScreenState
   // ============================================================
 
   SupabaseClient get _supabase => Supabase.instance.client;
+
+  // ============================================================
+  // REMEMBER EMAIL
+  // ============================================================
+
+  static const String _rememberEmailKey = 'auth_remember_email';
+
+  static const String _savedEmailKey = 'auth_saved_email';
+
+  // ============================================================
+  // INIT
+  // ============================================================
+
+  @override
+  void initState() {
+    super.initState();
+
+    _loadRememberedEmail();
+  }
+
+  // ============================================================
+  // LOAD REMEMBERED EMAIL
+  // ============================================================
+
+  Future<
+    void
+  >
+  _loadRememberedEmail() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      final remember =
+          prefs.getBool(
+            _rememberEmailKey,
+          ) ??
+          false;
+
+      final savedEmail = prefs.getString(
+        _savedEmailKey,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(
+        () {
+          _rememberEmail = remember;
+
+          if (remember &&
+              savedEmail !=
+                  null &&
+              savedEmail.trim().isNotEmpty) {
+            _emailController.text = savedEmail.trim();
+          }
+        },
+      );
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        '[AUTH][REMEMBER EMAIL][LOAD] $error',
+      );
+
+      debugPrint(
+        '$stackTrace',
+      );
+    }
+  }
+
+  // ============================================================
+  // SAVE REMEMBERED EMAIL
+  // ============================================================
+
+  Future<
+    void
+  >
+  _saveRememberedEmail(
+    String email,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      await prefs.setBool(
+        _rememberEmailKey,
+        _rememberEmail,
+      );
+
+      if (_rememberEmail) {
+        await prefs.setString(
+          _savedEmailKey,
+          email.trim(),
+        );
+      } else {
+        await prefs.remove(
+          _savedEmailKey,
+        );
+      }
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        '[AUTH][REMEMBER EMAIL][SAVE] $error',
+      );
+
+      debugPrint(
+        '$stackTrace',
+      );
+    }
+  }
+
+  // ============================================================
+  // TOGGLE REMEMBER EMAIL
+  // ============================================================
+
+  Future<
+    void
+  >
+  _setRememberEmail(
+    bool value,
+  ) async {
+    if (_loading) {
+      return;
+    }
+
+    setState(
+      () {
+        _rememberEmail = value;
+      },
+    );
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      await prefs.setBool(
+        _rememberEmailKey,
+        value,
+      );
+
+      if (!value) {
+        await prefs.remove(
+          _savedEmailKey,
+        );
+
+        return;
+      }
+
+      final email = _emailController.text.trim();
+
+      if (email.isNotEmpty &&
+          _isValidEmail(
+            email,
+          )) {
+        await prefs.setString(
+          _savedEmailKey,
+          email,
+        );
+      }
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        '[AUTH][REMEMBER EMAIL][TOGGLE] $error',
+      );
+
+      debugPrint(
+        '$stackTrace',
+      );
+    }
+  }
 
   // ============================================================
   // DISPOSE
@@ -276,6 +452,10 @@ class _LoginScreenState
         'O Supabase não retornou um usuário autenticado.',
       );
     }
+
+    await _saveRememberedEmail(
+      email,
+    );
 
     debugPrint(
       '[AUTH] LOGIN OK',
@@ -768,26 +948,68 @@ class _LoginScreenState
                         ],
 
                         // ======================================
-                        // FORGOT PASSWORD
+                        // REMEMBER EMAIL
                         // ======================================
                         if (_isLogin) ...[
                           const SizedBox(
-                            height: 8,
+                            height: 10,
                           ),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: _loading
-                                  ? null
-                                  : _forgotPassword,
-                              child: const Text(
-                                'Esqueci minha senha',
-                                style: TextStyle(
-                                  color: _primaryLight,
-                                  fontSize: 11,
+                          Row(
+                            children: [
+                              SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: Checkbox(
+                                  value: _rememberEmail,
+                                  onChanged: _loading
+                                      ? null
+                                      : (
+                                          value,
+                                        ) {
+                                          _setRememberEmail(
+                                            value ??
+                                                false,
+                                          );
+                                        },
+                                  activeColor: _primaryLight,
+                                  checkColor: Colors.white,
+                                  side: const BorderSide(
+                                    color: _border,
+                                    width: 1.4,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(
+                                      5,
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
+                              const SizedBox(
+                                width: 9,
+                              ),
+                              const Expanded(
+                                child: Text(
+                                  'Lembrar meu email',
+                                  style: TextStyle(
+                                    color: _muted,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: _loading
+                                    ? null
+                                    : _forgotPassword,
+                                child: const Text(
+                                  'Esqueci minha senha',
+                                  style: TextStyle(
+                                    color: _primaryLight,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
 

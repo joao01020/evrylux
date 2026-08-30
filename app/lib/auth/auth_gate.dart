@@ -688,7 +688,7 @@ class _AuthLoadingScreen
   ) {
     return const Scaffold(
       backgroundColor: Color(
-        0xFF090A0E,
+        0xFFF7FBF1,
       ),
       body: Center(
         child: Column(
@@ -696,7 +696,7 @@ class _AuthLoadingScreen
           children: [
             CircularProgressIndicator(
               color: Color(
-                0xFF7C5CFF,
+                0xFF3B6939,
               ),
               strokeWidth: 2,
             ),
@@ -707,7 +707,7 @@ class _AuthLoadingScreen
               'Carregando sua conta...',
               style: TextStyle(
                 color: Color(
-                  0xFF9298A6,
+                  0xFF68746B,
                 ),
                 fontSize: 12,
               ),
@@ -745,7 +745,7 @@ class _AuthErrorScreen
   ) {
     return Scaffold(
       backgroundColor: const Color(
-        0xFF090A0E,
+        0xFFF7FBF1,
       ),
       body: Center(
         child: Padding(
@@ -762,14 +762,14 @@ class _AuthErrorScreen
               ),
               decoration: BoxDecoration(
                 color: const Color(
-                  0xFF111319,
+                  0xFFFFFFFF,
                 ),
                 borderRadius: BorderRadius.circular(
                   18,
                 ),
                 border: Border.all(
                   color: const Color(
-                    0xFF7C3047,
+                    0xFFE3B7B7,
                   ),
                 ),
               ),
@@ -782,7 +782,7 @@ class _AuthErrorScreen
                   const Icon(
                     Icons.cloud_off_outlined,
                     color: Color(
-                      0xFFFF8DAA,
+                      0xFFB3261E,
                     ),
                     size: 36,
                   ),
@@ -799,7 +799,7 @@ class _AuthErrorScreen
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Color(
-                        0xFFF5F7FA,
+                        0xFF172019,
                       ),
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
@@ -818,7 +818,7 @@ class _AuthErrorScreen
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: Color(
-                        0xFF9298A6,
+                        0xFF68746B,
                       ),
                       fontSize: 11,
                       height: 1.45,
@@ -839,9 +839,11 @@ class _AuthErrorScreen
                     style: ElevatedButton.styleFrom(
                       elevation: 0,
                       backgroundColor: const Color(
-                        0xFF7C5CFF,
+                        0xFFBCF0B4,
                       ),
-                      foregroundColor: Colors.white,
+                      foregroundColor: const Color(
+                        0xFF3B6939,
+                      ),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 18,
                         vertical: 13,

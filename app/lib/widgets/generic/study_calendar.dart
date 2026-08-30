@@ -51,11 +51,15 @@ class _StudyCalendarState
   );
 
   static const Color _primary = Color(
-    0xFF7BE495,
+    0xFFBCF0B4,
   );
 
   static const Color _primarySoft = Color(
-    0xFFA8F0B8,
+    0xFF9FDF98,
+  );
+
+  static const Color _primaryDark = Color(
+    0xFF3B6939,
   );
 
   static const Color _textPrimary = Color(
@@ -71,7 +75,7 @@ class _StudyCalendarState
   );
 
   static const Color _success = Color(
-    0xFF198754,
+    0xFF3B6939,
   );
 
   // ============================================================
@@ -547,9 +551,7 @@ class _StudyCalendarState
               weekDay,
               style: TextStyle(
                 color: selected
-                    ? Colors.white.withValues(
-                        alpha: 0.86,
-                      )
+                    ? _primaryDark
                     : _textSecondary,
                 fontSize: 9,
                 fontWeight: FontWeight.w800,
@@ -568,7 +570,7 @@ class _StudyCalendarState
               '${date.day}',
               style: TextStyle(
                 color: selected
-                    ? Colors.white
+                    ? _primaryDark
                     : _textPrimary,
                 fontSize: 19,
                 fontWeight: FontWeight.w800,
@@ -593,10 +595,10 @@ class _StudyCalendarState
                 shape: BoxShape.circle,
                 color: completed
                     ? selected
-                          ? Colors.white
+                          ? _primaryDark
                           : _success
                     : selected
-                    ? Colors.white.withValues(
+                    ? _primaryDark.withValues(
                         alpha: 0.48,
                       )
                     : _textMuted,
