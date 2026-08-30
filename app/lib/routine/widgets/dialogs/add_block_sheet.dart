@@ -8,6 +8,7 @@ class AddBlockSheet
   const AddBlockSheet({
     super.key,
     required this.onSelected,
+    this.onComment,
   });
 
   // ============================================================
@@ -18,12 +19,10 @@ class AddBlockSheet
     0xFFFFFFFF,
   );
 
-  // Card cinza
   static const Color _surface = Color(
     0xFFE2E4E8,
   );
 
-  // Hover um pouco mais escuro
   static const Color _surfaceHover = Color(
     0xFFD4D7DC,
   );
@@ -45,13 +44,35 @@ class AddBlockSheet
   );
 
   // ============================================================
-  // CALLBACK
+  // COMENTÁRIO
+  // ============================================================
+
+  static const Color _commentColor = Color(
+    0xFF3859FF,
+  );
+
+  static const Color _commentBackground = Color(
+    0xFFE9EDFF,
+  );
+
+  static const Color _commentBorder = Color(
+    0xFFBFC9FF,
+  );
+
+  // ============================================================
+  // CALLBACKS
   // ============================================================
 
   final ValueChanged<
     BlockType
   >
   onSelected;
+
+  /// Quando informado, exibe a opção "Comentário".
+  ///
+  /// Comentário NÃO vira um BoardBlock. Ele apenas fecha este modal
+  /// e avisa a tela para ativar o modo de comentário da lousa.
+  final VoidCallback? onComment;
 
   // ============================================================
   // SHOW
@@ -61,8 +82,9 @@ class AddBlockSheet
     BlockType?
   >
   show(
-    BuildContext context,
-  ) {
+    BuildContext context, {
+    VoidCallback? onComment,
+  }) {
     return showModalBottomSheet<
       BlockType
     >(
@@ -104,6 +126,17 @@ class AddBlockSheet
                       type,
                     );
                   },
+              onComment:
+                  onComment ==
+                      null
+                  ? null
+                  : () {
+                      Navigator.of(
+                        sheetContext,
+                      ).pop();
+
+                      onComment();
+                    },
             );
           },
     );
@@ -126,6 +159,27 @@ class AddBlockSheet
             560
         ? 3
         : 2;
+
+    final items =
+        <
+          Widget
+        >[
+          for (final type in BlockType.values)
+            _BlockOption(
+              type: type,
+              onTap: () {
+                onSelected(
+                  type,
+                );
+              },
+            ),
+
+          if (onComment !=
+              null)
+            _CommentOption(
+              onTap: onComment!,
+            ),
+        ];
 
     return Container(
       color: _background,
@@ -163,7 +217,7 @@ class AddBlockSheet
             // SUBTÍTULO
             // ==================================================
             const Text(
-              'Escolha o tipo de bloco que deseja criar.',
+              'Escolha o que deseja adicionar à lousa.',
               style: TextStyle(
                 color: _muted,
                 fontSize: 12,
@@ -188,20 +242,7 @@ class AddBlockSheet
                       560
                   ? 1.45
                   : 1.25,
-              children: BlockType.values.map(
-                (
-                  type,
-                ) {
-                  return _BlockOption(
-                    type: type,
-                    onTap: () {
-                      onSelected(
-                        type,
-                      );
-                    },
-                  );
-                },
-              ).toList(),
+              children: items,
             ),
           ],
         ),
@@ -254,27 +295,15 @@ class _BlockOptionState
     BlockType type,
   ) {
     switch (type) {
-      // ========================================================
-      // TAREFAS
-      // ========================================================
-
       case BlockType.tasks:
         return const Color(
           0xFF198754,
         );
 
-      // ========================================================
-      // ANOTAÇÃO
-      // ========================================================
-
       case BlockType.note:
         return const Color(
           0xFFD97706,
         );
-
-      // ========================================================
-      // OUTROS
-      // ========================================================
 
       default:
         return type.color;
@@ -289,27 +318,15 @@ class _BlockOptionState
     BlockType type,
   ) {
     switch (type) {
-      // ========================================================
-      // TAREFAS
-      // ========================================================
-
       case BlockType.tasks:
         return const Color(
           0xFFD7F0DF,
         );
 
-      // ========================================================
-      // ANOTAÇÃO
-      // ========================================================
-
       case BlockType.note:
         return const Color(
           0xFFFFE6C4,
         );
-
-      // ========================================================
-      // OUTROS
-      // ========================================================
 
       default:
         return type.color.withValues(
@@ -353,78 +370,178 @@ class _BlockOptionState
   ) {
     final type = widget.type;
 
-    final iconColor = _iconColor(
-      type,
+    return _OptionShell(
+      hovered: _hovered,
+      onEnter: () {
+        setState(
+          () {
+            _hovered = true;
+          },
+        );
+      },
+      onExit: () {
+        setState(
+          () {
+            _hovered = false;
+          },
+        );
+      },
+      onTap: widget.onTap,
+      icon: type.icon,
+      iconColor: _iconColor(
+        type,
+      ),
+      iconBackground: _iconBackground(
+        type,
+      ),
+      iconBorder: _iconBorder(
+        type,
+      ),
+      label: type.label,
     );
+  }
+}
 
-    final iconBackground = _iconBackground(
-      type,
+// ============================================================
+// COMMENT OPTION
+// ============================================================
+
+class _CommentOption
+    extends
+        StatefulWidget {
+  const _CommentOption({
+    required this.onTap,
+  });
+
+  final VoidCallback onTap;
+
+  @override
+  State<
+    _CommentOption
+  >
+  createState() {
+    return _CommentOptionState();
+  }
+}
+
+class _CommentOptionState
+    extends
+        State<
+          _CommentOption
+        > {
+  bool _hovered = false;
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return _OptionShell(
+      hovered: _hovered,
+      onEnter: () {
+        setState(
+          () {
+            _hovered = true;
+          },
+        );
+      },
+      onExit: () {
+        setState(
+          () {
+            _hovered = false;
+          },
+        );
+      },
+      onTap: widget.onTap,
+      icon: Icons.add_comment_outlined,
+      iconColor: AddBlockSheet._commentColor,
+      iconBackground: AddBlockSheet._commentBackground,
+      iconBorder: AddBlockSheet._commentBorder,
+      label: 'Comentário',
+      hoverBorder: AddBlockSheet._commentColor,
     );
+  }
+}
 
-    final iconBorder = _iconBorder(
-      type,
-    );
+// ============================================================
+// OPTION SHELL
+// ============================================================
 
+class _OptionShell
+    extends
+        StatelessWidget {
+  const _OptionShell({
+    required this.hovered,
+    required this.onEnter,
+    required this.onExit,
+    required this.onTap,
+    required this.icon,
+    required this.iconColor,
+    required this.iconBackground,
+    required this.iconBorder,
+    required this.label,
+    this.hoverBorder,
+  });
+
+  final bool hovered;
+
+  final VoidCallback onEnter;
+  final VoidCallback onExit;
+  final VoidCallback onTap;
+
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBackground;
+  final Color iconBorder;
+  final Color? hoverBorder;
+
+  final String label;
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
-
       onEnter:
           (
             _,
           ) {
-            setState(
-              () {
-                _hovered = true;
-              },
-            );
+            onEnter();
           },
-
       onExit:
           (
             _,
           ) {
-            setState(
-              () {
-                _hovered = false;
-              },
-            );
+            onExit();
           },
-
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: widget.onTap,
-
+          onTap: onTap,
           borderRadius: BorderRadius.circular(
             14,
           ),
-
           child: AnimatedContainer(
             duration: const Duration(
               milliseconds: 150,
             ),
-
             decoration: BoxDecoration(
-              // ==================================================
-              // CARD CINZA
-              // ==================================================
-              color: _hovered
+              color: hovered
                   ? AddBlockSheet._surfaceHover
                   : AddBlockSheet._surface,
-
               borderRadius: BorderRadius.circular(
                 14,
               ),
-
               border: Border.all(
-                color: _hovered
-                    ? AddBlockSheet._green.withValues(
-                        alpha: .45,
-                      )
+                color: hovered
+                    ? (hoverBorder ??
+                              AddBlockSheet._green)
+                          .withValues(
+                            alpha: .48,
+                          )
                     : AddBlockSheet._border,
               ),
-
-              boxShadow: _hovered
+              boxShadow: hovered
                   ? const [
                       BoxShadow(
                         color: Color(
@@ -439,7 +556,6 @@ class _BlockOptionState
                     ]
                   : null,
             ),
-
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -449,21 +565,17 @@ class _BlockOptionState
                 Container(
                   width: 42,
                   height: 42,
-
                   decoration: BoxDecoration(
                     color: iconBackground,
-
                     borderRadius: BorderRadius.circular(
                       11,
                     ),
-
                     border: Border.all(
                       color: iconBorder,
                     ),
                   ),
-
                   child: Icon(
-                    type.icon,
+                    icon,
                     color: iconColor,
                     size: 21,
                   ),
@@ -477,9 +589,8 @@ class _BlockOptionState
                 // LABEL
                 // ==============================================
                 Text(
-                  type.label,
+                  label,
                   textAlign: TextAlign.center,
-
                   style: const TextStyle(
                     color: AddBlockSheet._text,
                     fontSize: 12,

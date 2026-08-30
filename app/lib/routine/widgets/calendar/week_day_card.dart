@@ -81,23 +81,43 @@ class WeekDayCard
           color: selected
               ? _greenLight
               : _surface,
+
           borderRadius: BorderRadius.circular(
             16,
           ),
+
+          // ====================================================
+          // BORDA
+          // ====================================================
+          //
+          // Prioridade:
+          //
+          // 1. selecionado
+          // 2. possui conteúdo
+          // 3. hoje
+          // 4. dia normal
+          //
+          // ====================================================
           border: Border.all(
             color: selected
                 ? _greenBorder
+                : hasContent
+                ? _green
                 : today
                 ? _green.withValues(
                     alpha: .65,
                   )
                 : _border,
-            width:
-                selected ||
-                    today
+
+            width: selected
+                ? 1.4
+                : hasContent
+                ? 2
+                : today
                 ? 1.4
                 : 1,
           ),
+
           boxShadow: [
             if (selected)
               const BoxShadow(

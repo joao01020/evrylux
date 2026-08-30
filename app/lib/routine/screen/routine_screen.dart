@@ -7,15 +7,19 @@ import '../../app/dependencies/app_dependencies.dart';
 import '../../reminders/widgets/reminder_dialog.dart';
 
 import '../controllers/board_controller.dart';
+import '../controllers/comments/board_comment_controller.dart';
 import '../controllers/mind_map_controller.dart';
 import '../controllers/routine_controller.dart';
 import '../controllers/routine_state.dart';
+import '../data/datasources/comments/board_comment_remote_data_source.dart';
 import '../data/datasources/routine_memory_datasource.dart';
 import '../data/datasources/routine_remote_data_source.dart';
+import '../data/repositories/comments/board_comment_repository.dart';
 import '../data/repositories/routine_repository_impl.dart';
 import '../models/block_type.dart';
 import '../models/board_block.dart';
 import '../models/check_item.dart';
+import '../models/comments/board_comment.dart';
 import '../models/routine_day.dart';
 import '../widgets/blocks/content_block.dart';
 import '../widgets/blocks/mind_map/mind_map_block.dart';
@@ -23,6 +27,9 @@ import '../widgets/blocks/note_block.dart';
 import '../widgets/blocks/photo_block.dart';
 import '../widgets/blocks/task_block.dart';
 import '../widgets/calendar/routine_calendar_panel.dart';
+import '../widgets/comments/board_comment_card.dart';
+import '../widgets/comments/board_comment_editor.dart';
+import '../widgets/comments/board_comment_pin.dart';
 import '../widgets/dialogs/add_block_sheet.dart';
 import '../widgets/dialogs/routine_text_editor.dart';
 
@@ -119,7 +126,36 @@ class _RoutineScreenState
   late final RoutineController _routineController;
   late final BoardController _boardController;
   late final MindMapController _mindMapController;
+  late final BoardCommentController _commentController;
   late final bool _ownsRoutineController;
+
+  // ============================================================
+  // COMENTÁRIOS DA LOUSA
+  // ============================================================
+
+  Offset? _pendingCommentPosition;
+
+  BoardComment? _openedComment;
+
+  // ============================================================
+  // CARREGAMENTO DOS COMENTÁRIOS
+  // ============================================================
+  //
+  // Mantemos o dia carregado separado do estado visual da rotina.
+  //
+  // Isso garante que os comentários sejam recarregados sempre que
+  // o selectedDay mudar, inclusive ao:
+  //
+  // - entrar novamente na tela;
+  // - trocar o dia;
+  // - navegar entre semanas;
+  // - restaurar um dia vindo do Supabase.
+  //
+  // ============================================================
+
+  String? _loadedCommentDayId;
+
+  String? _loadingCommentDayId;
 
   bool _routineControllerReady = false;
   bool _initializingRoutine = true;
@@ -149,6 +185,22 @@ class _RoutineScreenState
       onChanged: _onMindMapChanged,
     );
 
+    final commentRemoteDataSource = BoardCommentRemoteDataSource(
+      client: Supabase.instance.client,
+    );
+
+    final commentRepository = BoardCommentRepository(
+      remoteDataSource: commentRemoteDataSource,
+    );
+
+    _commentController = BoardCommentController(
+      repository: commentRepository,
+    );
+
+    _commentController.addListener(
+      _onCommentsChanged,
+    );
+
     _initializeRoutine();
   }
 
@@ -173,6 +225,10 @@ class _RoutineScreenState
       _routineControllerReady = true;
 
       await _routineController.initialize();
+
+      await _loadCommentsForSelectedDay(
+        force: true,
+      );
 
       if (!mounted) {
         return;
@@ -381,15 +437,30 @@ class _RoutineScreenState
     _boardController.dispose();
     _mindMapController.dispose();
 
+    _commentController.removeListener(
+      _onCommentsChanged,
+    );
+
+    _commentController.dispose();
+
     super.dispose();
   }
 
   void _onRoutineChanged() {
-    if (mounted) {
-      setState(
-        () {},
-      );
+    if (!mounted) {
+      return;
     }
+
+    setState(
+      () {},
+    );
+
+    // O RoutineController também muda selectedDay ao navegar
+    // entre semanas ou ao restaurar estado.
+    //
+    // Não usamos await aqui porque listener precisa ser síncrono.
+    // O helper possui proteção contra chamadas duplicadas.
+    _loadCommentsForSelectedDay();
   }
 
   void _refreshBoard() {
@@ -407,6 +478,677 @@ class _RoutineScreenState
     }
 
     _routineController.notifyBlockChanged();
+  }
+
+  // ============================================================
+  // COMENTÁRIOS
+  // ============================================================
+
+  void _onCommentsChanged() {
+    if (!mounted) {
+      return;
+    }
+
+    final error =
+        _commentController.errorMessage;
+
+    if (error != null &&
+        error.trim().isNotEmpty) {
+      debugPrint(
+        '[COMMENT][CONTROLLER] $error',
+      );
+    }
+
+    setState(
+      () {},
+    );
+  }
+
+  String _commentDayId(
+    RoutineDay day,
+  ) {
+    final date = day.normalizedDate;
+
+    final year = date.year.toString().padLeft(
+      4,
+      '0',
+    );
+
+    final month = date.month.toString().padLeft(
+      2,
+      '0',
+    );
+
+    final dayNumber = date.day.toString().padLeft(
+      2,
+      '0',
+    );
+
+    return '$year-$month-$dayNumber';
+  }
+
+  // ============================================================
+  // CARREGAR COMENTÁRIOS DO DIA SELECIONADO
+  // ============================================================
+
+  Future<void> _loadCommentsForSelectedDay({
+    bool force = false,
+  }) async {
+    if (!_routineControllerReady) {
+      return;
+    }
+
+    final selectedDay =
+        _routineController.selectedDay;
+
+    final dayId = _commentDayId(
+      selectedDay,
+    );
+
+    if (dayId.isEmpty) {
+      return;
+    }
+
+    // Já existe uma chamada para esse mesmo dia em andamento.
+    if (_loadingCommentDayId ==
+        dayId) {
+      return;
+    }
+
+    // O dia já foi carregado e não houve pedido explícito
+    // para atualizar novamente.
+    if (!force &&
+        _loadedCommentDayId ==
+            dayId) {
+      return;
+    }
+
+    _loadingCommentDayId =
+        dayId;
+
+    debugPrint(
+      '',
+    );
+
+    debugPrint(
+      '============================================================',
+    );
+
+    debugPrint(
+      '[COMMENT][LOAD] Buscando comentários',
+    );
+
+    debugPrint(
+      '[COMMENT][LOAD] dayId: $dayId',
+    );
+
+    try {
+      await _commentController.loadByDay(
+        dayId,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      // Só confirmamos como carregado se o usuário ainda estiver
+      // no mesmo dia quando a requisição terminar.
+      final currentDayId =
+          _commentDayId(
+        _routineController.selectedDay,
+      );
+
+      if (currentDayId ==
+          dayId) {
+        _loadedCommentDayId =
+            dayId;
+      }
+
+      debugPrint(
+        '[COMMENT][LOAD] '
+        '${_commentController.countForDay(dayId)} comentário(s) carregado(s).',
+      );
+    } catch (
+      error,
+      stackTrace,
+    ) {
+      debugPrint(
+        '[COMMENT][LOAD] ERRO: $error',
+      );
+
+      debugPrint(
+        '$stackTrace',
+      );
+
+      // Permite tentar novamente na próxima mudança/rebuild.
+      if (_loadedCommentDayId ==
+          dayId) {
+        _loadedCommentDayId =
+            null;
+      }
+    } finally {
+      if (_loadingCommentDayId ==
+          dayId) {
+        _loadingCommentDayId =
+            null;
+      }
+
+      debugPrint(
+        '============================================================',
+      );
+
+      debugPrint(
+        '',
+      );
+    }
+  }
+
+  // ============================================================
+  // RECARREGAR COMENTÁRIOS
+  // ============================================================
+
+  Future<void> _reloadCommentsForSelectedDay() {
+    return _loadCommentsForSelectedDay(
+      force: true,
+    );
+  }
+
+  void _enableCommentMode() {
+    _openedComment = null;
+    _pendingCommentPosition = null;
+
+    _commentController.enableCommentMode();
+  }
+
+  void _startCommentAt(
+    RoutineDay day,
+    TapDownDetails details, {
+    required double boardWidth,
+    required double boardHeight,
+  }) {
+    if (!_commentController.commentMode) {
+      return;
+    }
+
+    const editorWidth = 340.0;
+    const editorEstimatedHeight = 130.0;
+    const margin = 12.0;
+
+    final raw = details.localPosition;
+
+    final maxX = math.max(
+      margin,
+      boardWidth -
+          editorWidth -
+          margin,
+    );
+
+    final maxY = math.max(
+      margin,
+      boardHeight -
+          editorEstimatedHeight -
+          margin,
+    );
+
+    final position = Offset(
+      raw.dx
+          .clamp(
+            margin,
+            maxX,
+          )
+          .toDouble(),
+      raw.dy
+          .clamp(
+            margin,
+            maxY,
+          )
+          .toDouble(),
+    );
+
+    setState(
+      () {
+        _openedComment = null;
+        _pendingCommentPosition = position;
+      },
+    );
+  }
+
+  void _cancelPendingComment() {
+    setState(
+      () {
+        _pendingCommentPosition = null;
+      },
+    );
+  }
+
+  Future<
+    void
+  >
+  _submitPendingComment(
+    RoutineDay day,
+    String message,
+  ) async {
+    final position = _pendingCommentPosition;
+
+    if (position ==
+        null) {
+      return;
+    }
+
+    final created = await _commentController.create(
+      dayId: _commentDayId(
+        day,
+      ),
+      message: message,
+      position: position,
+    );
+
+    if (!mounted ||
+        created ==
+            null) {
+      return;
+    }
+
+    _loadedCommentDayId =
+        created.dayId;
+
+    debugPrint(
+      '[COMMENT][CREATE] Salvo com sucesso: ${created.id}',
+    );
+
+    debugPrint(
+      '[COMMENT][CREATE] dayId: ${created.dayId}',
+    );
+
+    setState(
+      () {
+        _pendingCommentPosition = null;
+        _openedComment = null;
+      },
+    );
+  }
+
+  void _openComment(
+    BoardComment comment,
+  ) {
+    setState(
+      () {
+        _pendingCommentPosition = null;
+
+        _openedComment =
+            _openedComment?.id ==
+                comment.id
+            ? null
+            : comment;
+      },
+    );
+  }
+
+  void _closeComment() {
+    setState(
+      () {
+        _openedComment = null;
+      },
+    );
+  }
+
+  Future<
+    void
+  >
+  _toggleResolvedComment(
+    BoardComment comment,
+  ) async {
+    await _commentController.toggleResolved(
+      comment,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(
+      () {
+        _openedComment = null;
+      },
+    );
+  }
+
+  Future<
+    void
+  >
+  _deleteComment(
+    BoardComment comment,
+  ) async {
+    await _commentController.remove(
+      comment,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(
+      () {
+        if (_openedComment?.id ==
+            comment.id) {
+          _openedComment = null;
+        }
+      },
+    );
+  }
+
+  // ============================================================
+  // ARRASTAR COMENTÁRIO
+  // ============================================================
+  //
+  // onPanUpdate altera apenas a posição local.
+  // onPanEnd salva uma única vez no Supabase.
+  //
+  // ============================================================
+
+  void _moveCommentLocal(
+    BoardComment comment,
+    Offset delta, {
+    required double boardWidth,
+    required double boardHeight,
+  }) {
+    const pinWidth = 38.0;
+    const pinHeight = 38.0;
+
+    final current = comment.position;
+
+    final nextX =
+        (current.dx +
+                delta.dx)
+            .clamp(
+              0.0,
+              math.max(
+                0.0,
+                boardWidth -
+                    pinWidth,
+              ),
+            )
+            .toDouble();
+
+    final nextY =
+        (current.dy +
+                delta.dy)
+            .clamp(
+              0.0,
+              math.max(
+                0.0,
+                boardHeight -
+                    pinHeight,
+              ),
+            )
+            .toDouble();
+
+    _commentController.moveLocal(
+      comment,
+      Offset(
+        nextX,
+        nextY,
+      ),
+    );
+
+    if (_openedComment?.id ==
+        comment.id) {
+      _openedComment = comment;
+    }
+  }
+
+  Future<
+    void
+  >
+  _persistCommentPosition(
+    BoardComment comment,
+  ) async {
+    await _commentController.persistPosition(
+      comment,
+    );
+  }
+
+  // ============================================================
+  // TROCAR DIA
+  // ============================================================
+
+  Future<void> _selectRoutineDay(
+    DateTime date,
+  ) async {
+    _pendingCommentPosition = null;
+    _openedComment = null;
+
+    _commentController.disableCommentMode();
+
+    _routineController.selectDay(
+      date,
+    );
+
+    // Força a atualização do Supabase ao trocar manualmente o dia.
+    await _reloadCommentsForSelectedDay();
+  }
+
+  List<
+    BoardComment
+  >
+  _commentsForDay(
+    RoutineDay day,
+  ) {
+    return _commentController.commentsForDay(
+      _commentDayId(
+        day,
+      ),
+    );
+  }
+
+  List<
+    Widget
+  >
+  _buildCommentLayer({
+    required RoutineDay day,
+    required double boardWidth,
+    required double boardHeight,
+  }) {
+    final comments = _commentsForDay(
+      day,
+    );
+
+    final widgets =
+        <
+          Widget
+        >[];
+
+    // Detector fica acima dos blocos SOMENTE quando o modo
+    // comentário está ativo. Assim um clique escolhe a posição.
+    if (_commentController.commentMode) {
+      widgets.add(
+        Positioned.fill(
+          child: MouseRegion(
+            cursor: SystemMouseCursors.precise,
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTapDown:
+                  (
+                    details,
+                  ) {
+                    _startCommentAt(
+                      day,
+                      details,
+                      boardWidth: boardWidth,
+                      boardHeight: boardHeight,
+                    );
+                  },
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Pins salvos em memória.
+    for (final comment in comments) {
+      final pinX = comment.position.dx
+          .clamp(
+            0.0,
+            math.max(
+              0.0,
+              boardWidth -
+                  38,
+            ),
+          )
+          .toDouble();
+
+      final pinY = comment.position.dy
+          .clamp(
+            0.0,
+            math.max(
+              0.0,
+              boardHeight -
+                  38,
+            ),
+          )
+          .toDouble();
+
+      widgets.add(
+        Positioned(
+          left: pinX,
+          top: pinY,
+          child: BoardCommentPin(
+            key: ValueKey(
+              'comment-pin-${comment.id}',
+            ),
+            comment: comment,
+            onTap: () {
+              _openComment(
+                comment,
+              );
+            },
+            onDragUpdate:
+                (
+                  delta,
+                ) {
+                  _moveCommentLocal(
+                    comment,
+                    delta,
+                    boardWidth: boardWidth,
+                    boardHeight: boardHeight,
+                  );
+                },
+            onDragEnd: () {
+              _persistCommentPosition(
+                comment,
+              );
+            },
+          ),
+        ),
+      );
+    }
+
+    // Editor do novo comentário.
+    final pending = _pendingCommentPosition;
+
+    if (pending !=
+            null &&
+        _commentController.commentMode) {
+      widgets.add(
+        Positioned(
+          left: pending.dx,
+          top: pending.dy,
+          child: BoardCommentEditor(
+            key: ValueKey(
+              'comment-editor-${_commentDayId(day)}',
+            ),
+            onSubmit:
+                (
+                  message,
+                ) {
+                  _submitPendingComment(
+                    day,
+                    message,
+                  );
+                },
+            onCancel: _cancelPendingComment,
+          ),
+        ),
+      );
+    }
+
+    // Card completo ao clicar no pin.
+    final opened = _openedComment;
+
+    if (opened !=
+            null &&
+        opened.dayId ==
+            _commentDayId(
+              day,
+            )) {
+      const cardWidth = 340.0;
+      const cardEstimatedHeight = 220.0;
+      const margin = 12.0;
+
+      var cardX =
+          opened.position.dx +
+          46;
+
+      if (cardX +
+              cardWidth +
+              margin >
+          boardWidth) {
+        cardX =
+            opened.position.dx -
+            cardWidth -
+            12;
+      }
+
+      cardX = cardX
+          .clamp(
+            margin,
+            math.max(
+              margin,
+              boardWidth -
+                  cardWidth -
+                  margin,
+            ),
+          )
+          .toDouble();
+
+      final cardY = opened.position.dy
+          .clamp(
+            margin,
+            math.max(
+              margin,
+              boardHeight -
+                  cardEstimatedHeight -
+                  margin,
+            ),
+          )
+          .toDouble();
+
+      widgets.add(
+        Positioned(
+          left: cardX,
+          top: cardY,
+          child: BoardCommentCard(
+            key: ValueKey(
+              'comment-card-${opened.id}',
+            ),
+            comment: opened,
+            onClose: _closeComment,
+            onResolve: () {
+              _toggleResolvedComment(
+                opened,
+              );
+            },
+            onDelete: () {
+              _deleteComment(
+                opened,
+              );
+            },
+          ),
+        ),
+      );
+    }
+
+    return widgets;
   }
 
   void _notifyRoutineMutation() {
@@ -465,9 +1207,26 @@ class _RoutineScreenState
                   ),
                   RoutineCalendarPanel(
                     state: state,
-                    onPreviousWeek: _routineController.previousWeek,
-                    onNextWeek: _routineController.nextWeek,
-                    onSelectDay: _routineController.selectDay,
+                    onPreviousWeek: () {
+                      _loadedCommentDayId =
+                          null;
+
+                      _routineController.previousWeek();
+                    },
+                    onNextWeek: () {
+                      _loadedCommentDayId =
+                          null;
+
+                      _routineController.nextWeek();
+                    },
+                    onSelectDay:
+                        (
+                          date,
+                        ) {
+                          _selectRoutineDay(
+                            date,
+                          );
+                        },
                     onToggleExpanded: _routineController.toggleCalendarExpanded,
                   ),
                   if (state.hasError)
@@ -747,6 +1506,12 @@ class _RoutineScreenState
                               boardWidth: boardWidth,
                               boardHeight: boardHeight,
                             ),
+
+                          ..._buildCommentLayer(
+                            day: day,
+                            boardWidth: boardWidth,
+                            boardHeight: boardHeight,
+                          ),
 
                           // Botão exatamente no canto superior direito da lousa.
                           Positioned(
@@ -1063,6 +1828,12 @@ class _RoutineScreenState
                                 boardWidth: boardWidth,
                                 boardHeight: boardHeight,
                               ),
+
+                            ..._buildCommentLayer(
+                              day: day,
+                              boardWidth: boardWidth,
+                              boardHeight: boardHeight,
+                            ),
                           ],
                         ),
                       ),
@@ -1229,6 +2000,9 @@ class _RoutineScreenState
   _addBlock() async {
     final type = await AddBlockSheet.show(
       context,
+      onComment: () {
+        _enableCommentMode();
+      },
     );
 
     if (!mounted ||
