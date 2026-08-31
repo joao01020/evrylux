@@ -9,8 +9,7 @@ import '../../models/training_model.dart';
 // Modal pequeno usado para editar:
 //
 // - atividade;
-// - data;
-// - duração.
+// - data.
 //
 // ============================================================
 
@@ -79,8 +78,6 @@ class _TrainingHistoryEditDialogState
 
   late DateTime _date;
 
-  late TextEditingController _minutesController;
-
   @override
   void initState() {
     super.initState();
@@ -93,17 +90,6 @@ class _TrainingHistoryEditDialogState
         : _activities.first;
 
     _date = widget.training.date.toLocal();
-
-    _minutesController = TextEditingController(
-      text: widget.training.minutes.toString(),
-    );
-  }
-
-  @override
-  void dispose() {
-    _minutesController.dispose();
-
-    super.dispose();
   }
 
   String _dayName(
@@ -170,27 +156,6 @@ class _TrainingHistoryEditDialogState
   }
 
   void _save() {
-    final minutes = int.tryParse(
-      _minutesController.text.trim(),
-    );
-
-    if (minutes ==
-            null ||
-        minutes <
-            0) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Informe uma duração válida.',
-          ),
-        ),
-      );
-
-      return;
-    }
-
     Navigator.of(
       context,
     ).pop(
@@ -199,7 +164,6 @@ class _TrainingHistoryEditDialogState
           _date,
         ),
         training: _activity,
-        minutes: minutes,
         date: _date,
       ),
     );
@@ -381,22 +345,6 @@ class _TrainingHistoryEditDialogState
                       _date,
                     ),
                   ),
-                ),
-              ),
-
-              const SizedBox(
-                height: 14,
-              ),
-
-              TextField(
-                controller: _minutesController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Duração em minutos',
-                  prefixIcon: Icon(
-                    Icons.timer_outlined,
-                  ),
-                  border: OutlineInputBorder(),
                 ),
               ),
 

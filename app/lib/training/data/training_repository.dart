@@ -99,7 +99,6 @@ class TrainingRepository {
   save({
     required String day,
     required String training,
-    required int minutes,
     required DateTime date,
   }) async {
     final user = _requireUser();
@@ -112,15 +111,6 @@ class TrainingRepository {
 
     final normalizedTraining = training.trim();
 
-    if (minutes <
-        0) {
-      throw ArgumentError.value(
-        minutes,
-        'minutes',
-        'Os minutos de treino não podem ser negativos.',
-      );
-    }
-
     final normalizedDate = date.toLocal();
 
     // ==========================================================
@@ -130,7 +120,10 @@ class TrainingRepository {
     await StorageService.saveTraining(
       normalizedDay,
       normalizedTraining,
-      minutes,
+
+      // Compatibilidade com StorageService antigo.
+      // O valor não é mais usado pelo domínio.
+      0,
       date: normalizedDate,
     );
 
@@ -166,7 +159,6 @@ class TrainingRepository {
         'user_id': user.id,
         'day': normalizedDay,
         'training': normalizedTraining,
-        'minutes': minutes,
         'date': normalizedDate.toUtc().toIso8601String(),
         'updated_at': DateTime.now().toUtc().toIso8601String(),
       },
@@ -201,7 +193,6 @@ class TrainingRepository {
     required DateTime oldDate,
     required String newDay,
     required String newTraining,
-    required int newMinutes,
     required DateTime newDate,
   }) async {
     final user = _requireUser();
@@ -230,15 +221,6 @@ class TrainingRepository {
       message: 'A nova atividade não pode estar vazia.',
     );
 
-    if (newMinutes <
-        0) {
-      throw ArgumentError.value(
-        newMinutes,
-        'newMinutes',
-        'Os minutos não podem ser negativos.',
-      );
-    }
-
     final oldLocalDate = oldDate.toLocal();
 
     final newLocalDate = newDate.toLocal();
@@ -264,7 +246,6 @@ class TrainingRepository {
           _StoredTrainingRecord(
             day: normalizedNewDay,
             training: normalizedNewTraining,
-            minutes: newMinutes,
             date: newLocalDate,
           ),
         );
@@ -312,9 +293,10 @@ class TrainingRepository {
 
     // Se a identidade mudou, removemos o registro antigo.
     //
-    // Se somente os minutos mudaram, oldEntityId == newEntityId
-    // e basta um UPDATE. Isso evita delete + update no mesmo
-    // item da SyncQueue.
+    // A identidade é:
+    //
+    // usuário + dia + atividade + data.
+
     if (oldEntityId !=
         newEntityId) {
       await queue.enqueue(
@@ -342,7 +324,6 @@ class TrainingRepository {
         'user_id': user.id,
         'day': normalizedNewDay,
         'training': normalizedNewTraining,
-        'minutes': newMinutes,
         'date': newLocalDate.toUtc().toIso8601String(),
         'updated_at': DateTime.now().toUtc().toIso8601String(),
       },
@@ -531,13 +512,6 @@ class TrainingRepository {
       return null;
     }
 
-    final minutes =
-        int.tryParse(
-          raw['minutes']?.toString() ??
-              '',
-        ) ??
-        0;
-
     final date = DateTime.tryParse(
       raw['date']?.toString() ??
           '',
@@ -551,7 +525,6 @@ class TrainingRepository {
     return _StoredTrainingRecord(
       day: day,
       training: training,
-      minutes: minutes,
       date: date,
     );
   }
@@ -575,7 +548,9 @@ class TrainingRepository {
       await StorageService.saveTraining(
         record.day,
         record.training,
-        record.minutes,
+
+        // Compatibilidade com StorageService antigo.
+        0,
         date: record.date,
       );
     }
@@ -1028,15 +1003,12 @@ class _StoredTrainingRecord {
   const _StoredTrainingRecord({
     required this.day,
     required this.training,
-    required this.minutes,
     required this.date,
   });
 
   final String day;
 
   final String training;
-
-  final int minutes;
 
   final DateTime date;
 }

@@ -703,9 +703,6 @@ registerSyncHandlers() {
                       'training':
                           payload['training']?.toString() ??
                           '',
-                      'minutes':
-                          payload['minutes'] ??
-                          0,
                       'date': date,
                       'updated_at':
                           payload['updated_at'] ??

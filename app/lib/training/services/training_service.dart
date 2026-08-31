@@ -89,8 +89,6 @@ class TrainingService {
 
           final training = item['training'];
 
-          final minutes = item['minutes'];
-
           final date = item['date'];
 
           if (training ==
@@ -105,9 +103,6 @@ class TrainingService {
               ),
               day: day,
               training: training.toString(),
-              minutes: _parseMinutes(
-                minutes,
-              ),
             ),
           );
         }
@@ -118,8 +113,6 @@ class TrainingService {
       else if (value
           is Map) {
         final training = value['training'];
-
-        final minutes = value['minutes'];
 
         final date = value['date'];
 
@@ -135,9 +128,6 @@ class TrainingService {
             ),
             day: day,
             training: training.toString(),
-            minutes: _parseMinutes(
-              minutes,
-            ),
           ),
         );
       }
@@ -170,7 +160,6 @@ class TrainingService {
     await repository.save(
       day: model.day,
       training: model.training,
-      minutes: model.minutes,
       date: model.date,
     );
   }
@@ -192,7 +181,6 @@ class TrainingService {
       oldDate: original.date,
       newDay: updated.day,
       newTraining: updated.training,
-      newMinutes: updated.minutes,
       newDate: updated.date,
     );
   }

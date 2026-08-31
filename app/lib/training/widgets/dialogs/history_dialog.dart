@@ -298,19 +298,6 @@ class _HistoryOverview
       context,
     ).colorScheme;
 
-    final totalMinutes =
-        trainings.fold<
-          int
-        >(
-          0,
-          (
-            total,
-            item,
-          ) =>
-              total +
-              item.minutes,
-        );
-
     final uniqueDays = trainings
         .map(
           (
@@ -319,6 +306,15 @@ class _HistoryOverview
               '${item.date.year}-'
               '${item.date.month}-'
               '${item.date.day}',
+        )
+        .toSet()
+        .length;
+
+    final uniqueActivities = trainings
+        .map(
+          (
+            item,
+          ) => item.training,
         )
         .toSet()
         .length;
@@ -365,17 +361,13 @@ class _HistoryOverview
 
           Expanded(
             child: _OverviewMetric(
-              icon: Icons.timer_outlined,
-              value:
-                  totalMinutes >
-                      0
-                  ? '$totalMinutes'
-                  : '—',
+              icon: Icons.category_outlined,
+              value: '$uniqueActivities',
               label:
-                  totalMinutes >
-                      0
-                  ? 'minutos'
-                  : 'sem tempo',
+                  uniqueActivities ==
+                      1
+                  ? 'atividade'
+                  : 'atividades',
             ),
           ),
         ],
@@ -615,18 +607,6 @@ class _HistoryTimelineItem
                               text: _formatDate(
                                 training.date,
                               ),
-                            ),
-                            _HistoryMeta(
-                              icon:
-                                  training.minutes >
-                                      0
-                                  ? Icons.timer_outlined
-                                  : Icons.timer_off_outlined,
-                              text:
-                                  training.minutes >
-                                      0
-                                  ? '${training.minutes} min'
-                                  : 'sem cronômetro',
                             ),
                           ],
                         ),

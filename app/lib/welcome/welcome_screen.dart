@@ -624,113 +624,104 @@ class _WelcomeScreenState
         child: Stack(
           children: [
             // ==================================================
-            // GREETING
+            // APRESENTAÇÃO INICIAL
             // ==================================================
-            AnimatedAlign(
-              duration: const Duration(
-                milliseconds: 900,
-              ),
-              curve: Curves.easeInOutCubic,
-              alignment: showOptions
-                  ? Alignment.topCenter
-                  : Alignment.center,
-              child: Padding(
-                padding: EdgeInsets.only(
-                  top: showOptions
-                      ? 70
-                      : 0,
+            //
+            // ESTADO INICIAL:
+            //
+            //              Olá, 👋 João Vitor
+            //
+            // Depois de ~1,2s:
+            //
+            // 1. a saudação SOBE;
+            // 2. vai desaparecendo;
+            // 3. o conteúdo de baixo SOBE JUNTO;
+            // 4. no final fica somente:
+            //
+            //      Qual evolução deseja iniciar?
+            //
+            //      [ Estudar ]
+            //      [ Treinar ]
+            //      [ Financeiro ]
+            //      ...
+            //
+            // Sem precisar rolar a tela.
+            //
+            // ==================================================
+            Positioned.fill(
+              child: IgnorePointer(
+                ignoring: showOptions,
+                child: AnimatedOpacity(
+                  duration: const Duration(
+                    milliseconds: 650,
+                  ),
+                  curve: Curves.easeOutCubic,
+                  opacity: showOptions
+                      ? 0
+                      : 1,
+                  child: AnimatedAlign(
+                    duration: const Duration(
+                      milliseconds: 720,
+                    ),
+                    curve: Curves.easeInOutCubic,
+                    alignment: showOptions
+                        ? const Alignment(
+                            0,
+                            -0.82,
+                          )
+                        : Alignment.center,
+                    child: AnimatedScale(
+                      duration: const Duration(
+                        milliseconds: 720,
+                      ),
+                      curve: Curves.easeInOutCubic,
+                      scale: showOptions
+                          ? 0.92
+                          : 1.0,
+                      child: _buildGreeting(),
+                    ),
+                  ),
                 ),
-                child: _buildGreeting(),
               ),
             ),
 
             // ==================================================
-            // OPTIONS
+            // CONTEÚDO PRINCIPAL
             // ==================================================
-            IgnorePointer(
-              ignoring: !showOptions,
-              child: AnimatedOpacity(
-                duration: const Duration(
-                  milliseconds: 700,
-                ),
-                opacity: showOptions
-                    ? 1
-                    : 0,
-                child: AnimatedSlide(
+            //
+            // Ele começa um pouco mais abaixo.
+            //
+            // Quando showOptions = true:
+            //
+            // - sobe automaticamente;
+            // - aparece;
+            // - assume a posição final;
+            // - não depende de scroll.
+            //
+            // ==================================================
+            Positioned.fill(
+              child: IgnorePointer(
+                ignoring: !showOptions,
+                child: AnimatedOpacity(
                   duration: const Duration(
-                    milliseconds: 900,
+                    milliseconds: 560,
                   ),
                   curve: Curves.easeOutCubic,
-                  offset: showOptions
-                      ? Offset.zero
-                      : const Offset(
-                          0,
-                          0.25,
-                        ),
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(
-                      16,
-                      150,
-                      16,
-                      32,
+                  opacity: showOptions
+                      ? 1
+                      : 0,
+                  child: AnimatedSlide(
+                    duration: const Duration(
+                      milliseconds: 720,
                     ),
-                    children: [
-                      const Text(
-                        'Qual evolução deseja iniciar?',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 20,
-                        ),
-                      ),
-
-                      const SizedBox(
-                        height: 32,
-                      ),
-
-                      ...objectives.map(
-                        (
-                          objective,
-                        ) {
-                          return Padding(
-                            padding: const EdgeInsets.only(
-                              bottom: 8,
-                            ),
-                            child: Card(
-                              child: ListTile(
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                leading: Text(
-                                  objective['emoji']!,
-                                  style: const TextStyle(
-                                    fontSize: 30,
-                                  ),
-                                ),
-                                title: Text(
-                                  objective['name']!,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  objective['description']!,
-                                ),
-                                trailing: const Icon(
-                                  Icons.arrow_forward_ios_rounded,
-                                  size: 16,
-                                ),
-                                onTap: () {
-                                  openObjective(
-                                    objective['name']!,
-                                  );
-                                },
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
+                    curve: Curves.easeOutCubic,
+                    offset: showOptions
+                        ? Offset.zero
+                        : const Offset(
+                            0,
+                            0.18,
+                          ),
+                    child: _buildOptionsContent(),
                   ),
                 ),
               ),
@@ -758,6 +749,210 @@ class _WelcomeScreenState
           ],
         ),
       ),
+    );
+  }
+
+  // ============================================================
+  // OPTIONS CONTENT
+  // ============================================================
+  //
+  // NOVO COMPORTAMENTO AUTOMÁTICO:
+  //
+  // 1. Ao iniciar:
+  //
+  //    Olá, 👋 João Vitor
+  //
+  // 2. Depois da animação inicial:
+  //
+  //    a saudação desaparece;
+  //
+  //    "Qual evolução deseja iniciar?"
+  //    sobe automaticamente para o topo;
+  //
+  //    os cards aparecem logo abaixo.
+  //
+  // O usuário NÃO precisa rolar a tela para isso acontecer.
+  //
+  // ============================================================
+
+  Widget _buildOptionsContent() {
+    return LayoutBuilder(
+      builder:
+          (
+            context,
+            constraints,
+          ) {
+            // ======================================================
+            // RESPONSIVE VERTICAL SPACING
+            // ======================================================
+            //
+            // Em telas menores reduzimos um pouco os espaços para
+            // manter tudo visível sem depender de scroll.
+            //
+            // ======================================================
+
+            final compact =
+                constraints.maxHeight <
+                760;
+
+            final topSpace = compact
+                ? 76.0
+                : 92.0;
+
+            final questionBottomSpace = compact
+                ? 24.0
+                : 32.0;
+
+            final cardVerticalPadding = compact
+                ? 5.0
+                : 8.0;
+
+            final cardGap = compact
+                ? 5.0
+                : 8.0;
+
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                topSpace,
+                16,
+                20,
+              ),
+              child: Column(
+                children: [
+                  // =================================================
+                  // QUESTION
+                  // =================================================
+                  const Text(
+                    'Qual evolução deseja iniciar?',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 22,
+                      height: 1.25,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+
+                  SizedBox(
+                    height: questionBottomSpace,
+                  ),
+
+                  // =================================================
+                  // OPTIONS
+                  // =================================================
+                  //
+                  // Expanded distribui os cards dentro da altura
+                  // disponível.
+                  //
+                  // Não usamos ListView aqui.
+                  //
+                  // =================================================
+                  Expanded(
+                    child: Column(
+                      children: [
+                        for (
+                          var index = 0;
+                          index <
+                              objectives.length;
+                          index++
+                        ) ...[
+                          Expanded(
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: Card(
+                                margin: EdgeInsets.zero,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(
+                                    12,
+                                  ),
+                                  onTap: () {
+                                    openObjective(
+                                      objectives[index]['name']!,
+                                    );
+                                  },
+                                  child: Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: cardVerticalPadding,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Text(
+                                          objectives[index]['emoji']!,
+                                          style: TextStyle(
+                                            fontSize: compact
+                                                ? 25
+                                                : 30,
+                                          ),
+                                        ),
+
+                                        const SizedBox(
+                                          width: 12,
+                                        ),
+
+                                        Expanded(
+                                          child: Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                objectives[index]['name']!,
+                                                style: TextStyle(
+                                                  fontSize: compact
+                                                      ? 15
+                                                      : 16,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+
+                                              const SizedBox(
+                                                height: 2,
+                                              ),
+
+                                              Text(
+                                                objectives[index]['description']!,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontSize: compact
+                                                      ? 12
+                                                      : 13,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+
+                                        const SizedBox(
+                                          width: 10,
+                                        ),
+
+                                        const Icon(
+                                          Icons.arrow_forward_ios_rounded,
+                                          size: 16,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          if (index <
+                              objectives.length -
+                                  1)
+                            SizedBox(
+                              height: cardGap,
+                            ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
     );
   }
 
@@ -881,6 +1076,95 @@ class _WelcomeScreenState
         ),
       ),
     );
+  }
+}
+
+// ============================================================
+// WELCOME QUESTION HEADER
+// ============================================================
+//
+// Cabeçalho fixo da pergunta:
+//
+// "Qual evolução deseja iniciar?"
+//
+// A saudação desaparece com o scroll, mas este cabeçalho
+// permanece visível.
+//
+// ============================================================
+
+class _WelcomeQuestionHeaderDelegate
+    extends
+        SliverPersistentHeaderDelegate {
+  const _WelcomeQuestionHeaderDelegate({
+    required this.backgroundColor,
+  });
+
+  final Color backgroundColor;
+
+  @override
+  double get minExtent => 58;
+
+  @override
+  double get maxExtent => 58;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        border: overlapsContent
+            ? const Border(
+                bottom: BorderSide(
+                  color: Color(
+                    0x18C7DFC9,
+                  ),
+                ),
+              )
+            : null,
+        boxShadow: overlapsContent
+            ? const [
+                BoxShadow(
+                  color: Color(
+                    0x10000000,
+                  ),
+                  blurRadius: 10,
+                  offset: Offset(
+                    0,
+                    3,
+                  ),
+                ),
+              ]
+            : null,
+      ),
+      child: const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: 16,
+          ),
+          child: Text(
+            'Qual evolução deseja iniciar?',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 20,
+              height: 1.25,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(
+    covariant _WelcomeQuestionHeaderDelegate oldDelegate,
+  ) {
+    return oldDelegate.backgroundColor !=
+        backgroundColor;
   }
 }
 
