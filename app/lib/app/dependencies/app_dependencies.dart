@@ -711,7 +711,7 @@ registerSyncHandlers() {
                           payload['updated_at'] ??
                           DateTime.now().toUtc().toIso8601String(),
                     },
-                    onConflict: 'user_id,day,date',
+                    onConflict: 'user_id,day,date,training',
                   );
 
               break;
@@ -747,6 +747,16 @@ registerSyncHandlers() {
                 );
               }
 
+              final training = payload['training']?.toString().trim();
+
+              if (training ==
+                      null ||
+                  training.isEmpty) {
+                throw StateError(
+                  'Exclusão de treino sem training.',
+                );
+              }
+
               await supabaseClient
                   .from(
                     _trainingTable,
@@ -763,6 +773,10 @@ registerSyncHandlers() {
                   .eq(
                     'date',
                     date,
+                  )
+                  .eq(
+                    'training',
+                    training,
                   );
 
               break;

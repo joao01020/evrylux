@@ -1,14 +1,29 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="505" height="985" viewBox="0 0 505 985">
-  <g fill="#66C863" fill-opacity="0.78" stroke="#4FAF4D" stroke-width="2" stroke-opacity="0.9">
-    <rect x="210" y="307" width="38" height="49" rx="11"/>
-    <rect x="257" y="307" width="38" height="49" rx="11"/>
-    <rect x="206" y="363" width="42" height="52" rx="11"/>
-    <rect x="257" y="363" width="42" height="52" rx="11"/>
-    <rect x="209" y="422" width="39" height="53" rx="11"/>
-    <rect x="257" y="422" width="39" height="53" rx="11"/>
-    <path d="M202 484 C218 476 235 477 248 485 L248 548
-             C244 571 236 590 223 601 C208 588 201 566 201 542Z"/>
-    <path d="M303 484 C287 476 270 477 257 485 L257 548
-             C261 571 269 590 282 601 C297 588 304 566 304 542Z"/>
-  </g>
+<g fill="#66C863" fill-opacity="0.82" stroke="#4FAF4D" stroke-width="1.6" stroke-opacity="0.95">
+  <!-- upper abs -->
+  <rect x="207" y="311" width="39" height="43" rx="11"/>
+  <rect x="259" y="311" width="39" height="43" rx="11"/>
+
+  <!-- middle abs -->
+  <rect x="205" y="359" width="41" height="44" rx="11"/>
+  <rect x="259" y="359" width="41" height="44" rx="11"/>
+
+  <!-- lower abs -->
+  <rect x="208" y="408" width="38" height="43" rx="11"/>
+  <rect x="259" y="408" width="38" height="43" rx="11"/>
+
+  <!-- obliques, ending above waistband -->
+  <path d="M190 321
+           C182 343 181 373 184 404
+           C187 432 194 452 206 463
+           C211 452 212 434 210 414
+           C208 384 208 352 214 325
+           C205 320 197 319 190 321Z"/>
+  <path d="M315 321
+           C323 343 324 373 321 404
+           C318 432 311 452 299 463
+           C294 452 293 434 295 414
+           C297 384 297 352 291 325
+           C300 320 308 319 315 321Z"/>
+</g>
 </svg>

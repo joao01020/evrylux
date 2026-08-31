@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../app/dependencies/app_dependencies.dart';
 
 import 'body_map/widgets/body_map_dialog.dart';
+import 'models/training_model.dart';
 
 import '../widgets/generic/study_calendar.dart';
 
@@ -269,20 +270,149 @@ class _TrainingScreenState
   // HISTÓRICO
   // ============================================================
 
-  void _showHistory() {
-    showDialog<
+  Future<
+    void
+  >
+  _showHistory() async {
+    await showModalBottomSheet<
       void
     >(
       context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      backgroundColor: Theme.of(
+        context,
+      ).colorScheme.surface,
+      constraints: const BoxConstraints(
+        maxWidth: 720,
+      ),
       builder:
           (
-            _,
+            modalContext,
           ) {
-            return HistoryDialog(
-              activities: trainingController.history,
+            return AnimatedBuilder(
+              animation: trainingController,
+              builder:
+                  (
+                    context,
+                    child,
+                  ) {
+                    return Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        20,
+                        4,
+                        20,
+                        24 +
+                            MediaQuery.of(
+                              context,
+                            ).viewInsets.bottom,
+                      ),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _ModalHeader(
+                              icon: Icons.history_rounded,
+                              title: 'Histórico de treinos',
+                              subtitle: 'Revise, edite ou apague seus registros.',
+                              onClose: () {
+                                Navigator.of(
+                                  modalContext,
+                                ).pop();
+                              },
+                            ),
+
+                            const SizedBox(
+                              height: 22,
+                            ),
+
+                            HistoryDialog(
+                              trainings: trainingController.state.trainings,
+                              onEdit: _editHistoryTraining,
+                              onDelete: _deleteHistoryTraining,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
             );
           },
     );
+  }
+
+  // ============================================================
+  // EDITAR REGISTRO DO HISTÓRICO
+  // ============================================================
+
+  Future<
+    bool
+  >
+  _editHistoryTraining(
+    TrainingModel original,
+    TrainingModel updated,
+  ) async {
+    try {
+      await trainingService.updateTraining(
+        original: original,
+        updated: updated,
+      );
+
+      await trainingController.load();
+
+      if (!mounted) {
+        return true;
+      }
+
+      return true;
+    } catch (
+      error
+    ) {
+      debugPrint(
+        '[TRAINING HISTORY] '
+        'Erro editando treino: '
+        '$error',
+      );
+
+      return false;
+    }
+  }
+
+  // ============================================================
+  // APAGAR REGISTRO DO HISTÓRICO
+  // ============================================================
+
+  Future<
+    bool
+  >
+  _deleteHistoryTraining(
+    TrainingModel training,
+  ) async {
+    try {
+      await trainingService.deleteTraining(
+        training,
+      );
+
+      await trainingController.load();
+
+      if (!mounted) {
+        return true;
+      }
+
+      return true;
+    } catch (
+      error
+    ) {
+      debugPrint(
+        '[TRAINING HISTORY] '
+        'Erro apagando treino: '
+        '$error',
+      );
+
+      return false;
+    }
   }
 
   // ============================================================
