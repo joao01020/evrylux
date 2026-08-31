@@ -1,24 +1,48 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/sync/sync_item.dart';
+import '../../../core/sync/sync_queue.dart';
+import '../../../core/sync/sync_service.dart';
+import '../../../core/sync/sync_status.dart';
+import '../datasources/finance_local_data_source.dart';
+
 class FinanceRepository {
   FinanceRepository({
     SupabaseClient? client,
+    FinanceLocalDataSource? localDataSource,
+    SyncQueue? syncQueue,
+    SyncService? syncService,
   }) : _client =
            client ??
-           Supabase.instance.client;
+           Supabase.instance.client,
+       _localDataSource =
+           localDataSource ??
+           FinanceLocalDataSource(),
+       _syncQueue =
+           syncQueue ??
+           SyncQueue(),
+       _syncService = syncService;
 
   // ============================================================
-  // CLIENT
+  // DEPENDENCIES
   // ============================================================
 
   final SupabaseClient _client;
 
+  final FinanceLocalDataSource _localDataSource;
+
+  final SyncQueue _syncQueue;
+
+  final SyncService? _syncService;
+
   // ============================================================
-  // TABLE
+  // TABLE / ENTITY
   // ============================================================
 
   static const String _table = 'finance_data';
+
+  static const String _entityType = 'finance';
 
   // ============================================================
   // CURRENT USER
@@ -40,6 +64,15 @@ class FinanceRepository {
   // ============================================================
   // SAVE
   // ============================================================
+  //
+  // OFFLINE-FIRST:
+  //
+  // 1. salva primeiro no SQLite;
+  // 2. adiciona a alteração à fila persistente;
+  // 3. solicita sincronização;
+  // 4. se estiver offline, o dado continua seguro localmente.
+  //
+  // ============================================================
 
   Future<
     void
@@ -55,150 +88,55 @@ class FinanceRepository {
 
     if (data.isEmpty) {
       await clear();
+
       return;
     }
 
-    try {
-      debugPrint(
-        '[FINANCE REPOSITORY] Salvando financeiro...',
-      );
+    final normalized = _normalizeLocalData(
+      data,
+    );
 
-      final completedDays = _normalizeCompletedDays(
-        data['completedDays'],
-      );
+    debugPrint(
+      '[FINANCE REPOSITORY] '
+      'Salvando primeiro no banco local...',
+    );
 
-      await _client
-          .from(
-            _table,
-          )
-          .upsert(
-            {
-              // ====================================================
-              // USER
-              // ====================================================
-              'user_id': user.id,
+    await _localDataSource.save(
+      userId: user.id,
+      data: normalized,
+      syncStatus: SyncStatus.pendingUpdate,
+    );
 
-              // ====================================================
-              // PATRIMÔNIO
-              // ====================================================
-              'patrimony': _double(
-                data['patrimony'],
-              ),
+    final remotePayload = _toRemotePayload(
+      userId: user.id,
+      data: normalized,
+    );
 
-              'invested': _double(
-                data['invested'],
-              ),
+    await _syncQueue.enqueue(
+      entityType: _entityType,
+      entityId: user.id,
+      operation: SyncOperation.update,
+      payload: remotePayload,
+    );
 
-              'monthly_goal': _double(
-                data['monthlyGoal'],
-              ),
+    debugPrint(
+      '[FINANCE REPOSITORY] '
+      'Financeiro salvo localmente.',
+    );
 
-              'investment_goal': _double(
-                data['investmentGoal'],
-              ),
-
-              // ====================================================
-              // PLANEJAMENTO
-              // ====================================================
-              'minimum_goal': _double(
-                data['minimumGoal'],
-              ),
-
-              'medium_goal': _double(
-                data['mediumGoal'],
-              ),
-
-              'maximum_goal': _double(
-                data['maximumGoal'],
-              ),
-
-              'projection_years': _integer(
-                data['projectionYears'],
-                fallback: 10,
-              ),
-
-              // ====================================================
-              // HISTÓRICO / TOTAIS
-              // ====================================================
-              'total_invested': _double(
-                data['totalInvested'],
-              ),
-
-              'invested_months': _integer(
-                data['investedMonths'],
-              ),
-
-              'average_contribution': _double(
-                data['averageContribution'],
-              ),
-
-              // ====================================================
-              // CRYPTO
-              // ====================================================
-              'bitcoin': _double(
-                data['bitcoin'],
-              ),
-
-              'ethereum': _double(
-                data['ethereum'],
-              ),
-
-              'solana': _double(
-                data['solana'],
-              ),
-
-              'usdt': _double(
-                data['usdt'],
-              ),
-
-              // ====================================================
-              // OUTROS
-              // ====================================================
-              'completed_days': completedDays,
-
-              'selected_day': data['selectedDay']?.toString(),
-
-              'updated_at': DateTime.now().toUtc().toIso8601String(),
-            },
-            onConflict: 'user_id',
-          );
-
-      debugPrint(
-        '[FINANCE REPOSITORY] Financeiro salvo.',
-      );
-    } on PostgrestException catch (
-      error
-    ) {
-      debugPrint(
-        '[FINANCE REPOSITORY] Erro Supabase.',
-      );
-
-      debugPrint(
-        '[FINANCE REPOSITORY] Code: ${error.code}',
-      );
-
-      debugPrint(
-        '[FINANCE REPOSITORY] Message: ${error.message}',
-      );
-
-      debugPrint(
-        '[FINANCE REPOSITORY] Details: ${error.details}',
-      );
-
-      rethrow;
-    } catch (
-      error
-    ) {
-      debugPrint(
-        '[FINANCE REPOSITORY] Erro ao salvar: $error',
-      );
-
-      rethrow;
-    }
+    _syncService?.requestSync();
   }
 
   // ============================================================
   // LOAD
+  // ============================================================
+  //
+  // Prioridade:
+  //
+  // 1. banco local;
+  // 2. Supabase, somente quando não há alteração local pendente;
+  // 3. se o Supabase falhar, retorna o cache local.
+  //
   // ============================================================
 
   Future<
@@ -210,12 +148,42 @@ class FinanceRepository {
   load() async {
     final user = _requireUser();
 
-    try {
+    debugPrint(
+      '[FINANCE REPOSITORY] '
+      'Carregando financeiro...',
+    );
+
+    final local = await _localDataSource.load(
+      user.id,
+    );
+
+    final localStatus = await _localDataSource.getSyncStatus(
+      user.id,
+    );
+
+    final hasPendingLocal =
+        localStatus !=
+            null &&
+        localStatus !=
+            SyncStatus.synced;
+
+    if (local !=
+            null &&
+        hasPendingLocal) {
       debugPrint(
-        '[FINANCE REPOSITORY] Carregando financeiro...',
+        '[FINANCE REPOSITORY] '
+        'Usando dados locais pendentes.',
       );
 
-      final data = await _client
+      _syncService?.requestSync();
+
+      return _normalizeLocalData(
+        local,
+      );
+    }
+
+    try {
+      final remote = await _client
           .from(
             _table,
           )
@@ -226,128 +194,91 @@ class FinanceRepository {
           )
           .maybeSingle();
 
-      if (data ==
+      if (remote ==
           null) {
+        if (local !=
+            null) {
+          debugPrint(
+            '[FINANCE REPOSITORY] '
+            'Sem registro remoto. '
+            'Usando cache local.',
+          );
+
+          return _normalizeLocalData(
+            local,
+          );
+        }
+
         debugPrint(
-          '[FINANCE REPOSITORY] Nenhum dado encontrado.',
+          '[FINANCE REPOSITORY] '
+          'Nenhum dado financeiro encontrado.',
         );
 
         return {};
       }
 
-      debugPrint(
-        '[FINANCE REPOSITORY] Dados carregados.',
+      final remoteData = _fromRemoteRow(
+        remote,
       );
 
-      return {
-        // ======================================================
-        // PATRIMÔNIO
-        // ======================================================
-        'patrimony': _double(
-          data['patrimony'],
-        ),
+      await _localDataSource.save(
+        userId: user.id,
+        data: remoteData,
+        syncStatus: SyncStatus.synced,
+      );
 
-        'invested': _double(
-          data['invested'],
-        ),
+      debugPrint(
+        '[FINANCE REPOSITORY] '
+        'Dados carregados do Supabase '
+        'e atualizados no cache local.',
+      );
 
-        'monthlyGoal': _double(
-          data['monthly_goal'],
-        ),
-
-        'investmentGoal': _double(
-          data['investment_goal'],
-        ),
-
-        // ======================================================
-        // PLANEJAMENTO
-        // ======================================================
-        'minimumGoal': _double(
-          data['minimum_goal'],
-        ),
-
-        'mediumGoal': _double(
-          data['medium_goal'],
-        ),
-
-        'maximumGoal': _double(
-          data['maximum_goal'],
-        ),
-
-        'projectionYears': _integer(
-          data['projection_years'],
-          fallback: 10,
-        ),
-
-        // ======================================================
-        // HISTÓRICO / TOTAIS
-        // ======================================================
-        'totalInvested': _double(
-          data['total_invested'],
-        ),
-
-        'investedMonths': _integer(
-          data['invested_months'],
-        ),
-
-        'averageContribution': _double(
-          data['average_contribution'],
-        ),
-
-        // ======================================================
-        // CRYPTO
-        // ======================================================
-        'bitcoin': _double(
-          data['bitcoin'],
-        ),
-
-        'ethereum': _double(
-          data['ethereum'],
-        ),
-
-        'solana': _double(
-          data['solana'],
-        ),
-
-        'usdt': _double(
-          data['usdt'],
-        ),
-
-        // ======================================================
-        // OUTROS
-        // ======================================================
-        'completedDays': _normalizeCompletedDays(
-          data['completed_days'],
-        ),
-
-        'selectedDay': data['selected_day']?.toString(),
-      };
+      return remoteData;
     } on PostgrestException catch (
       error
     ) {
       debugPrint(
-        '[FINANCE REPOSITORY] Erro Supabase ao carregar.',
+        '[FINANCE REPOSITORY] '
+        'Supabase indisponível ao carregar.',
       );
 
       debugPrint(
-        '[FINANCE REPOSITORY] Code: ${error.code}',
+        '[FINANCE REPOSITORY] '
+        'Code: ${error.code}',
       );
 
       debugPrint(
-        '[FINANCE REPOSITORY] Message: ${error.message}',
+        '[FINANCE REPOSITORY] '
+        'Message: ${error.message}',
       );
 
-      debugPrint(
-        '[FINANCE REPOSITORY] Details: ${error.details}',
-      );
+      if (local !=
+          null) {
+        debugPrint(
+          '[FINANCE REPOSITORY] '
+          'Retornando cache local.',
+        );
+
+        return _normalizeLocalData(
+          local,
+        );
+      }
 
       rethrow;
     } catch (
       error
     ) {
       debugPrint(
-        '[FINANCE REPOSITORY] Erro ao carregar: $error',
+        '[FINANCE REPOSITORY] '
+        'Erro ao carregar: $error',
       );
+
+      if (local !=
+          null) {
+        return _normalizeLocalData(
+          local,
+        );
+      }
 
       rethrow;
     }
@@ -355,24 +286,6 @@ class FinanceRepository {
 
   // ============================================================
   // UPDATE CRYPTO BALANCE
-  // ============================================================
-  //
-  // Atualiza somente o saldo atual de UMA criptomoeda.
-  //
-  // Exemplo:
-  //
-  // await repository.updateCryptoBalance(
-  //   symbol: 'BTC',
-  //   value: 0.00124567,
-  // );
-  //
-  // Não altera:
-  //
-  // - patrimônio
-  // - valor investido
-  // - metas
-  // - histórico
-  //
   // ============================================================
 
   Future<
@@ -382,92 +295,32 @@ class FinanceRepository {
     required String symbol,
     required double value,
   }) async {
-    final user = _requireUser();
+    _validateCryptoValue(
+      value,
+      'value',
+    );
 
-    if (!value.isFinite ||
-        value <
-            0) {
-      throw ArgumentError.value(
-        value,
-        'value',
-        'O saldo da criptomoeda deve ser maior ou igual a zero.',
-      );
-    }
-
-    final column = _cryptoColumn(
+    final key = _cryptoLocalKey(
       symbol,
     );
 
-    try {
-      debugPrint(
-        '[FINANCE REPOSITORY] Atualizando saldo '
-        '${symbol.toUpperCase()} para $value...',
-      );
+    final data = await load();
 
-      // Primeiro garante que exista um registro para o usuário.
-      await _ensureFinanceRow(
-        user.id,
-      );
+    data[key] = value;
 
-      await _client
-          .from(
-            _table,
-          )
-          .update(
-            {
-              column: value,
-              'updated_at': DateTime.now().toUtc().toIso8601String(),
-            },
-          )
-          .eq(
-            'user_id',
-            user.id,
-          );
+    await save(
+      data,
+    );
 
-      debugPrint(
-        '[FINANCE REPOSITORY] Saldo '
-        '${symbol.toUpperCase()} atualizado.',
-      );
-    } on PostgrestException catch (
-      error
-    ) {
-      debugPrint(
-        '[FINANCE REPOSITORY][CRYPTO] Erro Supabase.',
-      );
-
-      debugPrint(
-        '[FINANCE REPOSITORY][CRYPTO] Code: ${error.code}',
-      );
-
-      debugPrint(
-        '[FINANCE REPOSITORY][CRYPTO] Message: ${error.message}',
-      );
-
-      debugPrint(
-        '[FINANCE REPOSITORY][CRYPTO] Details: ${error.details}',
-      );
-
-      rethrow;
-    } catch (
-      error
-    ) {
-      debugPrint(
-        '[FINANCE REPOSITORY][CRYPTO] '
-        'Erro ao atualizar saldo: $error',
-      );
-
-      rethrow;
-    }
+    debugPrint(
+      '[FINANCE REPOSITORY] '
+      '${symbol.toUpperCase()} atualizado '
+      'localmente para $value.',
+    );
   }
 
   // ============================================================
   // UPDATE ALL CRYPTO BALANCES
-  // ============================================================
-  //
-  // Permite atualizar todos os saldos de uma vez.
-  //
-  // Parâmetros nulos não são modificados.
-  //
   // ============================================================
 
   Future<
@@ -479,22 +332,12 @@ class FinanceRepository {
     double? solana,
     double? usdt,
   }) async {
-    final user = _requireUser();
-
-    final updates =
-        <
-          String,
-          dynamic
-        >{};
-
     if (bitcoin !=
         null) {
       _validateCryptoValue(
         bitcoin,
         'bitcoin',
       );
-
-      updates['bitcoin'] = bitcoin;
     }
 
     if (ethereum !=
@@ -503,8 +346,6 @@ class FinanceRepository {
         ethereum,
         'ethereum',
       );
-
-      updates['ethereum'] = ethereum;
     }
 
     if (solana !=
@@ -513,8 +354,6 @@ class FinanceRepository {
         solana,
         'solana',
       );
-
-      updates['solana'] = solana;
     }
 
     if (usdt !=
@@ -523,72 +362,44 @@ class FinanceRepository {
         usdt,
         'usdt',
       );
-
-      updates['usdt'] = usdt;
     }
 
-    if (updates.isEmpty) {
+    if (bitcoin ==
+            null &&
+        ethereum ==
+            null &&
+        solana ==
+            null &&
+        usdt ==
+            null) {
       return;
     }
 
-    updates['updated_at'] = DateTime.now().toUtc().toIso8601String();
+    final data = await load();
 
-    try {
-      debugPrint(
-        '[FINANCE REPOSITORY] '
-        'Atualizando saldos de criptomoedas...',
-      );
-
-      await _ensureFinanceRow(
-        user.id,
-      );
-
-      await _client
-          .from(
-            _table,
-          )
-          .update(
-            updates,
-          )
-          .eq(
-            'user_id',
-            user.id,
-          );
-
-      debugPrint(
-        '[FINANCE REPOSITORY] '
-        'Saldos de criptomoedas atualizados.',
-      );
-    } on PostgrestException catch (
-      error
-    ) {
-      debugPrint(
-        '[FINANCE REPOSITORY][CRYPTO] Erro Supabase.',
-      );
-
-      debugPrint(
-        '[FINANCE REPOSITORY][CRYPTO] Code: ${error.code}',
-      );
-
-      debugPrint(
-        '[FINANCE REPOSITORY][CRYPTO] Message: ${error.message}',
-      );
-
-      debugPrint(
-        '[FINANCE REPOSITORY][CRYPTO] Details: ${error.details}',
-      );
-
-      rethrow;
-    } catch (
-      error
-    ) {
-      debugPrint(
-        '[FINANCE REPOSITORY][CRYPTO] '
-        'Erro ao atualizar saldos: $error',
-      );
-
-      rethrow;
+    if (bitcoin !=
+        null) {
+      data['bitcoin'] = bitcoin;
     }
+
+    if (ethereum !=
+        null) {
+      data['ethereum'] = ethereum;
+    }
+
+    if (solana !=
+        null) {
+      data['solana'] = solana;
+    }
+
+    if (usdt !=
+        null) {
+      data['usdt'] = usdt;
+    }
+
+    await save(
+      data,
+    );
   }
 
   // ============================================================
@@ -601,51 +412,24 @@ class FinanceRepository {
   updatePatrimony(
     double value,
   ) async {
-    final user = _requireUser();
+    _validateNonNegativeFinite(
+      value,
+      'value',
+      'O patrimônio deve ser maior ou igual a zero.',
+    );
 
-    if (!value.isFinite ||
-        value <
-            0) {
-      throw ArgumentError.value(
-        value,
-        'value',
-        'O patrimônio deve ser maior ou igual a zero.',
-      );
-    }
+    final data = await load();
 
-    try {
-      await _ensureFinanceRow(
-        user.id,
-      );
+    data['patrimony'] = value;
 
-      await _client
-          .from(
-            _table,
-          )
-          .update(
-            {
-              'patrimony': value,
-              'updated_at': DateTime.now().toUtc().toIso8601String(),
-            },
-          )
-          .eq(
-            'user_id',
-            user.id,
-          );
+    await save(
+      data,
+    );
 
-      debugPrint(
-        '[FINANCE REPOSITORY] Patrimônio atualizado: $value',
-      );
-    } catch (
-      error
-    ) {
-      debugPrint(
-        '[FINANCE REPOSITORY] '
-        'Erro ao atualizar patrimônio: $error',
-      );
-
-      rethrow;
-    }
+    debugPrint(
+      '[FINANCE REPOSITORY] '
+      'Patrimônio atualizado localmente: $value',
+    );
   }
 
   // ============================================================
@@ -658,55 +442,35 @@ class FinanceRepository {
   updateInvested(
     double value,
   ) async {
-    final user = _requireUser();
+    _validateNonNegativeFinite(
+      value,
+      'value',
+      'O valor investido deve ser maior ou igual a zero.',
+    );
 
-    if (!value.isFinite ||
-        value <
-            0) {
-      throw ArgumentError.value(
-        value,
-        'value',
-        'O valor investido deve ser maior ou igual a zero.',
-      );
-    }
+    final data = await load();
 
-    try {
-      await _ensureFinanceRow(
-        user.id,
-      );
+    data['invested'] = value;
 
-      await _client
-          .from(
-            _table,
-          )
-          .update(
-            {
-              'invested': value,
-              'updated_at': DateTime.now().toUtc().toIso8601String(),
-            },
-          )
-          .eq(
-            'user_id',
-            user.id,
-          );
+    await save(
+      data,
+    );
 
-      debugPrint(
-        '[FINANCE REPOSITORY] Valor investido atualizado: $value',
-      );
-    } catch (
-      error
-    ) {
-      debugPrint(
-        '[FINANCE REPOSITORY] '
-        'Erro ao atualizar valor investido: $error',
-      );
-
-      rethrow;
-    }
+    debugPrint(
+      '[FINANCE REPOSITORY] '
+      'Valor investido atualizado localmente: $value',
+    );
   }
 
   // ============================================================
   // CLEAR
+  // ============================================================
+  //
+  // A remoção também é offline-first.
+  //
+  // O registro fica marcado localmente como excluído até que
+  // a operação DELETE seja sincronizada com o Supabase.
+  //
   // ============================================================
 
   Future<
@@ -715,103 +479,404 @@ class FinanceRepository {
   clear() async {
     final user = _requireUser();
 
-    try {
-      await _client
-          .from(
-            _table,
-          )
-          .delete()
-          .eq(
-            'user_id',
-            user.id,
-          );
+    final exists = await _localDataSource.exists(
+      user.id,
+    );
 
-      debugPrint(
-        '[FINANCE REPOSITORY] Dados removidos.',
+    if (exists) {
+      await _localDataSource.markDeleted(
+        user.id,
       );
-    } catch (
-      error
-    ) {
-      debugPrint(
-        '[FINANCE REPOSITORY] Erro ao limpar: $error',
-      );
-
-      rethrow;
     }
+
+    await _syncQueue.enqueue(
+      entityType: _entityType,
+      entityId: user.id,
+      operation: SyncOperation.delete,
+    );
+
+    debugPrint(
+      '[FINANCE REPOSITORY] '
+      'Exclusão financeira registrada localmente.',
+    );
+
+    _syncService?.requestSync();
   }
 
   // ============================================================
-  // ENSURE FINANCE ROW
+  // REFRESH FROM REMOTE
   // ============================================================
   //
-  // Garante que finance_data possua uma linha para o usuário
-  // antes dos updates específicos.
+  // Use quando quiser forçar uma atualização a partir do
+  // Supabase.
+  //
+  // Não sobrescreve alterações locais pendentes.
   //
   // ============================================================
 
   Future<
-    void
+    Map<
+      String,
+      dynamic
+    >
   >
-  _ensureFinanceRow(
-    String userId,
-  ) async {
-    final existing = await _client
+  refreshFromRemote() async {
+    final user = _requireUser();
+
+    final localStatus = await _localDataSource.getSyncStatus(
+      user.id,
+    );
+
+    if (localStatus !=
+            null &&
+        localStatus !=
+            SyncStatus.synced) {
+      final local = await _localDataSource.load(
+        user.id,
+      );
+
+      _syncService?.requestSync();
+
+      return local ==
+              null
+          ? {}
+          : _normalizeLocalData(
+              local,
+            );
+    }
+
+    final remote = await _client
         .from(
           _table,
         )
-        .select(
-          'user_id',
-        )
+        .select()
         .eq(
           'user_id',
-          userId,
+          user.id,
         )
         .maybeSingle();
 
-    if (existing !=
+    if (remote ==
         null) {
-      return;
+      return {};
     }
 
-    await _client
-        .from(
-          _table,
-        )
-        .insert(
-          {
-            'user_id': userId,
-            'patrimony': 0,
-            'invested': 0,
-            'monthly_goal': 0,
-            'investment_goal': 0,
-            'minimum_goal': 0,
-            'medium_goal': 0,
-            'maximum_goal': 0,
-            'projection_years': 10,
-            'total_invested': 0,
-            'invested_months': 0,
-            'average_contribution': 0,
-            'bitcoin': 0,
-            'ethereum': 0,
-            'solana': 0,
-            'usdt': 0,
-            'completed_days':
-                List<
-                  bool
-                >.filled(
-                  7,
-                  false,
-                ),
-            'updated_at': DateTime.now().toUtc().toIso8601String(),
-          },
-        );
+    final data = _fromRemoteRow(
+      remote,
+    );
+
+    await _localDataSource.save(
+      userId: user.id,
+      data: data,
+      syncStatus: SyncStatus.synced,
+    );
+
+    return data;
   }
 
   // ============================================================
-  // CRYPTO COLUMN
+  // LOCAL CACHE
   // ============================================================
 
-  String _cryptoColumn(
+  Future<
+    Map<
+      String,
+      dynamic
+    >?
+  >
+  loadLocal() async {
+    final user = _requireUser();
+
+    final data = await _localDataSource.load(
+      user.id,
+    );
+
+    if (data ==
+        null) {
+      return null;
+    }
+
+    return _normalizeLocalData(
+      data,
+    );
+  }
+
+  Future<
+    SyncStatus?
+  >
+  getLocalSyncStatus() async {
+    final user = _requireUser();
+
+    return _localDataSource.getSyncStatus(
+      user.id,
+    );
+  }
+
+  // ============================================================
+  // REMOTE PAYLOAD
+  // ============================================================
+
+  Map<
+    String,
+    dynamic
+  >
+  _toRemotePayload({
+    required String userId,
+    required Map<
+      String,
+      dynamic
+    >
+    data,
+  }) {
+    return {
+      'user_id': userId,
+
+      'patrimony': _double(
+        data['patrimony'],
+      ),
+
+      'invested': _double(
+        data['invested'],
+      ),
+
+      'monthly_goal': _double(
+        data['monthlyGoal'],
+      ),
+
+      'investment_goal': _double(
+        data['investmentGoal'],
+      ),
+
+      'minimum_goal': _double(
+        data['minimumGoal'],
+      ),
+
+      'medium_goal': _double(
+        data['mediumGoal'],
+      ),
+
+      'maximum_goal': _double(
+        data['maximumGoal'],
+      ),
+
+      'projection_years': _integer(
+        data['projectionYears'],
+        fallback: 10,
+      ),
+
+      'total_invested': _double(
+        data['totalInvested'],
+      ),
+
+      'invested_months': _integer(
+        data['investedMonths'],
+      ),
+
+      'average_contribution': _double(
+        data['averageContribution'],
+      ),
+
+      'bitcoin': _double(
+        data['bitcoin'],
+      ),
+
+      'ethereum': _double(
+        data['ethereum'],
+      ),
+
+      'solana': _double(
+        data['solana'],
+      ),
+
+      'usdt': _double(
+        data['usdt'],
+      ),
+
+      'completed_days': _normalizeCompletedDays(
+        data['completedDays'],
+      ),
+
+      'selected_day': data['selectedDay']?.toString(),
+
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    };
+  }
+
+  // ============================================================
+  // REMOTE -> LOCAL
+  // ============================================================
+
+  Map<
+    String,
+    dynamic
+  >
+  _fromRemoteRow(
+    Map<
+      String,
+      dynamic
+    >
+    data,
+  ) {
+    return {
+      'patrimony': _double(
+        data['patrimony'],
+      ),
+
+      'invested': _double(
+        data['invested'],
+      ),
+
+      'monthlyGoal': _double(
+        data['monthly_goal'],
+      ),
+
+      'investmentGoal': _double(
+        data['investment_goal'],
+      ),
+
+      'minimumGoal': _double(
+        data['minimum_goal'],
+      ),
+
+      'mediumGoal': _double(
+        data['medium_goal'],
+      ),
+
+      'maximumGoal': _double(
+        data['maximum_goal'],
+      ),
+
+      'projectionYears': _integer(
+        data['projection_years'],
+        fallback: 10,
+      ),
+
+      'totalInvested': _double(
+        data['total_invested'],
+      ),
+
+      'investedMonths': _integer(
+        data['invested_months'],
+      ),
+
+      'averageContribution': _double(
+        data['average_contribution'],
+      ),
+
+      'bitcoin': _double(
+        data['bitcoin'],
+      ),
+
+      'ethereum': _double(
+        data['ethereum'],
+      ),
+
+      'solana': _double(
+        data['solana'],
+      ),
+
+      'usdt': _double(
+        data['usdt'],
+      ),
+
+      'completedDays': _normalizeCompletedDays(
+        data['completed_days'],
+      ),
+
+      'selectedDay': data['selected_day']?.toString(),
+    };
+  }
+
+  // ============================================================
+  // NORMALIZE LOCAL DATA
+  // ============================================================
+
+  Map<
+    String,
+    dynamic
+  >
+  _normalizeLocalData(
+    Map<
+      String,
+      dynamic
+    >
+    data,
+  ) {
+    return {
+      'patrimony': _double(
+        data['patrimony'],
+      ),
+
+      'invested': _double(
+        data['invested'],
+      ),
+
+      'monthlyGoal': _double(
+        data['monthlyGoal'],
+      ),
+
+      'investmentGoal': _double(
+        data['investmentGoal'],
+      ),
+
+      'minimumGoal': _double(
+        data['minimumGoal'],
+      ),
+
+      'mediumGoal': _double(
+        data['mediumGoal'],
+      ),
+
+      'maximumGoal': _double(
+        data['maximumGoal'],
+      ),
+
+      'projectionYears': _integer(
+        data['projectionYears'],
+        fallback: 10,
+      ),
+
+      'totalInvested': _double(
+        data['totalInvested'],
+      ),
+
+      'investedMonths': _integer(
+        data['investedMonths'],
+      ),
+
+      'averageContribution': _double(
+        data['averageContribution'],
+      ),
+
+      'bitcoin': _double(
+        data['bitcoin'],
+      ),
+
+      'ethereum': _double(
+        data['ethereum'],
+      ),
+
+      'solana': _double(
+        data['solana'],
+      ),
+
+      'usdt': _double(
+        data['usdt'],
+      ),
+
+      'completedDays': _normalizeCompletedDays(
+        data['completedDays'],
+      ),
+
+      'selectedDay': data['selectedDay']?.toString(),
+    };
+  }
+
+  // ============================================================
+  // CRYPTO KEY
+  // ============================================================
+
+  String _cryptoLocalKey(
     String symbol,
   ) {
     switch (symbol.trim().toUpperCase()) {
@@ -841,12 +906,24 @@ class FinanceRepository {
   }
 
   // ============================================================
-  // VALIDATE CRYPTO VALUE
+  // VALIDATION
   // ============================================================
 
   void _validateCryptoValue(
     double value,
     String name,
+  ) {
+    _validateNonNegativeFinite(
+      value,
+      name,
+      'O saldo deve ser maior ou igual a zero.',
+    );
+  }
+
+  void _validateNonNegativeFinite(
+    double value,
+    String name,
+    String message,
   ) {
     if (!value.isFinite ||
         value <
@@ -854,7 +931,7 @@ class FinanceRepository {
       throw ArgumentError.value(
         value,
         name,
-        'O saldo deve ser maior ou igual a zero.',
+        message,
       );
     }
   }

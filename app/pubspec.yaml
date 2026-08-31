@@ -1,7 +1,7 @@
 name: EVRYLUX
 description: "A new Flutter project."
 
-publish_to: 'none'
+publish_to: "none"
 
 version: 1.0.0+1
 
@@ -18,7 +18,9 @@ dependencies:
   shared_preferences: ^2.5.3
   path_provider: ^2.1.5
   http: ^1.2.2
-
+  connectivity_plus: ^7.0.0
+  path: ^1.9.1
+  sqlite3: ^2.9.4
   supabase_flutter: ^2.17.2
   flutter_dotenv: ^6.0.1
 
@@ -27,7 +29,6 @@ dependencies:
       url: https://github.com/boyan01/window_manager.git
       path: packages/window_manager
       ref: 6fae92d21b4c80ce1b8f71c1190d7970cf722bd4
-
 
 dev_dependencies:
   flutter_test:
@@ -40,4 +41,3 @@ flutter:
 
   assets:
     - .env
-

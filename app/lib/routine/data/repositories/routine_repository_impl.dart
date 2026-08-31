@@ -1,11 +1,45 @@
+import 'dart:math';
+
 import 'package:flutter/foundation.dart';
+
+import '../../../core/sync/sync_item.dart';
+import '../../../core/sync/sync_queue.dart';
+import '../../../core/sync/sync_service.dart';
 
 import '../../models/routine_day.dart';
 import '../datasources/routine_local_datasource.dart';
+import '../datasources/routine_memory_datasource.dart';
 import '../datasources/routine_remote_data_source.dart';
 import '../dtos/routine_day_dto.dart';
 import '../mappers/routine_day_mapper.dart';
 import 'routine_repository.dart';
+
+// ============================================================
+// ROUTINE REPOSITORY IMPLEMENTATION
+// ============================================================
+//
+// Estratégia OFFLINE-FIRST:
+//
+// SAVE
+//   1. converte Model -> DTO -> Map;
+//   2. garante um ID estável;
+//   3. salva PRIMEIRO no SQLite;
+//   4. adiciona operação à SyncQueue;
+//   5. atualiza a UI imediatamente;
+//   6. SyncService envia ao Supabase quando houver internet.
+//
+// LOAD
+//   1. tenta carregar o SQLite primeiro;
+//   2. se houver alterações locais pendentes, elas vencem;
+//   3. se não houver pendências, tenta atualizar pelo Supabase;
+//   4. se estiver offline, continua usando o SQLite.
+//
+// DELETE
+//   1. registra a exclusão localmente;
+//   2. adiciona DELETE à SyncQueue;
+//   3. SyncService remove do Supabase quando houver internet.
+//
+// ============================================================
 
 class RoutineRepositoryImpl
     implements
@@ -13,22 +47,18 @@ class RoutineRepositoryImpl
   RoutineRepositoryImpl({
     required RoutineLocalDataSource localDataSource,
     RoutineRemoteDataSource? remoteDataSource,
+    SyncQueue? syncQueue,
+    SyncService? syncService,
 
-    // ==========================================================
-    // IMPORTANTE
-    // ==========================================================
+    // Mantido por compatibilidade com o restante do projeto.
     //
-    // Enquanto estamos configurando o Supabase, deixe false.
-    //
-    // Assim qualquer erro remoto aparece de verdade no terminal.
-    //
-    // Depois que tudo estiver funcionando, se quiser modo offline,
-    // você pode voltar para true.
-    //
-    // ==========================================================
-    this.fallbackToLocalOnRemoteError = false,
+    // No modo offline-first, erros remotos de leitura não
+    // impedem o uso do cache local.
+    this.fallbackToLocalOnRemoteError = true,
   }) : _localDataSource = localDataSource,
-       _remoteDataSource = remoteDataSource;
+       _remoteDataSource = remoteDataSource,
+       _syncQueue = syncQueue,
+       _syncService = syncService;
 
   // ============================================================
   // DATASOURCES
@@ -39,10 +69,20 @@ class RoutineRepositoryImpl
   final RoutineRemoteDataSource? _remoteDataSource;
 
   // ============================================================
+  // SYNC
+  // ============================================================
+
+  final SyncQueue? _syncQueue;
+
+  final SyncService? _syncService;
+
+  // ============================================================
   // CONFIG
   // ============================================================
 
   final bool fallbackToLocalOnRemoteError;
+
+  static const String _entityType = 'routine_day';
 
   // ============================================================
   // LOAD WEEK
@@ -72,28 +112,48 @@ class RoutineRepositoryImpl
       ),
     );
 
-    final remote = _remoteDataSource;
+    // ==========================================================
+    // LOCAL FIRST
+    // ==========================================================
+
+    final localRecords = await _localDataSource.loadWeek(
+      userId: normalizedUserId,
+      weekStart: start,
+      weekEnd: end,
+    );
+
+    final hasPending = await _hasPendingLocal(
+      normalizedUserId,
+    );
+
+    // Se existe alteração local pendente, não permitimos que
+    // um snapshot remoto mais antigo a sobrescreva.
+    if (hasPending) {
+      _log(
+        'LOAD WEEK',
+        'Existem alterações locais pendentes. '
+            'Usando SQLite como fonte principal.',
+      );
+
+      _syncService?.requestSync();
+
+      return _recordsToModels(
+        localRecords,
+      );
+    }
 
     // ==========================================================
-    // REMOTE
+    // REMOTE REFRESH
     // ==========================================================
+
+    final remote = _remoteDataSource;
 
     if (remote !=
         null) {
       try {
         _log(
           'LOAD WEEK',
-          'Buscando semana no Supabase.',
-        );
-
-        _log(
-          'LOAD WEEK',
-          'userId: $normalizedUserId',
-        );
-
-        _log(
-          'LOAD WEEK',
-          'weekStart: $start',
+          'Atualizando semana pelo Supabase.',
         );
 
         remote.ensureAuthenticatedUser(
@@ -105,32 +165,12 @@ class RoutineRepositoryImpl
           weekStart: start,
         );
 
-        _log(
-          'LOAD WEEK',
-          '${remoteRecords.length} dia(s) recebidos do Supabase.',
+        await _replaceLocalSnapshot(
+          userId: normalizedUserId,
+          remoteRecords: remoteRecords,
+          rangeStart: start,
+          rangeEnd: end,
         );
-
-        // ------------------------------------------------------
-        // ATUALIZA CACHE LOCAL
-        // ------------------------------------------------------
-
-        for (final record in remoteRecords) {
-          try {
-            await _localDataSource.saveDay(
-              userId: normalizedUserId,
-              day: record,
-            );
-          } catch (
-            error,
-            stackTrace
-          ) {
-            _logError(
-              operation: 'LOAD WEEK / LOCAL CACHE',
-              error: error,
-              stackTrace: stackTrace,
-            );
-          }
-        }
 
         return _recordsToModels(
           remoteRecords,
@@ -145,31 +185,25 @@ class RoutineRepositoryImpl
           stackTrace: stackTrace,
         );
 
-        if (!fallbackToLocalOnRemoteError) {
-          rethrow;
+        if (localRecords.isNotEmpty ||
+            fallbackToLocalOnRemoteError) {
+          _log(
+            'LOAD WEEK',
+            'Usando dados locais.',
+          );
+
+          return _recordsToModels(
+            localRecords,
+          );
         }
+
+        rethrow;
       }
-    } else {
-      _log(
-        'LOAD WEEK',
-        'RemoteDataSource não configurado. Usando cache local.',
-      );
     }
 
     // ==========================================================
-    // LOCAL FALLBACK
+    // LOCAL ONLY
     // ==========================================================
-
-    _log(
-      'LOAD WEEK',
-      'Carregando dados locais.',
-    );
-
-    final localRecords = await _localDataSource.loadWeek(
-      userId: normalizedUserId,
-      weekStart: start,
-      weekEnd: end,
-    );
 
     return _recordsToModels(
       localRecords,
@@ -196,30 +230,63 @@ class RoutineRepositoryImpl
       date,
     );
 
-    final remote = _remoteDataSource;
+    // ==========================================================
+    // LOCAL FIRST
+    // ==========================================================
+
+    final localRecords = await _localDataSource.loadWeek(
+      userId: normalizedUserId,
+      weekStart: normalizedDate,
+      weekEnd: normalizedDate,
+    );
+
+    RoutineDay? localModel;
+
+    for (final record in localRecords) {
+      try {
+        final model = _recordToModel(
+          record,
+        );
+
+        if (_sameDate(
+          model.normalizedDate,
+          normalizedDate,
+        )) {
+          localModel = model;
+
+          break;
+        }
+      } catch (
+        error,
+        stackTrace
+      ) {
+        _logError(
+          operation: 'LOAD DAY / LOCAL PARSE',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }
+    }
+
+    final hasPending = await _hasPendingLocal(
+      normalizedUserId,
+    );
+
+    if (hasPending) {
+      _syncService?.requestSync();
+
+      return localModel;
+    }
 
     // ==========================================================
-    // REMOTE
+    // REMOTE REFRESH
     // ==========================================================
+
+    final remote = _remoteDataSource;
 
     if (remote !=
         null) {
       try {
-        _log(
-          'LOAD DAY',
-          'Buscando dia no Supabase.',
-        );
-
-        _log(
-          'LOAD DAY',
-          'userId: $normalizedUserId',
-        );
-
-        _log(
-          'LOAD DAY',
-          'date: $normalizedDate',
-        );
-
         remote.ensureAuthenticatedUser(
           normalizedUserId,
         );
@@ -231,33 +298,15 @@ class RoutineRepositoryImpl
 
         if (remoteRecord ==
             null) {
-          _log(
-            'LOAD DAY',
-            'Nenhum registro encontrado.',
-          );
-
-          return null;
+          return localModel;
         }
 
-        // ------------------------------------------------------
-        // CACHE LOCAL
-        // ------------------------------------------------------
-
-        try {
-          await _localDataSource.saveDay(
-            userId: normalizedUserId,
-            day: remoteRecord,
-          );
-        } catch (
-          error,
-          stackTrace
-        ) {
-          _logError(
-            operation: 'LOAD DAY / LOCAL CACHE',
-            error: error,
-            stackTrace: stackTrace,
-          );
-        }
+        await _cacheRemoteRecords(
+          userId: normalizedUserId,
+          records: [
+            remoteRecord,
+          ],
+        );
 
         return _recordToModel(
           remoteRecord,
@@ -272,51 +321,17 @@ class RoutineRepositoryImpl
           stackTrace: stackTrace,
         );
 
-        if (!fallbackToLocalOnRemoteError) {
-          rethrow;
+        if (localModel !=
+                null ||
+            fallbackToLocalOnRemoteError) {
+          return localModel;
         }
+
+        rethrow;
       }
     }
 
-    // ==========================================================
-    // LOCAL FALLBACK
-    // ==========================================================
-
-    final localRecords = await _localDataSource.loadWeek(
-      userId: normalizedUserId,
-      weekStart: normalizedDate,
-      weekEnd: normalizedDate,
-    );
-
-    if (localRecords.isEmpty) {
-      return null;
-    }
-
-    for (final record in localRecords) {
-      try {
-        final model = _recordToModel(
-          record,
-        );
-
-        if (_sameDate(
-          model.normalizedDate,
-          normalizedDate,
-        )) {
-          return model;
-        }
-      } catch (
-        error,
-        stackTrace
-      ) {
-        _logError(
-          operation: 'LOAD DAY / LOCAL PARSE',
-          error: error,
-          stackTrace: stackTrace,
-        );
-      }
-    }
-
-    return null;
+    return localModel;
   }
 
   // ============================================================
@@ -348,11 +363,45 @@ class RoutineRepositoryImpl
     // DTO -> MAP
     // ==========================================================
 
-    final localRecord = dto.toMap(
-      includeBlocks: true,
+    final localRecord =
+        Map<
+          String,
+          dynamic
+        >.from(
+          dto.toMap(
+            includeBlocks: true,
+          ),
+        );
+
+    // ==========================================================
+    // GUARANTEE ID
+    // ==========================================================
+    //
+    // Para criação offline precisamos de um ID antes de falar
+    // com o Supabase.
+    //
+    // Geramos UUID v4 compatível com coluna uuid do Postgres.
+    //
+    // ==========================================================
+
+    final rawId = localRecord['id']?.toString().trim();
+
+    final dayId =
+        rawId !=
+                null &&
+            rawId.isNotEmpty
+        ? rawId
+        : _uuidV4();
+
+    localRecord['id'] = dayId;
+
+    localRecord['user_id'] = normalizedUserId;
+
+    localRecord['date'] = _dateKey(
+      day.normalizedDate,
     );
 
-    final remote = _remoteDataSource;
+    localRecord['updated_at'] = DateTime.now().toUtc().toIso8601String();
 
     // ==========================================================
     // DEBUG
@@ -360,7 +409,7 @@ class RoutineRepositoryImpl
 
     _log(
       'SAVE DAY',
-      'Iniciando salvamento.',
+      'Salvando primeiro no SQLite.',
     );
 
     _log(
@@ -370,7 +419,7 @@ class RoutineRepositoryImpl
 
     _log(
       'SAVE DAY',
-      'dayId: ${day.id ?? 'NOVO'}',
+      'dayId: $dayId',
     );
 
     _log(
@@ -389,123 +438,45 @@ class RoutineRepositoryImpl
     );
 
     // ==========================================================
-    // REMOTE
+    // LOCAL FIRST
     // ==========================================================
-
-    if (remote !=
-        null) {
-      try {
-        _log(
-          'SAVE DAY',
-          'Validando usuário autenticado.',
-        );
-
-        remote.ensureAuthenticatedUser(
-          normalizedUserId,
-        );
-
-        _log(
-          'SAVE DAY',
-          'Enviando para Supabase...',
-        );
-
-        final remoteRecord = await remote.saveDay(
-          userId: normalizedUserId,
-          data: localRecord,
-        );
-
-        _log(
-          'SAVE DAY',
-          'Salvo com sucesso no Supabase.',
-        );
-
-        _log(
-          'SAVE DAY',
-          'remote id: ${remoteRecord['id']}',
-        );
-
-        // ------------------------------------------------------
-        // CACHE LOCAL
-        // ------------------------------------------------------
-
-        try {
-          await _localDataSource.saveDay(
-            userId: normalizedUserId,
-            day: remoteRecord,
-          );
-
-          _log(
-            'SAVE DAY',
-            'Cache local atualizado.',
-          );
-        } catch (
-          error,
-          stackTrace
-        ) {
-          // Cache local não deve impedir que um save remoto
-          // já realizado seja considerado sucesso.
-          _logError(
-            operation: 'SAVE DAY / LOCAL CACHE',
-            error: error,
-            stackTrace: stackTrace,
-          );
-        }
-
-        // ------------------------------------------------------
-        // REMOTE -> MODEL
-        // ------------------------------------------------------
-
-        final model = _recordToModel(
-          remoteRecord,
-        );
-
-        _log(
-          'SAVE DAY',
-          'Save concluído.',
-        );
-
-        return model;
-      } catch (
-        error,
-        stackTrace
-      ) {
-        _logError(
-          operation: 'SAVE DAY / SUPABASE',
-          error: error,
-          stackTrace: stackTrace,
-        );
-
-        if (!fallbackToLocalOnRemoteError) {
-          rethrow;
-        }
-      }
-    } else {
-      _log(
-        'SAVE DAY',
-        'ERRO: RemoteDataSource não foi configurado.',
-      );
-
-      if (!fallbackToLocalOnRemoteError) {
-        throw StateError(
-          'RoutineRemoteDataSource não foi configurado. '
-          'O dia não pode ser salvo no Supabase.',
-        );
-      }
-    }
-
-    // ==========================================================
-    // LOCAL FALLBACK
-    // ==========================================================
-
-    _log(
-      'SAVE DAY',
-      'Usando fallback local.',
-    );
 
     await _localDataSource.saveDay(
       userId: normalizedUserId,
       day: localRecord,
     );
+
+    // ==========================================================
+    // QUEUE
+    // ==========================================================
+
+    final queue = _syncQueue;
+
+    if (queue !=
+        null) {
+      await queue.enqueue(
+        entityType: _entityType,
+        entityId: dayId,
+        operation:
+            rawId ==
+                    null ||
+                rawId.isEmpty
+            ? SyncOperation.create
+            : SyncOperation.update,
+        payload: localRecord,
+      );
+
+      _syncService?.requestSync();
+    } else {
+      // Compatibilidade temporária:
+      //
+      // Se SyncQueue ainda não foi injetada, tentamos o remote
+      // diretamente. Isso evita quebrar ambientes antigos.
+      await _tryDirectRemoteSave(
+        userId: normalizedUserId,
+        localRecord: localRecord,
+      );
+    }
 
     return _recordToModel(
       localRecord,
@@ -538,66 +509,65 @@ class RoutineRepositoryImpl
       );
     }
 
-    final remote = _remoteDataSource;
-
     // ==========================================================
-    // REMOTE
-    // ==========================================================
-
-    if (remote !=
-        null) {
-      try {
-        _log(
-          'DELETE DAY',
-          'Removendo dia do Supabase.',
-        );
-
-        _log(
-          'DELETE DAY',
-          'dayId: $normalizedDayId',
-        );
-
-        remote.ensureAuthenticatedUser(
-          normalizedUserId,
-        );
-
-        await remote.deleteDay(
-          userId: normalizedUserId,
-          dayId: normalizedDayId,
-        );
-
-        _log(
-          'DELETE DAY',
-          'Dia removido do Supabase.',
-        );
-      } catch (
-        error,
-        stackTrace
-      ) {
-        _logError(
-          operation: 'DELETE DAY / SUPABASE',
-          error: error,
-          stackTrace: stackTrace,
-        );
-
-        if (!fallbackToLocalOnRemoteError) {
-          rethrow;
-        }
-      }
-    } else if (!fallbackToLocalOnRemoteError) {
-      throw StateError(
-        'RoutineRemoteDataSource não foi configurado.',
-      );
-    }
-
-    // ==========================================================
-    // LOCAL
+    // LOCAL FIRST
     // ==========================================================
 
     await _localDataSource.deleteDay(
       userId: normalizedUserId,
       dayId: normalizedDayId,
     );
+
+    // ==========================================================
+    // QUEUE
+    // ==========================================================
+
+    final queue = _syncQueue;
+
+    if (queue !=
+        null) {
+      await queue.enqueue(
+        entityType: _entityType,
+        entityId: normalizedDayId,
+        operation: SyncOperation.delete,
+      );
+
+      _syncService?.requestSync();
+
+      return;
+    }
+
+    // Compatibilidade temporária.
+    final remote = _remoteDataSource;
+
+    if (remote ==
+        null) {
+      return;
+    }
+
+    try {
+      remote.ensureAuthenticatedUser(
+        normalizedUserId,
+      );
+
+      await remote.deleteDay(
+        userId: normalizedUserId,
+        dayId: normalizedDayId,
+      );
+    } catch (
+      error,
+      stackTrace
+    ) {
+      _logError(
+        operation: 'DELETE DAY / DIRECT REMOTE',
+        error: error,
+        stackTrace: stackTrace,
+      );
+
+      if (!fallbackToLocalOnRemoteError) {
+        rethrow;
+      }
+    }
   }
 
   // ============================================================
@@ -620,59 +590,13 @@ class RoutineRepositoryImpl
       date,
     );
 
-    final remote = _remoteDataSource;
-
-    // ==========================================================
-    // REMOTE
-    // ==========================================================
-
-    if (remote !=
-        null) {
-      try {
-        remote.ensureAuthenticatedUser(
-          normalizedUserId,
-        );
-
-        final exists = await remote.dayExists(
-          userId: normalizedUserId,
-          date: normalizedDate,
-        );
-
-        _log(
-          'DAY EXISTS',
-          '$normalizedDate = $exists',
-        );
-
-        return exists;
-      } catch (
-        error,
-        stackTrace
-      ) {
-        _logError(
-          operation: 'DAY EXISTS / SUPABASE',
-          error: error,
-          stackTrace: stackTrace,
-        );
-
-        if (!fallbackToLocalOnRemoteError) {
-          rethrow;
-        }
-      }
-    }
-
-    // ==========================================================
-    // LOCAL FALLBACK
-    // ==========================================================
-
+    // Offline-first:
+    // existência local é suficiente para responder imediatamente.
     final localRecords = await _localDataSource.loadWeek(
       userId: normalizedUserId,
       weekStart: normalizedDate,
       weekEnd: normalizedDate,
     );
-
-    if (localRecords.isEmpty) {
-      return false;
-    }
 
     for (final record in localRecords) {
       try {
@@ -698,7 +622,46 @@ class RoutineRepositoryImpl
       }
     }
 
-    return false;
+    // Se não existe localmente e há pendência, não consultamos
+    // remoto para evitar resurrectar registro excluído offline.
+    if (await _hasPendingLocal(
+      normalizedUserId,
+    )) {
+      return false;
+    }
+
+    final remote = _remoteDataSource;
+
+    if (remote ==
+        null) {
+      return false;
+    }
+
+    try {
+      remote.ensureAuthenticatedUser(
+        normalizedUserId,
+      );
+
+      return await remote.dayExists(
+        userId: normalizedUserId,
+        date: normalizedDate,
+      );
+    } catch (
+      error,
+      stackTrace
+    ) {
+      _logError(
+        operation: 'DAY EXISTS / SUPABASE',
+        error: error,
+        stackTrace: stackTrace,
+      );
+
+      if (fallbackToLocalOnRemoteError) {
+        return false;
+      }
+
+      rethrow;
+    }
   }
 
   // ============================================================
@@ -719,6 +682,166 @@ class RoutineRepositoryImpl
     return _localDataSource.clearUser(
       normalizedUserId,
     );
+  }
+
+  // ============================================================
+  // DIRECT REMOTE SAVE
+  // ============================================================
+  //
+  // Somente fallback para instalações que ainda não injetaram
+  // SyncQueue.
+  //
+  // ============================================================
+
+  Future<
+    void
+  >
+  _tryDirectRemoteSave({
+    required String userId,
+    required RoutineRecord localRecord,
+  }) async {
+    final remote = _remoteDataSource;
+
+    if (remote ==
+        null) {
+      if (!fallbackToLocalOnRemoteError) {
+        throw StateError(
+          'RoutineRemoteDataSource não foi configurado.',
+        );
+      }
+
+      return;
+    }
+
+    try {
+      remote.ensureAuthenticatedUser(
+        userId,
+      );
+
+      final remoteRecord = await remote.saveDay(
+        userId: userId,
+        data: localRecord,
+      );
+
+      await _cacheRemoteRecords(
+        userId: userId,
+        records: [
+          remoteRecord,
+        ],
+      );
+    } catch (
+      error,
+      stackTrace
+    ) {
+      _logError(
+        operation: 'SAVE DAY / DIRECT REMOTE',
+        error: error,
+        stackTrace: stackTrace,
+      );
+
+      if (!fallbackToLocalOnRemoteError) {
+        rethrow;
+      }
+    }
+  }
+
+  // ============================================================
+  // CACHE REMOTE RECORDS
+  // ============================================================
+
+  Future<
+    void
+  >
+  _cacheRemoteRecords({
+    required String userId,
+    required List<
+      RoutineRecord
+    >
+    records,
+  }) async {
+    final local = _localDataSource;
+
+    // Nossa implementação SQLite conhece seed() e consegue
+    // marcar snapshot remoto como "synced".
+    if (local
+        is RoutineMemoryDataSource) {
+      await local.seed(
+        userId: userId,
+        days: records,
+      );
+
+      return;
+    }
+
+    // Compatibilidade com outra implementação da interface.
+    for (final record in records) {
+      await local.saveDay(
+        userId: userId,
+        day: record,
+      );
+    }
+  }
+
+  // ============================================================
+  // REPLACE LOCAL SNAPSHOT
+  // ============================================================
+
+  Future<
+    void
+  >
+  _replaceLocalSnapshot({
+    required String userId,
+    required List<
+      RoutineRecord
+    >
+    remoteRecords,
+    required DateTime rangeStart,
+    required DateTime rangeEnd,
+  }) async {
+    final local = _localDataSource;
+
+    if (local
+        is RoutineMemoryDataSource) {
+      await local.seed(
+        userId: userId,
+        days: remoteRecords,
+      );
+
+      return;
+    }
+
+    // Interface genérica:
+    // apenas atualiza os registros recebidos.
+    for (final record in remoteRecords) {
+      await local.saveDay(
+        userId: userId,
+        day: record,
+      );
+    }
+  }
+
+  // ============================================================
+  // HAS PENDING LOCAL
+  // ============================================================
+
+  Future<
+    bool
+  >
+  _hasPendingLocal(
+    String userId,
+  ) async {
+    final local = _localDataSource;
+
+    if (local
+        is RoutineMemoryDataSource) {
+      final pending = await local.loadUnsynced(
+        userId: userId,
+      );
+
+      return pending.isNotEmpty;
+    }
+
+    return false;
   }
 
   // ============================================================
@@ -795,18 +918,6 @@ class RoutineRepositoryImpl
 
     // ==========================================================
     // RESTAURAR TAMANHO PERSONALIZADO DOS BLOCOS
-    // ==========================================================
-    //
-    // O Supabase devolve width/height dentro de blocks.
-    //
-    // Mesmo que alguma camada intermediária/mapper antigo ainda
-    // descarte esses campos, restauramos os valores diretamente
-    // do registro remoto antes de entregar o RoutineDay ao
-    // controller.
-    //
-    // Isso evita o mapa mental voltar para 620x430 depois de um
-    // save/reload.
-    //
     // ==========================================================
 
     _restoreBlockDimensionsFromRecord(
@@ -955,6 +1066,31 @@ class RoutineRepositoryImpl
   }
 
   // ============================================================
+  // DATE KEY
+  // ============================================================
+
+  String _dateKey(
+    DateTime value,
+  ) {
+    final year = value.year.toString().padLeft(
+      4,
+      '0',
+    );
+
+    final month = value.month.toString().padLeft(
+      2,
+      '0',
+    );
+
+    final day = value.day.toString().padLeft(
+      2,
+      '0',
+    );
+
+    return '$year-$month-$day';
+  }
+
+  // ============================================================
   // SAME DATE
   // ============================================================
 
@@ -968,6 +1104,69 @@ class RoutineRepositoryImpl
             second.month &&
         first.day ==
             second.day;
+  }
+
+  // ============================================================
+  // UUID V4
+  // ============================================================
+  //
+  // Não exige dependência externa.
+  //
+  // Formato compatível com PostgreSQL uuid.
+  //
+  // ============================================================
+
+  String _uuidV4() {
+    final random = Random.secure();
+
+    final bytes =
+        List<
+          int
+        >.generate(
+          16,
+          (
+            _,
+          ) => random.nextInt(
+            256,
+          ),
+        );
+
+    // UUID version 4.
+    bytes[6] =
+        (bytes[6] &
+            0x0F) |
+        0x40;
+
+    // RFC 4122 variant.
+    bytes[8] =
+        (bytes[8] &
+            0x3F) |
+        0x80;
+
+    String hex(
+      int value,
+    ) {
+      return value
+          .toRadixString(
+            16,
+          )
+          .padLeft(
+            2,
+            '0',
+          );
+    }
+
+    final value = bytes
+        .map(
+          hex,
+        )
+        .join();
+
+    return '${value.substring(0, 8)}-'
+        '${value.substring(8, 12)}-'
+        '${value.substring(12, 16)}-'
+        '${value.substring(16, 20)}-'
+        '${value.substring(20, 32)}';
   }
 
   // ============================================================
@@ -995,27 +1194,35 @@ class RoutineRepositoryImpl
     debugPrint(
       '',
     );
+
     debugPrint(
       '============================================================',
     );
+
     debugPrint(
       '[ROUTINE][$operation] ERRO',
     );
+
     debugPrint(
       '------------------------------------------------------------',
     );
+
     debugPrint(
       '$error',
     );
+
     debugPrint(
       '------------------------------------------------------------',
     );
+
     debugPrint(
       '$stackTrace',
     );
+
     debugPrint(
       '============================================================',
     );
+
     debugPrint(
       '',
     );

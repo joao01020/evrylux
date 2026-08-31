@@ -5,7 +5,7 @@
 |
 | Centraliza a criação das dependências da aplicação.
 |
-| Arquitetura:
+| Arquitetura principal:
 |
 | Controller
 |      ↓
@@ -13,7 +13,21 @@
 |      ↓
 | Repository
 |      ↓
-| LocalStorage / Supabase / API externa
+| SQLite local / SyncQueue / Supabase / API externa
+|
+| Estratégia offline-first:
+|
+| Interface
+|      ↓
+| Repository
+|      ↓
+| salva primeiro no SQLite
+|      ↓
+| registra alteração na SyncQueue
+|      ↓
+| SyncService
+|      ↓
+| Supabase quando houver conexão
 |
 |--------------------------------------------------------------------------
 */
@@ -27,10 +41,28 @@ import 'package:supabase_flutter/supabase_flutter.dart'
         LocalStorage;
 
 // ======================================================
-// STORAGE
+// CORE - STORAGE
 // ======================================================
 
 import '../../core/storage/local_storage.dart';
+
+// ======================================================
+// CORE - DATABASE
+// ======================================================
+
+import '../../core/database/app_database.dart';
+import '../../core/database/daos/reminder_dao.dart';
+import '../../core/database/daos/routine_dao.dart';
+
+// ======================================================
+// CORE - SYNC
+// ======================================================
+
+import '../../core/sync/connectivity_service.dart';
+import '../../core/sync/sync_item.dart';
+import '../../core/sync/sync_queue.dart';
+import '../../core/sync/sync_service.dart';
+import '../../core/sync/sync_status.dart';
 
 // ======================================================
 // CONTROLLERS
@@ -62,6 +94,12 @@ import '../../routine/data/datasources/routine_memory_datasource.dart';
 import '../../routine/data/datasources/routine_remote_data_source.dart';
 
 import '../../routine/data/repositories/routine_repository_impl.dart';
+
+// ======================================================
+// FINANCE LOCAL DATASOURCE
+// ======================================================
+
+import '../../finance/data/datasources/finance_local_data_source.dart';
 
 // ======================================================
 // REPOSITORIES
@@ -125,10 +163,75 @@ get supabaseClient {
 }
 
 // ======================================================
-// ROUTINE LOCAL DATASOURCE
+// LOCAL DATABASE
 // ======================================================
 
-final routineLocalDataSource = RoutineMemoryDataSource();
+final appDatabase = AppDatabase.instance;
+
+// ======================================================
+// CONNECTIVITY
+// ======================================================
+
+final connectivityService = ConnectivityService(
+  checkInterval: const Duration(
+    seconds: 15,
+  ),
+);
+
+// ======================================================
+// SYNC QUEUE
+// ======================================================
+
+final syncQueue = SyncQueue(
+  database: appDatabase,
+);
+
+// ======================================================
+// SYNC SERVICE
+// ======================================================
+
+final syncService = SyncService(
+  queue: syncQueue,
+
+  connectivityService: connectivityService,
+
+  client: supabaseClient,
+
+  syncInterval: const Duration(
+    seconds: 20,
+  ),
+
+  batchSize: 50,
+);
+
+// ======================================================
+// FINANCE LOCAL DATASOURCE
+// ======================================================
+
+final financeLocalDataSource = FinanceLocalDataSource(
+  database: appDatabase,
+);
+
+// ======================================================
+// ROUTINE DAO
+// ======================================================
+
+final routineDao = RoutineDao(
+  database: appDatabase,
+);
+
+// ======================================================
+// ROUTINE LOCAL DATASOURCE
+// ======================================================
+//
+// Apesar do nome "Memory", esta implementação já usa
+// RoutineDao + SQLite.
+//
+// ======================================================
+
+final routineLocalDataSource = RoutineMemoryDataSource(
+  dao: routineDao,
+);
 
 // ======================================================
 // ROUTINE REMOTE DATASOURCE
@@ -139,7 +242,365 @@ final routineRemoteDataSource = RoutineRemoteDataSource(
 );
 
 // ======================================================
+// REMINDER DAO
+// ======================================================
+//
+// Persistência SQLite dos lembretes.
+//
+// ======================================================
+
+final reminderDao = ReminderDao(
+  database: appDatabase,
+);
+
+// ======================================================
+// SYNC HANDLERS
+// ======================================================
+
+bool
+_syncHandlersRegistered = false;
+
+// ======================================================
+// REGISTER SYNC HANDLERS
+// ======================================================
+//
+// Entidades atualmente registradas:
+//
+// finance
+// routine_day
+// reminder
+//
+// ======================================================
+
+void
+registerSyncHandlers() {
+  if (_syncHandlersRegistered) {
+    return;
+  }
+
+  // ====================================================
+  // FINANCE
+  // ====================================================
+
+  syncService.registerHandler(
+    entityType: 'finance',
+
+    handler:
+        (
+          item,
+        ) async {
+          switch (item.operation) {
+            case SyncOperation.create:
+            case SyncOperation.update:
+              final payload =
+                  Map<
+                    String,
+                    dynamic
+                  >.from(
+                    item.payload,
+                  );
+
+              payload.putIfAbsent(
+                'user_id',
+                () => item.entityId,
+              );
+
+              await supabaseClient
+                  .from(
+                    'finance_data',
+                  )
+                  .upsert(
+                    payload,
+                    onConflict: 'user_id',
+                  );
+
+              await financeLocalDataSource.setSyncStatus(
+                item.entityId,
+                SyncStatus.synced,
+              );
+
+              break;
+
+            case SyncOperation.delete:
+              await supabaseClient
+                  .from(
+                    'finance_data',
+                  )
+                  .delete()
+                  .eq(
+                    'user_id',
+                    item.entityId,
+                  );
+
+              await financeLocalDataSource.deletePermanently(
+                item.entityId,
+              );
+
+              break;
+          }
+        },
+  );
+
+  // ====================================================
+  // ROUTINE
+  // ====================================================
+
+  syncService.registerHandler(
+    entityType: 'routine_day',
+
+    handler:
+        (
+          item,
+        ) async {
+          final payload =
+              Map<
+                String,
+                dynamic
+              >.from(
+                item.payload,
+              );
+
+          final userId = payload['user_id']?.toString().trim();
+
+          if (userId ==
+                  null ||
+              userId.isEmpty) {
+            throw StateError(
+              'Operação de rotina sem user_id.',
+            );
+          }
+
+          routineRemoteDataSource.ensureAuthenticatedUser(
+            userId,
+          );
+
+          switch (item.operation) {
+            case SyncOperation.create:
+            case SyncOperation.update:
+              payload['id'] = item.entityId;
+
+              payload['user_id'] = userId;
+
+              await routineRemoteDataSource.saveDay(
+                userId: userId,
+                data: payload,
+              );
+
+              await routineLocalDataSource.markSynced(
+                item.entityId,
+              );
+
+              break;
+
+            case SyncOperation.delete:
+              await routineRemoteDataSource.deleteDay(
+                userId: userId,
+                dayId: item.entityId,
+              );
+
+              await routineDao.deletePermanently(
+                item.entityId,
+              );
+
+              break;
+          }
+        },
+  );
+
+  // ====================================================
+  // REMINDER
+  // ====================================================
+  //
+  // CREATE / UPDATE
+  //      ↓
+  // UPSERT reminders
+  //      ↓
+  // marca SQLite como synced
+  //
+  // DELETE
+  //      ↓
+  // DELETE reminders
+  //      ↓
+  // remove tombstone do SQLite
+  //
+  // ====================================================
+
+  syncService.registerHandler(
+    entityType: 'reminder',
+
+    handler:
+        (
+          item,
+        ) async {
+          final payload =
+              Map<
+                String,
+                dynamic
+              >.from(
+                item.payload,
+              );
+
+          final userId = payload['user_id']?.toString().trim();
+
+          switch (item.operation) {
+            case SyncOperation.create:
+            case SyncOperation.update:
+              if (userId ==
+                      null ||
+                  userId.isEmpty) {
+                throw StateError(
+                  'Operação de lembrete sem user_id.',
+                );
+              }
+
+              final currentUser = supabaseClient.auth.currentUser;
+
+              if (currentUser ==
+                  null) {
+                throw StateError(
+                  'Usuário não autenticado.',
+                );
+              }
+
+              if (currentUser.id !=
+                  userId) {
+                throw StateError(
+                  'O lembrete não pertence ao usuário autenticado.',
+                );
+              }
+
+              payload['id'] = item.entityId;
+
+              payload['user_id'] = userId;
+
+              await supabaseClient
+                  .from(
+                    'reminders',
+                  )
+                  .upsert(
+                    payload,
+                    onConflict: 'id',
+                  );
+
+              await reminderDao.setSyncStatus(
+                item.entityId,
+                SyncStatus.synced,
+              );
+
+              break;
+
+            case SyncOperation.delete:
+              final currentUser = supabaseClient.auth.currentUser;
+
+              if (currentUser ==
+                  null) {
+                throw StateError(
+                  'Usuário não autenticado.',
+                );
+              }
+
+              await supabaseClient
+                  .from(
+                    'reminders',
+                  )
+                  .delete()
+                  .eq(
+                    'id',
+                    item.entityId,
+                  )
+                  .eq(
+                    'user_id',
+                    userId ??
+                        currentUser.id,
+                  );
+
+              await reminderDao.deletePermanently(
+                item.entityId,
+              );
+
+              break;
+          }
+        },
+  );
+
+  _syncHandlersRegistered = true;
+}
+
+// ======================================================
+// INITIALIZE OFFLINE-FIRST
+// ======================================================
+//
+// Deve ser chamado uma vez na janela principal após:
+//
+// Supabase.initialize(...)
+//
+// ======================================================
+
+Future<
+  void
+>
+initializeOfflineFirst() async {
+  // ----------------------------------------------------
+  // DATABASE
+  // ----------------------------------------------------
+
+  await appDatabase.initialize();
+
+  // ----------------------------------------------------
+  // HANDLERS
+  // ----------------------------------------------------
+
+  registerSyncHandlers();
+
+  // ----------------------------------------------------
+  // SERVICE
+  // ----------------------------------------------------
+
+  await syncService.start();
+}
+
+// ======================================================
+// REFRESH SYNC STATUS
+// ======================================================
+
+Future<
+  void
+>
+refreshSyncStatus() async {
+  await syncService.refreshPendingCount();
+
+  await connectivityService.checkNow();
+}
+
+// ======================================================
+// FORCE SYNC
+// ======================================================
+
+Future<
+  void
+>
+forceSyncNow() async {
+  await syncService.syncNow(
+    checkConnection: true,
+  );
+}
+
+// ======================================================
 // ROUTINE REPOSITORY
+// ======================================================
+//
+// Routine UI
+//      ↓
+// RoutineRepositoryImpl
+//      ↓
+// SQLite
+//      ↓
+// SyncQueue
+//      ↓
+// SyncService
+//      ↓
+// Supabase
+//
 // ======================================================
 
 final routineRepository = RoutineRepositoryImpl(
@@ -147,14 +608,16 @@ final routineRepository = RoutineRepositoryImpl(
 
   remoteDataSource: routineRemoteDataSource,
 
-  fallbackToLocalOnRemoteError: false,
+  syncQueue: syncQueue,
+
+  syncService: syncService,
+
+  fallbackToLocalOnRemoteError: true,
 );
 
 // ======================================================
 // FINANCE
 // ======================================================
-//
-// Fluxo:
 //
 // FinanceController
 //      ↓
@@ -162,16 +625,24 @@ final routineRepository = RoutineRepositoryImpl(
 //      ↓
 // FinanceRepository
 //      ↓
+// SQLite
+//      ↓
+// SyncQueue
+//      ↓
+// SyncService
+//      ↓
 // Supabase
-//
-// O FinanceRepository utiliza:
-//
-// Supabase.instance.client.auth.currentUser
 //
 // ======================================================
 
 final financeRepository = FinanceRepository(
   client: supabaseClient,
+
+  localDataSource: financeLocalDataSource,
+
+  syncQueue: syncQueue,
+
+  syncService: syncService,
 );
 
 final financeService = FinanceService(
@@ -184,21 +655,6 @@ final financeController = FinanceController(
 
 // ======================================================
 // CRYPTO REPOSITORY
-// ======================================================
-//
-// Atualmente as transações de criptomoedas
-// continuam sendo persistidas em LocalStorage.
-//
-// Fluxo:
-//
-// CryptoController
-//      ↓
-// CryptoService
-//      ↓
-// CryptoRepository
-//      ↓
-// LocalStorage
-//
 // ======================================================
 
 final cryptoRepository = CryptoRepository(
@@ -215,21 +671,6 @@ final cryptoService = CryptoService(
 
 // ======================================================
 // CRYPTO PRICE SERVICE
-// ======================================================
-//
-// Responsável por buscar:
-//
-// BTC
-// ETH
-// SOL
-// USDT
-//
-// com cotação atual em BRL.
-//
-// Esse serviço NÃO salva transações.
-//
-// Ele apenas consulta preços atuais.
-//
 // ======================================================
 
 final cryptoPriceService = CryptoPriceService();
@@ -273,14 +714,6 @@ final studyController = StudyController(
 // ======================================================
 // EVOLUTION
 // ======================================================
-//
-// EvolutionRepository continua recebendo
-// o mesmo FinanceRepository.
-//
-// Isso permite que a Evolution também enxergue
-// os dados financeiros carregados do Supabase.
-//
-// ======================================================
 
 final evolutionRepository = EvolutionRepository(
   studyRepository: studyRepository,
@@ -320,7 +753,7 @@ final journeyController = JourneyController(
 // REMINDERS
 // ======================================================
 //
-// Fluxo:
+// NOVO FLUXO:
 //
 // ReminderService
 //      ↓
@@ -328,15 +761,16 @@ final journeyController = JourneyController(
 //      ↓
 // ReminderRepository
 //      ↓
+// ReminderDao / SQLite
+//      ↓
+// SyncQueue
+//      ↓
+// SyncService
+//      ↓
 // Supabase
 //
-// A tabela utilizada é:
-//
-// public.reminders
-//
-// O usuário é identificado através de:
-//
-// Supabase.instance.client.auth.currentUser
+// O lembrete pode ser criado, atualizado, concluído,
+// reaberto e removido mesmo sem internet.
 //
 // ======================================================
 
@@ -346,6 +780,12 @@ final journeyController = JourneyController(
 
 final reminderRepository = ReminderRepository(
   client: supabaseClient,
+
+  localDao: reminderDao,
+
+  syncQueue: syncQueue,
+
+  syncService: syncService,
 );
 
 // ======================================================
@@ -360,26 +800,17 @@ final reminderController = ReminderController(
 // REMINDER SERVICE
 // ======================================================
 //
-// O serviço é global, mas ainda NÃO começa o timer
-// automaticamente.
+// Continua sendo iniciado pela camada com acesso ao contexto
+// global da interface para exibir o lembrete dentro do app.
 //
-// Ele será iniciado depois que tivermos acesso ao
-// contexto global da interface.
-//
-// Isso permite mostrar a notificação do lembrete
-// dentro do aplicativo.
+// A diferença é que agora o ReminderRepository consegue buscar
+// lembretes vencidos diretamente do SQLite, inclusive offline.
 //
 // ======================================================
 
 final reminderService = ReminderService(
   controller: reminderController,
 
-  // ----------------------------------------------------
-  // A cada 30 segundos verificamos se existe algum
-  // lembrete vencido.
-  //
-  // Depois podemos aumentar ou diminuir esse intervalo.
-  // ----------------------------------------------------
   checkInterval: const Duration(
     seconds: 30,
   ),
