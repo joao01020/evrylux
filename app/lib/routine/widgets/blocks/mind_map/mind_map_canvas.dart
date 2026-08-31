@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../controllers/mind_map_controller.dart';
@@ -172,123 +174,141 @@ class _MindMapCanvasState
             context,
             constraints,
           ) {
-            final canvasWidth = constraints.maxWidth;
+            final blockWidth = widget.block.width;
 
-            return Container(
-              height: widget.height,
-              decoration: BoxDecoration(
-                color: _canvasBackground,
-                borderRadius: BorderRadius.circular(
-                  15,
-                ),
-                border: Border.all(
-                  color: _canvasBorder,
-                ),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(
-                      0x33000000,
-                    ),
-                    blurRadius: 12,
-                    offset: Offset(
-                      0,
-                      5,
-                    ),
+            final blockHeight = widget.block.height;
+
+            final canvasWidth = math.max(
+              constraints.maxWidth,
+              blockWidth ??
+                  constraints.maxWidth,
+            );
+
+            final canvasHeight = math.max(
+              widget.height,
+              blockHeight ??
+                  widget.height,
+            );
+
+            return SizedBox(
+              width: canvasWidth,
+              height: canvasHeight,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: _canvasBackground,
+                  borderRadius: BorderRadius.circular(
+                    15,
                   ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(
-                  15,
-                ),
-                child: Stack(
-                  children: [
-                    // =================================================
-                    // FUNDO
-                    // =================================================
-                    const Positioned.fill(
-                      child: ColoredBox(
-                        color: _canvasBackground,
+                  border: Border.all(
+                    color: _canvasBorder,
+                  ),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(
+                        0x33000000,
                       ),
-                    ),
-
-                    // =================================================
-                    // GRID
-                    // =================================================
-                    const Positioned.fill(
-                      child: CustomPaint(
-                        painter: _MindMapGridPainter(),
-                      ),
-                    ),
-
-                    // =================================================
-                    // CONEXÕES
-                    // =================================================
-                    Positioned.fill(
-                      child: CustomPaint(
-                        painter: MindMapConnectionsPainter(
-                          nodes: widget.block.mindNodes,
-                          controller: widget.controller,
-                          color: _green,
-                        ),
-                      ),
-                    ),
-
-                    // =================================================
-                    // NÓS
-                    // =================================================
-                    for (final node in widget.block.mindNodes)
-                      _positionedNode(
-                        node: node,
-                        canvasWidth: canvasWidth,
-                      ),
-
-                    // =================================================
-                    // DICA
-                    // =================================================
-                    Positioned(
-                      left: 12,
-                      bottom: 10,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _hintBackground,
-                          borderRadius: BorderRadius.circular(
-                            9,
-                          ),
-                          border: Border.all(
-                            color: _canvasBorder,
-                          ),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.account_tree_outlined,
-                              color: _green,
-                              size: 13,
-                            ),
-
-                            SizedBox(
-                              width: 6,
-                            ),
-
-                            Text(
-                              'Passe o mouse • escolha uma porta • arraste os nós',
-                              style: TextStyle(
-                                color: _muted,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
+                      blurRadius: 12,
+                      offset: Offset(
+                        0,
+                        5,
                       ),
                     ),
                   ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(
+                    15,
+                  ),
+                  child: Stack(
+                    children: [
+                      // =================================================
+                      // FUNDO
+                      // =================================================
+                      const Positioned.fill(
+                        child: ColoredBox(
+                          color: _canvasBackground,
+                        ),
+                      ),
+
+                      // =================================================
+                      // GRID
+                      // =================================================
+                      const Positioned.fill(
+                        child: CustomPaint(
+                          painter: _MindMapGridPainter(),
+                        ),
+                      ),
+
+                      // =================================================
+                      // CONEXÕES
+                      // =================================================
+                      Positioned.fill(
+                        child: CustomPaint(
+                          painter: MindMapConnectionsPainter(
+                            nodes: widget.block.mindNodes,
+                            controller: widget.controller,
+                            color: _green,
+                          ),
+                        ),
+                      ),
+
+                      // =================================================
+                      // NÓS
+                      // =================================================
+                      for (final node in widget.block.mindNodes)
+                        _positionedNode(
+                          node: node,
+                          canvasWidth: canvasWidth,
+                          canvasHeight: canvasHeight,
+                        ),
+
+                      // =================================================
+                      // DICA
+                      // =================================================
+                      Positioned(
+                        left: 12,
+                        bottom: 10,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _hintBackground,
+                            borderRadius: BorderRadius.circular(
+                              9,
+                            ),
+                            border: Border.all(
+                              color: _canvasBorder,
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.account_tree_outlined,
+                                color: _green,
+                                size: 13,
+                              ),
+
+                              SizedBox(
+                                width: 6,
+                              ),
+
+                              Text(
+                                'Passe o mouse • escolha uma porta • arraste os nós',
+                                style: TextStyle(
+                                  color: _muted,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -310,6 +330,7 @@ class _MindMapCanvasState
   Widget _positionedNode({
     required MindMapNode node,
     required double canvasWidth,
+    required double canvasHeight,
   }) {
     final size = widget.controller.nodeSize(
       node,
@@ -328,7 +349,7 @@ class _MindMapCanvasState
         node: node,
         controller: widget.controller,
         canvasWidth: canvasWidth,
-        canvasHeight: widget.height,
+        canvasHeight: canvasHeight,
         hovered:
             _hoveredNodeId ==
             node.id,

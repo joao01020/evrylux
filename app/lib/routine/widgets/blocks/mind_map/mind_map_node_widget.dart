@@ -8,7 +8,7 @@ import 'mind_map_port_widget.dart';
 
 class MindMapNodeWidget
     extends
-        StatelessWidget {
+        StatefulWidget {
   const MindMapNodeWidget({
     super.key,
     required this.block,
@@ -41,6 +41,20 @@ class MindMapNodeWidget
   >
   onHoverChanged;
 
+  @override
+  State<
+    MindMapNodeWidget
+  >
+  createState() {
+    return _MindMapNodeWidgetState();
+  }
+}
+
+class _MindMapNodeWidgetState
+    extends
+        State<
+          MindMapNodeWidget
+        > {
   // ============================================================
   // CORES
   // ============================================================
@@ -78,6 +92,142 @@ class MindMapNodeWidget
   static const double _lineHeight = 1.25;
 
   // ============================================================
+  // CONTROLLERS
+  // ============================================================
+
+  late final TextEditingController _textController;
+
+  late final FocusNode _focusNode;
+
+  bool _finishingEdit = false;
+
+  // ============================================================
+  // INIT
+  // ============================================================
+
+  @override
+  void initState() {
+    super.initState();
+
+    _textController = TextEditingController(
+      text: widget.node.label,
+    );
+
+    _focusNode = FocusNode();
+
+    _focusNode.addListener(
+      _handleFocusChange,
+    );
+
+    if (widget.node.isEditing) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (
+          _,
+        ) {
+          if (!mounted) {
+            return;
+          }
+
+          _requestEditorFocus();
+        },
+      );
+    }
+  }
+
+  // ============================================================
+  // DID UPDATE
+  // ============================================================
+
+  @override
+  void didUpdateWidget(
+    covariant MindMapNodeWidget oldWidget,
+  ) {
+    super.didUpdateWidget(
+      oldWidget,
+    );
+
+    // ==========================================================
+    // TROCA REAL DE NÓ
+    // ==========================================================
+    //
+    // Se este State passar a representar outro nó, sincronizamos
+    // o controller com o novo conteúdo.
+    //
+    // ==========================================================
+
+    if (oldWidget.node.id !=
+        widget.node.id) {
+      _textController.value = TextEditingValue(
+        text: widget.node.label,
+        selection: TextSelection.collapsed(
+          offset: widget.node.label.length,
+        ),
+      );
+
+      if (widget.node.isEditing) {
+        WidgetsBinding.instance.addPostFrameCallback(
+          (
+            _,
+          ) {
+            if (!mounted) {
+              return;
+            }
+
+            _requestEditorFocus();
+          },
+        );
+      }
+
+      return;
+    }
+
+    // ==========================================================
+    // NÃO SOBRESCREVER ENQUANTO DIGITA
+    // ==========================================================
+    //
+    // Durante a edição, o TextEditingController é a fonte do
+    // texto visível.
+    //
+    // O MindMapController mantém apenas um draft temporário para
+    // calcular o tamanho do nó.
+    //
+    // Assim, notifyListeners() pode redimensionar o canvas sem
+    // fazer a letra recém-digitada desaparecer.
+    //
+    // ==========================================================
+
+    if (widget.node.isEditing) {
+      return;
+    }
+
+    // ==========================================================
+    // SINCRONIZAÇÃO FORA DA EDIÇÃO
+    // ==========================================================
+
+    if (_textController.text !=
+        widget.node.label) {
+      _syncControllerFromNode();
+    }
+  }
+
+  // ============================================================
+  // DISPOSE
+  // ============================================================
+
+  @override
+  void dispose() {
+    _focusNode.removeListener(
+      _handleFocusChange,
+    );
+
+    _focusNode.dispose();
+
+    _textController.dispose();
+
+    super.dispose();
+  }
+
+  // ============================================================
   // BUILD
   // ============================================================
 
@@ -86,41 +236,67 @@ class MindMapNodeWidget
     BuildContext context,
   ) {
     return MouseRegion(
-      cursor: node.isEditing
+      cursor: widget.node.isEditing
           ? SystemMouseCursors.text
           : SystemMouseCursors.move,
+
       onEnter:
           (
             _,
           ) {
-            onHoverChanged(
+            widget.onHoverChanged(
               true,
             );
           },
+
       onExit:
           (
             _,
           ) {
-            onHoverChanged(
+            widget.onHoverChanged(
               false,
             );
           },
+
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
 
         // ========================================================
         // MOVER NÓ
         // ========================================================
-        onPanUpdate: node.isEditing
+        onPanUpdate: widget.node.isEditing
             ? null
             : (
                 details,
               ) {
-                controller.moveNode(
-                  node: node,
+                widget.controller.moveNode(
+                  node: widget.node,
                   delta: details.delta,
-                  canvasWidth: canvasWidth,
-                  canvasHeight: canvasHeight,
+                  canvasWidth: widget.canvasWidth,
+                  canvasHeight: widget.canvasHeight,
+                );
+              },
+
+        // ========================================================
+        // FINALIZAR MOVIMENTO
+        // ========================================================
+        onPanEnd: widget.node.isEditing
+            ? null
+            : (
+                _,
+              ) {
+                widget.controller.commitNodePosition(
+                  block: widget.block,
+                  node: widget.node,
+                );
+              },
+
+        onPanCancel: widget.node.isEditing
+            ? null
+            : () {
+                widget.controller.commitNodePositionAfterCancel(
+                  block: widget.block,
+                  node: widget.node,
                 );
               },
 
@@ -128,8 +304,26 @@ class MindMapNodeWidget
         // EDITAR
         // ========================================================
         onDoubleTap: () {
-          controller.startEditing(
-            node,
+          if (widget.node.isEditing) {
+            return;
+          }
+
+          _syncControllerFromNode();
+
+          widget.controller.startEditing(
+            widget.node,
+          );
+
+          WidgetsBinding.instance.addPostFrameCallback(
+            (
+              _,
+            ) {
+              if (!mounted) {
+                return;
+              }
+
+              _requestEditorFocus();
+            },
           );
         },
 
@@ -140,9 +334,7 @@ class MindMapNodeWidget
             // CORPO
             // ==================================================
             Positioned.fill(
-              child: _nodeBody(
-                context,
-              ),
+              child: _nodeBody(),
             ),
 
             // ==================================================
@@ -153,15 +345,15 @@ class MindMapNodeWidget
                 port: port,
                 color: _green,
                 visible:
-                    hovered &&
-                    !node.isEditing,
+                    widget.hovered &&
+                    !widget.node.isEditing,
                 onTap: () {
-                  controller.createConnectedNode(
-                    block: block,
-                    parent: node,
+                  widget.controller.createConnectedNode(
+                    block: widget.block,
+                    parent: widget.node,
                     sourcePort: port,
-                    canvasWidth: canvasWidth,
-                    canvasHeight: canvasHeight,
+                    canvasWidth: widget.canvasWidth,
+                    canvasHeight: widget.canvasHeight,
                   );
                 },
               ),
@@ -175,30 +367,33 @@ class MindMapNodeWidget
   // NODE BODY
   // ============================================================
 
-  Widget _nodeBody(
-    BuildContext context,
-  ) {
+  Widget _nodeBody() {
     return AnimatedContainer(
       duration: const Duration(
         milliseconds: 160,
       ),
+
       decoration: BoxDecoration(
-        color: node.isRoot
+        color: widget.node.isRoot
             ? _greenLight
             : _surface,
+
         borderRadius: BorderRadius.circular(
           13,
         ),
+
         border: Border.all(
-          color: node.isRoot
+          color: widget.node.isRoot
               ? _green
-              : hovered
+              : widget.hovered
               ? _green
               : _greenBorder,
-          width: node.isRoot
+
+          width: widget.node.isRoot
               ? 1.6
               : 1.2,
         ),
+
         boxShadow: const [
           BoxShadow(
             color: Color(
@@ -213,19 +408,12 @@ class MindMapNodeWidget
         ],
       ),
 
-      // ========================================================
-      // PADDING
-      // ========================================================
-      //
-      // Mantemos padding vertical para o texto poder crescer
-      // sem encostar nas bordas do nó.
-      //
-      // ========================================================
       child: Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: 12,
           vertical: 10,
         ),
+
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
@@ -233,7 +421,7 @@ class MindMapNodeWidget
             // LABEL / EDITOR
             // ====================================================
             Expanded(
-              child: node.isEditing
+              child: widget.node.isEditing
                   ? _editor()
                   : _label(),
             ),
@@ -241,26 +429,29 @@ class MindMapNodeWidget
             // ====================================================
             // DELETE
             // ====================================================
-            if (!node.isRoot &&
-                !node.isEditing) ...[
+            if (!widget.node.isRoot &&
+                !widget.node.isEditing) ...[
               const SizedBox(
                 width: 6,
               ),
 
               InkWell(
                 onTap: () {
-                  controller.deleteNode(
-                    block: block,
-                    nodeId: node.id,
+                  widget.controller.deleteNode(
+                    block: widget.block,
+                    nodeId: widget.node.id,
                   );
                 },
+
                 borderRadius: BorderRadius.circular(
                   8,
                 ),
+
                 child: const Padding(
                   padding: EdgeInsets.all(
                     4,
                   ),
+
                   child: Icon(
                     Icons.close_rounded,
                     size: 14,
@@ -280,62 +471,52 @@ class MindMapNodeWidget
   // ============================================================
 
   Widget _editor() {
-    return TextFormField(
-      key: ValueKey(
-        'edit-${node.id}',
-      ),
+    return TextField(
+      controller: _textController,
 
-      initialValue: node.label,
-
-      autofocus: true,
+      focusNode: _focusNode,
 
       // ========================================================
       // MULTILINHA
       // ========================================================
-      //
-      // Agora o editor cresce conforme o texto.
-      //
-      // ========================================================
       minLines: 1,
 
       maxLines: null,
+
+      // ========================================================
+      // SEM SCROLL INTERNO
+      // ========================================================
+      //
+      // O nó cresce junto com o conteúdo. O próprio TextField não
+      // cria uma área rolável interna.
+      //
+      // ========================================================
+      scrollPhysics: const NeverScrollableScrollPhysics(),
 
       keyboardType: TextInputType.multiline,
 
       textInputAction: TextInputAction.newline,
 
       // ========================================================
-      // FINALIZAR AO CLICAR FORA
-      // ========================================================
-      onTapOutside:
-          (
-            _,
-          ) {
-            controller.finishEditing(
-              block: block,
-              node: node,
-              value: node.label,
-            );
-          },
-
-      // ========================================================
-      // ATUALIZAÇÃO EM TEMPO REAL
+      // DRAFT RESPONSIVO
       // ========================================================
       //
-      // O label é alterado enquanto o usuário digita.
+      // O TextEditingController mantém texto, cursor e seleção.
       //
-      // Também notificamos o controller para o canvas poder
-      // recalcular o tamanho do nó conforme o texto cresce.
+      // O controller recebe somente um draft temporário para
+      // recalcular o tamanho do nó em tempo real.
+      //
+      // O texto definitivo só é salvo em finishEditing().
       //
       // ========================================================
       onChanged:
           (
             value,
           ) {
-            node.label = value;
-
-            controller.startEditing(
-              node,
+            widget.controller.updateNodeLabel(
+              block: widget.block,
+              node: widget.node,
+              value: value,
             );
           },
 
@@ -376,25 +557,9 @@ class MindMapNodeWidget
   // ============================================================
 
   Widget _label() {
-    final value = node.label.trim().isEmpty
-        ? 'Nova ideia'
-        : node.label;
-
     return Text(
-      value,
+      widget.node.label,
 
-      // ========================================================
-      // TEXTO COMPLETO
-      // ========================================================
-      //
-      // Não usamos:
-      //
-      // maxLines
-      // TextOverflow.ellipsis
-      //
-      // Portanto o texto pode ocupar quantas linhas precisar.
-      //
-      // ========================================================
       softWrap: true,
 
       overflow: TextOverflow.visible,
@@ -402,12 +567,103 @@ class MindMapNodeWidget
       textAlign: TextAlign.left,
 
       style: TextStyle(
-        color: node.isRoot
+        color: widget.node.isRoot
             ? _green
             : _text,
+
         fontSize: _fontSize,
+
         fontWeight: FontWeight.w600,
+
         height: _lineHeight,
+      ),
+    );
+  }
+
+  // ============================================================
+  // FOCO
+  // ============================================================
+
+  void _requestEditorFocus() {
+    if (!widget.node.isEditing) {
+      return;
+    }
+
+    if (!_focusNode.hasFocus) {
+      _focusNode.requestFocus();
+    }
+
+    _textController.selection = TextSelection.collapsed(
+      offset: _textController.text.length,
+    );
+  }
+
+  // ============================================================
+  // ALTERAÇÃO DO FOCO
+  // ============================================================
+
+  void _handleFocusChange() {
+    if (_focusNode.hasFocus) {
+      return;
+    }
+
+    if (!widget.node.isEditing) {
+      return;
+    }
+
+    _finishEditing();
+  }
+
+  // ============================================================
+  // FINALIZAR EDIÇÃO
+  // ============================================================
+
+  void _finishEditing() {
+    if (_finishingEdit) {
+      return;
+    }
+
+    if (!widget.node.isEditing) {
+      return;
+    }
+
+    _finishingEdit = true;
+
+    final value = _textController.text;
+
+    widget.controller.finishEditing(
+      block: widget.block,
+      node: widget.node,
+      value: value,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    if (!widget.node.isEditing) {
+      _syncControllerFromNode();
+    }
+
+    _finishingEdit = false;
+  }
+
+  // ============================================================
+  // SINCRONIZAR CONTROLLER
+  // ============================================================
+
+  void _syncControllerFromNode() {
+    final value = widget.node.label;
+
+    if (_textController.text ==
+        value) {
+      return;
+    }
+
+    _textController.value = TextEditingValue(
+      text: value,
+      selection: TextSelection.collapsed(
+        offset: value.length,
       ),
     );
   }

@@ -1161,6 +1161,97 @@ class _RoutineScreenState
     _routineController.notifyBlockChanged();
   }
 
+  // ============================================================
+  // TAMANHO ADAPTATIVO DA LOUSA
+  // ============================================================
+  //
+  // A lousa nunca reduz um mapa mental para caber no viewport.
+  //
+  // Em vez disso:
+  //
+  // 1. o bloco mantém block.width / block.height;
+  // 2. calculamos quanto espaço os blocos realmente ocupam;
+  // 3. a lousa cresce para comportar esse conteúdo;
+  // 4. quando necessário, aparece rolagem horizontal/vertical.
+  //
+  // Isso faz o tamanho persistido sobreviver ao modo expandido
+  // e ao retorno para a visualização normal.
+  //
+  // ============================================================
+
+  double _adaptiveBoardWidth({
+    required RoutineDay day,
+    required double minimumWidth,
+    double rightPadding = 80,
+  }) {
+    var requiredWidth = minimumWidth;
+
+    for (final block in day.blocks) {
+      final position =
+          block.position ??
+          Offset.zero;
+
+      final blockWidth =
+          block.type ==
+              BlockType.mindMap
+          ? math
+                .max(
+                  420.0,
+                  block.width ??
+                      620.0,
+                )
+                .toDouble()
+          : _boardController.blockWidth(
+              block: block,
+              boardWidth: minimumWidth,
+            );
+
+      requiredWidth = math.max(
+        requiredWidth,
+        position.dx +
+            blockWidth +
+            rightPadding,
+      );
+    }
+
+    return requiredWidth.toDouble();
+  }
+
+  double _adaptiveBoardHeight({
+    required RoutineDay day,
+    required double minimumHeight,
+    double bottomPadding = 100,
+  }) {
+    var requiredHeight = minimumHeight;
+
+    for (final block in day.blocks) {
+      final position =
+          block.position ??
+          Offset.zero;
+
+      final blockHeight =
+          block.type ==
+              BlockType.mindMap
+          ? math
+                .max(
+                  320.0,
+                  block.height ??
+                      430.0,
+                )
+                .toDouble()
+          : 430.0;
+
+      requiredHeight = math.max(
+        requiredHeight,
+        position.dy +
+            blockHeight +
+            bottomPadding,
+      );
+    }
+
+    return requiredHeight.toDouble();
+  }
+
   @override
   Widget build(
     BuildContext context,
@@ -1419,7 +1510,7 @@ class _RoutineScreenState
                 ? 12.0
                 : 20.0;
 
-            final boardWidth = math
+            final minimumBoardWidth = math
                 .max(
                   1.0,
                   viewport.maxWidth -
@@ -1438,15 +1529,32 @@ class _RoutineScreenState
 
             _boardController.initializePositions(
               day: day,
-              boardWidth: boardWidth,
+              boardWidth: minimumBoardWidth,
             );
 
-            final boardHeight = _boardController.canvasHeight(
+            final controllerHeight = _boardController.canvasHeight(
               day: day,
               minimumHeight: minimumHeight,
               estimatedBlockHeight: 430,
               bottomPadding: 80,
             );
+
+            final boardWidth = _adaptiveBoardWidth(
+              day: day,
+              minimumWidth: minimumBoardWidth,
+              rightPadding: 80,
+            );
+
+            final boardHeight = math
+                .max(
+                  controllerHeight,
+                  _adaptiveBoardHeight(
+                    day: day,
+                    minimumHeight: minimumHeight,
+                    bottomPadding: 80,
+                  ),
+                )
+                .toDouble();
 
             return SingleChildScrollView(
               padding: EdgeInsets.fromLTRB(
@@ -1467,104 +1575,107 @@ class _RoutineScreenState
                     height: 12,
                   ),
 
-                  Container(
-                    width: boardWidth,
-                    height: boardHeight,
-                    decoration: BoxDecoration(
-                      color: _surface,
-                      borderRadius: BorderRadius.circular(
-                        18,
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Container(
+                      width: boardWidth,
+                      height: boardHeight,
+                      decoration: BoxDecoration(
+                        color: _surface,
+                        borderRadius: BorderRadius.circular(
+                          18,
+                        ),
+                        border: Border.all(
+                          color: _border,
+                        ),
                       ),
-                      border: Border.all(
-                        color: _border,
-                      ),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(
-                        18,
-                      ),
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          const Positioned.fill(
-                            child: CustomPaint(
-                              painter: _GridPainter(),
-                            ),
-                          ),
-
-                          if (day.blocks.isEmpty)
-                            Positioned.fill(
-                              child: _EmptyBoard(
-                                onAddBlock: _addBlock,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(
+                          18,
+                        ),
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            const Positioned.fill(
+                              child: CustomPaint(
+                                painter: _GridPainter(),
                               ),
                             ),
 
-                          for (final block in day.blocks)
-                            _positionedBlock(
+                            if (day.blocks.isEmpty)
+                              Positioned.fill(
+                                child: _EmptyBoard(
+                                  onAddBlock: _addBlock,
+                                ),
+                              ),
+
+                            for (final block in day.blocks)
+                              _positionedBlock(
+                                day: day,
+                                block: block,
+                                boardWidth: boardWidth,
+                                boardHeight: boardHeight,
+                              ),
+
+                            ..._buildCommentLayer(
                               day: day,
-                              block: block,
                               boardWidth: boardWidth,
                               boardHeight: boardHeight,
                             ),
 
-                          ..._buildCommentLayer(
-                            day: day,
-                            boardWidth: boardWidth,
-                            boardHeight: boardHeight,
-                          ),
-
-                          // Botão exatamente no canto superior direito da lousa.
-                          Positioned(
-                            top: 12,
-                            right: 12,
-                            child: Tooltip(
-                              message: 'Expandir lousa',
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  onTap: _expandBoard,
-                                  borderRadius: BorderRadius.circular(
-                                    12,
-                                  ),
-                                  child: Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color: const Color(
-                                        0xFFF1F7F2,
-                                      ),
-                                      borderRadius: BorderRadius.circular(
-                                        12,
-                                      ),
-                                      border: Border.all(
-                                        color: const Color(
-                                          0xFFC7DFC9,
-                                        ),
-                                      ),
-                                      boxShadow: const [
-                                        BoxShadow(
-                                          color: Color(
-                                            0x14000000,
-                                          ),
-                                          blurRadius: 8,
-                                          offset: Offset(
-                                            0,
-                                            3,
-                                          ),
-                                        ),
-                                      ],
+                            // Botão exatamente no canto superior direito da lousa.
+                            Positioned(
+                              top: 12,
+                              right: 12,
+                              child: Tooltip(
+                                message: 'Expandir lousa',
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: _expandBoard,
+                                    borderRadius: BorderRadius.circular(
+                                      12,
                                     ),
-                                    child: const Icon(
-                                      Icons.open_in_full_rounded,
-                                      color: _primary,
-                                      size: 19,
+                                    child: Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        color: const Color(
+                                          0xFFF1F7F2,
+                                        ),
+                                        borderRadius: BorderRadius.circular(
+                                          12,
+                                        ),
+                                        border: Border.all(
+                                          color: const Color(
+                                            0xFFC7DFC9,
+                                          ),
+                                        ),
+                                        boxShadow: const [
+                                          BoxShadow(
+                                            color: Color(
+                                              0x14000000,
+                                            ),
+                                            blurRadius: 8,
+                                            offset: Offset(
+                                              0,
+                                              3,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Icon(
+                                        Icons.open_in_full_rounded,
+                                        color: _primary,
+                                        size: 19,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -1757,7 +1868,7 @@ class _RoutineScreenState
                   const horizontalPadding = 12.0;
                   const verticalPadding = 12.0;
 
-                  final boardWidth = math
+                  final minimumBoardWidth = math
                       .max(
                         1.0,
                         viewport.maxWidth -
@@ -1777,64 +1888,84 @@ class _RoutineScreenState
 
                   _boardController.initializePositions(
                     day: day,
-                    boardWidth: boardWidth,
+                    boardWidth: minimumBoardWidth,
                   );
 
-                  final boardHeight = _boardController.canvasHeight(
+                  final controllerHeight = _boardController.canvasHeight(
                     day: day,
                     minimumHeight: minimumHeight,
                     estimatedBlockHeight: 430,
                     bottomPadding: 140,
                   );
 
+                  final boardWidth = _adaptiveBoardWidth(
+                    day: day,
+                    minimumWidth: minimumBoardWidth,
+                    rightPadding: 140,
+                  );
+
+                  final boardHeight = math
+                      .max(
+                        controllerHeight,
+                        _adaptiveBoardHeight(
+                          day: day,
+                          minimumHeight: minimumHeight,
+                          bottomPadding: 140,
+                        ),
+                      )
+                      .toDouble();
+
                   return SingleChildScrollView(
                     padding: const EdgeInsets.all(
                       12,
                     ),
-                    child: Container(
-                      width: boardWidth,
-                      height: boardHeight,
-                      decoration: BoxDecoration(
-                        color: _surface,
-                        borderRadius: BorderRadius.circular(
-                          18,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Container(
+                        width: boardWidth,
+                        height: boardHeight,
+                        decoration: BoxDecoration(
+                          color: _surface,
+                          borderRadius: BorderRadius.circular(
+                            18,
+                          ),
+                          border: Border.all(
+                            color: _border,
+                          ),
                         ),
-                        border: Border.all(
-                          color: _border,
-                        ),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(
-                          18,
-                        ),
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            const Positioned.fill(
-                              child: CustomPaint(
-                                painter: _GridPainter(),
-                              ),
-                            ),
-                            if (day.blocks.isEmpty)
-                              Positioned.fill(
-                                child: _EmptyBoard(
-                                  onAddBlock: _addBlock,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(
+                            18,
+                          ),
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              const Positioned.fill(
+                                child: CustomPaint(
+                                  painter: _GridPainter(),
                                 ),
                               ),
-                            for (final block in day.blocks)
-                              _positionedBlock(
+                              if (day.blocks.isEmpty)
+                                Positioned.fill(
+                                  child: _EmptyBoard(
+                                    onAddBlock: _addBlock,
+                                  ),
+                                ),
+                              for (final block in day.blocks)
+                                _positionedBlock(
+                                  day: day,
+                                  block: block,
+                                  boardWidth: boardWidth,
+                                  boardHeight: boardHeight,
+                                ),
+
+                              ..._buildCommentLayer(
                                 day: day,
-                                block: block,
                                 boardWidth: boardWidth,
                                 boardHeight: boardHeight,
                               ),
-
-                            ..._buildCommentLayer(
-                              day: day,
-                              boardWidth: boardWidth,
-                              boardHeight: boardHeight,
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -1985,23 +2116,13 @@ class _RoutineScreenState
     // ==========================================================
 
     if (resizeRight) {
-      final maxWidth = math
+      width = math
           .max(
             minWidth,
-            boardWidth -
-                position.dx -
-                margin,
+            width +
+                delta.dx,
           )
           .toDouble();
-
-      width =
-          (width +
-                  delta.dx)
-              .clamp(
-                minWidth,
-                maxWidth,
-              )
-              .toDouble();
     }
 
     // ==========================================================
@@ -2040,23 +2161,13 @@ class _RoutineScreenState
     // ==========================================================
 
     if (resizeBottom) {
-      final maxHeight = math
+      height = math
           .max(
             minHeight,
-            boardHeight -
-                position.dy -
-                margin,
+            height +
+                delta.dy,
           )
           .toDouble();
-
-      height =
-          (height +
-                  delta.dy)
-              .clamp(
-                minHeight,
-                maxHeight,
-              )
-              .toDouble();
     }
 
     block.position = position;
@@ -2115,60 +2226,40 @@ class _RoutineScreenState
       boardWidth: boardWidth,
     );
 
-    final maxMindMapWidth = math
-        .max(
-          420.0,
-          boardWidth -
-              position.dx -
-              8,
-        )
-        .toDouble();
+    // ==========================================================
+    // TAMANHO PERSISTENTE DO MAPA MENTAL
+    // ==========================================================
+    //
+    // O tamanho do mapa mental vem do próprio BoardBlock.
+    //
+    // Não fazemos clamp usando boardWidth / boardHeight aqui.
+    //
+    // Esse método é executado durante todo rebuild, inclusive ao
+    // expandir e recolher a lousa. Alterar block.width ou
+    // block.height aqui fazia o tamanho salvo ser sobrescrito pela
+    // dimensão temporária do viewport.
+    //
+    // ==========================================================
 
     final width = isMindMap
-        ? (block.width ??
-                  math.min(
+        ? math
+              .max(
+                420.0,
+                block.width ??
                     620.0,
-                    maxMindMapWidth,
-                  ))
-              .clamp(
-                math.min(
-                  420.0,
-                  maxMindMapWidth,
-                ),
-                maxMindMapWidth,
               )
               .toDouble()
         : defaultWidth;
 
-    final maxMindMapHeight = math
-        .max(
-          320.0,
-          boardHeight -
-              position.dy -
-              8,
-        )
-        .toDouble();
-
     final double? height = isMindMap
-        ? (block.height ??
-                  430.0)
-              .clamp(
-                math.min(
-                  320.0,
-                  maxMindMapHeight,
-                ),
-                maxMindMapHeight,
+        ? math
+              .max(
+                320.0,
+                block.height ??
+                    430.0,
               )
               .toDouble()
         : null;
-
-    // Mantém o model sincronizado com o tamanho efetivamente
-    // utilizado na tela.
-    if (isMindMap) {
-      block.width = width;
-
-      block.height = height;
-    }
 
     return Positioned(
       key: ValueKey(

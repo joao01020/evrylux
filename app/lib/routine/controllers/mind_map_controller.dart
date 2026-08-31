@@ -12,20 +12,38 @@ class MindMapController
   });
 
   // ============================================================
-  // CALLBACK
+  // CALLBACK DE PERSISTÊNCIA
+  // ============================================================
+  //
+  // IMPORTANTE:
+  //
+  // onChanged NÃO é chamado durante cada pixel do drag.
+  //
+  // Durante o movimento usamos apenas notifyListeners(), mantendo
+  // a posição local fluida e evitando vários saves concorrentes.
+  //
+  // O save real deve acontecer quando o usuário SOLTAR o nó,
+  // chamando commitNodePosition().
+  //
+  // Isso reduz o problema de "snap back", no qual uma resposta
+  // antiga do Supabase sobrescreve uma posição mais recente.
+  //
   // ============================================================
 
   final VoidCallback? onChanged;
 
   // ============================================================
-  // TAMANHO DOS NÓS
+  // DRAFTS DE EDIÇÃO
   // ============================================================
-  //
-  // O nó não possui mais altura fixa.
-  //
-  // A largura cresce até maxNodeWidth e, depois disso, o texto
-  // quebra em várias linhas e a altura aumenta automaticamente.
-  //
+
+  final Map<
+    String,
+    String
+  >
+  _editingDrafts = {};
+
+  // ============================================================
+  // TAMANHO DOS NÓS
   // ============================================================
 
   static const double minNodeWidth = 132;
@@ -44,13 +62,6 @@ class MindMapController
 
   // ============================================================
   // COMPATIBILIDADE
-  // ============================================================
-  //
-  // Mantemos estes nomes para não quebrar outros arquivos antigos
-  // que ainda possam utilizar MindMapController.nodeWidth/Height.
-  //
-  // O canvas atualizado deve preferir nodeSize(node).
-  //
   // ============================================================
 
   static const double nodeWidth = minNodeWidth;
@@ -99,7 +110,7 @@ class MindMapController
       block,
     );
 
-    _notifyChange();
+    _commitChange();
 
     return root;
   }
@@ -111,8 +122,13 @@ class MindMapController
   Size nodeSize(
     MindMapNode node,
   ) {
+    final text = node.isEditing
+        ? _editingDrafts[node.id] ??
+              node.label
+        : node.label;
+
     return calculateNodeSize(
-      node.label,
+      text,
       hasDeleteButton: !node.isRoot,
     );
   }
@@ -126,7 +142,7 @@ class MindMapController
     bool hasDeleteButton = false,
   }) {
     final normalized = text.trim().isEmpty
-        ? 'Nova ideia'
+        ? ' '
         : text.trim();
 
     final extraDeleteWidth = hasDeleteButton
@@ -151,7 +167,6 @@ class MindMapController
       maxLines: null,
     );
 
-    // Primeiro calculamos quanto o texto desejaria ocupar em uma linha.
     painter.layout(
       minWidth: 0,
       maxWidth: availableTextWidth,
@@ -169,7 +184,6 @@ class MindMapController
         )
         .toDouble();
 
-    // Recalculamos com a largura final para descobrir a altura real.
     final finalTextWidth =
         width -
         nodeHorizontalPadding -
@@ -201,13 +215,6 @@ class MindMapController
 
   // ============================================================
   // POSIÇÃO DE UMA PORTA
-  // ============================================================
-  //
-  // Usa o tamanho real do nó.
-  //
-  // Isso mantém as linhas/setas presas na borda correta mesmo
-  // quando o nó cresce por causa do texto.
-  //
   // ============================================================
 
   Offset portPosition(
@@ -290,46 +297,60 @@ class MindMapController
       isEditing: true,
     );
 
-    final size = nodeSize(
-      provisionalNode,
-    );
+    // ==========================================================
+    // POSIÇÃO LIVRE
+    // ==========================================================
+    //
+    // Não limitamos mais o nó ao canvasWidth/canvasHeight.
+    //
+    // O bloco/lousa pode crescer de forma adaptativa e os nós
+    // continuam livres para ocupar toda a área disponível.
+    //
+    // ==========================================================
 
-    provisionalNode.position = Offset(
-      desired.dx
-          .clamp(
-            0.0,
-            _maxX(
-              canvasWidth,
-              size.width,
-            ),
-          )
-          .toDouble(),
-      desired.dy
-          .clamp(
-            0.0,
-            _maxY(
-              canvasHeight,
-              size.height,
-            ),
-          )
-          .toDouble(),
-    );
+    provisionalNode.position = desired;
 
     block.addMindMapNode(
       provisionalNode,
     );
 
-    _syncContent(
-      block,
-    );
+    _editingDrafts[provisionalNode.id] = label;
 
-    _notifyChange();
+    // ==========================================================
+    // NÃO PERSISTIR ANTES DE TERMINAR O TEXTO
+    // ==========================================================
+    //
+    // Ao criar um nó novo, ele entra imediatamente em edição.
+    //
+    // Se chamarmos onChanged aqui, o Supabase pode salvar o nó
+    // vazio e devolver essa versão enquanto o usuário ainda está
+    // digitando. Isso faz o texto recém-digitado desaparecer e
+    // voltar para o valor anterior.
+    //
+    // Portanto, neste momento atualizamos apenas a interface.
+    //
+    // O save real acontece em finishEditing().
+    //
+    // ==========================================================
+
+    notifyListeners();
 
     return provisionalNode;
   }
 
   // ============================================================
-  // MOVER NÓ
+  // MOVER NÓ - SOMENTE ESTADO LOCAL
+  // ============================================================
+  //
+  // Aqui NÃO chamamos onChanged.
+  //
+  // Isso é proposital:
+  //
+  // onPanUpdate pode acontecer dezenas ou centenas de vezes em
+  // um único arraste. Salvar a cada pixel cria vários requests
+  // concorrentes e pode fazer uma resposta antiga devolver o nó
+  // para uma posição anterior.
+  //
   // ============================================================
 
   void moveNode({
@@ -342,34 +363,79 @@ class MindMapController
       return;
     }
 
-    final size = nodeSize(
-      node,
-    );
+    // ==========================================================
+    // MOVIMENTO LIVRE
+    // ==========================================================
+    //
+    // Não usamos clamp.
+    //
+    // Assim o nó não fica preso ao tamanho antigo da lousa.
+    //
+    // O canvasWidth/canvasHeight continuam no método apenas para
+    // manter compatibilidade com o widget atual.
+    //
+    // ==========================================================
 
     node.position = Offset(
-      (node.position.dx +
-              delta.dx)
-          .clamp(
-            0.0,
-            _maxX(
-              canvasWidth,
-              size.width,
-            ),
-          )
-          .toDouble(),
-      (node.position.dy +
-              delta.dy)
-          .clamp(
-            0.0,
-            _maxY(
-              canvasHeight,
-              size.height,
-            ),
-          )
-          .toDouble(),
+      node.position.dx +
+          delta.dx,
+      node.position.dy +
+          delta.dy,
     );
 
-    _notifyChange();
+    // Apenas redesenha localmente.
+    notifyListeners();
+  }
+
+  // ============================================================
+  // COMMIT DA POSIÇÃO
+  // ============================================================
+  //
+  // Chame este método no onPanEnd do MindMapNodeWidget.
+  //
+  // Exemplo:
+  //
+  // onPanEnd: (_) {
+  //   controller.commitNodePosition(
+  //     block: block,
+  //     node: node,
+  //   );
+  // },
+  //
+  // ============================================================
+
+  void commitNodePosition({
+    required BoardBlock block,
+    required MindMapNode node,
+  }) {
+    if (node.isEditing) {
+      return;
+    }
+
+    _syncContent(
+      block,
+    );
+
+    _commitChange();
+  }
+
+  // ============================================================
+  // CANCELAMENTO DO DRAG
+  // ============================================================
+  //
+  // Mesmo se o GestureDetector cancelar o gesto, persistimos a
+  // última posição local já alcançada.
+  //
+  // ============================================================
+
+  void commitNodePositionAfterCancel({
+    required BoardBlock block,
+    required MindMapNode node,
+  }) {
+    commitNodePosition(
+      block: block,
+      node: node,
+    );
   }
 
   // ============================================================
@@ -381,8 +447,8 @@ class MindMapController
   ) {
     node.isEditing = true;
 
-    // Precisamos redesenhar imediatamente porque o tamanho pode
-    // mudar enquanto o usuário digita.
+    _editingDrafts[node.id] = node.label;
+
     notifyListeners();
   }
 
@@ -397,9 +463,39 @@ class MindMapController
   }) {
     final normalized = value.trim();
 
-    node.label = normalized.isEmpty
-        ? 'Nova ideia'
-        : normalized;
+    _editingDrafts.remove(
+      node.id,
+    );
+
+    if (!node.isRoot &&
+        normalized.isEmpty) {
+      block.mindNodes.removeWhere(
+        (
+          item,
+        ) =>
+            item.id ==
+            node.id,
+      );
+
+      _syncContent(
+        block,
+      );
+
+      _commitChange();
+
+      return;
+    }
+
+    if (node.isRoot &&
+        normalized.isEmpty) {
+      node.isEditing = false;
+
+      notifyListeners();
+
+      return;
+    }
+
+    node.label = normalized;
 
     node.isEditing = false;
 
@@ -411,15 +507,15 @@ class MindMapController
       block,
     );
 
-    _notifyChange();
+    _commitChange();
   }
 
   // ============================================================
   // ATUALIZAR TEXTO DURANTE DIGITAÇÃO
   // ============================================================
   //
-  // Pode ser usado pelo widget no onChanged para recalcular o
-  // tamanho do nó em tempo real.
+  // Mantém o texto e o tamanho atualizados na interface, mas
+  // NÃO dispara persistência em cada tecla.
   //
   // ============================================================
 
@@ -428,15 +524,7 @@ class MindMapController
     required MindMapNode node,
     required String value,
   }) {
-    node.label = value;
-
-    if (node.isRoot) {
-      block.title = value;
-    }
-
-    _syncContent(
-      block,
-    );
+    _editingDrafts[node.id] = value;
 
     notifyListeners();
   }
@@ -486,6 +574,12 @@ class MindMapController
       }
     }
 
+    for (final id in ids) {
+      _editingDrafts.remove(
+        id,
+      );
+    }
+
     block.mindNodes.removeWhere(
       (
         node,
@@ -498,7 +592,7 @@ class MindMapController
       block,
     );
 
-    _notifyChange();
+    _commitChange();
 
     return true;
   }
@@ -590,40 +684,6 @@ class MindMapController
   }
 
   // ============================================================
-  // LIMITE X
-  // ============================================================
-
-  double _maxX(
-    double canvasWidth,
-    double width,
-  ) {
-    return (canvasWidth -
-            width)
-        .clamp(
-          0.0,
-          double.infinity,
-        )
-        .toDouble();
-  }
-
-  // ============================================================
-  // LIMITE Y
-  // ============================================================
-
-  double _maxY(
-    double canvasHeight,
-    double height,
-  ) {
-    return (canvasHeight -
-            height)
-        .clamp(
-          0.0,
-          double.infinity,
-        )
-        .toDouble();
-  }
-
-  // ============================================================
   // SINCRONIZAR CONTEÚDO
   // ============================================================
 
@@ -647,10 +707,10 @@ class MindMapController
   }
 
   // ============================================================
-  // NOTIFICAR ALTERAÇÃO
+  // COMMIT / PERSISTÊNCIA
   // ============================================================
 
-  void _notifyChange() {
+  void _commitChange() {
     notifyListeners();
 
     onChanged?.call();

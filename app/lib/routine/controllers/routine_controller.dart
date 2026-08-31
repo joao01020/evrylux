@@ -21,21 +21,43 @@ class RoutineController
          now: initialDate,
        );
 
+  // ============================================================
+  // DEPENDÊNCIAS
+  // ============================================================
+
   final RoutineRepository _repository;
+
   final String _userId;
+
+  // ============================================================
+  // STATE
+  // ============================================================
 
   RoutineState _state;
 
   bool _initialized = false;
 
+  // ============================================================
+  // AUTO SAVE
+  // ============================================================
+
   Timer? _saveDebounce;
 
   bool _saveRunning = false;
+
   bool _savePending = false;
+
+  int _mutationVersion = 0;
+
+  int _lastCommittedVersion = 0;
 
   static const Duration _autoSaveDelay = Duration(
     milliseconds: 700,
   );
+
+  // ============================================================
+  // GETTERS
+  // ============================================================
 
   RoutineState get state => _state;
 
@@ -45,6 +67,10 @@ class RoutineController
           date: _state.selectedDate,
         );
   }
+
+  // ============================================================
+  // INITIALIZE
+  // ============================================================
 
   Future<
     void
@@ -58,6 +84,10 @@ class RoutineController
 
     await loadWeek();
   }
+
+  // ============================================================
+  // LOAD WEEK
+  // ============================================================
 
   Future<
     void
@@ -101,6 +131,9 @@ class RoutineController
           clearError: true,
         ),
       );
+
+      _mutationVersion++;
+      _lastCommittedVersion = _mutationVersion;
     } catch (
       error
     ) {
@@ -114,6 +147,10 @@ class RoutineController
       );
     }
   }
+
+  // ============================================================
+  // NAVEGAÇÃO DE SEMANA
+  // ============================================================
 
   Future<
     void
@@ -154,6 +191,10 @@ class RoutineController
 
     await loadWeek();
   }
+
+  // ============================================================
+  // SELECIONAR DIA
+  // ============================================================
 
   Future<
     void
@@ -198,6 +239,10 @@ class RoutineController
     );
   }
 
+  // ============================================================
+  // CALENDÁRIO
+  // ============================================================
+
   void toggleCalendarExpanded() {
     _setState(
       _state.copyWith(
@@ -205,6 +250,10 @@ class RoutineController
       ),
     );
   }
+
+  // ============================================================
+  // FOCO
+  // ============================================================
 
   void updateFocus(
     String value,
@@ -217,6 +266,10 @@ class RoutineController
       autoSave: true,
     );
   }
+
+  // ============================================================
+  // BLOCKS
+  // ============================================================
 
   void addBlock(
     BoardBlock block,
@@ -252,6 +305,24 @@ class RoutineController
     );
   }
 
+  // ============================================================
+  // SAVE SELECTED DAY
+  // ============================================================
+  //
+  // REGRA PRINCIPAL:
+  //
+  // O retorno do repository NÃO substitui mais o estado local.
+  //
+  // Isso é essencial para widgets interativos como mapa mental,
+  // porque uma resposta atrasada do Supabase pode conter posição
+  // ou texto antigo.
+  //
+  // O estado que está na memória é a fonte visual de verdade.
+  //
+  // O Supabase é usado aqui apenas para persistência.
+  //
+  // ============================================================
+
   Future<
     void
   >
@@ -264,52 +335,45 @@ class RoutineController
       return;
     }
 
+    final versionAtStart = _mutationVersion;
+
+    final dayAtStart = selectedDay;
+
     _saveRunning = true;
 
-    _setState(
-      _state.copyWith(
-        saving: true,
-        clearError: true,
-      ),
+    _setSaving(
+      true,
     );
 
     try {
-      final savedDay = await _repository.saveDay(
+      await _repository.saveDay(
         userId: _userId,
-        day: selectedDay,
+        day: dayAtStart,
       );
 
-      final days =
-          List<
-            RoutineDay
-          >.from(
-            _state.days,
-          );
+      // ========================================================
+      // NÃO SOBRESCREVER O ESTADO LOCAL
+      // ========================================================
+      //
+      // Mesmo que o repository retorne RoutineDay, ignoramos o
+      // retorno aqui.
+      //
+      // Assim evitamos:
+      //
+      // - texto voltando ao valor antigo;
+      // - nó retornando à posição anterior;
+      // - response race entre saves;
+      // - reload implícito após salvar.
+      //
+      // ========================================================
 
-      final index = _indexOfDate(
-        days,
-        savedDay.date,
-      );
-
-      if (index <
-          0) {
-        days.add(
-          savedDay,
-        );
-      } else {
-        days[index] = savedDay;
+      if (versionAtStart >
+          _lastCommittedVersion) {
+        _lastCommittedVersion = versionAtStart;
       }
 
-      _sortDays(
-        days,
-      );
-
-      _setState(
-        _state.copyWith(
-          days: days,
-          saving: false,
-          clearError: true,
-        ),
+      _setSaving(
+        false,
       );
     } catch (
       error
@@ -325,13 +389,21 @@ class RoutineController
     } finally {
       _saveRunning = false;
 
-      if (_savePending) {
+      if (_savePending ||
+          _mutationVersion >
+              versionAtStart) {
         _savePending = false;
 
+        // Se houve nova alteração enquanto o save estava em voo,
+        // persistimos novamente o estado mais atual.
         await saveSelectedDay();
       }
     }
   }
+
+  // ============================================================
+  // DELETE SELECTED DAY
+  // ============================================================
 
   Future<
     void
@@ -387,6 +459,9 @@ class RoutineController
           clearError: true,
         ),
       );
+
+      _mutationVersion++;
+      _lastCommittedVersion = _mutationVersion;
     } catch (
       error
     ) {
@@ -401,6 +476,10 @@ class RoutineController
     }
   }
 
+  // ============================================================
+  // ERROR
+  // ============================================================
+
   void clearError() {
     _setState(
       _state.copyWith(
@@ -408,6 +487,10 @@ class RoutineController
       ),
     );
   }
+
+  // ============================================================
+  // CHANGE WEEK
+  // ============================================================
 
   Future<
     void
@@ -433,9 +516,15 @@ class RoutineController
     await loadWeek();
   }
 
+  // ============================================================
+  // MUTATION
+  // ============================================================
+
   void _notifyMutation({
     bool autoSave = false,
   }) {
+    _mutationVersion++;
+
     _state = _state.copyWith(
       days:
           List<
@@ -452,6 +541,10 @@ class RoutineController
     }
   }
 
+  // ============================================================
+  // AUTO SAVE
+  // ============================================================
+
   void _scheduleAutoSave() {
     _saveDebounce?.cancel();
 
@@ -465,24 +558,82 @@ class RoutineController
 
   void _cancelAutoSave() {
     _saveDebounce?.cancel();
+
     _saveDebounce = null;
   }
+
+  // ============================================================
+  // FLUSH
+  // ============================================================
 
   Future<
     void
   >
   flushPendingSave() async {
-    if (_saveDebounce ==
-            null &&
-        !_savePending) {
+    final hasDebounce =
+        _saveDebounce !=
+        null;
+
+    final hasUnsavedMutation =
+        _mutationVersion >
+        _lastCommittedVersion;
+
+    if (!hasDebounce &&
+        !_savePending &&
+        !hasUnsavedMutation) {
       return;
     }
 
     _saveDebounce?.cancel();
+
     _saveDebounce = null;
+
+    if (_saveRunning) {
+      _savePending = true;
+
+      while (_saveRunning) {
+        await Future<
+          void
+        >.delayed(
+          const Duration(
+            milliseconds: 20,
+          ),
+        );
+      }
+
+      if (_mutationVersion <=
+              _lastCommittedVersion &&
+          !_savePending) {
+        return;
+      }
+    }
 
     await saveSelectedDay();
   }
+
+  // ============================================================
+  // SAVING FLAG
+  // ============================================================
+  //
+  // Alterar apenas o flag de saving não substitui a lista de dias
+  // nem os objetos BoardBlock/MindMapNode que já estão na memória.
+  //
+  // ============================================================
+
+  void _setSaving(
+    bool value,
+  ) {
+    _state = _state.copyWith(
+      saving: value,
+      clearError: value,
+    );
+
+    notifyListeners();
+  }
+
+  // ============================================================
+  // SET STATE
+  // ============================================================
 
   void _setState(
     RoutineState value,
@@ -491,6 +642,10 @@ class RoutineController
 
     notifyListeners();
   }
+
+  // ============================================================
+  // ENSURE DATE
+  // ============================================================
 
   void _ensureDate(
     List<
@@ -514,6 +669,10 @@ class RoutineController
     }
   }
 
+  // ============================================================
+  // INDEX DATE
+  // ============================================================
+
   int _indexOfDate(
     List<
       RoutineDay
@@ -534,6 +693,10 @@ class RoutineController
     );
   }
 
+  // ============================================================
+  // SORT DAYS
+  // ============================================================
+
   void _sortDays(
     List<
       RoutineDay
@@ -550,6 +713,10 @@ class RoutineController
     );
   }
 
+  // ============================================================
+  // DATE ONLY
+  // ============================================================
+
   DateTime _dateOnly(
     DateTime value,
   ) {
@@ -559,6 +726,10 @@ class RoutineController
       value.day,
     );
   }
+
+  // ============================================================
+  // START OF WEEK
+  // ============================================================
 
   DateTime _startOfWeek(
     DateTime value,
@@ -576,6 +747,10 @@ class RoutineController
     );
   }
 
+  // ============================================================
+  // SAME DATE
+  // ============================================================
+
   bool _sameDate(
     DateTime first,
     DateTime second,
@@ -588,6 +763,10 @@ class RoutineController
             second.day;
   }
 
+  // ============================================================
+  // ERROR TEXT
+  // ============================================================
+
   String _errorText(
     Object error,
   ) {
@@ -597,6 +776,10 @@ class RoutineController
         ? 'Não foi possível concluir a operação.'
         : message;
   }
+
+  // ============================================================
+  // DISPOSE
+  // ============================================================
 
   @override
   void dispose() {
