@@ -12,18 +12,51 @@ class WeekCalendar
     required this.selectedDate,
     required this.days,
     required this.onSelected,
+    required this.hasReminderForDate,
   });
 
+  // ============================================================
+  // DADOS
+  // ============================================================
+
   final DateTime weekStart;
+
   final DateTime selectedDate;
+
   final List<
     RoutineDay
   >
   days;
+
+  // ============================================================
+  // AÇÕES
+  // ============================================================
+
   final ValueChanged<
     DateTime
   >
   onSelected;
+
+  // ============================================================
+  // LEMBRETES
+  // ============================================================
+  //
+  // Recebe do RoutineCalendarPanel uma função que informa se
+  // determinada data possui pelo menos um lembrete programado.
+  //
+  // O WeekCalendar apenas consulta essa informação e repassa
+  // para o WeekDayCard.
+  //
+  // ============================================================
+
+  final bool Function(
+    DateTime date,
+  )
+  hasReminderForDate;
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(
@@ -42,9 +75,11 @@ class WeekCalendar
             (
               _,
               __,
-            ) => const SizedBox(
-              width: 8,
-            ),
+            ) {
+              return const SizedBox(
+                width: 8,
+              );
+            },
         itemBuilder:
             (
               _,
@@ -57,7 +92,12 @@ class WeekCalendar
                   ),
                 ),
               );
+
               final routineDay = _findDay(
+                date,
+              );
+
+              final hasReminder = hasReminderForDate(
                 date,
               );
 
@@ -79,14 +119,26 @@ class WeekCalendar
                 hasContent:
                     routineDay?.hasBlocks ??
                     false,
-                onTap: () => onSelected(
-                  date,
-                ),
+
+                // ==================================================
+                // INDICADOR DE LEMBRETE
+                // ==================================================
+                hasReminder: hasReminder,
+
+                onTap: () {
+                  onSelected(
+                    date,
+                  );
+                },
               );
             },
       ),
     );
   }
+
+  // ============================================================
+  // BUSCAR DIA
+  // ============================================================
 
   RoutineDay? _findDay(
     DateTime date,
@@ -97,8 +149,13 @@ class WeekCalendar
         return day;
       }
     }
+
     return null;
   }
+
+  // ============================================================
+  // NORMALIZAR DATA
+  // ============================================================
 
   DateTime _dateOnly(
     DateTime value,

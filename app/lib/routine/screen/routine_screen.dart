@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../app/dependencies/app_dependencies.dart';
+import '../../reminders/widgets/reminder_day_dialog.dart';
 import '../../reminders/widgets/reminder_dialog.dart';
 
 import '../controllers/board_controller.dart';
@@ -162,6 +163,30 @@ class _RoutineScreenState
   String? _initializationError;
 
   // ============================================================
+  // LEMBRETES DO CALENDÁRIO
+  // ============================================================
+  //
+  // Guardamos somente as datas que possuem pelo menos um lembrete.
+  //
+  // Exemplo:
+  //
+  // 2026-09-01
+  // 2026-09-03
+  //
+  // O calendário consulta esse Set de forma síncrona durante o build.
+  //
+  // ============================================================
+
+  final Set<
+    String
+  >
+  _reminderDateKeys = {};
+
+  String? _loadedReminderWeekKey;
+
+  String? _loadingReminderWeekKey;
+
+  // ============================================================
   // LOUSA EXPANDIDA
   // ============================================================
 
@@ -227,6 +252,11 @@ class _RoutineScreenState
       await _routineController.initialize();
 
       await _loadCommentsForSelectedDay(
+        force: true,
+      );
+
+      await _loadReminderDaysForWeek(
+        _routineController.state.weekStart,
         force: true,
       );
 
@@ -478,6 +508,728 @@ class _RoutineScreenState
     }
 
     _routineController.notifyBlockChanged();
+  }
+
+  // ============================================================
+  // LEMBRETES DO CALENDÁRIO
+  // ============================================================
+
+  String _dateKey(
+    DateTime value,
+  ) {
+    final normalized = DateTime(
+      value.year,
+      value.month,
+      value.day,
+    );
+
+    final year = normalized.year.toString().padLeft(
+      4,
+      '0',
+    );
+
+    final month = normalized.month.toString().padLeft(
+      2,
+      '0',
+    );
+
+    final day = normalized.day.toString().padLeft(
+      2,
+      '0',
+    );
+
+    return '$year-$month-$day';
+  }
+
+  bool _hasReminderForDate(
+    DateTime date,
+  ) {
+    return _reminderDateKeys.contains(
+      _dateKey(
+        date,
+      ),
+    );
+  }
+
+  DateTime _brasiliaDateTimeToUtc(
+    DateTime value,
+  ) {
+    final year = value.year.toString().padLeft(
+      4,
+      '0',
+    );
+
+    final month = value.month.toString().padLeft(
+      2,
+      '0',
+    );
+
+    final day = value.day.toString().padLeft(
+      2,
+      '0',
+    );
+
+    final hour = value.hour.toString().padLeft(
+      2,
+      '0',
+    );
+
+    final minute = value.minute.toString().padLeft(
+      2,
+      '0',
+    );
+
+    final second = value.second.toString().padLeft(
+      2,
+      '0',
+    );
+
+    return DateTime.parse(
+      '$year-$month-${day}T$hour:$minute:$second-03:00',
+    ).toUtc();
+  }
+
+  DateTime _utcToBrasilia(
+    DateTime value,
+  ) {
+    final utc = value.toUtc();
+
+    return utc.subtract(
+      const Duration(
+        hours: 3,
+      ),
+    );
+  }
+
+  Future<
+    void
+  >
+  _loadReminderDaysForWeek(
+    DateTime weekStart, {
+    bool force = false,
+  }) async {
+    final start = DateTime(
+      weekStart.year,
+      weekStart.month,
+      weekStart.day,
+    );
+
+    final weekKey = _dateKey(
+      start,
+    );
+
+    if (_loadingReminderWeekKey ==
+        weekKey) {
+      return;
+    }
+
+    if (!force &&
+        _loadedReminderWeekKey ==
+            weekKey) {
+      return;
+    }
+
+    final user = Supabase.instance.client.auth.currentUser;
+
+    if (user ==
+        null) {
+      return;
+    }
+
+    _loadingReminderWeekKey = weekKey;
+
+    try {
+      final end = start.add(
+        const Duration(
+          days: 7,
+        ),
+      );
+
+      final startUtc = _brasiliaDateTimeToUtc(
+        start,
+      );
+
+      final endUtc = _brasiliaDateTimeToUtc(
+        end,
+      );
+
+      final response = await Supabase.instance.client
+          .from(
+            'reminders',
+          )
+          .select(
+            'remind_at',
+          )
+          .eq(
+            'user_id',
+            user.id,
+          )
+          .gte(
+            'remind_at',
+            startUtc.toIso8601String(),
+          )
+          .lt(
+            'remind_at',
+            endUtc.toIso8601String(),
+          );
+
+      final nextKeys =
+          <
+            String
+          >{};
+
+      for (final rawRow in response) {
+        final row =
+            Map<
+              String,
+              dynamic
+            >.from(
+              rawRow,
+            );
+
+        final rawRemindAt = row['remind_at']?.toString();
+
+        if (rawRemindAt ==
+                null ||
+            rawRemindAt.isEmpty) {
+          continue;
+        }
+
+        final parsed = DateTime.tryParse(
+          rawRemindAt,
+        );
+
+        if (parsed ==
+            null) {
+          continue;
+        }
+
+        final brasilia = _utcToBrasilia(
+          parsed,
+        );
+
+        nextKeys.add(
+          _dateKey(
+            brasilia,
+          ),
+        );
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(
+        () {
+          _reminderDateKeys
+            ..clear()
+            ..addAll(
+              nextKeys,
+            );
+
+          _loadedReminderWeekKey = weekKey;
+        },
+      );
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        '[ROUTINE][REMINDERS] Falha ao carregar lembretes: $error',
+      );
+
+      debugPrint(
+        '$stackTrace',
+      );
+    } finally {
+      if (_loadingReminderWeekKey ==
+          weekKey) {
+        _loadingReminderWeekKey = null;
+      }
+    }
+  }
+
+  // ============================================================
+  // LEMBRETES COMPLETOS DE UM DIA
+  // ============================================================
+
+  Future<
+    List<
+      ReminderDayItem
+    >
+  >
+  _loadRemindersForDate(
+    DateTime date,
+  ) async {
+    final user = Supabase.instance.client.auth.currentUser;
+
+    if (user ==
+        null) {
+      return [];
+    }
+
+    final start = DateTime(
+      date.year,
+      date.month,
+      date.day,
+    );
+
+    final end = start.add(
+      const Duration(
+        days: 1,
+      ),
+    );
+
+    final startUtc = _brasiliaDateTimeToUtc(
+      start,
+    );
+
+    final endUtc = _brasiliaDateTimeToUtc(
+      end,
+    );
+
+    final response = await Supabase.instance.client
+        .from(
+          'reminders',
+        )
+        .select(
+          'id, title, message, remind_at, notify_in_app, notify_telegram',
+        )
+        .eq(
+          'user_id',
+          user.id,
+        )
+        .gte(
+          'remind_at',
+          startUtc.toIso8601String(),
+        )
+        .lt(
+          'remind_at',
+          endUtc.toIso8601String(),
+        )
+        .order(
+          'remind_at',
+          ascending: true,
+        );
+
+    final reminders =
+        <
+          ReminderDayItem
+        >[];
+
+    for (final rawRow in response) {
+      final row =
+          Map<
+            String,
+            dynamic
+          >.from(
+            rawRow,
+          );
+
+      final rawId = row['id']?.toString();
+
+      final rawRemindAt = row['remind_at']?.toString();
+
+      if (rawId ==
+              null ||
+          rawId.isEmpty ||
+          rawRemindAt ==
+              null ||
+          rawRemindAt.isEmpty) {
+        continue;
+      }
+
+      final remindAt = DateTime.tryParse(
+        rawRemindAt,
+      );
+
+      if (remindAt ==
+          null) {
+        continue;
+      }
+
+      reminders.add(
+        ReminderDayItem(
+          id: rawId,
+          title:
+              row['title']?.toString() ??
+              '',
+          message:
+              row['message']?.toString() ??
+              '',
+          remindAt: remindAt.toUtc(),
+          notifyInApp:
+              row['notify_in_app'] ==
+              true,
+          notifyTelegram:
+              row['notify_telegram'] ==
+              true,
+        ),
+      );
+    }
+
+    return reminders;
+  }
+
+  // ============================================================
+  // EXCLUIR UM LEMBRETE
+  // ============================================================
+
+  Future<
+    bool
+  >
+  _deleteReminder(
+    ReminderDayItem reminder,
+  ) async {
+    final user = Supabase.instance.client.auth.currentUser;
+
+    if (user ==
+        null) {
+      return false;
+    }
+
+    try {
+      await Supabase.instance.client
+          .from(
+            'reminders',
+          )
+          .delete()
+          .eq(
+            'id',
+            reminder.id,
+          )
+          .eq(
+            'user_id',
+            user.id,
+          );
+
+      // ========================================================
+      // ATUALIZAR INDICADORES DA SEMANA
+      // ========================================================
+
+      _loadedReminderWeekKey = null;
+
+      await _loadReminderDaysForWeek(
+        _routineController.state.weekStart,
+        force: true,
+      );
+
+      if (!mounted) {
+        return true;
+      }
+
+      ScaffoldMessenger.of(
+          context,
+        )
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Color(
+              0xFF3B6939,
+            ),
+            content: Row(
+              children: [
+                Icon(
+                  Icons.delete_outline_rounded,
+                  color: Colors.white,
+                  size: 18,
+                ),
+                SizedBox(
+                  width: 9,
+                ),
+                Expanded(
+                  child: Text(
+                    'Lembrete excluído.',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+
+      return true;
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        '[ROUTINE][REMINDERS][DELETE] $error',
+      );
+
+      debugPrint(
+        '$stackTrace',
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+            context,
+          )
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              behavior: SnackBarBehavior.floating,
+              content: Text(
+                'Não foi possível excluir o lembrete.',
+              ),
+            ),
+          );
+      }
+
+      return false;
+    }
+  }
+
+  // ============================================================
+  // EXCLUIR TODOS OS EXPIRADOS DO DIA
+  // ============================================================
+
+  Future<
+    bool
+  >
+  _deleteExpiredReminders(
+    List<
+      ReminderDayItem
+    >
+    reminders,
+  ) async {
+    final user = Supabase.instance.client.auth.currentUser;
+
+    if (user ==
+            null ||
+        reminders.isEmpty) {
+      return false;
+    }
+
+    final ids = reminders
+        .map(
+          (
+            reminder,
+          ) {
+            return reminder.id;
+          },
+        )
+        .where(
+          (
+            id,
+          ) {
+            return id.trim().isNotEmpty;
+          },
+        )
+        .toList();
+
+    if (ids.isEmpty) {
+      return false;
+    }
+
+    try {
+      await Supabase.instance.client
+          .from(
+            'reminders',
+          )
+          .delete()
+          .eq(
+            'user_id',
+            user.id,
+          )
+          .inFilter(
+            'id',
+            ids,
+          );
+
+      // ========================================================
+      // ATUALIZAR SINOS DO CALENDÁRIO / CABEÇALHO
+      // ========================================================
+
+      _loadedReminderWeekKey = null;
+
+      await _loadReminderDaysForWeek(
+        _routineController.state.weekStart,
+        force: true,
+      );
+
+      if (!mounted) {
+        return true;
+      }
+
+      ScaffoldMessenger.of(
+          context,
+        )
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: const Color(
+              0xFF3B6939,
+            ),
+            content: Row(
+              children: [
+                const Icon(
+                  Icons.delete_sweep_outlined,
+                  color: Colors.white,
+                  size: 18,
+                ),
+                const SizedBox(
+                  width: 9,
+                ),
+                Expanded(
+                  child: Text(
+                    ids.length ==
+                            1
+                        ? '1 lembrete expirado excluído.'
+                        : '${ids.length} lembretes expirados excluídos.',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+
+      return true;
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        '[ROUTINE][REMINDERS][DELETE_EXPIRED] $error',
+      );
+
+      debugPrint(
+        '$stackTrace',
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+            context,
+          )
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              behavior: SnackBarBehavior.floating,
+              content: Text(
+                'Não foi possível excluir os lembretes expirados.',
+              ),
+            ),
+          );
+      }
+
+      return false;
+    }
+  }
+
+  // ============================================================
+  // ABRIR LEMBRETES DO DIA
+  // ============================================================
+
+  Future<
+    void
+  >
+  _showRemindersForDay(
+    DateTime date,
+  ) async {
+    try {
+      final reminders = await _loadRemindersForDate(
+        date,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      await ReminderDayDialog.show(
+        context,
+        date: date,
+        reminders: reminders,
+        onDelete:
+            (
+              reminder,
+            ) {
+              return _deleteReminder(
+                reminder,
+              );
+            },
+        onDeleteExpired:
+            (
+              expired,
+            ) {
+              return _deleteExpiredReminders(
+                expired,
+              );
+            },
+      );
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        '[ROUTINE][REMINDERS][DAY] $error',
+      );
+
+      debugPrint(
+        '$stackTrace',
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(
+          context,
+        )
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            behavior: SnackBarBehavior.floating,
+            content: Text(
+              'Não foi possível carregar os lembretes deste dia.',
+            ),
+          ),
+        );
+    }
+  }
+
+  Future<
+    void
+  >
+  _goToPreviousWeek() async {
+    _loadedReminderWeekKey = null;
+
+    await _routineController.previousWeek();
+
+    if (!mounted) {
+      return;
+    }
+
+    await _loadReminderDaysForWeek(
+      _routineController.state.weekStart,
+      force: true,
+    );
+  }
+
+  Future<
+    void
+  >
+  _goToNextWeek() async {
+    _loadedReminderWeekKey = null;
+
+    await _routineController.nextWeek();
+
+    if (!mounted) {
+      return;
+    }
+
+    await _loadReminderDaysForWeek(
+      _routineController.state.weekStart,
+      force: true,
+    );
   }
 
   // ============================================================
@@ -1303,12 +2055,12 @@ class _RoutineScreenState
                     onPreviousWeek: () {
                       _loadedCommentDayId = null;
 
-                      _routineController.previousWeek();
+                      _goToPreviousWeek();
                     },
                     onNextWeek: () {
                       _loadedCommentDayId = null;
 
-                      _routineController.nextWeek();
+                      _goToNextWeek();
                     },
                     onSelectDay:
                         (
@@ -1319,6 +2071,7 @@ class _RoutineScreenState
                           );
                         },
                     onToggleExpanded: _routineController.toggleCalendarExpanded,
+                    hasReminderForDate: _hasReminderForDate,
                   ),
                   if (state.hasError)
                     _buildError(
@@ -1569,6 +2322,14 @@ class _RoutineScreenState
                     day: day,
                     onEditFocus: _editFocus,
                     onAddBlock: _addBlock,
+                    hasReminder: _hasReminderForDate(
+                      day.date,
+                    ),
+                    onOpenReminders: () {
+                      _showRemindersForDay(
+                        day.date,
+                      );
+                    },
                   ),
 
                   const SizedBox(
@@ -1818,6 +2579,60 @@ class _RoutineScreenState
               const SizedBox(
                 width: 8,
               ),
+              IconButton(
+                tooltip:
+                    _hasReminderForDate(
+                      day.date,
+                    )
+                    ? 'Ver lembretes deste dia'
+                    : 'Nenhum lembrete programado',
+                onPressed: () {
+                  _showRemindersForDay(
+                    day.date,
+                  );
+                },
+                style: IconButton.styleFrom(
+                  foregroundColor:
+                      _hasReminderForDate(
+                        day.date,
+                      )
+                      ? _primary
+                      : _muted,
+                  backgroundColor:
+                      _hasReminderForDate(
+                        day.date,
+                      )
+                      ? const Color(
+                          0xFFE8F5EC,
+                        )
+                      : const Color(
+                          0xFFF6F8F6,
+                        ),
+                  side: BorderSide(
+                    color:
+                        _hasReminderForDate(
+                          day.date,
+                        )
+                        ? const Color(
+                            0xFFA9DEA5,
+                          )
+                        : _border,
+                  ),
+                ),
+                icon: Icon(
+                  _hasReminderForDate(
+                        day.date,
+                      )
+                      ? Icons.notifications_active_rounded
+                      : Icons.notifications_none_rounded,
+                  size: 19,
+                ),
+              ),
+
+              const SizedBox(
+                width: 8,
+              ),
+
               FilledButton.icon(
                 onPressed: _addBlock,
                 style: FilledButton.styleFrom(
@@ -2607,6 +3422,17 @@ class _RoutineScreenState
       return;
     }
 
+    _loadedReminderWeekKey = null;
+
+    await _loadReminderDaysForWeek(
+      _routineController.state.weekStart,
+      force: true,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
     ScaffoldMessenger.of(
         context,
       )
@@ -2926,11 +3752,19 @@ class _DayHeader
     required this.day,
     required this.onEditFocus,
     required this.onAddBlock,
+    required this.hasReminder,
+    required this.onOpenReminders,
   });
 
   final RoutineDay day;
+
   final VoidCallback onEditFocus;
+
   final VoidCallback onAddBlock;
+
+  final bool hasReminder;
+
+  final VoidCallback onOpenReminders;
 
   @override
   Widget build(
@@ -3014,6 +3848,64 @@ class _DayHeader
           const SizedBox(
             width: 10,
           ),
+
+          // ====================================================
+          // LEMBRETES DO DIA
+          // ====================================================
+          Tooltip(
+            message: hasReminder
+                ? 'Ver lembretes deste dia'
+                : 'Nenhum lembrete programado',
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onOpenReminders,
+                borderRadius: BorderRadius.circular(
+                  12,
+                ),
+                child: AnimatedContainer(
+                  duration: const Duration(
+                    milliseconds: 180,
+                  ),
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: hasReminder
+                        ? const Color(
+                            0xFFE8F5EC,
+                          )
+                        : const Color(
+                            0xFFF6F8F6,
+                          ),
+                    borderRadius: BorderRadius.circular(
+                      12,
+                    ),
+                    border: Border.all(
+                      color: hasReminder
+                          ? const Color(
+                              0xFFA9DEA5,
+                            )
+                          : _RoutineScreenState._border,
+                    ),
+                  ),
+                  child: Icon(
+                    hasReminder
+                        ? Icons.notifications_active_rounded
+                        : Icons.notifications_none_rounded,
+                    color: hasReminder
+                        ? _RoutineScreenState._primary
+                        : _RoutineScreenState._muted,
+                    size: 19,
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(
+            width: 8,
+          ),
+
           ElevatedButton.icon(
             onPressed: onAddBlock,
             style: ElevatedButton.styleFrom(

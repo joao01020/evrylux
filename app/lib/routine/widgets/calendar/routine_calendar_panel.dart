@@ -14,6 +14,7 @@ class RoutineCalendarPanel
     required this.onNextWeek,
     required this.onSelectDay,
     required this.onToggleExpanded,
+    required this.hasReminderForDate,
   });
 
   // ============================================================
@@ -45,6 +46,26 @@ class RoutineCalendarPanel
   // ============================================================
 
   final RoutineState state;
+
+  // ============================================================
+  // LEMBRETES
+  // ============================================================
+  //
+  // O painel não precisa conhecer repository nem Supabase.
+  //
+  // Ele recebe apenas uma função que responde:
+  //
+  // "Esta data possui pelo menos um lembrete?"
+  //
+  // O WeekCalendar usa essa função para decidir se mostra
+  // o sino no card daquele dia.
+  //
+  // ============================================================
+
+  final bool Function(
+    DateTime date,
+  )
+  hasReminderForDate;
 
   // ============================================================
   // ACTIONS
@@ -105,6 +126,7 @@ class RoutineCalendarPanel
                     selectedDate: state.selectedDate,
                     days: state.days,
                     onSelected: onSelectDay,
+                    hasReminderForDate: hasReminderForDate,
                   )
                 : const SizedBox(
                     width: double.infinity,

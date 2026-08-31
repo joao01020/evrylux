@@ -10,6 +10,7 @@ class WeekDayCard
     required this.today,
     required this.progress,
     required this.hasContent,
+    required this.hasReminder,
     required this.onTap,
   });
 
@@ -18,10 +19,17 @@ class WeekDayCard
   // ============================================================
 
   final DateTime day;
+
   final bool selected;
+
   final bool today;
+
   final double progress;
+
   final bool hasContent;
+
+  final bool hasReminder;
+
   final VoidCallback onTap;
 
   // ============================================================
@@ -54,6 +62,10 @@ class WeekDayCard
 
   static const Color _muted = Color(
     0xFF68746B,
+  );
+
+  static const Color _inactiveDot = Color(
+    0xFFC7D4C8,
   );
 
   // ============================================================
@@ -171,52 +183,95 @@ class WeekDayCard
             const Spacer(),
 
             // ==================================================
-            // PROGRESSO
+            // INDICADOR INFERIOR
             // ==================================================
-            if (hasContent)
-              SizedBox(
-                width: 35,
-                child: LinearProgressIndicator(
-                  value: progress
-                      .clamp(
-                        0.0,
-                        1.0,
-                      )
-                      .toDouble(),
-                  minHeight: 3,
-                  borderRadius: BorderRadius.circular(
-                    4,
-                  ),
-                  backgroundColor: selected
-                      ? const Color(
-                          0xFFB8E8B5,
-                        )
-                      : const Color(
-                          0xFFE4ECE4,
-                        ),
-                  valueColor:
-                      const AlwaysStoppedAnimation<
-                        Color
-                      >(
-                        _green,
-                      ),
-                ),
-              )
-            else
-              Container(
-                width: 5,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: selected
-                      ? _green
-                      : const Color(
-                          0xFFC7D4C8,
-                        ),
-                  shape: BoxShape.circle,
-                ),
-              ),
+            //
+            // Prioridade visual:
+            //
+            // 1. lembrete -> sino
+            // 2. conteúdo -> progresso
+            // 3. vazio -> ponto
+            //
+            // O sino ocupa exatamente a mesma região inferior
+            // em que antes aparecia o ponto/progresso.
+            //
+            // ==================================================
+            _buildBottomIndicator(),
           ],
         ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // INDICADOR INFERIOR
+  // ============================================================
+
+  Widget _buildBottomIndicator() {
+    // ==========================================================
+    // LEMBRETE
+    // ==========================================================
+
+    if (hasReminder) {
+      return Tooltip(
+        message: 'Há lembrete programado',
+        child: Icon(
+          Icons.notifications_none_rounded,
+          size: 12,
+          color: selected
+              ? _green
+              : _green,
+        ),
+      );
+    }
+
+    // ==========================================================
+    // PROGRESSO
+    // ==========================================================
+
+    if (hasContent) {
+      return SizedBox(
+        width: 35,
+        child: LinearProgressIndicator(
+          value: progress
+              .clamp(
+                0.0,
+                1.0,
+              )
+              .toDouble(),
+          minHeight: 3,
+          borderRadius: BorderRadius.circular(
+            4,
+          ),
+          backgroundColor: selected
+              ? const Color(
+                  0xFFB8E8B5,
+                )
+              : const Color(
+                  0xFFE4ECE4,
+                ),
+          valueColor:
+              const AlwaysStoppedAnimation<
+                Color
+              >(
+                _green,
+              ),
+        ),
+      );
+    }
+
+    // ==========================================================
+    // PONTO PADRÃO
+    // ==========================================================
+
+    return Container(
+      width: 5,
+      height: 5,
+      decoration: BoxDecoration(
+        color: selected
+            ? _green
+            : _inactiveDot,
+        shape: BoxShape.circle,
       ),
     );
   }
