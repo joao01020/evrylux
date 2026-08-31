@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../auth/auth_gate.dart';
 
+import '../core/sync/widgets/sync_status_indicator.dart';
 import '../core/theme/app_theme.dart';
 
 import '../evolution/controllers/evolution_controller.dart';
@@ -54,36 +58,8 @@ class _GhostAppState
   // CORES
   // ============================================================
 
-  static const Color _background = Color(
-    0xFFF7FBF1,
-  );
-
-  static const Color _surface = Color(
-    0xFFFFFFFF,
-  );
-
-  static const Color _surfaceSoft = Color(
-    0xFFF3F8EE,
-  );
-
-  static const Color _border = Color(
-    0xFFC7DFC9,
-  );
-
-  static const Color _primary = Color(
-    0xFFBCF0B4,
-  );
-
   static const Color _primaryDark = Color(
     0xFF3B6939,
-  );
-
-  static const Color _text = Color(
-    0xFF172019,
-  );
-
-  static const Color _muted = Color(
-    0xFF68746B,
   );
 
   // ============================================================
@@ -116,7 +92,26 @@ class _GhostAppState
       >();
 
   // ============================================================
-  // STATE
+  // AUTH
+  // ============================================================
+  //
+  // O ReminderService precisa ser iniciado somente quando
+  // existir usuário autenticado.
+  //
+  // Também usamos o estado de autenticação para decidir se o
+  // indicador global de sincronização deve aparecer.
+  //
+  // ============================================================
+
+  StreamSubscription<
+    AuthState
+  >?
+  _authSubscription;
+
+  bool _authenticated = false;
+
+  // ============================================================
+  // REMINDER STATE
   // ============================================================
 
   bool _reminderServiceStarted = false;
@@ -131,6 +126,45 @@ class _GhostAppState
   void initState() {
     super.initState();
 
+    _authenticated =
+        supabaseClient.auth.currentUser !=
+        null;
+
+    // ==========================================================
+    // AUTH LISTENER
+    // ==========================================================
+
+    _authSubscription = supabaseClient.auth.onAuthStateChange.listen(
+      (
+        authState,
+      ) {
+        final isAuthenticated =
+            authState.session?.user !=
+            null;
+
+        if (mounted &&
+            _authenticated !=
+                isAuthenticated) {
+          setState(
+            () {
+              _authenticated = isAuthenticated;
+            },
+          );
+        }
+
+        if (isAuthenticated) {
+          unawaited(
+            _startReminderService(),
+          );
+
+          // Quando o usuário entra, pedimos uma nova tentativa
+          // de sincronização. Isso é importante caso o app tenha
+          // iniciado antes da sessão ser restaurada.
+          syncService.requestSync();
+        }
+      },
+    );
+
     // ==========================================================
     // ESPERA O MATERIAL APP SER MONTADO
     // ==========================================================
@@ -139,7 +173,11 @@ class _GhostAppState
       (
         _,
       ) {
-        _startReminderService();
+        if (_authenticated) {
+          unawaited(
+            _startReminderService(),
+          );
+        }
       },
     );
   }
@@ -156,6 +194,13 @@ class _GhostAppState
       return;
     }
 
+    final user = supabaseClient.auth.currentUser;
+
+    if (user ==
+        null) {
+      return;
+    }
+
     _reminderServiceStarted = true;
 
     try {
@@ -165,6 +210,9 @@ class _GhostAppState
     } catch (
       error
     ) {
+      // Se o start falhar, permitimos uma nova tentativa futura.
+      _reminderServiceStarted = false;
+
       debugPrint(
         '[APP] Erro ao iniciar ReminderService: $error',
       );
@@ -281,6 +329,8 @@ class _GhostAppState
 
   @override
   void dispose() {
+    _authSubscription?.cancel();
+
     reminderService.dispose();
 
     super.dispose();
@@ -308,6 +358,36 @@ class _GhostAppState
       // THEME
       // ========================================================
       theme: AppTheme.theme,
+
+      // ========================================================
+      // GLOBAL SYNC OVERLAY
+      // ========================================================
+      //
+      // O builder envolve TODAS as rotas do MaterialApp.
+      //
+      // Isso faz o indicador continuar visível em:
+      //
+      // Welcome
+      // Study
+      // Training
+      // Routine
+      // e novas telas adicionadas ao Navigator principal.
+      //
+      // Ele é ocultado enquanto não houver usuário autenticado.
+      //
+      // ========================================================
+      builder:
+          (
+            context,
+            child,
+          ) {
+            return _GlobalSyncOverlay(
+              visible: _authenticated,
+              child:
+                  child ??
+                  const SizedBox.shrink(),
+            );
+          },
 
       // ========================================================
       // AUTH
@@ -361,6 +441,128 @@ class _GhostAppState
               return const RoutineScreen();
             },
       },
+    );
+  }
+}
+
+// ============================================================
+// GLOBAL SYNC OVERLAY
+// ============================================================
+//
+// Mantém o status de conexão/sincronização visível globalmente.
+//
+// Estados:
+//
+// Online • sincronizado
+// Sincronizando...
+// N pendentes
+// Offline • salvo localmente
+// Erro ao sincronizar
+//
+// ============================================================
+
+class _GlobalSyncOverlay
+    extends
+        StatelessWidget {
+  const _GlobalSyncOverlay({
+    required this.visible,
+    required this.child,
+  });
+
+  final bool visible;
+
+  final Widget child;
+
+  // ============================================================
+  // CORES
+  // ============================================================
+
+  static const Color _background = Color(
+    0xFFF7FBF1,
+  );
+
+  static const Color _border = Color(
+    0xFFC7DFC9,
+  );
+
+  // ============================================================
+  // BUILD
+  // ============================================================
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return Column(
+      children: [
+        // ======================================================
+        // ÁREA FIXA DO STATUS
+        // ======================================================
+        //
+        // IMPORTANTE:
+        //
+        // Esta área existe desde o PRIMEIRO frame do app.
+        //
+        // Mesmo antes de o Supabase terminar de restaurar a
+        // sessão, os 46px já estão reservados.
+        //
+        // Isso evita o efeito em que a página nasce no topo e,
+        // alguns milissegundos depois, é empurrada para baixo
+        // quando "Online • sincronizado" aparece.
+        //
+        // ======================================================
+        SafeArea(
+          bottom: false,
+          child: Container(
+            width: double.infinity,
+            height: 46,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16,
+            ),
+            decoration: const BoxDecoration(
+              color: _background,
+              border: Border(
+                bottom: BorderSide(
+                  color: _border,
+                  width: 1,
+                ),
+              ),
+            ),
+            alignment: Alignment.centerRight,
+
+            // ==================================================
+            // INDICADOR
+            // ==================================================
+            //
+            // O espaço continua reservado mesmo quando o usuário
+            // ainda não está autenticado.
+            //
+            // Apenas o conteúdo do indicador é escondido.
+            //
+            // ==================================================
+            child: visible
+                ? SyncStatusIndicator(
+                    syncService: syncService,
+                    connectivityService: connectivityService,
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ),
+
+        // ======================================================
+        // CONTEÚDO DO APP
+        // ======================================================
+        //
+        // ClipRect impede transições/animações das rotas de
+        // desenharem por cima da barra global.
+        //
+        // ======================================================
+        Expanded(
+          child: ClipRect(
+            child: child,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -470,9 +672,9 @@ class _ReminderNotificationDialog
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // =================================================
+                // =============================================
                 // HEADER
-                // =================================================
+                // =============================================
                 Row(
                   children: [
                     Container(
@@ -529,9 +731,9 @@ class _ReminderNotificationDialog
                   height: 20,
                 ),
 
-                // =================================================
+                // =============================================
                 // CONTEÚDO
-                // =================================================
+                // =============================================
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(
@@ -589,9 +791,9 @@ class _ReminderNotificationDialog
                   height: 20,
                 ),
 
-                // =================================================
+                // =============================================
                 // ACTIONS
-                // =================================================
+                // =============================================
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [

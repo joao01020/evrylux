@@ -33,6 +33,14 @@ class BoardController
   /// Distância vertical usada apenas para posicionamento inicial.
   static const double _initialRowHeight = 230;
 
+  /// Espaço mínimo entre dois blocos.
+  static const double _collisionGap = 12;
+
+  /// Altura estimada dos blocos normais.
+  ///
+  /// O mapa mental usa a altura persistida no próprio bloco.
+  static const double _normalBlockHeight = 210;
+
   // ============================================================
   // BLOCK WIDTH
   // ============================================================
@@ -137,58 +145,265 @@ class BoardController
   // MOVE BLOCK
   // ============================================================
   //
-  // Movimento livre.
+  // Movimento livre, porém SEM sobreposição.
   //
-  // Não existe:
+  // Estratégia:
   //
-  // - snap
-  // - alinhamento automático
-  // - reposicionamento por coluna
-  // - grade magnética
+  // 1. calcula a posição desejada;
+  // 2. tenta mover nos dois eixos;
+  // 3. se houver colisão, tenta somente X;
+  // 4. se ainda houver colisão, tenta somente Y;
+  // 5. se os dois eixos estiverem bloqueados, mantém a posição.
   //
-  // Existe apenas uma proteção mínima para impedir que o bloco
-  // desapareça completamente para fora da lousa.
+  // Isso faz o bloco "deslizar" ao redor dos outros em vez de
+  // simplesmente atravessá-los.
   //
   // ============================================================
 
   void moveBlock({
+    required RoutineDay day,
     required BoardBlock block,
     required Offset delta,
     required double boardWidth,
     required double boardHeight,
     required double blockWidth,
+    double? blockHeight,
   }) {
     final current =
         block.position ??
         Offset.zero;
 
-    final nextX =
+    final resolvedHeight =
+        blockHeight ??
+        _blockHeight(
+          block,
+        );
+
+    final desired = _clampPosition(
+      position: Offset(
         current.dx +
-        delta.dx;
-
-    final nextY =
+            delta.dx,
         current.dy +
-        delta.dy;
+            delta.dy,
+      ),
+      boardWidth: boardWidth,
+      blockWidth: blockWidth,
+    );
 
     // ==========================================================
-    // LIMITES LEVES
-    // ==========================================================
-    //
-    // Permite que o usuário arraste parcialmente para fora,
-    // mas mantém uma pequena parte do card visível.
-    //
-    // Exemplo:
-    //
-    // cardWidth = 390
-    //
-    // ele pode ir até:
-    //
-    // x = -346
-    //
-    // sobrando aproximadamente 44 px visíveis.
-    //
+    // TENTATIVA COMPLETA
     // ==========================================================
 
+    if (canPlaceBlock(
+      day: day,
+      movingBlock: block,
+      position: desired,
+      blockWidth: blockWidth,
+      blockHeight: resolvedHeight,
+    )) {
+      block.position = desired;
+
+      _notifyChange();
+
+      return;
+    }
+
+    // ==========================================================
+    // TENTATIVA SOMENTE NO EIXO X
+    // ==========================================================
+
+    final horizontal = _clampPosition(
+      position: Offset(
+        desired.dx,
+        current.dy,
+      ),
+      boardWidth: boardWidth,
+      blockWidth: blockWidth,
+    );
+
+    if (canPlaceBlock(
+      day: day,
+      movingBlock: block,
+      position: horizontal,
+      blockWidth: blockWidth,
+      blockHeight: resolvedHeight,
+    )) {
+      block.position = horizontal;
+
+      _notifyChange();
+
+      return;
+    }
+
+    // ==========================================================
+    // TENTATIVA SOMENTE NO EIXO Y
+    // ==========================================================
+
+    final vertical = _clampPosition(
+      position: Offset(
+        current.dx,
+        desired.dy,
+      ),
+      boardWidth: boardWidth,
+      blockWidth: blockWidth,
+    );
+
+    if (canPlaceBlock(
+      day: day,
+      movingBlock: block,
+      position: vertical,
+      blockWidth: blockWidth,
+      blockHeight: resolvedHeight,
+    )) {
+      block.position = vertical;
+
+      _notifyChange();
+
+      return;
+    }
+
+    // Ambos os eixos estão bloqueados.
+    //
+    // Mantemos a posição atual.
+  }
+
+  // ============================================================
+  // CAN PLACE BLOCK
+  // ============================================================
+
+  bool canPlaceBlock({
+    required RoutineDay day,
+    required BoardBlock movingBlock,
+    required Offset position,
+    required double blockWidth,
+    required double blockHeight,
+  }) {
+    final movingRect = _collisionRect(
+      position: position,
+      width: blockWidth,
+      height: blockHeight,
+    );
+
+    for (final other in day.blocks) {
+      if (identical(
+            other,
+            movingBlock,
+          ) ||
+          other.id ==
+              movingBlock.id) {
+        continue;
+      }
+
+      final otherPosition = other.position;
+
+      if (otherPosition ==
+          null) {
+        continue;
+      }
+
+      final otherWidth = _collisionBlockWidth(
+        block: other,
+      );
+
+      final otherHeight = _blockHeight(
+        other,
+      );
+
+      final otherRect = _collisionRect(
+        position: otherPosition,
+        width: otherWidth,
+        height: otherHeight,
+      );
+
+      if (movingRect.overlaps(
+        otherRect,
+      )) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  // ============================================================
+  // COLLISION RECT
+  // ============================================================
+  //
+  // Inflamos metade do gap em cada lado.
+  //
+  // Dois blocos passam a respeitar aproximadamente 12 px entre
+  // eles sem precisar alterar o tamanho visual do card.
+  //
+  // ============================================================
+
+  Rect _collisionRect({
+    required Offset position,
+    required double width,
+    required double height,
+  }) {
+    final halfGap =
+        _collisionGap /
+        2;
+
+    return Rect.fromLTWH(
+      position.dx -
+          halfGap,
+      position.dy -
+          halfGap,
+      width +
+          _collisionGap,
+      height +
+          _collisionGap,
+    );
+  }
+
+  // ============================================================
+  // BLOCK HEIGHT
+  // ============================================================
+
+  double _blockHeight(
+    BoardBlock block,
+  ) {
+    if (block.type ==
+        BlockType.mindMap) {
+      return block.height ??
+          430;
+    }
+
+    return _normalBlockHeight;
+  }
+
+  // ============================================================
+  // COLLISION BLOCK WIDTH
+  // ============================================================
+  //
+  // O mapa mental possui largura personalizada persistida.
+  //
+  // Blocos comuns usam a largura padrão usada pela lousa.
+  //
+  // ============================================================
+
+  double _collisionBlockWidth({
+    required BoardBlock block,
+  }) {
+    if (block.type ==
+        BlockType.mindMap) {
+      return block.width ??
+          620;
+    }
+
+    return 390;
+  }
+
+  // ============================================================
+  // CLAMP POSITION
+  // ============================================================
+
+  Offset _clampPosition({
+    required Offset position,
+    required double boardWidth,
+    required double blockWidth,
+  }) {
     final minimumX =
         -blockWidth +
         _minimumVisibleArea;
@@ -197,35 +412,23 @@ class BoardController
         boardWidth -
         _minimumVisibleArea;
 
-    final minimumY = -40.0;
+    const minimumY = -40.0;
 
-    // ==========================================================
-    // Y
-    // ==========================================================
-    //
-    // Não limitamos rigidamente o movimento para baixo.
-    //
-    // Isso permite que o canvas cresça através de canvasHeight().
-    //
-    // ==========================================================
-
-    final freeY =
-        nextY <
-            minimumY
-        ? minimumY
-        : nextY;
-
-    final freeX = nextX.clamp(
+    final x = position.dx.clamp(
       minimumX,
       maximumX,
     );
 
-    block.position = Offset(
-      freeX.toDouble(),
-      freeY.toDouble(),
-    );
+    final y =
+        position.dy <
+            minimumY
+        ? minimumY
+        : position.dy;
 
-    _notifyChange();
+    return Offset(
+      x.toDouble(),
+      y.toDouble(),
+    );
   }
 
   // ============================================================
@@ -298,21 +501,58 @@ class BoardController
         block.position ??
         Offset.zero;
 
+    final width = _collisionBlockWidth(
+      block: duplicate,
+    );
+
+    final height = _blockHeight(
+      duplicate,
+    );
+
     // ==========================================================
-    // POSIÇÃO DA CÓPIA
+    // PROCURAR POSIÇÃO LIVRE
     // ==========================================================
     //
-    // Em vez de deixar o bloco duplicado exatamente em cima do
-    // original, deslocamos levemente.
+    // Evita criar a cópia exatamente em cima do original.
+    //
+    // Procuramos em diagonal até encontrar um espaço sem colisão.
     //
     // ==========================================================
 
-    duplicate.position = Offset(
+    var candidate = Offset(
       current.dx +
           28,
       current.dy +
           28,
     );
+
+    const step = 28.0;
+
+    for (
+      var attempt = 0;
+      attempt <
+          40;
+      attempt++
+    ) {
+      if (canPlaceBlock(
+        day: day,
+        movingBlock: duplicate,
+        position: candidate,
+        blockWidth: width,
+        blockHeight: height,
+      )) {
+        break;
+      }
+
+      candidate = Offset(
+        candidate.dx +
+            step,
+        candidate.dy +
+            step,
+      );
+    }
+
+    duplicate.position = candidate;
 
     day.addBlock(
       duplicate,

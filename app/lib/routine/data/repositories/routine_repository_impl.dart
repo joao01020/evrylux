@@ -47,8 +47,8 @@ class RoutineRepositoryImpl
   RoutineRepositoryImpl({
     required RoutineLocalDataSource localDataSource,
     RoutineRemoteDataSource? remoteDataSource,
-    SyncQueue? syncQueue,
-    SyncService? syncService,
+    required SyncQueue syncQueue,
+    required SyncService syncService,
 
     // Mantido por compatibilidade com o restante do projeto.
     //
@@ -72,9 +72,9 @@ class RoutineRepositoryImpl
   // SYNC
   // ============================================================
 
-  final SyncQueue? _syncQueue;
+  final SyncQueue _syncQueue;
 
-  final SyncService? _syncService;
+  final SyncService _syncService;
 
   // ============================================================
   // CONFIG
@@ -135,7 +135,7 @@ class RoutineRepositoryImpl
             'Usando SQLite como fonte principal.',
       );
 
-      _syncService?.requestSync();
+      _syncService.requestSync();
 
       return _recordsToModels(
         localRecords,
@@ -273,7 +273,7 @@ class RoutineRepositoryImpl
     );
 
     if (hasPending) {
-      _syncService?.requestSync();
+      _syncService.requestSync();
 
       return localModel;
     }
@@ -350,18 +350,18 @@ class RoutineRepositoryImpl
       userId,
     );
 
+    final normalizedDate = _dateOnly(
+      day.normalizedDate,
+    );
+
     // ==========================================================
-    // MODEL -> DTO
+    // MODEL -> DTO -> MAP
     // ==========================================================
 
     final dto = RoutineDayMapper.toDto(
       model: day,
       userId: normalizedUserId,
     );
-
-    // ==========================================================
-    // DTO -> MAP
-    // ==========================================================
 
     final localRecord =
         Map<
@@ -374,31 +374,51 @@ class RoutineRepositoryImpl
         );
 
     // ==========================================================
-    // GUARANTEE ID
+    // ID ESTÁVEL POR DATA
     // ==========================================================
     //
-    // Para criação offline precisamos de um ID antes de falar
-    // com o Supabase.
+    // O mesmo dia precisa conservar o mesmo UUID.
     //
-    // Geramos UUID v4 compatível com coluna uuid do Postgres.
+    // Se o model vier sem id, procuramos primeiro o registro local
+    // já existente para a mesma data. Só geramos UUID quando o dia
+    // realmente ainda não existe.
+    //
+    // Isso evita:
+    //
+    // - criar IDs novos para a mesma data;
+    // - conflito no UNIQUE(user_id, date);
+    // - duplicar operações na SyncQueue.
     //
     // ==========================================================
 
     final rawId = localRecord['id']?.toString().trim();
 
-    final dayId =
+    final existingLocalId = await _findExistingLocalDayId(
+      userId: normalizedUserId,
+      date: normalizedDate,
+    );
+
+    final hasIncomingId =
         rawId !=
-                null &&
-            rawId.isNotEmpty
+            null &&
+        rawId.isNotEmpty;
+
+    final dayId = hasIncomingId
         ? rawId
-        : _uuidV4();
+        : existingLocalId ??
+              _uuidV4();
+
+    final existedBeforeSave =
+        hasIncomingId ||
+        existingLocalId !=
+            null;
 
     localRecord['id'] = dayId;
 
     localRecord['user_id'] = normalizedUserId;
 
     localRecord['date'] = _dateKey(
-      day.normalizedDate,
+      normalizedDate,
     );
 
     localRecord['updated_at'] = DateTime.now().toUtc().toIso8601String();
@@ -424,7 +444,7 @@ class RoutineRepositoryImpl
 
     _log(
       'SAVE DAY',
-      'date: ${day.normalizedDate}',
+      'date: $normalizedDate',
     );
 
     _log(
@@ -437,8 +457,13 @@ class RoutineRepositoryImpl
       'blocks: ${day.blocks.length}',
     );
 
+    _log(
+      'SAVE DAY',
+      'existingLocalId: ${existingLocalId ?? "(nenhum)"}',
+    );
+
     // ==========================================================
-    // LOCAL FIRST
+    // 1. LOCAL FIRST
     // ==========================================================
 
     await _localDataSource.saveDay(
@@ -447,36 +472,69 @@ class RoutineRepositoryImpl
     );
 
     // ==========================================================
-    // QUEUE
+    // 2. SYNC QUEUE
+    // ==========================================================
+    //
+    // Não existe mais fallback silencioso sem fila.
+    //
+    // Se o SQLite foi marcado como pendente, a operação PRECISA
+    // existir também na SyncQueue.
+    //
     // ==========================================================
 
-    final queue = _syncQueue;
+    final operation = existedBeforeSave
+        ? SyncOperation.update
+        : SyncOperation.create;
 
-    if (queue !=
-        null) {
-      await queue.enqueue(
+    _log(
+      'SAVE DAY',
+      'Enfileirando $_entityType/$dayId (${operation.value}).',
+    );
+
+    try {
+      await _syncQueue.enqueue(
         entityType: _entityType,
         entityId: dayId,
-        operation:
-            rawId ==
-                    null ||
-                rawId.isEmpty
-            ? SyncOperation.create
-            : SyncOperation.update,
+        operation: operation,
         payload: localRecord,
       );
-
-      _syncService?.requestSync();
-    } else {
-      // Compatibilidade temporária:
-      //
-      // Se SyncQueue ainda não foi injetada, tentamos o remote
-      // diretamente. Isso evita quebrar ambientes antigos.
-      await _tryDirectRemoteSave(
-        userId: normalizedUserId,
-        localRecord: localRecord,
+    } catch (
+      error,
+      stackTrace
+    ) {
+      _logError(
+        operation: 'SAVE DAY / SYNC QUEUE',
+        error: error,
+        stackTrace: stackTrace,
       );
+
+      // O dado já está seguro no SQLite, mas não podemos fingir
+      // que a operação foi corretamente preparada para sync.
+      rethrow;
     }
+
+    // Atualiza imediatamente o contador exibido pelo card.
+    await _syncService.refreshPendingCount();
+
+    _log(
+      'SAVE DAY',
+      'Fila atualizada. pending=${_syncService.pendingCount}.',
+    );
+
+    // ==========================================================
+    // 3. AUTO SYNC
+    // ==========================================================
+
+    _syncService.requestSync();
+
+    _log(
+      'SAVE DAY',
+      'Sincronização solicitada.',
+    );
+
+    // ==========================================================
+    // 4. RETURN LOCAL RESULT
+    // ==========================================================
 
     return _recordToModel(
       localRecord,
@@ -510,7 +568,7 @@ class RoutineRepositoryImpl
     }
 
     // ==========================================================
-    // LOCAL FIRST
+    // 1. LOCAL FIRST
     // ==========================================================
 
     await _localDataSource.deleteDay(
@@ -519,55 +577,55 @@ class RoutineRepositoryImpl
     );
 
     // ==========================================================
-    // QUEUE
+    // 2. QUEUE
+    // ==========================================================
+    //
+    // user_id é preservado no payload.
+    //
+    // Isso é necessário para o handler remoto validar qual usuário
+    // é dono da operação.
+    //
     // ==========================================================
 
-    final queue = _syncQueue;
+    _log(
+      'DELETE DAY',
+      'Enfileirando $_entityType/$normalizedDayId (delete).',
+    );
 
-    if (queue !=
-        null) {
-      await queue.enqueue(
+    try {
+      await _syncQueue.enqueue(
         entityType: _entityType,
         entityId: normalizedDayId,
         operation: SyncOperation.delete,
-      );
-
-      _syncService?.requestSync();
-
-      return;
-    }
-
-    // Compatibilidade temporária.
-    final remote = _remoteDataSource;
-
-    if (remote ==
-        null) {
-      return;
-    }
-
-    try {
-      remote.ensureAuthenticatedUser(
-        normalizedUserId,
-      );
-
-      await remote.deleteDay(
-        userId: normalizedUserId,
-        dayId: normalizedDayId,
+        payload:
+            <
+              String,
+              dynamic
+            >{
+              'user_id': normalizedUserId,
+            },
       );
     } catch (
       error,
       stackTrace
     ) {
       _logError(
-        operation: 'DELETE DAY / DIRECT REMOTE',
+        operation: 'DELETE DAY / SYNC QUEUE',
         error: error,
         stackTrace: stackTrace,
       );
 
-      if (!fallbackToLocalOnRemoteError) {
-        rethrow;
-      }
+      rethrow;
     }
+
+    await _syncService.refreshPendingCount();
+
+    _syncService.requestSync();
+
+    _log(
+      'DELETE DAY',
+      'Sincronização solicitada. pending=${_syncService.pendingCount}.',
+    );
   }
 
   // ============================================================
@@ -842,6 +900,98 @@ class RoutineRepositoryImpl
     }
 
     return false;
+  }
+
+  // ============================================================
+  // FIND EXISTING LOCAL DAY ID
+  // ============================================================
+  //
+  // Procura um registro já persistido para user + date.
+  //
+  // O objetivo é garantir que salvar novamente o mesmo dia não
+  // gere um novo UUID.
+  //
+  // ============================================================
+
+  Future<
+    String?
+  >
+  _findExistingLocalDayId({
+    required String userId,
+    required DateTime date,
+  }) async {
+    final normalizedDate = _dateOnly(
+      date,
+    );
+
+    final records = await _localDataSource.loadWeek(
+      userId: userId,
+      weekStart: normalizedDate,
+      weekEnd: normalizedDate,
+    );
+
+    for (final record in records) {
+      try {
+        final raw =
+            Map<
+              String,
+              dynamic
+            >.from(
+              record,
+            );
+
+        final rawDate = raw['date'];
+
+        DateTime? recordDate;
+
+        if (rawDate
+            is DateTime) {
+          recordDate = _dateOnly(
+            rawDate,
+          );
+        } else if (rawDate !=
+            null) {
+          final parsed = DateTime.tryParse(
+            rawDate.toString().trim(),
+          );
+
+          if (parsed !=
+              null) {
+            recordDate = _dateOnly(
+              parsed.toLocal(),
+            );
+          }
+        }
+
+        if (recordDate ==
+                null ||
+            !_sameDate(
+              recordDate,
+              normalizedDate,
+            )) {
+          continue;
+        }
+
+        final id = raw['id']?.toString().trim();
+
+        if (id !=
+                null &&
+            id.isNotEmpty) {
+          return id;
+        }
+      } catch (
+        error,
+        stackTrace
+      ) {
+        _logError(
+          operation: 'FIND EXISTING LOCAL DAY ID',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }
+    }
+
+    return null;
   }
 
   // ============================================================

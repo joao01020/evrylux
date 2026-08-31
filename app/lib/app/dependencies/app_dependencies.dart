@@ -13,21 +13,22 @@
 |      ↓
 | Repository
 |      ↓
-| SQLite local / SyncQueue / Supabase / API externa
-|
-| Estratégia offline-first:
-|
-| Interface
+| armazenamento local
 |      ↓
-| Repository
-|      ↓
-| salva primeiro no SQLite
-|      ↓
-| registra alteração na SyncQueue
+| SyncQueue
 |      ↓
 | SyncService
 |      ↓
-| Supabase quando houver conexão
+| Supabase
+|
+| Módulos atualmente integrados ao offline-first:
+|
+| - Finance
+| - Routine
+| - Reminders
+| - Study
+| - Training
+| - Journey
 |
 |--------------------------------------------------------------------------
 */
@@ -163,6 +164,38 @@ get supabaseClient {
 }
 
 // ======================================================
+// REMOTE TABLES
+// ======================================================
+//
+// IMPORTANTE:
+//
+// Finance, Routine e Reminders já utilizavam tabelas existentes.
+//
+// Para os módulos recém-integrados ao sync, esta versão usa:
+//
+// study_data
+// training_data
+// training_plans
+// journey_history
+//
+// Essas tabelas precisam existir no Supabase para o envio remoto
+// funcionar.
+//
+// ======================================================
+
+const String
+_studyTable = 'study_data';
+
+const String
+_trainingTable = 'training_data';
+
+const String
+_trainingPlanTable = 'training_plans';
+
+const String
+_journeyTable = 'journey_history';
+
+// ======================================================
 // LOCAL DATABASE
 // ======================================================
 
@@ -223,11 +256,6 @@ final routineDao = RoutineDao(
 // ======================================================
 // ROUTINE LOCAL DATASOURCE
 // ======================================================
-//
-// Apesar do nome "Memory", esta implementação já usa
-// RoutineDao + SQLite.
-//
-// ======================================================
 
 final routineLocalDataSource = RoutineMemoryDataSource(
   dao: routineDao,
@@ -244,32 +272,53 @@ final routineRemoteDataSource = RoutineRemoteDataSource(
 // ======================================================
 // REMINDER DAO
 // ======================================================
-//
-// Persistência SQLite dos lembretes.
-//
-// ======================================================
 
 final reminderDao = ReminderDao(
   database: appDatabase,
 );
 
 // ======================================================
-// SYNC HANDLERS
+// SYNC HANDLERS STATE
 // ======================================================
 
 bool
 _syncHandlersRegistered = false;
 
 // ======================================================
-// REGISTER SYNC HANDLERS
+// AUTH VALIDATION FOR QUEUED ITEMS
 // ======================================================
-//
-// Entidades atualmente registradas:
-//
-// finance
-// routine_day
-// reminder
-//
+
+User
+_requireQueueUser({
+  required String? userId,
+  required String entity,
+}) {
+  final currentUser = supabaseClient.auth.currentUser;
+
+  if (currentUser ==
+      null) {
+    throw StateError(
+      'Usuário não autenticado durante sincronização de $entity.',
+    );
+  }
+
+  final normalizedUserId = userId?.trim();
+
+  if (normalizedUserId !=
+          null &&
+      normalizedUserId.isNotEmpty &&
+      normalizedUserId !=
+          currentUser.id) {
+    throw StateError(
+      'Operação de $entity pertence a outro usuário.',
+    );
+  }
+
+  return currentUser;
+}
+
+// ======================================================
+// REGISTER SYNC HANDLERS
 // ======================================================
 
 void
@@ -300,10 +349,12 @@ registerSyncHandlers() {
                     item.payload,
                   );
 
-              payload.putIfAbsent(
-                'user_id',
-                () => item.entityId,
+              final user = _requireQueueUser(
+                userId: payload['user_id']?.toString(),
+                entity: 'finance',
               );
+
+              payload['user_id'] = user.id;
 
               await supabaseClient
                   .from(
@@ -322,6 +373,19 @@ registerSyncHandlers() {
               break;
 
             case SyncOperation.delete:
+              final payload =
+                  Map<
+                    String,
+                    dynamic
+                  >.from(
+                    item.payload,
+                  );
+
+              final user = _requireQueueUser(
+                userId: payload['user_id']?.toString(),
+                entity: 'finance',
+              );
+
               await supabaseClient
                   .from(
                     'finance_data',
@@ -329,7 +393,7 @@ registerSyncHandlers() {
                   .delete()
                   .eq(
                     'user_id',
-                    item.entityId,
+                    user.id,
                   );
 
               await financeLocalDataSource.deletePermanently(
@@ -360,15 +424,12 @@ registerSyncHandlers() {
                 item.payload,
               );
 
-          final userId = payload['user_id']?.toString().trim();
+          final user = _requireQueueUser(
+            userId: payload['user_id']?.toString(),
+            entity: 'routine_day',
+          );
 
-          if (userId ==
-                  null ||
-              userId.isEmpty) {
-            throw StateError(
-              'Operação de rotina sem user_id.',
-            );
-          }
+          final userId = user.id;
 
           routineRemoteDataSource.ensureAuthenticatedUser(
             userId,
@@ -410,20 +471,6 @@ registerSyncHandlers() {
   // ====================================================
   // REMINDER
   // ====================================================
-  //
-  // CREATE / UPDATE
-  //      ↓
-  // UPSERT reminders
-  //      ↓
-  // marca SQLite como synced
-  //
-  // DELETE
-  //      ↓
-  // DELETE reminders
-  //      ↓
-  // remove tombstone do SQLite
-  //
-  // ====================================================
 
   syncService.registerHandler(
     entityType: 'reminder',
@@ -440,38 +487,17 @@ registerSyncHandlers() {
                 item.payload,
               );
 
-          final userId = payload['user_id']?.toString().trim();
+          final user = _requireQueueUser(
+            userId: payload['user_id']?.toString(),
+            entity: 'reminder',
+          );
 
           switch (item.operation) {
             case SyncOperation.create:
             case SyncOperation.update:
-              if (userId ==
-                      null ||
-                  userId.isEmpty) {
-                throw StateError(
-                  'Operação de lembrete sem user_id.',
-                );
-              }
-
-              final currentUser = supabaseClient.auth.currentUser;
-
-              if (currentUser ==
-                  null) {
-                throw StateError(
-                  'Usuário não autenticado.',
-                );
-              }
-
-              if (currentUser.id !=
-                  userId) {
-                throw StateError(
-                  'O lembrete não pertence ao usuário autenticado.',
-                );
-              }
-
               payload['id'] = item.entityId;
 
-              payload['user_id'] = userId;
+              payload['user_id'] = user.id;
 
               await supabaseClient
                   .from(
@@ -490,15 +516,6 @@ registerSyncHandlers() {
               break;
 
             case SyncOperation.delete:
-              final currentUser = supabaseClient.auth.currentUser;
-
-              if (currentUser ==
-                  null) {
-                throw StateError(
-                  'Usuário não autenticado.',
-                );
-              }
-
               await supabaseClient
                   .from(
                     'reminders',
@@ -510,13 +527,394 @@ registerSyncHandlers() {
                   )
                   .eq(
                     'user_id',
-                    userId ??
-                        currentUser.id,
+                    user.id,
                   );
 
               await reminderDao.deletePermanently(
                 item.entityId,
               );
+
+              break;
+          }
+        },
+  );
+
+  // ====================================================
+  // STUDY
+  // ====================================================
+  //
+  // Repository:
+  //
+  // entityType = study_day
+  //
+  // Remote uniqueness:
+  //
+  // user_id + day
+  //
+  // ====================================================
+
+  syncService.registerHandler(
+    entityType: 'study_day',
+
+    handler:
+        (
+          item,
+        ) async {
+          final payload =
+              Map<
+                String,
+                dynamic
+              >.from(
+                item.payload,
+              );
+
+          final user = _requireQueueUser(
+            userId: payload['user_id']?.toString(),
+            entity: 'study_day',
+          );
+
+          final day = payload['day']?.toString().trim();
+
+          if (day ==
+                  null ||
+              day.isEmpty) {
+            throw StateError(
+              'Operação de estudo sem day.',
+            );
+          }
+
+          switch (item.operation) {
+            case SyncOperation.create:
+            case SyncOperation.update:
+              await supabaseClient
+                  .from(
+                    _studyTable,
+                  )
+                  .upsert(
+                    {
+                      'user_id': user.id,
+                      'day': day,
+                      'minutes':
+                          payload['minutes'] ??
+                          0,
+                      'updated_at':
+                          payload['updated_at'] ??
+                          DateTime.now().toUtc().toIso8601String(),
+                    },
+                    onConflict: 'user_id,day',
+                  );
+
+              break;
+
+            case SyncOperation.delete:
+              await supabaseClient
+                  .from(
+                    _studyTable,
+                  )
+                  .delete()
+                  .eq(
+                    'user_id',
+                    user.id,
+                  )
+                  .eq(
+                    'day',
+                    day,
+                  );
+
+              break;
+          }
+        },
+  );
+
+  // ====================================================
+  // TRAINING DAY
+  // ====================================================
+
+  syncService.registerHandler(
+    entityType: 'training_day',
+
+    handler:
+        (
+          item,
+        ) async {
+          final payload =
+              Map<
+                String,
+                dynamic
+              >.from(
+                item.payload,
+              );
+
+          final user = _requireQueueUser(
+            userId: payload['user_id']?.toString(),
+            entity: 'training_day',
+          );
+
+          final deleteScope = payload['delete_scope']?.toString();
+
+          switch (item.operation) {
+            case SyncOperation.create:
+            case SyncOperation.update:
+              final day = payload['day']?.toString().trim();
+
+              final date = payload['date']?.toString().trim();
+
+              if (day ==
+                      null ||
+                  day.isEmpty ||
+                  date ==
+                      null ||
+                  date.isEmpty) {
+                throw StateError(
+                  'Operação de treino sem day/date.',
+                );
+              }
+
+              await supabaseClient
+                  .from(
+                    _trainingTable,
+                  )
+                  .upsert(
+                    {
+                      'user_id': user.id,
+                      'day': day,
+                      'training':
+                          payload['training']?.toString() ??
+                          '',
+                      'minutes':
+                          payload['minutes'] ??
+                          0,
+                      'date': date,
+                      'updated_at':
+                          payload['updated_at'] ??
+                          DateTime.now().toUtc().toIso8601String(),
+                    },
+                    onConflict: 'user_id,day,date',
+                  );
+
+              break;
+
+            case SyncOperation.delete:
+              if (deleteScope ==
+                  'all') {
+                await supabaseClient
+                    .from(
+                      _trainingTable,
+                    )
+                    .delete()
+                    .eq(
+                      'user_id',
+                      user.id,
+                    );
+
+                break;
+              }
+
+              final day = payload['day']?.toString().trim();
+
+              final date = payload['date']?.toString().trim();
+
+              if (day ==
+                      null ||
+                  day.isEmpty ||
+                  date ==
+                      null ||
+                  date.isEmpty) {
+                throw StateError(
+                  'Exclusão de treino sem day/date.',
+                );
+              }
+
+              await supabaseClient
+                  .from(
+                    _trainingTable,
+                  )
+                  .delete()
+                  .eq(
+                    'user_id',
+                    user.id,
+                  )
+                  .eq(
+                    'day',
+                    day,
+                  )
+                  .eq(
+                    'date',
+                    date,
+                  );
+
+              break;
+          }
+        },
+  );
+
+  // ====================================================
+  // TRAINING PLAN
+  // ====================================================
+
+  syncService.registerHandler(
+    entityType: 'training_plan',
+
+    handler:
+        (
+          item,
+        ) async {
+          final payload =
+              Map<
+                String,
+                dynamic
+              >.from(
+                item.payload,
+              );
+
+          final user = _requireQueueUser(
+            userId: payload['user_id']?.toString(),
+            entity: 'training_plan',
+          );
+
+          switch (item.operation) {
+            case SyncOperation.create:
+            case SyncOperation.update:
+              await supabaseClient
+                  .from(
+                    _trainingPlanTable,
+                  )
+                  .upsert(
+                    {
+                      'user_id': user.id,
+                      'weekly_goal':
+                          payload['weekly_goal'] ??
+                          0,
+                      'planned_weekdays':
+                          payload['planned_weekdays'] ??
+                          const <
+                            int
+                          >[],
+                      'updated_at':
+                          payload['updated_at'] ??
+                          DateTime.now().toUtc().toIso8601String(),
+                    },
+                    onConflict: 'user_id',
+                  );
+
+              break;
+
+            case SyncOperation.delete:
+              await supabaseClient
+                  .from(
+                    _trainingPlanTable,
+                  )
+                  .delete()
+                  .eq(
+                    'user_id',
+                    user.id,
+                  );
+
+              break;
+          }
+        },
+  );
+
+  // ====================================================
+  // JOURNEY
+  // ====================================================
+
+  syncService.registerHandler(
+    entityType: 'journey_day',
+
+    handler:
+        (
+          item,
+        ) async {
+          final payload =
+              Map<
+                String,
+                dynamic
+              >.from(
+                item.payload,
+              );
+
+          final user = _requireQueueUser(
+            userId: payload['user_id']?.toString(),
+            entity: 'journey_day',
+          );
+
+          final deleteScope = payload['delete_scope']?.toString();
+
+          switch (item.operation) {
+            case SyncOperation.create:
+            case SyncOperation.update:
+              final date = payload['date']?.toString().trim();
+
+              if (date ==
+                      null ||
+                  date.isEmpty) {
+                throw StateError(
+                  'Operação de jornada sem date.',
+                );
+              }
+
+              await supabaseClient
+                  .from(
+                    _journeyTable,
+                  )
+                  .upsert(
+                    {
+                      'user_id': user.id,
+                      'date': date,
+                      'notes':
+                          payload['notes'] ??
+                          const <
+                            String
+                          >[],
+                      'updated_at':
+                          payload['updated_at'] ??
+                          DateTime.now().toUtc().toIso8601String(),
+                    },
+                    onConflict: 'user_id,date',
+                  );
+
+              break;
+
+            case SyncOperation.delete:
+              if (deleteScope ==
+                  'all') {
+                await supabaseClient
+                    .from(
+                      _journeyTable,
+                    )
+                    .delete()
+                    .eq(
+                      'user_id',
+                      user.id,
+                    );
+
+                break;
+              }
+
+              final date = payload['date']?.toString().trim();
+
+              if (date ==
+                      null ||
+                  date.isEmpty) {
+                throw StateError(
+                  'Exclusão de jornada sem date.',
+                );
+              }
+
+              await supabaseClient
+                  .from(
+                    _journeyTable,
+                  )
+                  .delete()
+                  .eq(
+                    'user_id',
+                    user.id,
+                  )
+                  .eq(
+                    'date',
+                    date,
+                  );
 
               break;
           }
@@ -529,32 +927,14 @@ registerSyncHandlers() {
 // ======================================================
 // INITIALIZE OFFLINE-FIRST
 // ======================================================
-//
-// Deve ser chamado uma vez na janela principal após:
-//
-// Supabase.initialize(...)
-//
-// ======================================================
 
 Future<
   void
 >
 initializeOfflineFirst() async {
-  // ----------------------------------------------------
-  // DATABASE
-  // ----------------------------------------------------
-
   await appDatabase.initialize();
 
-  // ----------------------------------------------------
-  // HANDLERS
-  // ----------------------------------------------------
-
   registerSyncHandlers();
-
-  // ----------------------------------------------------
-  // SERVICE
-  // ----------------------------------------------------
 
   await syncService.start();
 }
@@ -588,20 +968,6 @@ forceSyncNow() async {
 // ======================================================
 // ROUTINE REPOSITORY
 // ======================================================
-//
-// Routine UI
-//      ↓
-// RoutineRepositoryImpl
-//      ↓
-// SQLite
-//      ↓
-// SyncQueue
-//      ↓
-// SyncService
-//      ↓
-// Supabase
-//
-// ======================================================
 
 final routineRepository = RoutineRepositoryImpl(
   localDataSource: routineLocalDataSource,
@@ -617,22 +983,6 @@ final routineRepository = RoutineRepositoryImpl(
 
 // ======================================================
 // FINANCE
-// ======================================================
-//
-// FinanceController
-//      ↓
-// FinanceService
-//      ↓
-// FinanceRepository
-//      ↓
-// SQLite
-//      ↓
-// SyncQueue
-//      ↓
-// SyncService
-//      ↓
-// Supabase
-//
 // ======================================================
 
 final financeRepository = FinanceRepository(
@@ -686,8 +1036,19 @@ final cryptoController = CryptoController(
 // ======================================================
 // TRAINING
 // ======================================================
+//
+// StorageService continua sendo a fonte local imediata.
+// Alterações também entram na SyncQueue.
+//
+// ======================================================
 
-final trainingRepository = TrainingRepository();
+final trainingRepository = TrainingRepository(
+  client: supabaseClient,
+
+  syncQueue: syncQueue,
+
+  syncService: syncService,
+);
 
 final trainingService = TrainingService(
   repository: trainingRepository,
@@ -700,8 +1061,19 @@ final trainingController = TrainingController(
 // ======================================================
 // STUDY
 // ======================================================
+//
+// StorageService continua sendo a fonte local imediata.
+// Alterações também entram na SyncQueue.
+//
+// ======================================================
 
-final studyRepository = StudyRepository();
+final studyRepository = StudyRepository(
+  client: supabaseClient,
+
+  syncQueue: syncQueue,
+
+  syncService: syncService,
+);
 
 final studyService = StudyService(
   repository: studyRepository,
@@ -736,9 +1108,20 @@ final evolutionController = EvolutionController(
 // ======================================================
 // JOURNEY
 // ======================================================
+//
+// LocalStorage continua sendo a fonte local.
+// Mudanças também entram na SyncQueue.
+//
+// ======================================================
 
 final journeyRepository = JourneyRepository(
   storage: localStorage,
+
+  client: supabaseClient,
+
+  syncQueue: syncQueue,
+
+  syncService: syncService,
 );
 
 final journeyService = JourneyService(
@@ -752,31 +1135,6 @@ final journeyController = JourneyController(
 // ======================================================
 // REMINDERS
 // ======================================================
-//
-// NOVO FLUXO:
-//
-// ReminderService
-//      ↓
-// ReminderController
-//      ↓
-// ReminderRepository
-//      ↓
-// ReminderDao / SQLite
-//      ↓
-// SyncQueue
-//      ↓
-// SyncService
-//      ↓
-// Supabase
-//
-// O lembrete pode ser criado, atualizado, concluído,
-// reaberto e removido mesmo sem internet.
-//
-// ======================================================
-
-// ======================================================
-// REMINDER REPOSITORY
-// ======================================================
 
 final reminderRepository = ReminderRepository(
   client: supabaseClient,
@@ -788,25 +1146,9 @@ final reminderRepository = ReminderRepository(
   syncService: syncService,
 );
 
-// ======================================================
-// REMINDER CONTROLLER
-// ======================================================
-
 final reminderController = ReminderController(
   repository: reminderRepository,
 );
-
-// ======================================================
-// REMINDER SERVICE
-// ======================================================
-//
-// Continua sendo iniciado pela camada com acesso ao contexto
-// global da interface para exibir o lembrete dentro do app.
-//
-// A diferença é que agora o ReminderRepository consegue buscar
-// lembretes vencidos diretamente do SQLite, inclusive offline.
-//
-// ======================================================
 
 final reminderService = ReminderService(
   controller: reminderController,

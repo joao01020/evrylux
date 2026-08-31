@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../controllers/reminder_controller.dart';
 import '../models/reminder_model.dart';
@@ -47,11 +48,25 @@ class ReminderService {
 
   bool _checking = false;
 
+  bool _disposed = false;
+
   // ============================================================
   // CALLBACK
   // ============================================================
 
   ReminderDueCallback? _onReminderDue;
+
+  // ============================================================
+  // DISPATCH GUARD
+  // ============================================================
+
+  final Set<
+    String
+  >
+  _dispatchingIds =
+      <
+        String
+      >{};
 
   // ============================================================
   // GETTERS
@@ -65,6 +80,10 @@ class ReminderService {
     return _checking;
   }
 
+  bool get isDisposed {
+    return _disposed;
+  }
+
   // ============================================================
   // START
   // ============================================================
@@ -75,9 +94,25 @@ class ReminderService {
   start({
     required ReminderDueCallback onReminderDue,
   }) async {
+    if (_disposed) {
+      return;
+    }
+
     _onReminderDue = onReminderDue;
 
     if (_running) {
+      return;
+    }
+
+    final user = Supabase.instance.client.auth.currentUser;
+
+    if (user ==
+        null) {
+      debugPrint(
+        '[REMINDER SERVICE] '
+        'Usuário não autenticado. Serviço não iniciado.',
+      );
+
       return;
     }
 
@@ -87,45 +122,105 @@ class ReminderService {
       '[REMINDER SERVICE] Iniciado.',
     );
 
-    // ==========================================================
-    // CARREGA OS LEMBRETES
-    // ==========================================================
+    try {
+      // ========================================================
+      // CARGA INICIAL
+      // ========================================================
+      //
+      // Fazemos uma carga completa apenas uma vez no start.
+      //
+      // Depois disso, o timer usa somente refreshDue(), que
+      // consulta os lembretes vencidos no SQLite.
+      //
+      // ========================================================
 
-    await controller.load();
+      await controller.load();
 
-    // ==========================================================
-    // VERIFICA IMEDIATAMENTE
-    // ==========================================================
+      // ========================================================
+      // VERIFICA IMEDIATAMENTE
+      // ========================================================
 
-    await checkNow();
+      await checkNow();
 
-    // ==========================================================
-    // VERIFICA PERIODICAMENTE
-    // ==========================================================
+      // ========================================================
+      // VERIFICA PERIODICAMENTE
+      // ========================================================
 
-    _timer = Timer.periodic(
-      checkInterval,
-      (
-        _,
-      ) {
-        checkNow();
-      },
-    );
+      _timer = Timer.periodic(
+        checkInterval,
+        (
+          _,
+        ) {
+          unawaited(
+            checkNow(),
+          );
+        },
+      );
+    } catch (
+      error,
+      stackTrace
+    ) {
+      _running = false;
+
+      debugPrint(
+        '[REMINDER SERVICE] '
+        'Erro ao iniciar: $error',
+      );
+
+      debugPrint(
+        stackTrace.toString(),
+      );
+
+      rethrow;
+    }
   }
 
   // ============================================================
   // CHECK NOW
+  // ============================================================
+  //
+  // IMPORTANTE:
+  //
+  // Agora NÃO executamos controller.refresh() completo a cada
+  // 30 segundos.
+  //
+  // Em vez disso usamos:
+  //
+  // controller.refreshDue()
+  //
+  // Esse método consulta especificamente os lembretes vencidos
+  // no SQLite local.
+  //
+  // Vantagens:
+  //
+  // - funciona offline;
+  // - evita chamadas remotas desnecessárias;
+  // - reduz trabalho do controller;
+  // - reduz consumo de rede;
+  // - evita flicker da UI;
+  // - mantém o serviço mais leve.
+  //
   // ============================================================
 
   Future<
     void
   >
   checkNow() async {
-    if (!_running) {
+    if (_disposed ||
+        !_running ||
+        _checking) {
       return;
     }
 
-    if (_checking) {
+    final user = Supabase.instance.client.auth.currentUser;
+
+    if (user ==
+        null) {
+      debugPrint(
+        '[REMINDER SERVICE] '
+        'Sem usuário autenticado. Checagem ignorada.',
+      );
+
       return;
     }
 
@@ -133,36 +228,51 @@ class ReminderService {
 
     try {
       // ========================================================
-      // BUSCA NOVAMENTE NO SUPABASE
+      // BUSCA SOMENTE VENCIDOS
       // ========================================================
 
-      await controller.refresh();
-
-      // ========================================================
-      // LEMBRETES VENCIDOS
-      // ========================================================
-
-      final dueReminders =
-          List<
-            ReminderModel
-          >.from(
-            controller.due,
-          );
+      final dueReminders = await controller.refreshDue();
 
       if (dueReminders.isEmpty) {
         return;
       }
 
+      final ordered =
+          List<
+              ReminderModel
+            >.from(
+              dueReminders,
+            )
+            ..sort(
+              (
+                first,
+                second,
+              ) => first.remindAt.compareTo(
+                second.remindAt,
+              ),
+            );
+
       debugPrint(
         '[REMINDER SERVICE] '
-        '${dueReminders.length} lembrete(s) vencido(s).',
+        '${ordered.length} lembrete(s) vencido(s).',
       );
 
       // ========================================================
       // DISPARA UM POR UM
       // ========================================================
 
-      for (final reminder in dueReminders) {
+      for (final reminder in ordered) {
+        if (_disposed ||
+            !_running) {
+          break;
+        }
+
+        if (_dispatchingIds.contains(
+          reminder.id,
+        )) {
+          continue;
+        }
+
         await _dispatchReminder(
           reminder,
         );
@@ -201,6 +311,27 @@ class ReminderService {
       return;
     }
 
+    final reminderId = reminder.id.trim();
+
+    if (reminderId.isEmpty) {
+      debugPrint(
+        '[REMINDER SERVICE] '
+        'Lembrete sem id. Ignorado.',
+      );
+
+      return;
+    }
+
+    if (_dispatchingIds.contains(
+      reminderId,
+    )) {
+      return;
+    }
+
+    _dispatchingIds.add(
+      reminderId,
+    );
+
     try {
       debugPrint(
         '[REMINDER SERVICE] '
@@ -218,16 +349,30 @@ class ReminderService {
       // ========================================================
       // MARCA COMO ENVIADO NO APP
       // ========================================================
+      //
+      // O ReminderRepository salva primeiro no SQLite.
+      //
+      // Mesmo sem internet:
+      //
+      // sent_in_app = true
+      //      ↓
+      // SQLite
+      //      ↓
+      // SyncQueue
+      //
+      // Isso impede que o mesmo lembrete reapareça a cada ciclo.
+      //
+      // ========================================================
 
       final success = await controller.markInAppAsSent(
-        reminder.id,
+        reminderId,
       );
 
       if (!success) {
         debugPrint(
           '[REMINDER SERVICE] '
           'Não foi possível marcar '
-          '${reminder.id} como enviado.',
+          '$reminderId como enviado.',
         );
       }
     } catch (
@@ -237,11 +382,15 @@ class ReminderService {
       debugPrint(
         '[REMINDER SERVICE] '
         'Erro ao disparar lembrete '
-        '${reminder.id}: $error',
+        '$reminderId: $error',
       );
 
       debugPrint(
         stackTrace.toString(),
+      );
+    } finally {
+      _dispatchingIds.remove(
+        reminderId,
       );
     }
   }
@@ -254,6 +403,10 @@ class ReminderService {
     void
   >
   restart() async {
+    if (_disposed) {
+      return;
+    }
+
     final callback = _onReminderDue;
 
     if (callback ==
@@ -281,6 +434,8 @@ class ReminderService {
 
     _checking = false;
 
+    _dispatchingIds.clear();
+
     debugPrint(
       '[REMINDER SERVICE] Parado.',
     );
@@ -291,6 +446,12 @@ class ReminderService {
   // ============================================================
 
   void dispose() {
+    if (_disposed) {
+      return;
+    }
+
+    _disposed = true;
+
     stop();
 
     _onReminderDue = null;

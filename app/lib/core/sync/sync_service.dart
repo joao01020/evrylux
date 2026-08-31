@@ -10,16 +10,6 @@ import 'sync_queue.dart';
 // ============================================================
 // HANDLER
 // ============================================================
-//
-// Cada tipo de entidade pode possuir sua própria estratégia de
-// sincronização.
-//
-// Exemplo:
-//
-// routine_day -> Supabase table routine_days
-// reminder    -> Supabase table reminders
-//
-// ============================================================
 
 typedef SyncItemHandler =
     Future<
@@ -49,15 +39,14 @@ enum SyncServiceState {
 // Responsabilidades:
 //
 // 1. observar a conexão;
-// 2. consultar a fila local persistente;
-// 3. enviar operações pendentes;
-// 4. remover da fila quando houver sucesso;
-// 5. manter na fila quando houver erro;
-// 6. tentar novamente automaticamente;
-// 7. informar o estado atual para a interface.
-//
-// A SyncQueue continua sendo a fonte da verdade das operações
-// pendentes.
+// 2. consultar a SyncQueue persistente;
+// 3. processar itens prontos;
+// 4. remover itens após sucesso;
+// 5. manter itens após erro;
+// 6. aplicar retry;
+// 7. reagir imediatamente a requestSync();
+// 8. não perder pedidos feitos durante outra sincronização;
+// 9. expor o estado real para a interface.
 //
 // ============================================================
 
@@ -125,7 +114,22 @@ class SyncService
 
   bool _disposed = false;
 
+  // ============================================================
+  // RESYNC REQUEST
+  // ============================================================
+  //
+  // Se um Repository chamar requestSync() enquanto um lote já
+  // está em andamento, não descartamos o pedido.
+  //
+  // Assim que o lote atual termina, fazemos nova passagem.
+  //
+  // ============================================================
+
+  bool _resyncRequested = false;
+
   int _pendingCount = 0;
+
+  int _readyCount = 0;
 
   int _lastSyncedCount = 0;
 
@@ -153,6 +157,8 @@ class SyncService
 
   int get pendingCount => _pendingCount;
 
+  int get readyCount => _readyCount;
+
   int get lastSyncedCount => _lastSyncedCount;
 
   int get lastFailedCount => _lastFailedCount;
@@ -167,6 +173,10 @@ class SyncService
       _pendingCount >
       0;
 
+  bool get hasReady =>
+      _readyCount >
+      0;
+
   bool get hasError =>
       _lastError !=
       null;
@@ -179,11 +189,16 @@ class SyncService
     void
   >
   start() async {
-    if (_started) {
+    if (_disposed ||
+        _started) {
       return;
     }
 
     _started = true;
+
+    debugPrint(
+      '[SYNC SERVICE] Iniciando...',
+    );
 
     _setState(
       SyncServiceState.checking,
@@ -193,30 +208,67 @@ class SyncService
       _onConnectivityChanged,
     );
 
-    await _connectivityService.start();
+    try {
+      await _connectivityService.start();
 
-    await refreshPendingCount();
+      await refreshPendingCount();
 
-    if (_connectivityService.isOnline) {
-      await syncNow(
-        checkConnection: false,
+      debugPrint(
+        '[SYNC SERVICE] '
+        'Inicializado. '
+        'online=${_connectivityService.isOnline} '
+        'pending=$_pendingCount '
+        'ready=$_readyCount '
+        'handlers=${_handlers.length}',
       );
-    } else {
-      _setState(
-        SyncServiceState.offline,
-      );
-    }
 
-    _timer = Timer.periodic(
-      syncInterval,
-      (
-        _,
-      ) {
-        unawaited(
-          _periodicCheck(),
+      if (_connectivityService.isOnline) {
+        await syncNow(
+          checkConnection: false,
         );
-      },
-    );
+      } else {
+        _setState(
+          SyncServiceState.offline,
+        );
+      }
+
+      _timer = Timer.periodic(
+        syncInterval,
+        (
+          _,
+        ) {
+          unawaited(
+            _periodicCheck(),
+          );
+        },
+      );
+    } catch (
+      error,
+      stackTrace
+    ) {
+      _started = false;
+
+      _connectivityService.removeListener(
+        _onConnectivityChanged,
+      );
+
+      _lastError = error.toString();
+
+      _setState(
+        SyncServiceState.error,
+      );
+
+      debugPrint(
+        '[SYNC SERVICE] '
+        'Erro ao iniciar: $error',
+      );
+
+      debugPrint(
+        stackTrace.toString(),
+      );
+
+      rethrow;
+    }
   }
 
   // ============================================================
@@ -244,16 +296,28 @@ class SyncService
       return;
     }
 
-    if (_pendingCount >
+    if (_readyCount >
         0) {
       await syncNow(
         checkConnection: false,
       );
-    } else {
+
+      return;
+    }
+
+    if (_pendingCount >
+        0) {
+      // Existem itens aguardando next_attempt_at.
       _setState(
         SyncServiceState.idle,
       );
+
+      return;
     }
+
+    _setState(
+      SyncServiceState.idle,
+    );
   }
 
   // ============================================================
@@ -285,6 +349,11 @@ class SyncService
     void
   >
   _onConnectionRestored() async {
+    debugPrint(
+      '[SYNC SERVICE] '
+      'Conexão restaurada.',
+    );
+
     await refreshPendingCount();
 
     if (_pendingCount ==
@@ -318,28 +387,15 @@ class SyncService
     }
 
     _handlers[key] = handler;
+
+    debugPrint(
+      '[SYNC SERVICE] '
+      'Handler registrado: $key',
+    );
   }
 
   // ============================================================
   // REGISTER SUPABASE TABLE
-  // ============================================================
-  //
-  // Atalho para entidades simples.
-  //
-  // Exemplo:
-  //
-  // syncService.registerSupabaseTable(
-  //   entityType: 'reminder',
-  //   table: 'reminders',
-  // );
-  //
-  // CREATE e UPDATE usam UPSERT para tornar a operação
-  // idempotente. Se a mesma operação for executada novamente,
-  // o registro não é duplicado.
-  //
-  // IMPORTANTE:
-  // payload deve conter somente colunas existentes no Supabase.
-  //
   // ============================================================
 
   void registerSupabaseTable({
@@ -445,18 +501,33 @@ class SyncService
   // REQUEST SYNC
   // ============================================================
   //
-  // Use depois que algum Repository salvar localmente e colocar
-  // uma operação na SyncQueue.
+  // Chamado imediatamente após Repository.enqueue().
   //
-  // Não bloqueia a tela aguardando a sincronização remota.
+  // Se o serviço ainda estiver sincronizando, deixamos
+  // _resyncRequested = true para uma nova passagem automática.
   //
   // ============================================================
 
   void requestSync() {
-    if (!_started ||
-        _disposed) {
+    if (_disposed) {
       return;
     }
+
+    if (!_started) {
+      debugPrint(
+        '[SYNC SERVICE] '
+        'requestSync recebido antes do start.',
+      );
+
+      return;
+    }
+
+    _resyncRequested = true;
+
+    debugPrint(
+      '[SYNC SERVICE] '
+      'Sincronização solicitada.',
+    );
 
     unawaited(
       _requestSyncInternal(),
@@ -467,13 +538,32 @@ class SyncService
     void
   >
   _requestSyncInternal() async {
+    if (_disposed ||
+        !_started) {
+      return;
+    }
+
     await refreshPendingCount();
+
+    debugPrint(
+      '[SYNC SERVICE] '
+      'requestSync: '
+      'online=${_connectivityService.isOnline} '
+      'syncing=$_syncing '
+      'pending=$_pendingCount '
+      'ready=$_readyCount',
+    );
 
     if (!_connectivityService.isOnline) {
       _setState(
         SyncServiceState.offline,
       );
 
+      return;
+    }
+
+    if (_syncing) {
+      // O pedido já ficou registrado em _resyncRequested.
       return;
     }
 
@@ -493,12 +583,25 @@ class SyncService
     bool checkConnection = true,
   }) async {
     if (!_started ||
-        _disposed ||
-        _syncing) {
+        _disposed) {
+      return;
+    }
+
+    if (_syncing) {
+      _resyncRequested = true;
+
+      debugPrint(
+        '[SYNC SERVICE] '
+        'syncNow já em execução; nova passagem agendada.',
+      );
+
       return;
     }
 
     _syncing = true;
+
+    // Este pedido será atendido pelo lote que começa agora.
+    _resyncRequested = false;
 
     _lastAttemptAt = DateTime.now();
 
@@ -513,6 +616,10 @@ class SyncService
     );
 
     try {
+      // ========================================================
+      // CONNECTION
+      // ========================================================
+
       if (checkConnection) {
         final online = await _connectivityService.checkNow();
 
@@ -531,109 +638,183 @@ class SyncService
         return;
       }
 
-      _setState(
-        SyncServiceState.syncing,
-      );
+      // ========================================================
+      // AUTH
+      // ========================================================
+      //
+      // A maioria dos handlers utiliza RLS do Supabase.
+      //
+      // Se o app estiver restaurando a sessão, não marcamos a
+      // operação como falha. Apenas aguardamos nova solicitação
+      // ou próximo ciclo.
+      //
+      // ========================================================
 
-      final items = await _queue.getPending(
-        limit: batchSize,
-      );
-
-      if (items.isEmpty) {
+      if (_client.auth.currentUser ==
+          null) {
         await refreshPendingCount();
 
-        _lastSyncAt = DateTime.now();
+        _lastError = null;
 
         _setState(
           SyncServiceState.idle,
         );
 
+        debugPrint(
+          '[SYNC SERVICE] '
+          'Fila aguardando autenticação. '
+          'pending=$_pendingCount',
+        );
+
         return;
       }
 
-      for (final item in items) {
-        if (!_connectivityService.isOnline) {
-          _setState(
-            SyncServiceState.offline,
-          );
+      _setState(
+        SyncServiceState.syncing,
+      );
 
+      // ========================================================
+      // PROCESS BATCHES
+      // ========================================================
+      //
+      // Processamos mais de um lote na mesma execução caso
+      // existam mais itens prontos que batchSize.
+      //
+      // ========================================================
+
+      var continueProcessing = true;
+
+      while (continueProcessing &&
+          _started &&
+          !_disposed &&
+          _connectivityService.isOnline) {
+        final items = await _queue.getPending(
+          limit: batchSize,
+        );
+
+        if (items.isEmpty) {
           break;
         }
 
-        final handler = _handlers[item.entityType];
+        debugPrint(
+          '[SYNC SERVICE] '
+          'Processando ${items.length} item(ns).',
+        );
 
-        if (handler ==
-            null) {
-          _lastFailedCount++;
+        var processedThisBatch = 0;
 
-          _lastError =
-              'Nenhum handler registrado para '
-              '"${item.entityType}".';
-
-          debugPrint(
-            '[SyncService] $_lastError',
-          );
-
-          // Não incrementamos attempts aqui.
-          // A operação continua aguardando até o app registrar
-          // um handler para essa entidade.
-          continue;
-        }
-
-        try {
-          await handler(
-            item,
-          );
-
-          await _queue.markSuccess(
-            item.id,
-          );
-
-          _lastSyncedCount++;
-
-          debugPrint(
-            '[SyncService] Sincronizado: '
-            '${item.entityType}/${item.entityId} '
-            '(${item.operation.value})',
-          );
-        } catch (
-          error,
-          stackTrace
-        ) {
-          _lastFailedCount++;
-
-          _lastError = error.toString();
-
-          debugPrint(
-            '[SyncService] Falha: '
-            '${item.entityType}/${item.entityId} '
-            '(${item.operation.value})',
-          );
-
-          debugPrint(
-            error.toString(),
-          );
-
-          debugPrint(
-            stackTrace.toString(),
-          );
-
-          await _queue.markFailed(
-            id: item.id,
-            error: error,
-          );
-
-          // Se a conexão caiu no meio da sincronização,
-          // interrompemos o lote.
-          final online = await _connectivityService.checkNow();
-
-          if (!online) {
+        for (final item in items) {
+          if (!_connectivityService.isOnline) {
             _setState(
               SyncServiceState.offline,
             );
 
+            continueProcessing = false;
+
             break;
           }
+
+          final handler = _handlers[item.entityType];
+
+          if (handler ==
+              null) {
+            _lastFailedCount++;
+
+            _lastError =
+                'Nenhum handler registrado para '
+                '"${item.entityType}".';
+
+            debugPrint(
+              '[SYNC SERVICE] '
+              'SEM HANDLER: '
+              '${item.entityType}/${item.entityId}',
+            );
+
+            // Sem handler não adianta repetir dentro do mesmo
+            // loop, então não contamos como item processado.
+            continue;
+          }
+
+          try {
+            debugPrint(
+              '[SYNC SERVICE] '
+              'Enviando: '
+              '${item.entityType}/${item.entityId} '
+              '(${item.operation.value})',
+            );
+
+            await handler(
+              item,
+            );
+
+            await _queue.markSuccess(
+              item.id,
+            );
+
+            _lastSyncedCount++;
+            processedThisBatch++;
+
+            debugPrint(
+              '[SYNC SERVICE] '
+              'OK: '
+              '${item.entityType}/${item.entityId} '
+              '(${item.operation.value})',
+            );
+          } catch (
+            error,
+            stackTrace
+          ) {
+            _lastFailedCount++;
+            processedThisBatch++;
+
+            _lastError = error.toString();
+
+            debugPrint(
+              '[SYNC SERVICE] '
+              'FALHA: '
+              '${item.entityType}/${item.entityId} '
+              '(${item.operation.value})',
+            );
+
+            debugPrint(
+              '[SYNC SERVICE] $error',
+            );
+
+            debugPrint(
+              stackTrace.toString(),
+            );
+
+            await _queue.markFailed(
+              id: item.id,
+              error: error,
+            );
+
+            final online = await _connectivityService.checkNow();
+
+            if (!online) {
+              _setState(
+                SyncServiceState.offline,
+              );
+
+              continueProcessing = false;
+
+              break;
+            }
+          }
+        }
+
+        // Se nenhum item do lote pôde ser processado, geralmente
+        // significa ausência de handler. Evitamos loop infinito.
+        if (processedThisBatch ==
+            0) {
+          continueProcessing = false;
+        }
+
+        // Se o lote veio menor que batchSize, já chegamos ao fim
+        // dos itens atualmente prontos.
+        if (items.length <
+            batchSize) {
+          continueProcessing = false;
         }
       }
 
@@ -657,6 +838,15 @@ class SyncService
           SyncServiceState.idle,
         );
       }
+
+      debugPrint(
+        '[SYNC SERVICE] '
+        'Fim. '
+        'synced=$_lastSyncedCount '
+        'failed=$_lastFailedCount '
+        'pending=$_pendingCount '
+        'ready=$_readyCount',
+      );
     } catch (
       error,
       stackTrace
@@ -664,7 +854,8 @@ class SyncService
       _lastError = error.toString();
 
       debugPrint(
-        '[SyncService] Erro geral: $error',
+        '[SYNC SERVICE] '
+        'Erro geral: $error',
       );
 
       debugPrint(
@@ -684,6 +875,35 @@ class SyncService
       _syncing = false;
 
       _safeNotifyListeners();
+
+      // ========================================================
+      // COALESCED RESYNC
+      // ========================================================
+      //
+      // Se algum Repository criou nova operação enquanto este
+      // lote estava rodando, processamos novamente imediatamente.
+      //
+      // ========================================================
+
+      if (_resyncRequested &&
+          _started &&
+          !_disposed &&
+          _connectivityService.isOnline) {
+        _resyncRequested = false;
+
+        unawaited(
+          Future<
+            void
+          >.delayed(
+            const Duration(
+              milliseconds: 100,
+            ),
+            () => syncNow(
+              checkConnection: false,
+            ),
+          ),
+        );
+      }
     }
   }
 
@@ -698,20 +918,33 @@ class SyncService
     try {
       final count = await _queue.count();
 
-      if (_pendingCount ==
-          count) {
-        return;
-      }
+      final ready = await _queue.countReady();
+
+      final changed =
+          _pendingCount !=
+              count ||
+          _readyCount !=
+              ready;
 
       _pendingCount = count;
 
-      _safeNotifyListeners();
+      _readyCount = ready;
+
+      if (changed) {
+        debugPrint(
+          '[SYNC SERVICE] '
+          'Fila: pending=$_pendingCount '
+          'ready=$_readyCount',
+        );
+
+        _safeNotifyListeners();
+      }
     } catch (
       error
     ) {
       debugPrint(
-        '[SyncService] Erro ao contar pendências: '
-        '$error',
+        '[SYNC SERVICE] '
+        'Erro ao contar pendências: $error',
       );
     }
   }
@@ -780,6 +1013,12 @@ class SyncService
       case SyncServiceState.idle:
         if (_pendingCount >
             0) {
+          if (_readyCount ==
+              0) {
+            return '$_pendingCount alteração'
+                '${_pendingCount == 1 ? '' : 'ões'} aguardando nova tentativa';
+          }
+
           return '$_pendingCount alteração'
               '${_pendingCount == 1 ? '' : 'ões'} aguardando sincronização';
         }
@@ -839,8 +1078,14 @@ class SyncService
 
     _syncing = false;
 
+    _resyncRequested = false;
+
     _setState(
       SyncServiceState.stopped,
+    );
+
+    debugPrint(
+      '[SYNC SERVICE] Parado.',
     );
   }
 
@@ -850,6 +1095,10 @@ class SyncService
 
   @override
   void dispose() {
+    if (_disposed) {
+      return;
+    }
+
     _disposed = true;
 
     _timer?.cancel();

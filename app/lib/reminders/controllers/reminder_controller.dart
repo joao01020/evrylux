@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 
 import '../data/reminder_repository.dart';
-
 import '../models/reminder_model.dart';
 
 class ReminderController
@@ -26,11 +25,16 @@ class ReminderController
   final List<
     ReminderModel
   >
-  _reminders = [];
+  _reminders =
+      <
+        ReminderModel
+      >[];
 
   bool _loading = false;
 
   String? _errorMessage;
+
+  bool _disposed = false;
 
   // ============================================================
   // GETTERS
@@ -40,7 +44,9 @@ class ReminderController
     ReminderModel
   >
   get reminders {
-    return List.unmodifiable(
+    return List<
+      ReminderModel
+    >.unmodifiable(
       _reminders,
     );
   }
@@ -70,23 +76,23 @@ class ReminderController
     ReminderModel
   >
   get pending {
-    final values = _reminders.where(
-      (
-        reminder,
-      ) {
-        return !reminder.completed;
-      },
-    ).toList();
+    final values = _reminders
+        .where(
+          (
+            reminder,
+          ) => !reminder.completed,
+        )
+        .toList(
+          growable: false,
+        );
 
     values.sort(
       (
         first,
         second,
-      ) {
-        return first.remindAt.compareTo(
-          second.remindAt,
-        );
-      },
+      ) => first.remindAt.compareTo(
+        second.remindAt,
+      ),
     );
 
     return values;
@@ -100,23 +106,23 @@ class ReminderController
     ReminderModel
   >
   get completed {
-    final values = _reminders.where(
-      (
-        reminder,
-      ) {
-        return reminder.completed;
-      },
-    ).toList();
+    final values = _reminders
+        .where(
+          (
+            reminder,
+          ) => reminder.completed,
+        )
+        .toList(
+          growable: false,
+        );
 
     values.sort(
       (
         first,
         second,
-      ) {
-        return second.remindAt.compareTo(
-          first.remindAt,
-        );
-      },
+      ) => second.remindAt.compareTo(
+        first.remindAt,
+      ),
     );
 
     return values;
@@ -132,28 +138,30 @@ class ReminderController
   get due {
     final now = DateTime.now();
 
-    final values = _reminders.where(
-      (
-        reminder,
-      ) {
-        return !reminder.completed &&
-            reminder.notifyInApp &&
-            !reminder.sentInApp &&
-            !reminder.remindAt.toLocal().isAfter(
-              now,
-            );
-      },
-    ).toList();
+    final values = _reminders
+        .where(
+          (
+            reminder,
+          ) {
+            return !reminder.completed &&
+                reminder.notifyInApp &&
+                !reminder.sentInApp &&
+                !reminder.remindAt.toLocal().isAfter(
+                  now,
+                );
+          },
+        )
+        .toList(
+          growable: false,
+        );
 
     values.sort(
       (
         first,
         second,
-      ) {
-        return first.remindAt.compareTo(
-          second.remindAt,
-        );
-      },
+      ) => first.remindAt.compareTo(
+        second.remindAt,
+      ),
     );
 
     return values;
@@ -162,12 +170,22 @@ class ReminderController
   // ============================================================
   // LOAD
   // ============================================================
+  //
+  // O repository é offline-first.
+  //
+  // Portanto:
+  //
+  // online  -> pode atualizar o SQLite pelo Supabase;
+  // offline -> retorna o cache local.
+  //
+  // ============================================================
 
   Future<
     void
   >
   load() async {
-    if (_loading) {
+    if (_disposed ||
+        _loading) {
       return;
     }
 
@@ -180,18 +198,22 @@ class ReminderController
     try {
       final result = await repository.getAll();
 
-      _reminders
-        ..clear()
-        ..addAll(
-          result,
-        );
+      _replaceAll(
+        result,
+      );
     } catch (
-      error
+      error,
+      stackTrace
     ) {
       _errorMessage = error.toString();
 
       debugPrint(
-        '[REMINDER CONTROLLER] Erro ao carregar: $error',
+        '[REMINDER CONTROLLER] '
+        'Erro ao carregar: $error',
+      );
+
+      debugPrint(
+        stackTrace.toString(),
       );
     } finally {
       _setLoading(
@@ -203,33 +225,112 @@ class ReminderController
   // ============================================================
   // REFRESH
   // ============================================================
+  //
+  // Não ativa loading global para não causar flicker a cada
+  // verificação periódica do ReminderService.
+  //
+  // ============================================================
 
   Future<
     void
   >
   refresh() async {
+    if (_disposed) {
+      return;
+    }
+
     try {
       final result = await repository.getAll();
 
-      _reminders
-        ..clear()
-        ..addAll(
-          result,
-        );
+      _replaceAll(
+        result,
+        notify: false,
+      );
 
       _errorMessage = null;
 
-      notifyListeners();
+      _safeNotifyListeners();
     } catch (
-      error
+      error,
+      stackTrace
     ) {
       _errorMessage = error.toString();
 
       debugPrint(
-        '[REMINDER CONTROLLER] Erro ao atualizar: $error',
+        '[REMINDER CONTROLLER] '
+        'Erro ao atualizar: $error',
       );
 
-      notifyListeners();
+      debugPrint(
+        stackTrace.toString(),
+      );
+
+      _safeNotifyListeners();
+    }
+  }
+
+  // ============================================================
+  // REFRESH DUE ONLY
+  // ============================================================
+  //
+  // Método pensado para o ReminderService.
+  //
+  // Busca especificamente lembretes vencidos pelo repository,
+  // que já usa SQLite offline.
+  //
+  // Isso evita depender de uma carga remota completa apenas
+  // para saber o que precisa ser exibido agora.
+  //
+  // ============================================================
+
+  Future<
+    List<
+      ReminderModel
+    >
+  >
+  refreshDue() async {
+    if (_disposed) {
+      return const <
+        ReminderModel
+      >[];
+    }
+
+    try {
+      final result = await repository.getDue();
+
+      _merge(
+        result,
+      );
+
+      _errorMessage = null;
+
+      _safeNotifyListeners();
+
+      return List<
+        ReminderModel
+      >.unmodifiable(
+        result,
+      );
+    } catch (
+      error,
+      stackTrace
+    ) {
+      _errorMessage = error.toString();
+
+      debugPrint(
+        '[REMINDER CONTROLLER] '
+        'Erro ao carregar vencidos: $error',
+      );
+
+      debugPrint(
+        stackTrace.toString(),
+      );
+
+      _safeNotifyListeners();
+
+      return const <
+        ReminderModel
+      >[];
     }
   }
 
@@ -256,7 +357,7 @@ class ReminderController
     if (normalizedTitle.isEmpty) {
       _errorMessage = 'Informe um título para o lembrete.';
 
-      notifyListeners();
+      _safeNotifyListeners();
 
       return null;
     }
@@ -264,7 +365,7 @@ class ReminderController
     if (normalizedMessage.isEmpty) {
       _errorMessage = 'Informe uma mensagem para o lembrete.';
 
-      notifyListeners();
+      _safeNotifyListeners();
 
       return null;
     }
@@ -286,20 +387,27 @@ class ReminderController
         notifyTelegram: notifyTelegram,
       );
 
-      _reminders.add(
+      _upsertLocal(
         reminder,
+        notify: false,
       );
 
       _sort();
 
       return reminder;
     } catch (
-      error
+      error,
+      stackTrace
     ) {
       _errorMessage = error.toString();
 
       debugPrint(
-        '[REMINDER CONTROLLER] Erro ao criar: $error',
+        '[REMINDER CONTROLLER] '
+        'Erro ao criar: $error',
+      );
+
+      debugPrint(
+        stackTrace.toString(),
       );
 
       return null;
@@ -320,6 +428,10 @@ class ReminderController
   update(
     ReminderModel reminder,
   ) async {
+    if (_disposed) {
+      return false;
+    }
+
     _setLoading(
       true,
     );
@@ -331,34 +443,27 @@ class ReminderController
         reminder,
       );
 
-      final index = _reminders.indexWhere(
-        (
-          item,
-        ) {
-          return item.id ==
-              updated.id;
-        },
+      _upsertLocal(
+        updated,
+        notify: false,
       );
-
-      if (index >=
-          0) {
-        _reminders[index] = updated;
-      } else {
-        _reminders.add(
-          updated,
-        );
-      }
 
       _sort();
 
       return true;
     } catch (
-      error
+      error,
+      stackTrace
     ) {
       _errorMessage = error.toString();
 
       debugPrint(
-        '[REMINDER CONTROLLER] Erro ao atualizar: $error',
+        '[REMINDER CONTROLLER] '
+        'Erro ao atualizar: $error',
+      );
+
+      debugPrint(
+        stackTrace.toString(),
       );
 
       return false;
@@ -379,6 +484,10 @@ class ReminderController
   markInAppAsSent(
     String id,
   ) async {
+    if (_disposed) {
+      return false;
+    }
+
     try {
       await repository.markInAppAsSent(
         id,
@@ -394,20 +503,28 @@ class ReminderController
           sentInApp: true,
         );
 
-        notifyListeners();
+        _safeNotifyListeners();
       }
+
+      _errorMessage = null;
 
       return true;
     } catch (
-      error
+      error,
+      stackTrace
     ) {
       _errorMessage = error.toString();
 
       debugPrint(
-        '[REMINDER CONTROLLER] Erro ao marcar envio interno: $error',
+        '[REMINDER CONTROLLER] '
+        'Erro ao marcar envio interno: $error',
       );
 
-      notifyListeners();
+      debugPrint(
+        stackTrace.toString(),
+      );
+
+      _safeNotifyListeners();
 
       return false;
     }
@@ -423,6 +540,10 @@ class ReminderController
   markTelegramAsSent(
     String id,
   ) async {
+    if (_disposed) {
+      return false;
+    }
+
     try {
       await repository.markTelegramAsSent(
         id,
@@ -438,20 +559,28 @@ class ReminderController
           sentTelegram: true,
         );
 
-        notifyListeners();
+        _safeNotifyListeners();
       }
+
+      _errorMessage = null;
 
       return true;
     } catch (
-      error
+      error,
+      stackTrace
     ) {
       _errorMessage = error.toString();
 
       debugPrint(
-        '[REMINDER CONTROLLER] Erro ao marcar Telegram: $error',
+        '[REMINDER CONTROLLER] '
+        'Erro ao marcar Telegram: $error',
       );
 
-      notifyListeners();
+      debugPrint(
+        stackTrace.toString(),
+      );
+
+      _safeNotifyListeners();
 
       return false;
     }
@@ -467,6 +596,10 @@ class ReminderController
   complete(
     String id,
   ) async {
+    if (_disposed) {
+      return false;
+    }
+
     try {
       await repository.complete(
         id,
@@ -482,20 +615,28 @@ class ReminderController
           completed: true,
         );
 
-        notifyListeners();
+        _safeNotifyListeners();
       }
+
+      _errorMessage = null;
 
       return true;
     } catch (
-      error
+      error,
+      stackTrace
     ) {
       _errorMessage = error.toString();
 
       debugPrint(
-        '[REMINDER CONTROLLER] Erro ao concluir: $error',
+        '[REMINDER CONTROLLER] '
+        'Erro ao concluir: $error',
       );
 
-      notifyListeners();
+      debugPrint(
+        stackTrace.toString(),
+      );
+
+      _safeNotifyListeners();
 
       return false;
     }
@@ -511,6 +652,10 @@ class ReminderController
   reopen(
     String id,
   ) async {
+    if (_disposed) {
+      return false;
+    }
+
     try {
       await repository.reopen(
         id,
@@ -528,20 +673,28 @@ class ReminderController
           sentTelegram: false,
         );
 
-        notifyListeners();
+        _safeNotifyListeners();
       }
+
+      _errorMessage = null;
 
       return true;
     } catch (
-      error
+      error,
+      stackTrace
     ) {
       _errorMessage = error.toString();
 
       debugPrint(
-        '[REMINDER CONTROLLER] Erro ao reabrir: $error',
+        '[REMINDER CONTROLLER] '
+        'Erro ao reabrir: $error',
       );
 
-      notifyListeners();
+      debugPrint(
+        stackTrace.toString(),
+      );
+
+      _safeNotifyListeners();
 
       return false;
     }
@@ -557,6 +710,10 @@ class ReminderController
   delete(
     String id,
   ) async {
+    if (_disposed) {
+      return false;
+    }
+
     try {
       await repository.delete(
         id,
@@ -565,25 +722,32 @@ class ReminderController
       _reminders.removeWhere(
         (
           reminder,
-        ) {
-          return reminder.id ==
-              id;
-        },
+        ) =>
+            reminder.id ==
+            id,
       );
 
-      notifyListeners();
+      _errorMessage = null;
+
+      _safeNotifyListeners();
 
       return true;
     } catch (
-      error
+      error,
+      stackTrace
     ) {
       _errorMessage = error.toString();
 
       debugPrint(
-        '[REMINDER CONTROLLER] Erro ao excluir: $error',
+        '[REMINDER CONTROLLER] '
+        'Erro ao excluir: $error',
       );
 
-      notifyListeners();
+      debugPrint(
+        stackTrace.toString(),
+      );
+
+      _safeNotifyListeners();
 
       return false;
     }
@@ -617,16 +781,20 @@ class ReminderController
     required String sourceType,
     required String sourceId,
   }) {
-    return _reminders.where(
-      (
-        reminder,
-      ) {
-        return reminder.sourceType ==
-                sourceType &&
-            reminder.sourceId ==
-                sourceId;
-      },
-    ).toList();
+    return _reminders
+        .where(
+          (
+            reminder,
+          ) {
+            return reminder.sourceType ==
+                    sourceType &&
+                reminder.sourceId ==
+                    sourceId;
+          },
+        )
+        .toList(
+          growable: false,
+        );
   }
 
   // ============================================================
@@ -641,7 +809,79 @@ class ReminderController
 
     _errorMessage = null;
 
-    notifyListeners();
+    _safeNotifyListeners();
+  }
+
+  // ============================================================
+  // REPLACE ALL
+  // ============================================================
+
+  void _replaceAll(
+    List<
+      ReminderModel
+    >
+    values, {
+    bool notify = true,
+  }) {
+    _reminders
+      ..clear()
+      ..addAll(
+        values,
+      );
+
+    _sort();
+
+    if (notify) {
+      _safeNotifyListeners();
+    }
+  }
+
+  // ============================================================
+  // MERGE
+  // ============================================================
+
+  void _merge(
+    List<
+      ReminderModel
+    >
+    values,
+  ) {
+    for (final value in values) {
+      _upsertLocal(
+        value,
+        notify: false,
+      );
+    }
+
+    _sort();
+  }
+
+  // ============================================================
+  // UPSERT LOCAL STATE
+  // ============================================================
+
+  void _upsertLocal(
+    ReminderModel reminder, {
+    bool notify = true,
+  }) {
+    final index = _indexOf(
+      reminder.id,
+    );
+
+    if (index >=
+        0) {
+      _reminders[index] = reminder;
+    } else {
+      _reminders.add(
+        reminder,
+      );
+    }
+
+    if (notify) {
+      _sort();
+
+      _safeNotifyListeners();
+    }
   }
 
   // ============================================================
@@ -654,10 +894,9 @@ class ReminderController
     return _reminders.indexWhere(
       (
         reminder,
-      ) {
-        return reminder.id ==
-            id;
-      },
+      ) =>
+          reminder.id ==
+          id,
     );
   }
 
@@ -670,11 +909,9 @@ class ReminderController
       (
         first,
         second,
-      ) {
-        return first.remindAt.compareTo(
-          second.remindAt,
-        );
-      },
+      ) => first.remindAt.compareTo(
+        second.remindAt,
+      ),
     );
   }
 
@@ -685,13 +922,37 @@ class ReminderController
   void _setLoading(
     bool value,
   ) {
-    if (_loading ==
-        value) {
+    if (_disposed ||
+        _loading ==
+            value) {
       return;
     }
 
     _loading = value;
 
+    _safeNotifyListeners();
+  }
+
+  // ============================================================
+  // NOTIFY
+  // ============================================================
+
+  void _safeNotifyListeners() {
+    if (_disposed) {
+      return;
+    }
+
     notifyListeners();
+  }
+
+  // ============================================================
+  // DISPOSE
+  // ============================================================
+
+  @override
+  void dispose() {
+    _disposed = true;
+
+    super.dispose();
   }
 }

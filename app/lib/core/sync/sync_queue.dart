@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
+
 import '../database/app_database.dart';
 import 'sync_item.dart';
 
@@ -30,29 +32,39 @@ class SyncQueue {
           dynamic
         >{},
   }) async {
+    final normalizedEntityType = entityType.trim();
+
+    final normalizedEntityId = entityId.trim();
+
     _validateEntity(
-      entityType,
-      entityId,
+      normalizedEntityType,
+      normalizedEntityId,
     );
 
     final now = DateTime.now().toUtc();
 
     final existing = await findByEntity(
-      entityType: entityType,
-      entityId: entityId,
+      entityType: normalizedEntityType,
+      entityId: normalizedEntityId,
     );
 
-    final resolved = _resolveOperation(
+    final resolvedOperation = _resolveOperation(
       existing: existing,
       incoming: operation,
     );
 
-    if (resolved ==
+    if (resolvedOperation ==
         null) {
       if (existing !=
           null) {
         await remove(
           existing.id,
+        );
+
+        debugPrint(
+          '[SYNC QUEUE] '
+          '${existing.entityType}/${existing.entityId}: '
+          'CREATE + DELETE cancelados.',
         );
       }
 
@@ -60,10 +72,16 @@ class SyncQueue {
         id:
             existing?.id ??
             _newId(),
-        entityType: entityType,
-        entityId: entityId,
+        entityType: normalizedEntityType,
+        entityId: normalizedEntityId,
         operation: operation,
-        payload: payload,
+        payload:
+            Map<
+              String,
+              dynamic
+            >.from(
+              payload,
+            ),
         createdAt:
             existing?.createdAt ??
             now,
@@ -71,21 +89,25 @@ class SyncQueue {
       );
     }
 
+    final resolvedPayload =
+        <
+          String,
+          dynamic
+        >{
+          if (existing !=
+              null)
+            ...existing.payload,
+          ...payload,
+        };
+
     final item = SyncItem(
       id:
           existing?.id ??
           _newId(),
-      entityType: entityType,
-      entityId: entityId,
-      operation: resolved,
-      payload:
-          operation ==
-              SyncOperation.delete
-          ? <
-              String,
-              dynamic
-            >{}
-          : payload,
+      entityType: normalizedEntityType,
+      entityId: normalizedEntityId,
+      operation: resolvedOperation,
+      payload: resolvedPayload,
       createdAt:
           existing?.createdAt ??
           now,
@@ -137,6 +159,14 @@ class SyncQueue {
       ],
     );
 
+    debugPrint(
+      '[SYNC QUEUE] '
+      'Enfileirado: '
+      '$normalizedEntityType/'
+      '$normalizedEntityId '
+      '(${resolvedOperation.name})',
+    );
+
     return item;
   }
 
@@ -148,15 +178,23 @@ class SyncQueue {
   getPending({
     int limit = 100,
   }) async {
+    if (limit <=
+        0) {
+      return const <
+        SyncItem
+      >[];
+    }
+
     final now = DateTime.now().toUtc().toIso8601String();
 
     final rows = _database.db.select(
       '''
       SELECT *
       FROM sync_queue
-      WHERE
+      WHERE (
         next_attempt_at IS NULL
         OR next_attempt_at <= ?
+      )
       ORDER BY created_at ASC
       LIMIT ?
       ''',
@@ -234,8 +272,8 @@ class SyncQueue {
       LIMIT 1
       ''',
       [
-        entityType,
-        entityId,
+        entityType.trim(),
+        entityId.trim(),
       ],
     );
 
@@ -262,6 +300,11 @@ class SyncQueue {
     await remove(
       id,
     );
+
+    debugPrint(
+      '[SYNC QUEUE] '
+      'Sincronização concluída: $id',
+    );
   }
 
   Future<
@@ -287,10 +330,17 @@ class SyncQueue {
       return;
     }
 
+    final rawAttempts = rows.first['attempts'];
+
     final currentAttempts =
-        rows.first['attempts']
-            as int? ??
-        0;
+        rawAttempts
+            is int
+        ? rawAttempts
+        : int.tryParse(
+                rawAttempts?.toString() ??
+                    '',
+              ) ??
+              0;
 
     final attempts =
         currentAttempts +
@@ -321,6 +371,14 @@ class SyncQueue {
         DateTime.now().toUtc().toIso8601String(),
         id,
       ],
+    );
+
+    debugPrint(
+      '[SYNC QUEUE] '
+      'Falha em $id. '
+      'Tentativa $attempts. '
+      'Nova tentativa em ${retryDelay.inSeconds}s. '
+      'Erro: $error',
     );
   }
 
@@ -369,6 +427,10 @@ class SyncQueue {
     _database.db.execute(
       'DELETE FROM sync_queue;',
     );
+
+    debugPrint(
+      '[SYNC QUEUE] Fila limpa.',
+    );
   }
 
   Future<
@@ -386,8 +448,55 @@ class SyncQueue {
       return 0;
     }
 
-    return rows.first['total']
-            as int? ??
+    final value = rows.first['total'];
+
+    if (value
+        is int) {
+      return value;
+    }
+
+    return int.tryParse(
+          value?.toString() ??
+              '',
+        ) ??
+        0;
+  }
+
+  Future<
+    int
+  >
+  countReady() async {
+    final now = DateTime.now().toUtc().toIso8601String();
+
+    final rows = _database.db.select(
+      '''
+      SELECT COUNT(*) AS total
+      FROM sync_queue
+      WHERE (
+        next_attempt_at IS NULL
+        OR next_attempt_at <= ?
+      )
+      ''',
+      [
+        now,
+      ],
+    );
+
+    if (rows.isEmpty) {
+      return 0;
+    }
+
+    final value = rows.first['total'];
+
+    if (value
+        is int) {
+      return value;
+    }
+
+    return int.tryParse(
+          value?.toString() ??
+              '',
+        ) ??
         0;
   }
 
@@ -414,6 +523,7 @@ class SyncQueue {
           case SyncOperation.create:
           case SyncOperation.update:
             return SyncOperation.create;
+
           case SyncOperation.delete:
             return null;
         }
@@ -423,6 +533,7 @@ class SyncQueue {
           case SyncOperation.create:
           case SyncOperation.update:
             return SyncOperation.update;
+
           case SyncOperation.delete:
             return SyncOperation.delete;
         }
@@ -431,6 +542,7 @@ class SyncQueue {
         switch (incoming) {
           case SyncOperation.create:
             return SyncOperation.update;
+
           case SyncOperation.update:
           case SyncOperation.delete:
             return SyncOperation.delete;
@@ -442,13 +554,13 @@ class SyncQueue {
     String entityType,
     String entityId,
   ) {
-    if (entityType.trim().isEmpty) {
+    if (entityType.isEmpty) {
       throw ArgumentError(
         'entityType não pode ser vazio.',
       );
     }
 
-    if (entityId.trim().isEmpty) {
+    if (entityId.isEmpty) {
       throw ArgumentError(
         'entityId não pode ser vazio.',
       );

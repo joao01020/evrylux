@@ -13,8 +13,6 @@ import '../controllers/mind_map_controller.dart';
 import '../controllers/routine_controller.dart';
 import '../controllers/routine_state.dart';
 import '../data/datasources/comments/board_comment_remote_data_source.dart';
-import '../data/datasources/routine_memory_datasource.dart';
-import '../data/datasources/routine_remote_data_source.dart';
 import '../data/repositories/comments/board_comment_repository.dart';
 import '../data/repositories/routine_repository_impl.dart';
 import '../models/block_type.dart';
@@ -382,20 +380,29 @@ class _RoutineScreenState
     );
 
     // ==========================================================
-    // REMOTE DATASOURCE
-    // ==========================================================
-
-    final remoteDataSource = RoutineRemoteDataSource(
-      client: supabase,
-    );
-
-    // ==========================================================
     // REPOSITORY
+    // ==========================================================
+    //
+    // IMPORTANTE:
+    //
+    // A rotina deve usar as MESMAS dependências globais criadas
+    // em app_dependencies.dart.
+    //
+    // Isso garante que:
+    //
+    // - o SQLite usado pela rotina seja o mesmo do app;
+    // - a SyncQueue seja a mesma exibida no card global;
+    // - o SyncService enxergue imediatamente as alterações;
+    // - não exista uma segunda instância isolada da rotina;
+    // - saveDay() consiga enfileirar e sincronizar com Supabase.
+    //
     // ==========================================================
 
     final repository = RoutineRepositoryImpl(
-      localDataSource: RoutineMemoryDataSource(),
-      remoteDataSource: remoteDataSource,
+      localDataSource: routineLocalDataSource,
+      remoteDataSource: routineRemoteDataSource,
+      syncQueue: syncQueue,
+      syncService: syncService,
 
       // Durante a integração não escondemos erros do Supabase.
       fallbackToLocalOnRemoteError: false,
@@ -2985,6 +2992,32 @@ class _RoutineScreenState
           .toDouble();
     }
 
+    // ==========================================================
+    // IMPEDIR RESIZE SOBRE OUTRO BLOCO
+    // ==========================================================
+    //
+    // O redimensionamento também precisa respeitar a mesma regra
+    // de colisão usada durante o arraste.
+    //
+    // Se o novo retângulo do mapa mental encostar/invadir outro
+    // bloco, ignoramos apenas aquele passo do resize.
+    //
+    // ==========================================================
+
+    final selectedDay = _routineController.selectedDay;
+
+    final canResize = _boardController.canPlaceBlock(
+      day: selectedDay,
+      movingBlock: block,
+      position: position,
+      blockWidth: width,
+      blockHeight: height,
+    );
+
+    if (!canResize) {
+      return;
+    }
+
     block.position = position;
 
     block.width = width;
@@ -3091,11 +3124,15 @@ class _RoutineScreenState
               delta,
             ) {
               _boardController.moveBlock(
+                day: day,
                 block: block,
                 delta: delta,
                 boardWidth: boardWidth,
                 boardHeight: boardHeight,
                 blockWidth: width,
+                blockHeight:
+                    height ??
+                    210,
               );
 
               _notifyRoutineMutation();
