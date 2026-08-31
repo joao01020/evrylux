@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../app/dependencies/app_dependencies.dart';
 
+import 'body_map/widgets/body_map_dialog.dart';
+
 import '../widgets/generic/study_calendar.dart';
 
 import 'widgets/dialogs/history_dialog.dart';
@@ -514,6 +516,21 @@ class _TrainingScreenState
   }
 
   // ============================================================
+  // MODAL - MAPA CORPORAL
+  // ============================================================
+
+  Future<
+    void
+  >
+  _showBodyMapModal() async {
+    await BodyMapDialog.show(
+      context,
+      controller: bodyMapController,
+      service: bodyMapService,
+    );
+  }
+
+  // ============================================================
   // MENSAGEM
   // ============================================================
 
@@ -638,6 +655,19 @@ class _TrainingScreenState
                                 tooltip: 'Seu ritmo neste mês',
                                 icon: Icons.local_fire_department_rounded,
                                 onTap: _showMonthlyRhythmModal,
+                              ),
+
+                              const SizedBox(
+                                width: 10,
+                              ),
+
+                              // ==================================
+                              // MAPA CORPORAL
+                              // ==================================
+                              _ModalShortcutButton(
+                                tooltip: 'Mapa corporal',
+                                icon: Icons.accessibility_new_rounded,
+                                onTap: _showBodyMapModal,
                               ),
 
                               const SizedBox(

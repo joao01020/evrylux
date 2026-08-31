@@ -28,6 +28,7 @@
 | - Reminders
 | - Study
 | - Training
+| - Training Body Map
 | - Journey
 |
 |--------------------------------------------------------------------------
@@ -54,6 +55,7 @@ import '../../core/storage/local_storage.dart';
 import '../../core/database/app_database.dart';
 import '../../core/database/daos/reminder_dao.dart';
 import '../../core/database/daos/routine_dao.dart';
+import '../../core/database/daos/training_activity_plan_dao.dart';
 
 // ======================================================
 // CORE - SYNC
@@ -75,6 +77,10 @@ import '../../finance/controllers/crypto/crypto_controller.dart';
 import '../../evolution/controllers/evolution_controller.dart';
 
 import '../../training/controllers/training_controller.dart';
+
+import '../../training/body_map/controllers/body_map_controller.dart';
+import '../../training/body_map/data/body_map_repository.dart';
+import '../../training/body_map/services/body_map_service.dart';
 
 import '../../evolution/my_journey/controllers/journey_controller.dart';
 
@@ -176,6 +182,7 @@ get supabaseClient {
 // study_data
 // training_data
 // training_plans
+// training_activity_plans
 // journey_history
 //
 // Essas tabelas precisam existir no Supabase para o envio remoto
@@ -191,6 +198,9 @@ _trainingTable = 'training_data';
 
 const String
 _trainingPlanTable = 'training_plans';
+
+const String
+_trainingActivityPlanTable = 'training_activity_plans';
 
 const String
 _journeyTable = 'journey_history';
@@ -274,6 +284,18 @@ final routineRemoteDataSource = RoutineRemoteDataSource(
 // ======================================================
 
 final reminderDao = ReminderDao(
+  database: appDatabase,
+);
+
+// ======================================================
+// TRAINING ACTIVITY PLAN DAO
+// ======================================================
+//
+// Persistência SQLite do mapa corporal / plano de atividades.
+//
+// ======================================================
+
+final trainingActivityPlanDao = TrainingActivityPlanDao(
   database: appDatabase,
 );
 
@@ -816,6 +838,151 @@ registerSyncHandlers() {
   );
 
   // ====================================================
+  // TRAINING ACTIVITY PLAN / BODY MAP
+  // ====================================================
+  //
+  // Repository:
+  //
+  // entityType = training_activity_plan
+  //
+  // Remote uniqueness:
+  //
+  // user_id + activity
+  //
+  // Exemplos de activity:
+  //
+  // chest
+  // legs
+  // arms
+  // back
+  // shoulders
+  // core
+  // running
+  // walking
+  //
+  // ====================================================
+
+  syncService.registerHandler(
+    entityType: 'training_activity_plan',
+
+    handler:
+        (
+          item,
+        ) async {
+          final payload =
+              Map<
+                String,
+                dynamic
+              >.from(
+                item.payload,
+              );
+
+          final user = _requireQueueUser(
+            userId: payload['user_id']?.toString(),
+            entity: 'training_activity_plan',
+          );
+
+          final activity = payload['activity']?.toString().trim().toLowerCase();
+
+          if (activity ==
+                  null ||
+              activity.isEmpty) {
+            throw StateError(
+              'Operação de plano corporal sem activity.',
+            );
+          }
+
+          switch (item.operation) {
+            case SyncOperation.create:
+            case SyncOperation.update:
+              final rawWeekdays = payload['weekdays'];
+
+              final weekdays =
+                  <
+                    int
+                  >[];
+
+              if (rawWeekdays
+                  is Iterable) {
+                for (final raw in rawWeekdays) {
+                  final day =
+                      raw
+                          is int
+                      ? raw
+                      : int.tryParse(
+                          raw.toString(),
+                        );
+
+                  if (day ==
+                          null ||
+                      day <
+                          DateTime.monday ||
+                      day >
+                          DateTime.sunday) {
+                    continue;
+                  }
+
+                  if (!weekdays.contains(
+                    day,
+                  )) {
+                    weekdays.add(
+                      day,
+                    );
+                  }
+                }
+              }
+
+              weekdays.sort();
+
+              await supabaseClient
+                  .from(
+                    _trainingActivityPlanTable,
+                  )
+                  .upsert(
+                    {
+                      'user_id': user.id,
+                      'activity': activity,
+                      'weekdays': weekdays,
+                      'updated_at':
+                          payload['updated_at'] ??
+                          DateTime.now().toUtc().toIso8601String(),
+                    },
+                    onConflict: 'user_id,activity',
+                  );
+
+              await trainingActivityPlanDao.setActivitySyncStatus(
+                userId: user.id,
+                activity: activity,
+                syncStatus: SyncStatus.synced,
+              );
+
+              break;
+
+            case SyncOperation.delete:
+              await supabaseClient
+                  .from(
+                    _trainingActivityPlanTable,
+                  )
+                  .delete()
+                  .eq(
+                    'user_id',
+                    user.id,
+                  )
+                  .eq(
+                    'activity',
+                    activity,
+                  );
+
+              await trainingActivityPlanDao.deletePermanently(
+                item.entityId,
+              );
+
+              break;
+          }
+        },
+  );
+
+  // ====================================================
   // JOURNEY
   // ====================================================
 
@@ -933,6 +1100,8 @@ Future<
 >
 initializeOfflineFirst() async {
   await appDatabase.initialize();
+
+  await trainingActivityPlanDao.initialize();
 
   registerSyncHandlers();
 
@@ -1057,6 +1226,48 @@ final trainingService = TrainingService(
 final trainingController = TrainingController(
   service: trainingService,
 );
+
+// ======================================================
+// TRAINING - BODY MAP
+// ======================================================
+//
+// OFFLINE-FIRST:
+//
+// BodyMapDialog
+//      ↓
+// BodyMapController
+//      ↓
+// BodyMapService
+//      ↓
+// BodyMapRepository
+//      ↓
+// TrainingActivityPlanDao
+//      ↓
+// SQLite
+//      ↓
+// SyncQueue
+//      ↓
+// SyncService
+//      ↓
+// Supabase training_activity_plans
+//
+// ======================================================
+
+final bodyMapRepository = BodyMapRepository(
+  client: supabaseClient,
+
+  localDao: trainingActivityPlanDao,
+
+  syncQueue: syncQueue,
+
+  syncService: syncService,
+);
+
+final bodyMapService = BodyMapService(
+  repository: bodyMapRepository,
+);
+
+final bodyMapController = BodyMapController();
 
 // ======================================================
 // STUDY
