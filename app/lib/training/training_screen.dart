@@ -7,7 +7,9 @@ import 'models/training_model.dart';
 
 import '../widgets/generic/study_calendar.dart';
 
-import 'widgets/dialogs/history_dialog.dart';
+import 'widgets/dialogs/training_history_edit_dialog.dart';
+import 'widgets/history/training_history_dialog.dart';
+import 'widgets/history/training_history_records.dart';
 import 'widgets/cards/training_consistency_card.dart';
 import 'widgets/cards/training_coverage_card.dart';
 import 'widgets/sections/training_header.dart';
@@ -274,19 +276,11 @@ class _TrainingScreenState
     void
   >
   _showHistory() async {
-    await showModalBottomSheet<
+    await showDialog<
       void
     >(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      showDragHandle: true,
-      backgroundColor: Theme.of(
-        context,
-      ).colorScheme.surface,
-      constraints: const BoxConstraints(
-        maxWidth: 720,
-      ),
+      barrierDismissible: true,
       builder:
           (
             modalContext,
@@ -298,49 +292,278 @@ class _TrainingScreenState
                     context,
                     child,
                   ) {
-                    return Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        20,
-                        4,
-                        20,
-                        24 +
-                            MediaQuery.of(
-                              context,
-                            ).viewInsets.bottom,
-                      ),
-                      child: SingleChildScrollView(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _ModalHeader(
-                              icon: Icons.history_rounded,
-                              title: 'Histórico de treinos',
-                              subtitle: 'Revise, edite ou apague seus registros.',
-                              onClose: () {
-                                Navigator.of(
-                                  modalContext,
-                                ).pop();
-                              },
-                            ),
+                    final trainings = trainingController.state.trainings;
 
-                            const SizedBox(
-                              height: 22,
-                            ),
+                    final entries = trainings
+                        .map(
+                          _toHistoryEntry,
+                        )
+                        .toList(
+                          growable: false,
+                        );
 
-                            HistoryDialog(
-                              trainings: trainingController.state.trainings,
-                              onEdit: _editHistoryTraining,
-                              onDelete: _deleteHistoryTraining,
-                            ),
-                          ],
-                        ),
-                      ),
+                    return TrainingHistoryDialog(
+                      entries: entries,
+                      onEdit:
+                          (
+                            entry,
+                          ) async {
+                            await _editHistoryEntry(
+                              modalContext,
+                              entry,
+                            );
+                          },
+                      onDelete:
+                          (
+                            entry,
+                          ) async {
+                            await _deleteHistoryEntry(
+                              modalContext,
+                              entry,
+                            );
+                          },
                     );
                   },
             );
           },
     );
+  }
+
+  // ============================================================
+  // TRAINING -> HISTORY ENTRY
+  // ============================================================
+
+  TrainingHistoryEntry _toHistoryEntry(
+    TrainingModel training,
+  ) {
+    return TrainingHistoryEntry(
+      id: _historyEntryId(
+        training,
+      ),
+      title: training.training,
+      activity: training.training,
+      date: training.date.toLocal(),
+      subtitle: training.day,
+      completed: true,
+    );
+  }
+
+  // ============================================================
+  // ID VISUAL DO REGISTRO
+  // ============================================================
+  //
+  // TrainingModel ainda não possui um id persistente próprio.
+  //
+  // Enquanto isso, usamos os campos que identificam o registro
+  // atual para fazer a ponte entre o gráfico/lista e o model.
+  //
+  // ============================================================
+
+  String _historyEntryId(
+    TrainingModel training,
+  ) {
+    return '${training.day}|'
+        '${training.training}|'
+        '${training.date.toUtc().toIso8601String()}';
+  }
+
+  // ============================================================
+  // ENCONTRAR TRAINING ORIGINAL
+  // ============================================================
+
+  TrainingModel? _findTrainingByHistoryEntry(
+    TrainingHistoryEntry entry,
+  ) {
+    for (final training in trainingController.state.trainings) {
+      if (_historyEntryId(
+            training,
+          ) ==
+          entry.id) {
+        return training;
+      }
+    }
+
+    return null;
+  }
+
+  // ============================================================
+  // EDITAR PELO NOVO HISTÓRICO
+  // ============================================================
+
+  Future<
+    void
+  >
+  _editHistoryEntry(
+    BuildContext modalContext,
+    TrainingHistoryEntry entry,
+  ) async {
+    final original = _findTrainingByHistoryEntry(
+      entry,
+    );
+
+    if (original ==
+        null) {
+      if (mounted) {
+        _showMessage(
+          'Não foi possível localizar esse treino.',
+        );
+      }
+
+      return;
+    }
+
+    final updated = await TrainingHistoryEditDialog.show(
+      modalContext,
+      training: original,
+    );
+
+    if (updated ==
+        null) {
+      return;
+    }
+
+    final success = await _editHistoryTraining(
+      original,
+      updated,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    _showMessage(
+      success
+          ? 'Treino atualizado.'
+          : 'Não foi possível atualizar o treino.',
+    );
+  }
+
+  // ============================================================
+  // APAGAR PELO NOVO HISTÓRICO
+  // ============================================================
+
+  Future<
+    void
+  >
+  _deleteHistoryEntry(
+    BuildContext modalContext,
+    TrainingHistoryEntry entry,
+  ) async {
+    final training = _findTrainingByHistoryEntry(
+      entry,
+    );
+
+    if (training ==
+        null) {
+      if (mounted) {
+        _showMessage(
+          'Não foi possível localizar esse treino.',
+        );
+      }
+
+      return;
+    }
+
+    final confirmed =
+        await showDialog<
+          bool
+        >(
+          context: modalContext,
+          builder:
+              (
+                context,
+              ) {
+                final colorScheme = Theme.of(
+                  context,
+                ).colorScheme;
+
+                return AlertDialog(
+                  icon: Icon(
+                    Icons.delete_outline_rounded,
+                    color: colorScheme.error,
+                  ),
+                  title: const Text(
+                    'Apagar treino?',
+                  ),
+                  content: Text(
+                    '${training.training}\n'
+                    '${_formatHistoryDate(training.date)}\n\n'
+                    'Essa ação removerá o registro do histórico.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(
+                          context,
+                        ).pop(
+                          false,
+                        );
+                      },
+                      child: const Text(
+                        'Cancelar',
+                      ),
+                    ),
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: colorScheme.error,
+                        foregroundColor: colorScheme.onError,
+                      ),
+                      onPressed: () {
+                        Navigator.of(
+                          context,
+                        ).pop(
+                          true,
+                        );
+                      },
+                      child: const Text(
+                        'Apagar',
+                      ),
+                    ),
+                  ],
+                );
+              },
+        ) ??
+        false;
+
+    if (!confirmed) {
+      return;
+    }
+
+    final success = await _deleteHistoryTraining(
+      training,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    _showMessage(
+      success
+          ? 'Treino apagado.'
+          : 'Não foi possível apagar o treino.',
+    );
+  }
+
+  // ============================================================
+  // FORMATAR DATA DO HISTÓRICO
+  // ============================================================
+
+  String _formatHistoryDate(
+    DateTime date,
+  ) {
+    final local = date.toLocal();
+
+    final day = local.day.toString().padLeft(
+      2,
+      '0',
+    );
+
+    final month = local.month.toString().padLeft(
+      2,
+      '0',
+    );
+
+    return '$day/$month/${local.year}';
   }
 
   // ============================================================
