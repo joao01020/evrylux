@@ -28,6 +28,7 @@
 | - Reminders
 | - Study
 | - Brain / Cérebro
+| - Brain Reviews / Revisões
 | - Training
 | - Training Body Map
 | - Journey
@@ -92,10 +93,18 @@ import '../../study/controllers/study_controller.dart';
 // ======================================================
 
 import '../../study/brain/controllers/brain_controller.dart';
+import '../../study/brain/controllers/review_controller.dart';
+
 import '../../study/brain/models/brain_concept.dart';
+import '../../study/brain/models/brain_review_item.dart';
+
 import '../../study/brain/repositories/brain_repository.dart';
+import '../../study/brain/repositories/review_repository.dart';
+
 import '../../study/brain/services/brain_storage.dart';
+import '../../study/brain/services/review_storage.dart';
 import '../../study/brain/services/supabase_brain_service.dart';
+import '../../study/brain/services/supabase_review_service.dart';
 
 // ======================================================
 // REMINDERS CONTROLLER
@@ -200,6 +209,9 @@ get supabaseClient {
 // utiliza SupabaseBrainService para preservar os nomes de tabelas
 // e regras remotas já existentes no módulo.
 //
+// Brain Reviews:
+// utiliza SupabaseReviewService e a tabela brain_reviews.
+//
 // Essas tabelas precisam existir no Supabase para o envio remoto
 // funcionar.
 //
@@ -300,6 +312,48 @@ final brainRepository = BrainRepository(
 
 final brainController = BrainController(
   repository: brainRepository,
+);
+
+// ======================================================
+// BRAIN / CÉREBRO - REVIEW DEPENDENCIES
+// ======================================================
+//
+// OFFLINE-FIRST:
+//
+// ReviewController
+//      ↓
+// ReviewRepository
+//      ↓
+// ReviewStorage local
+//      ↓
+// SyncQueue
+//      ↓
+// SyncService
+//      ↓
+// SupabaseReviewService
+//      ↓
+// brain_reviews
+//
+// ======================================================
+
+const reviewStorage = ReviewStorage();
+
+final supabaseReviewService = SupabaseReviewService(
+  client: supabaseClient,
+);
+
+final reviewRepository = ReviewRepository(
+  remote: supabaseReviewService,
+
+  local: reviewStorage,
+
+  syncQueue: syncQueue,
+
+  syncService: syncService,
+);
+
+final reviewController = ReviewController(
+  repository: reviewRepository,
 );
 
 // ======================================================
@@ -1301,6 +1355,204 @@ registerSyncHandlers() {
 
             case SyncOperation.delete:
               await supabaseBrainService.deleteConcept(
+                item.entityId,
+              );
+
+              break;
+          }
+        },
+  );
+
+  // ====================================================
+  // BRAIN REVIEW
+  // ====================================================
+  //
+  // Repository:
+  //
+  // entityType = brain_review
+  //
+  // Fluxo:
+  //
+  // ReviewStorage local
+  //      ↓
+  // SyncQueue
+  //      ↓
+  // SyncService
+  //      ↓
+  // SupabaseReviewService
+  //      ↓
+  // brain_reviews
+  //
+  // ====================================================
+
+  syncService.registerHandler(
+    entityType: ReviewRepository.entityType,
+
+    handler:
+        (
+          item,
+        ) async {
+          final payload =
+              Map<
+                String,
+                dynamic
+              >.from(
+                item.payload,
+              );
+
+          _requireQueueUser(
+            userId: payload['user_id']?.toString(),
+            entity: ReviewRepository.entityType,
+          );
+
+          switch (item.operation) {
+            case SyncOperation.create:
+            case SyncOperation.update:
+              final conceptId =
+                  payload['concept_id']?.toString().trim() ??
+                  '';
+
+              final question =
+                  payload['question']?.toString().trim() ??
+                  '';
+
+              final answer =
+                  payload['answer']?.toString().trim() ??
+                  '';
+
+              final sourceNotePath =
+                  payload['source_note_path']?.toString().trim() ??
+                  '';
+
+              final sourceNoteTitle =
+                  payload['source_note_title']?.toString().trim() ??
+                  '';
+
+              if (conceptId.isEmpty) {
+                throw StateError(
+                  'Operação de brain_review sem concept_id.',
+                );
+              }
+
+              if (question.isEmpty) {
+                throw StateError(
+                  'Operação de brain_review sem question.',
+                );
+              }
+
+              if (answer.isEmpty) {
+                throw StateError(
+                  'Operação de brain_review sem answer.',
+                );
+              }
+
+              if (sourceNotePath.isEmpty) {
+                throw StateError(
+                  'Operação de brain_review sem source_note_path.',
+                );
+              }
+
+              final createdAt =
+                  _syncPayloadDate(
+                    payload['created_at'],
+                  ) ??
+                  DateTime.now();
+
+              final nextReviewAt =
+                  _syncPayloadDate(
+                    payload['next_review_at'],
+                  ) ??
+                  DateTime.now();
+
+              final lastReviewedAt = _syncPayloadDate(
+                payload['last_reviewed_at'],
+              );
+
+              final archivedAt = _syncPayloadDate(
+                payload['archived_at'],
+              );
+
+              int parseInt(
+                dynamic value,
+              ) {
+                if (value
+                    is int) {
+                  return value;
+                }
+
+                return int.tryParse(
+                      value?.toString().trim() ??
+                          '',
+                    ) ??
+                    0;
+              }
+
+              bool parseBool(
+                dynamic value,
+              ) {
+                if (value
+                    is bool) {
+                  return value;
+                }
+
+                final normalized = value?.toString().trim().toLowerCase();
+
+                return normalized ==
+                        'true' ||
+                    normalized ==
+                        '1';
+              }
+
+              final review = BrainReviewItem(
+                id: item.entityId,
+
+                conceptId: conceptId,
+
+                question: question,
+
+                answer: answer,
+
+                sourceNotePath: sourceNotePath,
+
+                sourceNoteTitle: sourceNoteTitle,
+
+                createdAt: createdAt,
+
+                nextReviewAt: nextReviewAt,
+
+                lastReviewedAt: lastReviewedAt,
+
+                archivedAt: archivedAt,
+
+                reviewCount: parseInt(
+                  payload['review_count'],
+                ),
+
+                correctCount: parseInt(
+                  payload['correct_count'],
+                ),
+
+                wrongCount: parseInt(
+                  payload['wrong_count'],
+                ),
+
+                streak: parseInt(
+                  payload['streak'],
+                ),
+
+                archived: parseBool(
+                  payload['archived'],
+                ),
+              );
+
+              await supabaseReviewService.saveReview(
+                review,
+              );
+
+              break;
+
+            case SyncOperation.delete:
+              await supabaseReviewService.deleteReview(
                 item.entityId,
               );
 

@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/brain_concept.dart';
 import '../models/brain_review_item.dart';
-import '../services/review_storage.dart';
+import '../repositories/review_repository.dart';
 
 // ============================================================
 // RESULTADO DA REVISÃO
@@ -47,10 +47,12 @@ class ReviewController
     extends
         ChangeNotifier {
   ReviewController({
-    ReviewStorage storage = const ReviewStorage(),
-  }) : _storage = storage;
+    ReviewRepository? repository,
+  }) : _repository =
+           repository ??
+           ReviewRepository();
 
-  final ReviewStorage _storage;
+  final ReviewRepository _repository;
 
   // ============================================================
   // STATE
@@ -272,7 +274,7 @@ class ReviewController
     _clearError();
 
     try {
-      _reviews = await _storage.loadReviews();
+      _reviews = await _repository.loadReviews();
 
       _sortReviews();
     } catch (
@@ -292,6 +294,50 @@ class ReviewController
       );
 
       _errorMessage = 'Não foi possível carregar as revisões.';
+    } finally {
+      _setLoading(
+        false,
+      );
+    }
+  }
+
+  // ============================================================
+  // ATUALIZAR A PARTIR DO SUPABASE
+  // ============================================================
+
+  Future<
+    void
+  >
+  refreshFromRemote() async {
+    _setLoading(
+      true,
+    );
+
+    _clearMessages();
+
+    try {
+      _reviews = await _repository.refreshFromRemote();
+
+      _sortReviews();
+
+      _successMessage = 'Revisões sincronizadas.';
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        'ReviewController: erro ao atualizar revisões do Supabase.',
+      );
+
+      debugPrint(
+        'ReviewController: $error',
+      );
+
+      debugPrintStack(
+        stackTrace: stackTrace,
+      );
+
+      _errorMessage = 'Não foi possível atualizar as revisões da nuvem.';
     } finally {
       _setLoading(
         false,
@@ -421,29 +467,29 @@ class ReviewController
     _clearMessages();
 
     try {
+      final saved = await _repository.saveReview(
+        review,
+      );
+
       final index = _reviews.indexWhere(
         (
           item,
         ) {
           return item.id ==
-              review.id;
+              saved.id;
         },
       );
 
       if (index >=
           0) {
-        _reviews[index] = review;
+        _reviews[index] = saved;
       } else {
         _reviews.add(
-          review,
+          saved,
         );
       }
 
       _sortReviews();
-
-      await _storage.saveReviews(
-        _reviews,
-      );
 
       _successMessage = 'Pergunta adicionada às revisões.';
     } catch (
@@ -503,13 +549,13 @@ class ReviewController
         );
       }
 
-      _reviews[index] = review;
+      final saved = await _repository.saveReview(
+        review,
+      );
+
+      _reviews[index] = saved;
 
       _sortReviews();
-
-      await _storage.saveReviews(
-        _reviews,
-      );
 
       _successMessage = 'Revisão atualizada.';
     } catch (
@@ -765,7 +811,7 @@ class ReviewController
     final updated = review.copyWith(
       archived: false,
 
-      archivedAt: null,
+      clearArchivedAt: true,
 
       nextReviewAt: DateTime.now(),
     );
@@ -844,6 +890,10 @@ class ReviewController
     _clearMessages();
 
     try {
+      await _repository.deleteReview(
+        review.id,
+      );
+
       _reviews.removeWhere(
         (
           item,
@@ -853,9 +903,7 @@ class ReviewController
         },
       );
 
-      await _storage.saveReviews(
-        _reviews,
-      );
+      _sortReviews();
 
       _successMessage = 'Revisão excluída.';
     } catch (
@@ -871,6 +919,83 @@ class ReviewController
       );
 
       _errorMessage = 'Não foi possível excluir a revisão.';
+    } finally {
+      _setSaving(
+        false,
+      );
+    }
+  }
+
+  // ============================================================
+  // EXCLUIR PELO CONCEITO
+  // ============================================================
+
+  Future<
+    void
+  >
+  deleteReviewByConceptId(
+    String conceptId,
+  ) async {
+    final cleanConceptId = conceptId.trim();
+
+    if (cleanConceptId.isEmpty) {
+      return;
+    }
+
+    _setSaving(
+      true,
+    );
+
+    _clearMessages();
+
+    try {
+      final matches = _reviews.where(
+        (
+          review,
+        ) {
+          return review.conceptId ==
+              cleanConceptId;
+        },
+      ).toList();
+
+      if (matches.isEmpty) {
+        _successMessage = 'Nenhuma revisão vinculada ao conceito.';
+        return;
+      }
+
+      await _repository.deleteReviewByConceptId(
+        cleanConceptId,
+      );
+
+      _reviews.removeWhere(
+        (
+          review,
+        ) {
+          return review.conceptId ==
+              cleanConceptId;
+        },
+      );
+
+      _sortReviews();
+
+      _successMessage = 'Revisão do conceito excluída.';
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        'ReviewController: erro ao excluir revisão pelo conceito.',
+      );
+
+      debugPrint(
+        'ReviewController: $error',
+      );
+
+      debugPrintStack(
+        stackTrace: stackTrace,
+      );
+
+      _errorMessage = 'Não foi possível excluir a revisão vinculada ao conceito.';
     } finally {
       _setSaving(
         false,
@@ -940,7 +1065,7 @@ class ReviewController
   // ============================================================
   //
   // Útil quando a anotação principal é apagada pelo módulo Brain.
-  // Impede uma revisão órfã de permanecer no ReviewStorage.
+  // Impede uma revisão órfã de permanecer no armazenamento local.
   //
   // ============================================================
 
@@ -963,7 +1088,23 @@ class ReviewController
     _clearMessages();
 
     try {
-      final previousLength = _reviews.length;
+      final matches = _reviews.where(
+        (
+          review,
+        ) {
+          return review.sourceNotePath.trim() ==
+              cleanPath;
+        },
+      ).toList();
+
+      if (matches.isEmpty) {
+        _successMessage = 'Nenhuma revisão vinculada à anotação.';
+        return;
+      }
+
+      await _repository.deleteReviewsBySourceNotePath(
+        cleanPath,
+      );
 
       _reviews.removeWhere(
         (
@@ -974,17 +1115,7 @@ class ReviewController
         },
       );
 
-      if (_reviews.length ==
-          previousLength) {
-        _successMessage = 'Nenhuma revisão vinculada à anotação.';
-        return;
-      }
-
       _sortReviews();
-
-      await _storage.saveReviews(
-        _reviews,
-      );
 
       _successMessage = 'Revisões vinculadas à anotação excluídas.';
     } catch (

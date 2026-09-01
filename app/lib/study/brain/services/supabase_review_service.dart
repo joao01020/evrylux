@@ -31,6 +31,20 @@ class SupabaseReviewService {
         null;
   }
 
+  String _requireUserId() {
+    final userId = _requireUserId();
+
+    if (userId ==
+            null ||
+        userId.trim().isEmpty) {
+      throw StateError(
+        'Usuário não autenticado.',
+      );
+    }
+
+    return userId;
+  }
+
   // ============================================================
   // SALVAR
   // ============================================================
@@ -41,7 +55,7 @@ class SupabaseReviewService {
   saveReview(
     BrainReviewItem review,
   ) async {
-    final userId = currentUserId;
+    final userId = _requireUserId();
 
     final now = DateTime.now().toUtc();
 
@@ -51,10 +65,7 @@ class SupabaseReviewService {
 
     data['updated_at'] = now.toIso8601String();
 
-    if (userId !=
-        null) {
-      data['user_id'] = userId;
-    }
+    data['user_id'] = userId;
 
     try {
       final existing = await getReview(
@@ -121,13 +132,10 @@ class SupabaseReviewService {
             review.id,
           );
 
-      if (userId !=
-          null) {
-        query = query.eq(
-          'user_id',
-          userId,
-        );
-      }
+      query = query.eq(
+        'user_id',
+        userId,
+      );
 
       final response = await query.select().single();
 
@@ -190,7 +198,7 @@ class SupabaseReviewService {
   >
   loadReviews() async {
     try {
-      final userId = currentUserId;
+      final userId = _requireUserId();
 
       dynamic query = _client
           .from(
@@ -198,13 +206,10 @@ class SupabaseReviewService {
           )
           .select();
 
-      if (userId !=
-          null) {
-        query = query.eq(
-          'user_id',
-          userId,
-        );
-      }
+      query = query.eq(
+        'user_id',
+        userId,
+      );
 
       final response = await query.order(
         'next_review_at',
@@ -245,7 +250,7 @@ class SupabaseReviewService {
     String id,
   ) async {
     try {
-      final userId = currentUserId;
+      final userId = _requireUserId();
 
       dynamic query = _client
           .from(
@@ -257,13 +262,10 @@ class SupabaseReviewService {
             id,
           );
 
-      if (userId !=
-          null) {
-        query = query.eq(
-          'user_id',
-          userId,
-        );
-      }
+      query = query.eq(
+        'user_id',
+        userId,
+      );
 
       final response = await query.maybeSingle();
 
@@ -307,7 +309,7 @@ class SupabaseReviewService {
     String conceptId,
   ) async {
     try {
-      final userId = currentUserId;
+      final userId = _requireUserId();
 
       dynamic query = _client
           .from(
@@ -319,13 +321,10 @@ class SupabaseReviewService {
             conceptId,
           );
 
-      if (userId !=
-          null) {
-        query = query.eq(
-          'user_id',
-          userId,
-        );
-      }
+      query = query.eq(
+        'user_id',
+        userId,
+      );
 
       final response = await query.maybeSingle();
 
@@ -376,7 +375,7 @@ class SupabaseReviewService {
             .toUtc();
 
     try {
-      final userId = currentUserId;
+      final userId = _requireUserId();
 
       dynamic query = _client
           .from(
@@ -392,13 +391,10 @@ class SupabaseReviewService {
             current.toIso8601String(),
           );
 
-      if (userId !=
-          null) {
-        query = query.eq(
-          'user_id',
-          userId,
-        );
-      }
+      query = query.eq(
+        'user_id',
+        userId,
+      );
 
       final response = await query.order(
         'next_review_at',
@@ -442,7 +438,7 @@ class SupabaseReviewService {
             .toUtc();
 
     try {
-      final userId = currentUserId;
+      final userId = _requireUserId();
 
       dynamic query = _client
           .from(
@@ -458,13 +454,10 @@ class SupabaseReviewService {
             current.toIso8601String(),
           );
 
-      if (userId !=
-          null) {
-        query = query.eq(
-          'user_id',
-          userId,
-        );
-      }
+      query = query.eq(
+        'user_id',
+        userId,
+      );
 
       final response = await query.order(
         'next_review_at',
@@ -501,7 +494,7 @@ class SupabaseReviewService {
   >
   loadActiveReviews() async {
     try {
-      final userId = currentUserId;
+      final userId = _requireUserId();
 
       dynamic query = _client
           .from(
@@ -513,13 +506,10 @@ class SupabaseReviewService {
             false,
           );
 
-      if (userId !=
-          null) {
-        query = query.eq(
-          'user_id',
-          userId,
-        );
-      }
+      query = query.eq(
+        'user_id',
+        userId,
+      );
 
       final response = await query.order(
         'next_review_at',
@@ -556,7 +546,7 @@ class SupabaseReviewService {
   >
   loadArchivedReviews() async {
     try {
-      final userId = currentUserId;
+      final userId = _requireUserId();
 
       dynamic query = _client
           .from(
@@ -568,13 +558,10 @@ class SupabaseReviewService {
             true,
           );
 
-      if (userId !=
-          null) {
-        query = query.eq(
-          'user_id',
-          userId,
-        );
-      }
+      query = query.eq(
+        'user_id',
+        userId,
+      );
 
       final response = await query.order(
         'archived_at',
@@ -611,7 +598,7 @@ class SupabaseReviewService {
     String id,
   ) async {
     try {
-      final userId = currentUserId;
+      final userId = _requireUserId();
 
       dynamic query = _client
           .from(
@@ -623,13 +610,10 @@ class SupabaseReviewService {
             id,
           );
 
-      if (userId !=
-          null) {
-        query = query.eq(
-          'user_id',
-          userId,
-        );
-      }
+      query = query.eq(
+        'user_id',
+        userId,
+      );
 
       await query;
     } catch (
@@ -659,7 +643,7 @@ class SupabaseReviewService {
     String conceptId,
   ) async {
     try {
-      final userId = currentUserId;
+      final userId = _requireUserId();
 
       dynamic query = _client
           .from(
@@ -671,13 +655,10 @@ class SupabaseReviewService {
             conceptId,
           );
 
-      if (userId !=
-          null) {
-        query = query.eq(
-          'user_id',
-          userId,
-        );
-      }
+      query = query.eq(
+        'user_id',
+        userId,
+      );
 
       await query;
     } catch (

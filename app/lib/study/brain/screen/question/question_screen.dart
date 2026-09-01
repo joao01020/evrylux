@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../app/dependencies/app_dependencies.dart' as dependencies;
+
 import '../../controllers/review_controller.dart';
 import '../../models/brain_review_item.dart';
 import '../../repositories/brain_repository.dart';
@@ -29,7 +31,7 @@ class _QuestionScreenState
         > {
   late final ReviewController _controller;
 
-  final BrainRepository _brainRepository = BrainRepository();
+  late final BrainRepository _brainRepository;
 
   int _selectedTab = 0;
 
@@ -43,7 +45,9 @@ class _QuestionScreenState
   void initState() {
     super.initState();
 
-    _controller = ReviewController();
+    _controller = dependencies.reviewController;
+
+    _brainRepository = dependencies.brainRepository;
 
     _controller.addListener(
       _onControllerChanged,
@@ -62,7 +66,8 @@ class _QuestionScreenState
       _onControllerChanged,
     );
 
-    _controller.dispose();
+    // A instância pertence ao container global de dependências.
+    // Esta tela não deve fazer dispose() nela.
 
     super.dispose();
   }
@@ -106,7 +111,33 @@ class _QuestionScreenState
     void
   >
   _refresh() async {
+    // ========================================================
+    // LOCAL FIRST
+    // ========================================================
+
     await _controller.loadReviews();
+
+    if (!mounted) {
+      return;
+    }
+
+    // ========================================================
+    // TENTAR ATUALIZAR DA NUVEM
+    // ========================================================
+    //
+    // Se houver internet/autenticação, traz o estado remoto.
+    // Se falhar, o dado local já continua disponível.
+    //
+    // ========================================================
+
+    try {
+      await _controller.refreshFromRemote();
+    } catch (
+      _
+    ) {
+      // O controller já registra a mensagem de erro.
+      // Mantemos os dados locais carregados.
+    }
 
     if (!mounted) {
       return;
@@ -297,34 +328,44 @@ class _QuestionScreenState
 
     try {
       // ========================================================
-      // 1. EXCLUIR A PERGUNTA / REVISÃO
+      // 1. EXCLUIR ANOTAÇÃO DE ORIGEM + CONCEITOS
+      // ========================================================
+      //
+      // Novas revisões já guardam sourceNotePath.
+      //
+      // Portanto usamos primeiro o caminho exato do .md.
+      // Isso é mais seguro do que depender apenas do conceptId.
+      //
+      // Para revisões antigas que não possuem sourceNotePath,
+      // mantemos o fallback por conceptId.
+      //
+      // ========================================================
+
+      final sourceNotePath = review.sourceNotePath.trim();
+
+      final conceptId = review.conceptId.trim();
+
+      if (sourceNotePath.isNotEmpty) {
+        await _brainRepository.deleteConceptsByNoteId(
+          sourceNotePath,
+        );
+
+        await _brainRepository.deleteNote(
+          sourceNotePath,
+        );
+      } else if (conceptId.isNotEmpty) {
+        await _brainRepository.deleteConceptAndSourceNote(
+          conceptId,
+        );
+      }
+
+      // ========================================================
+      // 2. EXCLUIR A REVISÃO
       // ========================================================
 
       await _controller.deleteReview(
         review,
       );
-
-      // ========================================================
-      // 2. EXCLUIR CONCEITO + ANOTAÇÃO DE ORIGEM
-      // ========================================================
-      //
-      // BrainReviewItem mantém o conceptId usado quando a revisão
-      // foi criada a partir do BrainConcept.
-      //
-      // O repository resolve a anotação que contém esse conceito
-      // e executa a exclusão em cascata:
-      //
-      // conceito -> nota .md -> calendário -> SyncQueue
-      //
-      // ========================================================
-
-      final conceptId = review.conceptId.trim();
-
-      if (conceptId.isNotEmpty) {
-        await _brainRepository.deleteConceptAndSourceNote(
-          conceptId,
-        );
-      }
 
       // ========================================================
       // 3. RECARREGAR A LISTA DE REVISÕES

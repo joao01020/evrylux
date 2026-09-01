@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../app/dependencies/app_dependencies.dart' as dependencies;
+
 import '../../controllers/review_controller.dart';
 import '../../models/brain_review_item.dart';
 import '../../repositories/brain_repository.dart';
@@ -35,7 +37,7 @@ class _ReviewScreenState
 
   bool _isSubmitting = false;
 
-  final BrainRepository _brainRepository = BrainRepository();
+  final BrainRepository _brainRepository = dependencies.brainRepository;
 
   // ============================================================
   // CURRENT REVIEW
@@ -239,19 +241,39 @@ class _ReviewScreenState
 
     try {
       // ========================================================
-      // CONCEITO + NOTA DE ORIGEM
+      // 1. NOTA DE ORIGEM + CONCEITOS
       // ========================================================
+      //
+      // Revisões novas guardam o caminho exato da nota.
+      //
+      // Portanto usamos primeiro sourceNotePath, porque ele
+      // identifica diretamente o arquivo .md associado.
+      //
+      // Para revisões antigas sem sourceNotePath, mantemos
+      // compatibilidade com a exclusão pelo conceptId.
+      //
+      // ========================================================
+
+      final sourceNotePath = review.sourceNotePath.trim();
 
       final conceptId = review.conceptId.trim();
 
-      if (conceptId.isNotEmpty) {
+      if (sourceNotePath.isNotEmpty) {
+        await _brainRepository.deleteConceptsByNoteId(
+          sourceNotePath,
+        );
+
+        await _brainRepository.deleteNote(
+          sourceNotePath,
+        );
+      } else if (conceptId.isNotEmpty) {
         await _brainRepository.deleteConceptAndSourceNote(
           conceptId,
         );
       }
 
       // ========================================================
-      // REVISÃO
+      // 2. REVISÃO
       // ========================================================
 
       await widget.controller.deleteReview(
