@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart';
 
+import 'tables/board_attachment_table.dart';
 import 'tables/training_activity_plan_table.dart';
 
 // ============================================================
@@ -21,6 +22,9 @@ import 'tables/training_activity_plan_table.dart';
 // v2
 // - training_activity_plans
 //
+// v3
+// - local_board_attachments
+//
 // ============================================================
 
 class AppDatabase {
@@ -30,7 +34,7 @@ class AppDatabase {
 
   static const String _databaseFileName = 'ghost_core.db';
 
-  static const int _schemaVersion = 2;
+  static const int _schemaVersion = 3;
 
   Database? _database;
 
@@ -164,6 +168,29 @@ class AppDatabase {
       );
 
       currentVersion = 2;
+    }
+
+    // ==========================================================
+    // VERSION 3
+    // ==========================================================
+
+    if (currentVersion <
+        3) {
+      transactionWithDatabase(
+        database,
+        () {
+          _createVersion3(
+            database,
+          );
+
+          _writeSchemaVersion(
+            database,
+            3,
+          );
+        },
+      );
+
+      currentVersion = 3;
     }
 
     // ==========================================================
@@ -313,6 +340,30 @@ ON sync_queue (
     Database database,
   ) {
     for (final statement in TrainingActivityPlanTable.createStatements) {
+      database.execute(
+        statement,
+      );
+    }
+  }
+
+  // ============================================================
+  // VERSION 3
+  // ============================================================
+  //
+  // Adiciona a tabela local dos documentos/anexos da lousa.
+  //
+  // A tabela é criada via BoardAttachmentTable para manter:
+  //
+  // - nomes de colunas centralizados;
+  // - índices centralizados;
+  // - compatibilidade com BoardAttachmentDao.
+  //
+  // ============================================================
+
+  void _createVersion3(
+    Database database,
+  ) {
+    for (final statement in BoardAttachmentTable.createStatements) {
       database.execute(
         statement,
       );

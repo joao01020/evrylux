@@ -25,6 +25,9 @@ import '../widgets/blocks/mind_map/mind_map_block.dart';
 import '../widgets/blocks/note_block.dart';
 import '../widgets/blocks/photo_block.dart';
 import '../widgets/blocks/task_block.dart';
+import '../widgets/attachments/document_block.dart';
+import '../widgets/attachments/dialogs/document_import_dialog.dart';
+import '../widgets/attachments/dialogs/document_viewer_dialog.dart';
 import '../widgets/calendar/routine_calendar_panel.dart';
 import '../widgets/comments/board_comment_card.dart';
 import '../widgets/comments/board_comment_editor.dart';
@@ -156,6 +159,24 @@ class _RoutineScreenState
 
   String? _loadingCommentDayId;
 
+  // ============================================================
+  // DOCUMENTOS / ANEXOS DA LOUSA
+  // ============================================================
+  //
+  // Cada dia da rotina funciona como uma lousa lógica.
+  //
+  // O BoardAttachmentController mantém em memória os anexos do
+  // board atualmente selecionado.
+  //
+  // Usamos uma chave estável baseada na data para que a referência
+  // continue válida mesmo antes de routine_day possuir ID remoto.
+  //
+  // ============================================================
+
+  String? _loadedAttachmentBoardId;
+
+  String? _loadingAttachmentBoardId;
+
   bool _routineControllerReady = false;
   bool _initializingRoutine = true;
   String? _initializationError;
@@ -192,6 +213,20 @@ class _RoutineScreenState
   /// Nenhuma janela externa é criada.
   bool _boardExpanded = false;
 
+  // ============================================================
+  // LARGURA ATIVA DA LOUSA
+  // ============================================================
+  //
+  // Guardamos a largura mais recente calculada pelo LayoutBuilder.
+  //
+  // Ela é usada no momento de criar QUALQUER novo bloco para que
+  // o BoardController consiga procurar uma área livre antes de o
+  // bloco entrar na RoutineDay.
+  //
+  // ============================================================
+
+  double _activeBoardWidth = 390;
+
   @override
   void initState() {
     super.initState();
@@ -224,6 +259,10 @@ class _RoutineScreenState
       _onCommentsChanged,
     );
 
+    boardAttachmentController.addListener(
+      _onBoardAttachmentsChanged,
+    );
+
     _initializeRoutine();
   }
 
@@ -248,6 +287,12 @@ class _RoutineScreenState
       _routineControllerReady = true;
 
       await _routineController.initialize();
+
+      await boardAttachmentController.initialize();
+
+      await _loadBoardAttachmentsForSelectedDay(
+        force: true,
+      );
 
       await _loadCommentsForSelectedDay(
         force: true,
@@ -480,6 +525,10 @@ class _RoutineScreenState
 
     _commentController.dispose();
 
+    boardAttachmentController.removeListener(
+      _onBoardAttachmentsChanged,
+    );
+
     super.dispose();
   }
 
@@ -498,6 +547,8 @@ class _RoutineScreenState
     // Não usamos await aqui porque listener precisa ser síncrono.
     // O helper possui proteção contra chamadas duplicadas.
     _loadCommentsForSelectedDay();
+
+    _loadBoardAttachmentsForSelectedDay();
   }
 
   void _refreshBoard() {
@@ -1240,6 +1291,288 @@ class _RoutineScreenState
   }
 
   // ============================================================
+  // DOCUMENTOS / ANEXOS
+  // ============================================================
+
+  void _onBoardAttachmentsChanged() {
+    if (!mounted) {
+      return;
+    }
+
+    final error = boardAttachmentController.errorMessage;
+
+    if (error !=
+            null &&
+        error.trim().isNotEmpty) {
+      debugPrint(
+        '[BOARD ATTACHMENT][CONTROLLER] $error',
+      );
+    }
+
+    setState(
+      () {},
+    );
+  }
+
+  String _boardAttachmentBoardId(
+    RoutineDay day,
+  ) {
+    return _commentDayId(
+      day,
+    );
+  }
+
+  Future<
+    void
+  >
+  _loadBoardAttachmentsForSelectedDay({
+    bool force = false,
+  }) async {
+    if (!_routineControllerReady) {
+      return;
+    }
+
+    final day = _routineController.selectedDay;
+
+    final boardId = _boardAttachmentBoardId(
+      day,
+    );
+
+    if (boardId.isEmpty) {
+      return;
+    }
+
+    if (_loadingAttachmentBoardId ==
+        boardId) {
+      return;
+    }
+
+    if (!force &&
+        _loadedAttachmentBoardId ==
+            boardId) {
+      return;
+    }
+
+    _loadingAttachmentBoardId = boardId;
+
+    try {
+      await boardAttachmentController.loadBoard(
+        boardId,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      final currentBoardId = _boardAttachmentBoardId(
+        _routineController.selectedDay,
+      );
+
+      if (currentBoardId ==
+          boardId) {
+        _loadedAttachmentBoardId = boardId;
+      }
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        '[BOARD ATTACHMENT][LOAD] $error',
+      );
+
+      debugPrint(
+        '$stackTrace',
+      );
+
+      if (_loadedAttachmentBoardId ==
+          boardId) {
+        _loadedAttachmentBoardId = null;
+      }
+    } finally {
+      if (_loadingAttachmentBoardId ==
+          boardId) {
+        _loadingAttachmentBoardId = null;
+      }
+    }
+  }
+
+  Future<
+    void
+  >
+  _openDocument(
+    BoardBlock block,
+  ) async {
+    final attachmentId = block.attachmentId?.trim();
+
+    if (attachmentId ==
+            null ||
+        attachmentId.isEmpty) {
+      _showDocumentMessage(
+        'Este bloco não possui um documento vinculado.',
+      );
+
+      return;
+    }
+
+    var attachment = boardAttachmentController.getById(
+      attachmentId,
+    );
+
+    attachment ??= await boardAttachmentController.getByIdFromStorage(
+      attachmentId,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    if (attachment ==
+        null) {
+      _showDocumentMessage(
+        'O documento deste bloco não foi encontrado no armazenamento local.',
+      );
+
+      return;
+    }
+
+    final updated = await DocumentViewerDialog.show(
+      context,
+      attachment: attachment,
+      controller: boardAttachmentController,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    if (updated !=
+        null) {
+      setState(
+        () {},
+      );
+    }
+  }
+
+  Widget _documentBlockContent(
+    BoardBlock block, {
+    required RoutineDay day,
+    required double boardWidth,
+    required double boardHeight,
+    required double blockWidth,
+  }) {
+    final attachmentId = block.attachmentId?.trim();
+
+    if (attachmentId ==
+            null ||
+        attachmentId.isEmpty) {
+      return _MissingDocumentBlock(
+        title: block.title,
+        message: 'Documento sem vínculo local.',
+        onTap: () {
+          _openDocument(
+            block,
+          );
+        },
+      );
+    }
+
+    final attachment = boardAttachmentController.getById(
+      attachmentId,
+    );
+
+    if (attachment ==
+        null) {
+      return _MissingDocumentBlock(
+        title: block.title,
+        message: boardAttachmentController.isLoading
+            ? 'Carregando documento...'
+            : 'Documento não carregado.',
+        onTap: () {
+          _openDocument(
+            block,
+          );
+        },
+      );
+    }
+
+    return DocumentBlock(
+      attachment: attachment,
+
+      // ========================================================
+      // ABRIR
+      // ========================================================
+      onOpen: () {
+        _openDocument(
+          block,
+        );
+      },
+
+      // ========================================================
+      // ARRASTAR DIRETAMENTE PELO CARD DO ARQUIVO
+      // ========================================================
+      //
+      // O DocumentBlock detecta o gesto.
+      //
+      // A RoutineScreen continua sendo responsável pela posição
+      // real do BoardBlock dentro da lousa.
+      //
+      // ========================================================
+      onDrag:
+          (
+            delta,
+          ) {
+            _boardController.moveBlock(
+              day: day,
+              block: block,
+              delta: delta,
+              boardWidth: boardWidth,
+              boardHeight: boardHeight,
+              blockWidth: blockWidth,
+            );
+          },
+
+      // ========================================================
+      // PERSISTIR AO SOLTAR
+      // ========================================================
+      //
+      // Durante o arraste, BoardController já atualiza a UI.
+      //
+      // Ao soltar, avisamos a RoutineController uma única vez para
+      // persistir a nova posição no fluxo offline-first.
+      //
+      // ========================================================
+      onDragEnd: () {
+        _notifyRoutineMutation();
+      },
+    );
+  }
+
+  void _showDocumentMessage(
+    String message,
+  ) {
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(
+        context,
+      )
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: _surfaceLight,
+          content: Text(
+            message,
+            style: const TextStyle(
+              color: _text,
+            ),
+          ),
+        ),
+      );
+  }
+
+  // ============================================================
   // COMENTÁRIOS
   // ============================================================
 
@@ -1681,8 +2014,14 @@ class _RoutineScreenState
 
     _commentController.disableCommentMode();
 
+    _loadedAttachmentBoardId = null;
+
     _routineController.selectDay(
       date,
+    );
+
+    await _loadBoardAttachmentsForSelectedDay(
+      force: true,
     );
 
     // Força a atualização do Supabase ao trocar manualmente o dia.
@@ -2305,6 +2644,10 @@ class _RoutineScreenState
               rightPadding: 80,
             );
 
+            // Mantém a largura atual disponível para posicionar
+            // novos blocos em uma área livre antes de salvá-los.
+            _activeBoardWidth = boardWidth;
+
             final boardHeight = math
                 .max(
                   controllerHeight,
@@ -2725,6 +3068,9 @@ class _RoutineScreenState
                     minimumWidth: minimumBoardWidth,
                     rightPadding: 140,
                   );
+
+                  // A mesma regra também vale com a lousa expandida.
+                  _activeBoardWidth = boardWidth;
 
                   final boardHeight = math
                       .max(
@@ -3174,14 +3520,22 @@ class _RoutineScreenState
         ),
         child: _blockContent(
           block,
+          day: day,
+          boardWidth: boardWidth,
+          boardHeight: boardHeight,
+          blockWidth: width,
         ),
       ),
     );
   }
 
   Widget _blockContent(
-    BoardBlock block,
-  ) {
+    BoardBlock block, {
+    required RoutineDay day,
+    required double boardWidth,
+    required double boardHeight,
+    required double blockWidth,
+  }) {
     switch (block.type) {
       case BlockType.tasks:
         return TaskBlock(
@@ -3224,6 +3578,15 @@ class _RoutineScreenState
           block: block,
           controller: _mindMapController,
         );
+
+      case BlockType.document:
+        return _documentBlockContent(
+          block,
+          day: day,
+          boardWidth: boardWidth,
+          boardHeight: boardHeight,
+          blockWidth: blockWidth,
+        );
     }
   }
 
@@ -3251,6 +3614,49 @@ class _RoutineScreenState
     );
   }
 
+  // ============================================================
+  // POSICIONAR NOVO BLOCO EM ÁREA LIVRE
+  // ============================================================
+  //
+  // Regra global para:
+  //
+  // - Tarefas
+  // - Anotação
+  // - Conteúdo
+  // - Foto
+  // - Mapa mental
+  // - Documento
+  //
+  // Todo bloco novo recebe position ANTES de ser entregue ao
+  // RoutineController. Assim a posição livre também entra no
+  // primeiro salvamento local/remoto.
+  //
+  // ============================================================
+
+  void _positionNewBlockInFreeArea(
+    BoardBlock block,
+  ) {
+    final day = _routineController.selectedDay;
+
+    final boardWidth =
+        _activeBoardWidth >
+            0
+        ? _activeBoardWidth
+        : 390.0;
+
+    final width = _boardController.blockWidth(
+      block: block,
+      boardWidth: boardWidth,
+    );
+
+    block.position = _boardController.findFreePosition(
+      day: day,
+      block: block,
+      boardWidth: boardWidth,
+      blockWidth: width,
+    );
+  }
+
   Future<
     void
   >
@@ -3269,6 +3675,49 @@ class _RoutineScreenState
     }
 
     if (type ==
+        BlockType.document) {
+      final day = _routineController.selectedDay;
+
+      final boardId = _boardAttachmentBoardId(
+        day,
+      );
+
+      final blockId = BoardBlock.createId();
+
+      final attachment = await DocumentImportDialog.show(
+        context,
+        controller: boardAttachmentController,
+        boardId: boardId,
+        blockId: blockId,
+      );
+
+      if (!mounted ||
+          attachment ==
+              null) {
+        return;
+      }
+
+      final block = BoardBlock(
+        id: blockId,
+        type: BlockType.document,
+        title: attachment.fileName,
+        attachmentId: attachment.id,
+      );
+
+      _positionNewBlockInFreeArea(
+        block,
+      );
+
+      _routineController.addBlock(
+        block,
+      );
+
+      _loadedAttachmentBoardId = boardId;
+
+      return;
+    }
+
+    if (type ==
         BlockType.mindMap) {
       final block = BoardBlock(
         id: BoardBlock.createId(),
@@ -3283,6 +3732,11 @@ class _RoutineScreenState
       _mindMapController.startEditing(
         root,
       );
+
+      _positionNewBlockInFreeArea(
+        block,
+      );
+
       _routineController.addBlock(
         block,
       );
@@ -3328,6 +3782,10 @@ class _RoutineScreenState
           : null,
     );
 
+    _positionNewBlockInFreeArea(
+      block,
+    );
+
     _routineController.addBlock(
       block,
     );
@@ -3339,6 +3797,15 @@ class _RoutineScreenState
   _editBlock(
     BoardBlock block,
   ) async {
+    if (block.type ==
+        BlockType.document) {
+      await _openDocument(
+        block,
+      );
+
+      return;
+    }
+
     final editsTitle =
         block.type ==
             BlockType.tasks ||
@@ -3555,6 +4022,11 @@ class _RoutineScreenState
         return block.title.trim().isEmpty
             ? 'Revisar mapa mental.'
             : block.title.trim();
+
+      case BlockType.document:
+        return block.title.trim().isEmpty
+            ? 'Revisar documento da lousa.'
+            : 'Revisar documento: ${block.title.trim()}';
     }
   }
 
@@ -3623,6 +4095,39 @@ class _RoutineScreenState
 
     if (confirmed ==
         true) {
+      if (block.type ==
+              BlockType.document &&
+          block.attachmentId?.trim().isNotEmpty ==
+              true) {
+        final attachmentId = block.attachmentId!.trim();
+
+        final attachment =
+            boardAttachmentController.getById(
+              attachmentId,
+            ) ??
+            await boardAttachmentController.getByIdFromStorage(
+              attachmentId,
+            );
+
+        if (attachment !=
+            null) {
+          final removed = await boardAttachmentController.deleteAttachment(
+            attachment,
+          );
+
+          if (!removed) {
+            if (mounted) {
+              _showDocumentMessage(
+                boardAttachmentController.errorMessage ??
+                    'Não foi possível remover o documento.',
+              );
+            }
+
+            return;
+          }
+        }
+      }
+
       _boardController.removeBlock(
         day,
         block.id,
@@ -3667,6 +4172,137 @@ class _RoutineScreenState
           ),
         ),
       );
+  }
+}
+
+// ============================================================
+// DOCUMENTO AUSENTE / AINDA NÃO CARREGADO
+// ============================================================
+
+class _MissingDocumentBlock
+    extends
+        StatelessWidget {
+  const _MissingDocumentBlock({
+    required this.title,
+    required this.message,
+    required this.onTap,
+  });
+
+  final String title;
+
+  final String message;
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(
+          14,
+        ),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(
+            12,
+          ),
+          decoration: BoxDecoration(
+            color: const Color(
+              0xFFFFFFFF,
+            ),
+            borderRadius: BorderRadius.circular(
+              14,
+            ),
+            border: Border.all(
+              color: const Color(
+                0xFFC7DFC9,
+              ),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: const Color(
+                    0xFFF3F8EE,
+                  ),
+                  borderRadius: BorderRadius.circular(
+                    11,
+                  ),
+                  border: Border.all(
+                    color: const Color(
+                      0xFFC7DFC9,
+                    ),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.description_outlined,
+                  color: Color(
+                    0xFF3B6939,
+                  ),
+                  size: 21,
+                ),
+              ),
+              const SizedBox(
+                width: 11,
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title.trim().isEmpty
+                          ? 'Documento'
+                          : title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(
+                          0xFF172019,
+                        ),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 4,
+                    ),
+                    Text(
+                      message,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(
+                          0xFF68746B,
+                        ),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(
+                width: 8,
+              ),
+              const Icon(
+                Icons.open_in_new_rounded,
+                size: 19,
+                color: Color(
+                  0xFF3B6939,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -4361,10 +4997,50 @@ class _BoardCard
                     ],
               ),
 
-              const Icon(
-                Icons.drag_indicator_rounded,
-                color: _RoutineScreenState._muted,
-                size: 18,
+              // ==================================================
+              // HANDLE REAL DE ARRASTE
+              // ==================================================
+              //
+              // Esse é o ícone de 6 pontos no canto direito.
+              //
+              // Usamos Listener em vez de depender somente do
+              // GestureDetector do cabeçalho.
+              //
+              // Assim o movimento é capturado diretamente neste
+              // ponto, sem disputar gesto com:
+              //
+              // - botão de lembrete;
+              // - botão de editar;
+              // - menu de opções;
+              // - outros GestureDetectors filhos.
+              //
+              // Clicar + segurar + mover neste ícone arrasta o
+              // BoardBlock imediatamente.
+              //
+              // ==================================================
+              MouseRegion(
+                cursor: SystemMouseCursors.grab,
+                child: Listener(
+                  behavior: HitTestBehavior.opaque,
+                  onPointerMove:
+                      (
+                        event,
+                      ) {
+                        onDrag(
+                          event.delta,
+                        );
+                      },
+                  child: const Padding(
+                    padding: EdgeInsets.all(
+                      8,
+                    ),
+                    child: Icon(
+                      Icons.drag_indicator_rounded,
+                      color: _RoutineScreenState._muted,
+                      size: 18,
+                    ),
+                  ),
+                ),
               ),
             ],
           ),

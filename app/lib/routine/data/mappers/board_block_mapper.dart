@@ -44,11 +44,30 @@ abstract final class BoardBlockMapper {
       width: dto.width,
       height: dto.height,
 
+      // ========================================================
+      // DOCUMENT ATTACHMENT
+      // ========================================================
+      //
+      // Liga o bloco ao BoardAttachment correspondente.
+      //
+      // O DTO recebe attachment_id do datasource e aqui
+      // convertemos para attachmentId no model.
+      //
+      // ========================================================
+      attachmentId: dto.attachmentId,
+
+      // ========================================================
+      // TASKS
+      // ========================================================
       items: dto.items
           .map(
             _checkItemToModel,
           )
           .toList(),
+
+      // ========================================================
+      // MIND MAP
+      // ========================================================
       mindNodes: MindMapNodeMapper.toModelList(
         dto.mindMapNodes,
       ),
@@ -86,10 +105,26 @@ abstract final class BoardBlockMapper {
       width:
           width ??
           model.width,
+
       height:
           height ??
           model.height,
 
+      // ========================================================
+      // DOCUMENT ATTACHMENT
+      // ========================================================
+      //
+      // O BoardBlock guarda attachmentId.
+      //
+      // O BoardBlockDto transforma isso em attachment_id
+      // quando for convertido para Map/DatabaseMap.
+      //
+      // ========================================================
+      attachmentId: model.attachmentId,
+
+      // ========================================================
+      // TASKS
+      // ========================================================
       items: model.items
           .asMap()
           .entries
@@ -103,6 +138,10 @@ abstract final class BoardBlockMapper {
             ),
           )
           .toList(),
+
+      // ========================================================
+      // MIND MAP
+      // ========================================================
       mindMapNodes: MindMapNodeMapper.toDtoList(
         models: model.mindNodes,
         blockId: model.id,

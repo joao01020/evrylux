@@ -120,6 +120,7 @@ class BoardBlockDto {
     this.positionY,
     this.width,
     this.height,
+    this.attachmentId,
     this.items = const [],
     this.mindMapNodes = const [],
   });
@@ -143,6 +144,12 @@ class BoardBlockDto {
   final double? width;
 
   final double? height;
+
+  // ============================================================
+  // DOCUMENT ATTACHMENT
+  // ============================================================
+
+  final String? attachmentId;
 
   final List<
     CheckItemDto
@@ -169,6 +176,8 @@ class BoardBlockDto {
     double? positionY,
     double? width,
     double? height,
+    String? attachmentId,
+    bool removeAttachment = false,
     List<
       CheckItemDto
     >?
@@ -209,6 +218,10 @@ class BoardBlockDto {
       height:
           height ??
           this.height,
+      attachmentId: removeAttachment
+          ? null
+          : attachmentId ??
+                this.attachmentId,
       items:
           items ??
           this.items,
@@ -251,6 +264,8 @@ class BoardBlockDto {
       'width': width,
 
       'height': height,
+
+      'attachment_id': attachmentId,
 
       if (includeRelations)
         'items': items
@@ -318,6 +333,8 @@ class BoardBlockDto {
       'width': width,
 
       'height': height,
+
+      'attachment_id': attachmentId,
     };
   }
 
@@ -376,6 +393,10 @@ class BoardBlockDto {
       height: _nullableDouble(
         map['height'],
       ),
+      attachmentId: _nullableString(
+        map['attachment_id'] ??
+            map['attachmentId'],
+      ),
       items: _mapList(
         map['items'],
         CheckItemDto.fromMap,
@@ -404,6 +425,7 @@ class BoardBlockDto {
       positionY: positionY,
       width: width,
       height: height,
+      attachmentId: attachmentId,
     );
   }
 

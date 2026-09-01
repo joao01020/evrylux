@@ -17,6 +17,7 @@ class BoardBlock {
     this.position,
     this.width,
     this.height,
+    this.attachmentId,
     List<
       check_model.CheckItem
     >?
@@ -123,6 +124,32 @@ class BoardBlock {
   }
 
   // ============================================================
+  // FACTORY - DOCUMENT
+  // ============================================================
+
+  factory BoardBlock.document({
+    required String title,
+    required String attachmentId,
+  }) {
+    final normalizedAttachmentId = attachmentId.trim();
+
+    if (normalizedAttachmentId.isEmpty) {
+      throw ArgumentError.value(
+        attachmentId,
+        'attachmentId',
+        'attachmentId não pode estar vazio.',
+      );
+    }
+
+    return BoardBlock(
+      id: createId(),
+      type: block_model.BlockType.document,
+      title: title,
+      attachmentId: normalizedAttachmentId,
+    );
+  }
+
+  // ============================================================
   // FIELDS
   // ============================================================
 
@@ -152,6 +179,22 @@ class BoardBlock {
   double? width;
 
   double? height;
+
+  // ============================================================
+  // DOCUMENT ATTACHMENT
+  // ============================================================
+  //
+  // Guarda somente a referência lógica do documento.
+  //
+  // O arquivo físico e os metadados completos ficam em:
+  //
+  // BoardAttachment
+  // BoardAttachmentDao
+  // BoardAttachmentRepository
+  //
+  // ============================================================
+
+  String? attachmentId;
 
   final List<
     check_model.CheckItem
@@ -194,6 +237,14 @@ class BoardBlock {
   bool get isMindMap =>
       type ==
       block_model.BlockType.mindMap;
+
+  bool get isDocument =>
+      type ==
+      block_model.BlockType.document;
+
+  bool get hasAttachment =>
+      attachmentId?.trim().isNotEmpty ==
+      true;
 
   bool get hasPosition =>
       position !=
@@ -324,6 +375,27 @@ class BoardBlock {
   }
 
   // ============================================================
+  // UPDATE ATTACHMENT
+  // ============================================================
+
+  void updateAttachmentId(
+    String? value,
+  ) {
+    final normalized = value?.trim();
+
+    attachmentId =
+        normalized ==
+                null ||
+            normalized.isEmpty
+        ? null
+        : normalized;
+  }
+
+  void clearAttachment() {
+    attachmentId = null;
+  }
+
+  // ============================================================
   // UPDATE SIZE
   // ============================================================
 
@@ -362,6 +434,8 @@ class BoardBlock {
     double? width,
     double? height,
     bool removeCustomSize = false,
+    String? attachmentId,
+    bool removeAttachment = false,
     List<
       check_model.CheckItem
     >?
@@ -399,6 +473,10 @@ class BoardBlock {
           ? null
           : height ??
                 this.height,
+      attachmentId: removeAttachment
+          ? null
+          : attachmentId ??
+                this.attachmentId,
       items:
           items ??
           List<
@@ -506,6 +584,7 @@ class BoardBlock {
             ),
       width: width,
       height: height,
+      attachmentId: attachmentId,
       items: copiedItems,
       mindNodes: copiedNodes,
     );
@@ -628,6 +707,7 @@ class BoardBlock {
         'content: ${content.length} chars, '
         'items: ${items.length}, '
         'mindNodes: ${mindNodes.length}, '
+        'attachmentId: $attachmentId, '
         'position: $position, '
         'width: $width, '
         'height: $height'

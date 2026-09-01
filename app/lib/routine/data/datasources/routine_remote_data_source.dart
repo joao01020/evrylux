@@ -328,6 +328,20 @@ class RoutineRemoteDataSource {
 
           'height': block['height'],
 
+          // ====================================================
+          // DOCUMENT ATTACHMENT
+          // ====================================================
+          //
+          // Referência lógica para BoardAttachment.
+          //
+          // O arquivo físico não fica em routine_blocks.
+          // A tabela guarda somente o ID do anexo.
+          //
+          // ====================================================
+          'attachment_id':
+              block['attachment_id'] ??
+              block['attachmentId'],
+
           'items': items,
 
           'mind_map_nodes': mindMapNodes,
@@ -911,6 +925,21 @@ class RoutineRemoteDataSource {
             'width': raw['width'],
 
             'height': raw['height'],
+
+            // ==================================================
+            // DOCUMENT ATTACHMENT
+            // ==================================================
+            //
+            // Para blocos do tipo document, guarda apenas a
+            // referência ao BoardAttachment.
+            //
+            // Também aceitamos attachmentId para compatibilidade
+            // com mapas montados diretamente pelo Flutter.
+            //
+            // ==================================================
+            'attachment_id':
+                raw['attachment_id'] ??
+                raw['attachmentId'],
 
             // Mantém posição de lista também.
             'position':

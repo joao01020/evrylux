@@ -5,7 +5,8 @@ enum BlockType {
   note,
   content,
   photo,
-  mindMap;
+  mindMap,
+  document;
 
   // ============================================================
   // LABEL
@@ -17,6 +18,7 @@ enum BlockType {
     BlockType.content => 'Conteúdo',
     BlockType.photo => 'Foto',
     BlockType.mindMap => 'Mapa mental',
+    BlockType.document => 'Documento',
   };
 
   // ============================================================
@@ -29,6 +31,7 @@ enum BlockType {
     BlockType.content => 'Conteúdo',
     BlockType.photo => 'Referência visual',
     BlockType.mindMap => 'Mapa mental',
+    BlockType.document => 'Documento',
   };
 
   // ============================================================
@@ -41,6 +44,7 @@ enum BlockType {
     BlockType.content => 'Ideia de conteúdo',
     BlockType.photo => 'Adicionar referência visual',
     BlockType.mindMap => 'Ramos do mapa mental',
+    BlockType.document => 'Adicionar documento',
   };
 
   // ============================================================
@@ -53,6 +57,7 @@ enum BlockType {
     BlockType.content => 'Título, roteiro ou ideia do que será publicado...',
     BlockType.photo => 'Cole o caminho ou URL da imagem...',
     BlockType.mindMap => 'Digite um ramo por linha...',
+    BlockType.document => 'Selecione um arquivo .md, .markdown ou .txt...',
   };
 
   // ============================================================
@@ -65,6 +70,7 @@ enum BlockType {
     BlockType.content => Icons.movie_creation_outlined,
     BlockType.photo => Icons.image_outlined,
     BlockType.mindMap => Icons.account_tree_outlined,
+    BlockType.document => Icons.description_outlined,
   };
 
   // ============================================================
@@ -87,6 +93,9 @@ enum BlockType {
     BlockType.mindMap => const Color(
       0xFFA18CFF,
     ),
+    BlockType.document => const Color(
+      0xFF6FCF97,
+    ),
   };
 
   // ============================================================
@@ -98,13 +107,14 @@ enum BlockType {
   // O enum Flutter se chama "tasks",
   // mas o banco usa "task".
   //
-  // Isso precisa ficar igual ao CHECK do PostgreSQL:
+  // Valores esperados no banco:
   //
   // note
   // content
   // photo
   // task
   // mind_map
+  // document
   //
   // ============================================================
 
@@ -114,6 +124,7 @@ enum BlockType {
     BlockType.content => 'content',
     BlockType.photo => 'photo',
     BlockType.mindMap => 'mind_map',
+    BlockType.document => 'document',
   };
 
   // ============================================================
@@ -152,6 +163,12 @@ enum BlockType {
 
       // Compatibilidade extra.
       'mindmap' => BlockType.mindMap,
+
+      'document' => BlockType.document,
+
+      // Compatibilidade extra para nomes alternativos.
+      'doc' => BlockType.document,
+      'file' => BlockType.document,
 
       _ => throw ArgumentError.value(
         value,
@@ -243,4 +260,12 @@ enum BlockType {
   bool get isMindMap =>
       this ==
       BlockType.mindMap;
+
+  // ============================================================
+  // IS DOCUMENT
+  // ============================================================
+
+  bool get isDocument =>
+      this ==
+      BlockType.document;
 }

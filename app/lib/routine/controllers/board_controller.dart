@@ -36,10 +36,22 @@ class BoardController
   /// Espaço mínimo entre dois blocos.
   static const double _collisionGap = 12;
 
-  /// Altura estimada dos blocos normais.
+  /// Alturas estimadas para colisão por tipo de bloco.
   ///
-  /// O mapa mental usa a altura persistida no próprio bloco.
-  static const double _normalBlockHeight = 210;
+  /// Essas alturas representam melhor o tamanho visual real de
+  /// cada card e evitam "áreas invisíveis" grandes demais.
+  ///
+  /// O mapa mental continua usando a altura persistida no próprio
+  /// BoardBlock.
+  static const double _taskBlockHeight = 210;
+
+  static const double _noteBlockHeight = 136;
+
+  static const double _contentBlockHeight = 190;
+
+  static const double _photoBlockHeight = 260;
+
+  static const double _documentBlockHeight = 154;
 
   // ============================================================
   // BLOCK WIDTH
@@ -133,12 +145,207 @@ class BoardController
         normalWidth: normalWidth,
       );
 
-      block.position = _initialPosition(
-        index: index,
+      block.position = findFreePosition(
+        day: day,
+        block: block,
         boardWidth: boardWidth,
         blockWidth: width,
       );
     }
+  }
+
+  // ============================================================
+  // FIND FREE POSITION
+  // ============================================================
+  //
+  // Procura automaticamente uma área vazia da lousa para um bloco
+  // que ainda não possui posição.
+  //
+  // A busca acontece da esquerda para a direita e depois desce para
+  // a próxima faixa vertical.
+  //
+  // Regras:
+  //
+  // - nunca posiciona em cima de outro bloco;
+  // - respeita o _collisionGap;
+  // - usa a largura real do bloco;
+  // - usa a altura de colisão específica do tipo;
+  // - funciona também quando a lousa possui apenas uma coluna;
+  // - se não houver espaço na área visível, continua procurando
+  //   para baixo, permitindo que o canvas cresça.
+  //
+  // ============================================================
+
+  Offset findFreePosition({
+    required RoutineDay day,
+    required BoardBlock block,
+    required double boardWidth,
+    double? blockWidth,
+    double startX = 0,
+    double startY = 0,
+    double horizontalGap = 18,
+    double verticalGap = 18,
+    int maxRows = 500,
+  }) {
+    final resolvedWidth =
+        blockWidth ??
+        this.blockWidth(
+          block: block,
+          boardWidth: boardWidth,
+        );
+
+    final resolvedHeight = _blockHeight(
+      block,
+    );
+
+    final safeBoardWidth =
+        boardWidth <=
+            0
+        ? resolvedWidth
+        : boardWidth;
+
+    final usableStartX =
+        startX <
+            0
+        ? 0.0
+        : startX;
+
+    final usableStartY =
+        startY <
+            0
+        ? 0.0
+        : startY;
+
+    // ==========================================================
+    // QUANTAS COLUNAS CABEM
+    // ==========================================================
+
+    final availableWidth =
+        safeBoardWidth -
+        usableStartX;
+
+    final stepX =
+        resolvedWidth +
+        horizontalGap;
+
+    final columns =
+        availableWidth <=
+            resolvedWidth
+        ? 1
+        : ((availableWidth +
+                      horizontalGap) /
+                  stepX)
+              .floor()
+              .clamp(
+                1,
+                1000,
+              );
+
+    final stepY =
+        resolvedHeight +
+        verticalGap;
+
+    // ==========================================================
+    // BUSCA POR ÁREA LIVRE
+    // ==========================================================
+
+    for (
+      var row = 0;
+      row <
+          maxRows;
+      row++
+    ) {
+      final y =
+          usableStartY +
+          (row *
+              stepY);
+
+      for (
+        var column = 0;
+        column <
+            columns;
+        column++
+      ) {
+        var x =
+            usableStartX +
+            (column *
+                stepX);
+
+        // Mantém o bloco inteiro dentro da largura quando possível.
+        final maxX =
+            safeBoardWidth >
+                resolvedWidth
+            ? safeBoardWidth -
+                  resolvedWidth
+            : 0.0;
+
+        if (x >
+            maxX) {
+          x = maxX;
+        }
+
+        final candidate = Offset(
+          x,
+          y,
+        );
+
+        if (canPlaceBlock(
+          day: day,
+          movingBlock: block,
+          position: candidate,
+          blockWidth: resolvedWidth,
+          blockHeight: resolvedHeight,
+        )) {
+          return candidate;
+        }
+      }
+    }
+
+    // ==========================================================
+    // FALLBACK
+    // ==========================================================
+    //
+    // Em uma lousa extremamente cheia, posicionamos abaixo de
+    // todos os blocos existentes.
+    //
+    // ==========================================================
+
+    var lowestBottom = usableStartY;
+
+    for (final other in day.blocks) {
+      if (identical(
+            other,
+            block,
+          ) ||
+          other.id ==
+              block.id) {
+        continue;
+      }
+
+      final otherPosition = other.position;
+
+      if (otherPosition ==
+          null) {
+        continue;
+      }
+
+      final bottom =
+          otherPosition.dy +
+          _blockHeight(
+            other,
+          );
+
+      if (bottom >
+          lowestBottom) {
+        lowestBottom = bottom;
+      }
+    }
+
+    return Offset(
+      usableStartX,
+      lowestBottom +
+          verticalGap,
+    );
   }
 
   // ============================================================
@@ -189,6 +396,56 @@ class BoardController
       boardWidth: boardWidth,
       blockWidth: blockWidth,
     );
+
+    // ==========================================================
+    // DESENCALHAR BLOCO QUE JÁ ESTÁ SOBREPOSTO
+    // ==========================================================
+    //
+    // Problema anterior:
+    //
+    // Se um bloco já estivesse sobre outro, qualquer pequeno
+    // movimento continuava tecnicamente em colisão.
+    //
+    // Como canPlaceBlock() retornava false para:
+    //
+    // - movimento completo;
+    // - somente X;
+    // - somente Y;
+    //
+    // o bloco ficava completamente "preso".
+    //
+    // Regra nova:
+    //
+    // - se a posição ATUAL já é inválida/sobreposta,
+    //   permitimos movimento livre temporariamente;
+    //
+    // - isso deixa o usuário arrastar o bloco para fora da
+    //   sobreposição;
+    //
+    // - assim que o bloco chega a uma posição válida, nas próximas
+    //   movimentações volta a valer a proteção normal contra
+    //   colisões.
+    //
+    // Dessa forma mantemos a regra "sem sobreposição" para blocos
+    // normais, mas nunca deixamos um bloco existente encalhado.
+    //
+    // ==========================================================
+
+    final currentIsValid = canPlaceBlock(
+      day: day,
+      movingBlock: block,
+      position: current,
+      blockWidth: blockWidth,
+      blockHeight: resolvedHeight,
+    );
+
+    if (!currentIsValid) {
+      block.position = desired;
+
+      _notifyChange();
+
+      return;
+    }
 
     // ==========================================================
     // TENTATIVA COMPLETA
@@ -364,13 +621,26 @@ class BoardController
   double _blockHeight(
     BoardBlock block,
   ) {
-    if (block.type ==
-        BlockType.mindMap) {
-      return block.height ??
-          430;
-    }
+    switch (block.type) {
+      case BlockType.tasks:
+        return _taskBlockHeight;
 
-    return _normalBlockHeight;
+      case BlockType.note:
+        return _noteBlockHeight;
+
+      case BlockType.content:
+        return _contentBlockHeight;
+
+      case BlockType.photo:
+        return _photoBlockHeight;
+
+      case BlockType.mindMap:
+        return block.height ??
+            430;
+
+      case BlockType.document:
+        return _documentBlockHeight;
+    }
   }
 
   // ============================================================
@@ -459,8 +729,28 @@ class BoardController
 
   void addBlock(
     RoutineDay day,
-    BoardBlock block,
-  ) {
+    BoardBlock block, {
+    double? boardWidth,
+  }) {
+    if (block.position ==
+            null &&
+        boardWidth !=
+            null &&
+        boardWidth >
+            0) {
+      final width = this.blockWidth(
+        block: block,
+        boardWidth: boardWidth,
+      );
+
+      block.position = findFreePosition(
+        day: day,
+        block: block,
+        boardWidth: boardWidth,
+        blockWidth: width,
+      );
+    }
+
     day.addBlock(
       block,
     );

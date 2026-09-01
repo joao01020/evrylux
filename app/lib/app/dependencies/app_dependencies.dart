@@ -1,3 +1,5 @@
+import 'dart:io';
+
 /*
 |--------------------------------------------------------------------------
 | APP DEPENDENCIES
@@ -58,6 +60,7 @@ import '../../core/database/app_database.dart';
 import '../../core/database/daos/reminder_dao.dart';
 import '../../core/database/daos/routine_dao.dart';
 import '../../core/database/daos/training_activity_plan_dao.dart';
+import '../../core/database/daos/board_attachment_dao.dart';
 
 // ======================================================
 // CORE - SYNC
@@ -121,6 +124,15 @@ import '../../routine/data/datasources/routine_memory_datasource.dart';
 import '../../routine/data/datasources/routine_remote_data_source.dart';
 
 import '../../routine/data/repositories/routine_repository_impl.dart';
+
+// ======================================================
+// ROUTINE - BOARD ATTACHMENTS
+// ======================================================
+
+import '../../routine/controllers/attachments/board_attachment_controller.dart';
+import '../../routine/data/attachments/board_attachment_repository.dart';
+import '../../routine/services/attachments/board_attachment_service.dart';
+import '../../routine/services/attachments/board_attachment_storage.dart';
 
 // ======================================================
 // FINANCE LOCAL DATASOURCE
@@ -231,6 +243,12 @@ _trainingActivityPlanTable = 'training_activity_plans';
 
 const String
 _journeyTable = 'journey_history';
+
+const String
+_boardAttachmentTable = 'board_attachments';
+
+const String
+_boardAttachmentBucket = 'board-files';
 
 // ======================================================
 // LOCAL DATABASE
@@ -406,6 +424,49 @@ final reminderDao = ReminderDao(
 
 final trainingActivityPlanDao = TrainingActivityPlanDao(
   database: appDatabase,
+);
+
+// ======================================================
+// BOARD ATTACHMENTS - OFFLINE-FIRST
+// ======================================================
+//
+// BoardAttachmentController
+//      ↓
+// BoardAttachmentRepository
+//      ↓
+// BoardAttachmentService + BoardAttachmentDao
+//      ↓
+// arquivo físico local + SQLite
+//      ↓
+// SyncQueue
+//      ↓
+// SyncService
+//      ↓
+// Supabase Storage + board_attachments
+//
+// ======================================================
+
+final boardAttachmentDao = BoardAttachmentDao(
+  database: appDatabase,
+);
+
+const boardAttachmentStorage = BoardAttachmentStorage();
+
+final boardAttachmentService = BoardAttachmentService(
+  storage: boardAttachmentStorage,
+  client: supabaseClient,
+);
+
+final boardAttachmentRepository = BoardAttachmentRepository(
+  client: supabaseClient,
+  localDao: boardAttachmentDao,
+  service: boardAttachmentService,
+  syncQueue: syncQueue,
+  syncService: syncService,
+);
+
+final boardAttachmentController = BoardAttachmentController(
+  repository: boardAttachmentRepository,
 );
 
 // ======================================================
@@ -687,6 +748,225 @@ registerSyncHandlers() {
 
               await reminderDao.deletePermanently(
                 item.entityId,
+              );
+
+              break;
+          }
+        },
+  );
+
+  // ====================================================
+  // BOARD ATTACHMENT
+  // ====================================================
+  //
+  // Fluxo remoto:
+  //
+  // CREATE / UPDATE
+  //   1. valida usuário;
+  //   2. envia o arquivo local para o Storage;
+  //   3. salva os metadados em board_attachments;
+  //   4. marca o registro SQLite como synced.
+  //
+  // DELETE
+  //   1. remove o arquivo do Storage quando houver remote_path;
+  //   2. remove os metadados no Supabase;
+  //   3. remove definitivamente o registro SQLite.
+  //
+  // IMPORTANTE:
+  //
+  // local_path existe apenas no payload local da SyncQueue.
+  // Ele nunca é persistido na tabela remota.
+  //
+  // ====================================================
+
+  syncService.registerHandler(
+    entityType: BoardAttachmentRepository.entityType,
+
+    handler:
+        (
+          item,
+        ) async {
+          final payload =
+              Map<
+                String,
+                dynamic
+              >.from(
+                item.payload,
+              );
+
+          final user = _requireQueueUser(
+            userId: payload['user_id']?.toString(),
+            entity: BoardAttachmentRepository.entityType,
+          );
+
+          final boardId =
+              payload['board_id']?.toString().trim() ??
+              '';
+
+          final blockId =
+              payload['block_id']?.toString().trim() ??
+              '';
+
+          final fileName =
+              payload['file_name']?.toString().trim() ??
+              '';
+
+          switch (item.operation) {
+            case SyncOperation.create:
+            case SyncOperation.update:
+              if (boardId.isEmpty) {
+                throw StateError(
+                  'Operação de board_attachment sem board_id.',
+                );
+              }
+
+              if (blockId.isEmpty) {
+                throw StateError(
+                  'Operação de board_attachment sem block_id.',
+                );
+              }
+
+              if (fileName.isEmpty) {
+                throw StateError(
+                  'Operação de board_attachment sem file_name.',
+                );
+              }
+
+              final localPath =
+                  payload['local_path']?.toString().trim() ??
+                  '';
+
+              if (localPath.isEmpty) {
+                throw StateError(
+                  'Operação de board_attachment sem local_path.',
+                );
+              }
+
+              final localFile = File(
+                localPath,
+              );
+
+              if (!await localFile.exists()) {
+                throw StateError(
+                  'Arquivo local do board_attachment não encontrado: '
+                  '$localPath',
+                );
+              }
+
+              final rawRemotePath = payload['remote_path']?.toString().trim();
+
+              final remotePath =
+                  rawRemotePath !=
+                          null &&
+                      rawRemotePath.isNotEmpty
+                  ? rawRemotePath
+                  : '${user.id}/'
+                        '$boardId/'
+                        '${item.entityId}/'
+                        '$fileName';
+
+              final mimeType = payload['mime_type']?.toString().trim();
+
+              final bytes = await localFile.readAsBytes();
+
+              await supabaseClient.storage
+                  .from(
+                    _boardAttachmentBucket,
+                  )
+                  .uploadBinary(
+                    remotePath,
+                    bytes,
+                    fileOptions: FileOptions(
+                      upsert: true,
+                      contentType:
+                          mimeType !=
+                                  null &&
+                              mimeType.isNotEmpty
+                          ? mimeType
+                          : null,
+                    ),
+                  );
+
+              final remotePayload =
+                  <
+                    String,
+                    dynamic
+                  >{
+                    'id': item.entityId,
+                    'user_id': user.id,
+                    'board_id': boardId,
+                    'block_id': blockId,
+                    'file_name': fileName,
+                    'type':
+                        payload['type']?.toString() ??
+                        'unknown',
+                    'remote_path': remotePath,
+                    'mime_type': mimeType,
+                    'size_bytes':
+                        payload['size_bytes'] ??
+                        bytes.length,
+                    'created_at':
+                        payload['created_at'] ??
+                        DateTime.now().toUtc().toIso8601String(),
+                    'updated_at':
+                        payload['updated_at'] ??
+                        DateTime.now().toUtc().toIso8601String(),
+                  };
+
+              await supabaseClient
+                  .from(
+                    _boardAttachmentTable,
+                  )
+                  .upsert(
+                    remotePayload,
+                    onConflict: 'id',
+                  );
+
+              await boardAttachmentDao.updateRemotePath(
+                userId: user.id,
+                id: item.entityId,
+                remotePath: remotePath,
+                syncStatus: SyncStatus.synced,
+              );
+
+              break;
+
+            case SyncOperation.delete:
+              final remotePath = payload['remote_path']?.toString().trim();
+
+              if (remotePath !=
+                      null &&
+                  remotePath.isNotEmpty) {
+                await supabaseClient.storage
+                    .from(
+                      _boardAttachmentBucket,
+                    )
+                    .remove(
+                      <
+                        String
+                      >[
+                        remotePath,
+                      ],
+                    );
+              }
+
+              await supabaseClient
+                  .from(
+                    _boardAttachmentTable,
+                  )
+                  .delete()
+                  .eq(
+                    'id',
+                    item.entityId,
+                  )
+                  .eq(
+                    'user_id',
+                    user.id,
+                  );
+
+              await boardAttachmentDao.deletePermanently(
+                userId: user.id,
+                id: item.entityId,
               );
 
               break;
@@ -1681,6 +1961,8 @@ initializeOfflineFirst() async {
   await appDatabase.initialize();
 
   await trainingActivityPlanDao.initialize();
+
+  await boardAttachmentDao.initialize();
 
   registerSyncHandlers();
 
