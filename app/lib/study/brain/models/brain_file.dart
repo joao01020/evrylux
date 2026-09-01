@@ -1,6 +1,42 @@
 import 'brain_concept.dart';
 
+// ============================================================
+// BRAIN FILE
+// ============================================================
+//
+// Representa uma anotação salva no Cérebro.
+//
+// createdAt:
+// - data original de criação;
+// - usada para posicionar a anotação no calendário.
+//
+// updatedAt:
+// - última edição da anotação.
+//
+// Compatibilidade:
+//
+// createdAt é opcional no construtor.
+// Se não for informado, usamos updatedAt.
+//
+// ============================================================
+
 class BrainFile {
+  const BrainFile({
+    required this.topic,
+    required this.title,
+    required this.path,
+    required this.content,
+    required this.concepts,
+    DateTime? createdAt,
+    required this.updatedAt,
+  }) : createdAt =
+           createdAt ??
+           updatedAt;
+
+  // ============================================================
+  // DATA
+  // ============================================================
+
   final String topic;
 
   final String title;
@@ -15,16 +51,13 @@ class BrainFile {
   >
   concepts;
 
-  final DateTime updatedAt;
+  /// Data original de criação.
+  ///
+  /// Essa é a data usada pelo calendário.
+  final DateTime createdAt;
 
-  const BrainFile({
-    required this.topic,
-    required this.title,
-    required this.path,
-    required this.content,
-    required this.concepts,
-    required this.updatedAt,
-  });
+  /// Última atualização da anotação.
+  final DateTime updatedAt;
 
   // ============================================================
   // COPY
@@ -39,6 +72,7 @@ class BrainFile {
       BrainConcept
     >?
     concepts,
+    DateTime? createdAt,
     DateTime? updatedAt,
   }) {
     return BrainFile(
@@ -57,6 +91,9 @@ class BrainFile {
       concepts:
           concepts ??
           this.concepts,
+      createdAt:
+          createdAt ??
+          this.createdAt,
       updatedAt:
           updatedAt ??
           this.updatedAt,
@@ -73,6 +110,52 @@ class BrainFile {
 
   int get conceptsCount {
     return concepts.length;
+  }
+
+  bool get hasTopic {
+    return topic.trim().isNotEmpty;
+  }
+
+  bool get hasTitle {
+    return title.trim().isNotEmpty;
+  }
+
+  bool get hasContent {
+    return content.trim().isNotEmpty;
+  }
+
+  // ============================================================
+  // DATE HELPERS
+  // ============================================================
+
+  bool wasCreatedOn(
+    DateTime date,
+  ) {
+    final created = createdAt.toLocal();
+
+    final target = date.toLocal();
+
+    return created.year ==
+            target.year &&
+        created.month ==
+            target.month &&
+        created.day ==
+            target.day;
+  }
+
+  bool wasUpdatedOn(
+    DateTime date,
+  ) {
+    final updated = updatedAt.toLocal();
+
+    final target = date.toLocal();
+
+    return updated.year ==
+            target.year &&
+        updated.month ==
+            target.month &&
+        updated.day ==
+            target.day;
   }
 
   // ============================================================
@@ -228,6 +311,7 @@ class BrainFile {
         'title: $title, '
         'path: $path, '
         'concepts: ${concepts.length}, '
+        'createdAt: $createdAt, '
         'updatedAt: $updatedAt'
         ')';
   }

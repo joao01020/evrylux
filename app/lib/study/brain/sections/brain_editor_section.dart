@@ -3,25 +3,31 @@ import 'package:flutter/material.dart';
 import '../models/brain_file.dart';
 import '../widgets/buttons/brain_save_button.dart';
 
+// ============================================================
+// BRAIN EDITOR SECTION
+// ============================================================
+//
+// Responsabilidade:
+//
+// - editar tema;
+// - editar título;
+// - editar conteúdo;
+// - salvar;
+// - solicitar exclusão REAL da anotação selecionada.
+//
+// IMPORTANTE:
+//
+// Este widget NÃO apaga arquivos diretamente.
+// Ele chama [onDelete] e deixa o BrainController / Repository
+// executarem:
+//
+// local -> SyncQueue -> Supabase.
+//
+// ============================================================
+
 class BrainEditorSection
     extends
         StatelessWidget {
-  final BrainFile? selectedNote;
-
-  final TextEditingController topicController;
-  final TextEditingController titleController;
-  final TextEditingController contentController;
-
-  final FocusNode contentFocusNode;
-
-  final bool isSaving;
-
-  final VoidCallback onSave;
-  final ValueChanged<
-    BrainFile
-  >
-  onDelete;
-
   const BrainEditorSection({
     super.key,
     required this.selectedNote,
@@ -34,15 +40,62 @@ class BrainEditorSection
     required this.onDelete,
   });
 
+  // ============================================================
+  // DATA
+  // ============================================================
+
+  final BrainFile? selectedNote;
+
+  // ============================================================
+  // CONTROLLERS
+  // ============================================================
+
+  final TextEditingController topicController;
+
+  final TextEditingController titleController;
+
+  final TextEditingController contentController;
+
+  final FocusNode contentFocusNode;
+
+  // ============================================================
+  // STATE
+  // ============================================================
+
+  final bool isSaving;
+
+  // ============================================================
+  // ACTIONS
+  // ============================================================
+
+  final VoidCallback onSave;
+
+  final Future<
+    void
+  >
+  Function(
+    BrainFile note,
+  )
+  onDelete;
+
+  // ============================================================
+  // BUILD
+  // ============================================================
+
   @override
   Widget build(
     BuildContext context,
   ) {
+    final note = selectedNote;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // ======================================================
+        // TITLE
+        // ======================================================
         Text(
-          selectedNote ==
+          note ==
                   null
               ? 'Nova anotação'
               : 'Editando anotação',
@@ -66,8 +119,12 @@ class BrainEditorSection
           height: 16,
         ),
 
+        // ======================================================
+        // TOPIC
+        // ======================================================
         TextField(
           controller: topicController,
+          enabled: !isSaving,
           textInputAction: TextInputAction.next,
           decoration: const InputDecoration(
             labelText: 'Tema',
@@ -89,8 +146,12 @@ class BrainEditorSection
           height: 12,
         ),
 
+        // ======================================================
+        // TITLE
+        // ======================================================
         TextField(
           controller: titleController,
+          enabled: !isSaving,
           textInputAction: TextInputAction.next,
           decoration: const InputDecoration(
             labelText: 'Título',
@@ -112,13 +173,17 @@ class BrainEditorSection
           height: 12,
         ),
 
+        // ======================================================
+        // CONTENT
+        // ======================================================
         TextField(
           controller: contentController,
           focusNode: contentFocusNode,
+          enabled: !isSaving,
           keyboardType: TextInputType.multiline,
           textInputAction: TextInputAction.newline,
 
-          // Começa pequena e aumenta conforme você escreve.
+          // Começa pequena e cresce conforme o conteúdo.
           minLines: 1,
           maxLines: null,
 
@@ -139,12 +204,18 @@ class BrainEditorSection
           height: 14,
         ),
 
+        // ======================================================
+        // SAVE
+        // ======================================================
         BrainSaveButton(
           isSaving: isSaving,
           onPressed: onSave,
         ),
 
-        if (selectedNote !=
+        // ======================================================
+        // DELETE
+        // ======================================================
+        if (note !=
             null) ...[
           const SizedBox(
             height: 8,
@@ -153,20 +224,16 @@ class BrainEditorSection
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: () {
-                final note = selectedNote;
-
-                if (note ==
-                    null) {
-                  return;
-                }
-
-                onDelete(
-                  note,
-                );
-              },
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      await _confirmDelete(
+                        context,
+                        note,
+                      );
+                    },
               icon: const Icon(
-                Icons.delete_outline,
+                Icons.delete_outline_rounded,
                 size: 20,
               ),
               label: const Text(
@@ -176,6 +243,81 @@ class BrainEditorSection
           ),
         ],
       ],
+    );
+  }
+
+  // ============================================================
+  // CONFIRM DELETE
+  // ============================================================
+
+  Future<
+    void
+  >
+  _confirmDelete(
+    BuildContext context,
+    BrainFile note,
+  ) async {
+    final confirmed =
+        await showDialog<
+          bool
+        >(
+          context: context,
+          barrierDismissible: true,
+          builder:
+              (
+                dialogContext,
+              ) {
+                return AlertDialog(
+                  title: const Text(
+                    'Excluir anotação?',
+                  ),
+                  content: Text(
+                    '"${note.title.trim().isEmpty ? 'Sem título' : note.title.trim()}" '
+                    'será removida deste dispositivo e a exclusão será '
+                    'sincronizada com a nuvem.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(
+                          dialogContext,
+                        ).pop(
+                          false,
+                        );
+                      },
+                      child: const Text(
+                        'Cancelar',
+                      ),
+                    ),
+
+                    FilledButton.icon(
+                      onPressed: () {
+                        Navigator.of(
+                          dialogContext,
+                        ).pop(
+                          true,
+                        );
+                      },
+                      icon: const Icon(
+                        Icons.delete_outline_rounded,
+                        size: 18,
+                      ),
+                      label: const Text(
+                        'Excluir',
+                      ),
+                    ),
+                  ],
+                );
+              },
+        );
+
+    if (confirmed !=
+        true) {
+      return;
+    }
+
+    await onDelete(
+      note,
     );
   }
 }

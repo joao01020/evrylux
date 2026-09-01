@@ -21,6 +21,27 @@ class BrainStorage {
   static const String _backupFolderName = '_backup';
 
   // ============================================================
+  // ONE-TIME RESET MARKER
+  // ============================================================
+  //
+  // Esta versão executa um RESET ÚNICO V3 de TODO o conteúdo antigo
+  // existentes no ghost_brain.
+  //
+  // Depois da limpeza, este arquivo marcador é criado.
+  //
+  // Nas próximas inicializações nada será apagado.
+  //
+  // IMPORTANTE:
+  //
+  // Depois que esta versão V4 limpar tudo, NÃO altere novamente o marcador quando começar a usar
+  // o Cérebro com dados reais, pois um novo nome faria a rotina
+  // entender que precisa executar outra limpeza inicial.
+  //
+  // ============================================================
+
+  static const String _readyMarkerFileName = '.evrylux_brain_ready_v4';
+
+  // ============================================================
   // ROOT
   // ============================================================
 
@@ -40,7 +61,283 @@ class BrainStorage {
       );
     }
 
+    // ========================================================
+    // LIMPEZA ÚNICA DOS DADOS DE TESTE
+    // ========================================================
+    //
+    // Executa apenas enquanto o marcador ainda não existir.
+    //
+    // Depois da primeira execução o armazenamento fica pronto
+    // para uso normal e esta rotina nunca mais apaga dados.
+    //
+    // ========================================================
+
+    await _prepareStorageForUse(
+      directory,
+    );
+
     return directory;
+  }
+
+  // ============================================================
+  // PREPARE STORAGE FOR USE
+  // ============================================================
+  //
+  // Objetivo:
+  //
+  // - apagar absolutamente tudo que existe no ghost_brain;
+  // - limpar notas;
+  // - limpar conceitos;
+  // - limpar backups;
+  // - deixar a estrutura vazia e pronta para dados reais;
+  // - fazer isso UMA ÚNICA VEZ.
+  //
+  // ============================================================
+
+  Future<
+    void
+  >
+  _prepareStorageForUse(
+    Directory root,
+  ) async {
+    final marker = File(
+      '${root.path}/$_readyMarkerFileName',
+    );
+
+    if (await marker.exists()) {
+      return;
+    }
+
+    debugPrint(
+      'BrainStorage: RESET V4 - preparando armazenamento totalmente limpo.',
+    );
+
+    debugPrint(
+      'BrainStorage: RESET V4 - removendo TODAS as notas, conceitos, backups e marcadores antigos.',
+    );
+
+    debugPrint(
+      'BrainStorage: RESET V4 - pasta: ${root.path}',
+    );
+
+    await _deleteAllChildren(
+      root,
+    );
+
+    // ========================================================
+    // CONFIRMAR QUE A RAIZ FICOU VAZIA
+    // ========================================================
+
+    final remainingAfterReset = await root
+        .list(
+          recursive: false,
+          followLinks: false,
+        )
+        .toList();
+
+    if (remainingAfterReset.isNotEmpty) {
+      throw StateError(
+        'BrainStorage: RESET V4 falhou. Ainda existem arquivos na pasta ghost_brain.',
+      );
+    }
+
+    // ========================================================
+    // RECRIAR ESTRUTURA BASE
+    // ========================================================
+
+    final conceptsDirectory = Directory(
+      '${root.path}/$_conceptsFolderName',
+    );
+
+    final backupDirectory = Directory(
+      '${root.path}/$_backupFolderName',
+    );
+
+    await conceptsDirectory.create(
+      recursive: true,
+    );
+
+    await backupDirectory.create(
+      recursive: true,
+    );
+
+    for (final type in BrainConceptType.values) {
+      final directory = Directory(
+        '${conceptsDirectory.path}/${type.folderName}',
+      );
+
+      await directory.create(
+        recursive: true,
+      );
+    }
+
+    // ========================================================
+    // CRIAR MARCADOR
+    // ========================================================
+
+    await marker.writeAsString(
+      'ready_at=${DateTime.now().toUtc().toIso8601String()}\n',
+      encoding: utf8,
+      flush: true,
+    );
+
+    debugPrint(
+      'BrainStorage: RESET V4 - todos os dados antigos foram removidos.',
+    );
+
+    debugPrint(
+      'BrainStorage: RESET V4 concluído - armazenamento vazio e pronto para uso real.',
+    );
+  }
+
+  // ============================================================
+  // DELETE ALL CHILDREN
+  // ============================================================
+
+  Future<
+    void
+  >
+  _deleteAllChildren(
+    Directory root,
+  ) async {
+    if (!await root.exists()) {
+      return;
+    }
+
+    final entities = await root
+        .list(
+          recursive: false,
+          followLinks: false,
+        )
+        .toList();
+
+    for (final entity in entities) {
+      try {
+        if (entity
+            is File) {
+          await entity.delete();
+          continue;
+        }
+
+        if (entity
+            is Directory) {
+          await entity.delete(
+            recursive: true,
+          );
+          continue;
+        }
+
+        await entity.delete(
+          recursive: true,
+        );
+      } catch (
+        error,
+        stackTrace
+      ) {
+        debugPrint(
+          'BrainStorage: erro removendo dado antigo: ${entity.path}',
+        );
+
+        debugPrint(
+          'BrainStorage: $error',
+        );
+
+        debugPrintStack(
+          stackTrace: stackTrace,
+        );
+
+        rethrow;
+      }
+    }
+  }
+
+  // ============================================================
+  // RESET MANUAL
+  // ============================================================
+  //
+  // Mantido para debug/desenvolvimento.
+  //
+  // NÃO use em produção sem confirmação explícita do usuário.
+  //
+  // Este método remove tudo e recria a estrutura vazia,
+  // mantendo o marcador para que a limpeza automática inicial
+  // não rode novamente.
+  //
+  // ============================================================
+
+  Future<
+    void
+  >
+  clearAllLocalData() async {
+    final documents = await getApplicationDocumentsDirectory();
+
+    final root = Directory(
+      '${documents.path}/$_brainFolderName',
+    );
+
+    if (!await root.exists()) {
+      await root.create(
+        recursive: true,
+      );
+    }
+
+    await _deleteAllChildren(
+      root,
+    );
+
+    final conceptsDirectory = Directory(
+      '${root.path}/$_conceptsFolderName',
+    );
+
+    final backupDirectory = Directory(
+      '${root.path}/$_backupFolderName',
+    );
+
+    await conceptsDirectory.create(
+      recursive: true,
+    );
+
+    await backupDirectory.create(
+      recursive: true,
+    );
+
+    for (final type in BrainConceptType.values) {
+      await Directory(
+        '${conceptsDirectory.path}/${type.folderName}',
+      ).create(
+        recursive: true,
+      );
+    }
+
+    await File(
+      '${root.path}/$_readyMarkerFileName',
+    ).writeAsString(
+      'ready_at=${DateTime.now().toUtc().toIso8601String()}\n',
+      encoding: utf8,
+      flush: true,
+    );
+
+    debugPrint(
+      'BrainStorage: todos os dados locais foram removidos.',
+    );
+  }
+
+  // ============================================================
+  // DEBUG ROOT PATH
+  // ============================================================
+  //
+  // Útil apenas para conferir no terminal qual pasta física está
+  // sendo usada pelo aplicativo.
+  //
+  // ============================================================
+
+  Future<
+    String
+  >
+  getBrainDirectoryPath() async {
+    final directory = await getBrainDirectory();
+
+    return directory.path;
   }
 
   // ============================================================
@@ -132,8 +429,10 @@ class BrainStorage {
   // ============================================================
   // SAVE NOTE LOCALLY
   //
-  // Agora funciona como backup/cache local.
-  // O Supabase deve ser a fonte principal.
+  // Persistência local principal do módulo Cérebro.
+  //
+  // O Supabase é alimentado posteriormente pela SyncQueue /
+  // SyncService quando houver conexão.
   // ============================================================
 
   Future<
@@ -201,6 +500,45 @@ class BrainStorage {
       path,
     );
 
+    // ========================================================
+    // DATA ORIGINAL DE CRIAÇÃO
+    // ========================================================
+    //
+    // Se a anotação já existe localmente, preservamos a data
+    // original gravada em "criado_em".
+    //
+    // Para arquivos antigos, que ainda não possuem criado_em,
+    // usamos a última modificação do arquivo como fallback.
+    //
+    // Assim editar uma anotação amanhã NÃO move a anotação
+    // para o dia de amanhã no calendário.
+    //
+    // ========================================================
+
+    DateTime createdAt = DateTime.now();
+
+    if (await file.exists()) {
+      try {
+        final previousMarkdown = await file.readAsString(
+          encoding: utf8,
+        );
+
+        final previousMetadata = _parseMarkdown(
+          previousMarkdown,
+        );
+
+        createdAt =
+            previousMetadata.createdAt ??
+            await file.lastModified();
+      } catch (
+        _
+      ) {
+        createdAt = await file.lastModified();
+      }
+    }
+
+    final updatedAt = DateTime.now();
+
     final conceptsCopy =
         List<
           BrainConcept
@@ -217,6 +555,8 @@ class BrainStorage {
       title: cleanTitle,
       content: cleanContent,
       concepts: conceptsCopy,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
     );
 
     try {
@@ -239,10 +579,18 @@ class BrainStorage {
         concepts: conceptsCopy,
       );
 
-      final updatedAt = await file.lastModified();
+      final actualUpdatedAt = await file.lastModified();
 
       debugPrint(
         'BrainStorage: backup local salvo: ${file.path}',
+      );
+
+      debugPrint(
+        'BrainStorage: criado em: ${createdAt.toIso8601String()}',
+      );
+
+      debugPrint(
+        'BrainStorage: atualizado em: ${actualUpdatedAt.toIso8601String()}',
       );
 
       return BrainFile(
@@ -251,7 +599,8 @@ class BrainStorage {
         path: file.path,
         content: cleanContent,
         concepts: conceptsCopy,
-        updatedAt: updatedAt,
+        createdAt: createdAt,
+        updatedAt: actualUpdatedAt,
       );
     } catch (
       error,
@@ -298,11 +647,15 @@ class BrainStorage {
       '${_sanitizeName(title)}-$timestamp.md',
     );
 
+    final now = DateTime.now();
+
     final markdown = _createMarkdown(
       topic: topic.trim(),
       title: title.trim(),
       content: content.trim(),
       concepts: concepts,
+      createdAt: now,
+      updatedAt: now,
     );
 
     await file.writeAsString(
@@ -843,6 +1196,110 @@ ${concept.description}
   }
 
   // ============================================================
+  // DATAS COM ANOTAÇÕES
+  // ============================================================
+  //
+  // Retorna uma lista sem duplicatas com todas as datas em que
+  // anotações foram originalmente criadas.
+  //
+  // É usada pelo calendário para mostrar o indicador de conteúdo.
+  //
+  // ============================================================
+
+  Future<
+    List<
+      DateTime
+    >
+  >
+  loadCreatedDates() async {
+    final notes = await loadNotes();
+
+    final datesByKey =
+        <
+          String,
+          DateTime
+        >{};
+
+    for (final note in notes) {
+      final localCreatedAt = note.createdAt.toLocal();
+
+      final date = DateTime(
+        localCreatedAt.year,
+        localCreatedAt.month,
+        localCreatedAt.day,
+      );
+
+      datesByKey[_dateKey(
+            date,
+          )] =
+          date;
+    }
+
+    final dates = datesByKey.values.toList();
+
+    dates.sort();
+
+    return List<
+      DateTime
+    >.unmodifiable(
+      dates,
+    );
+  }
+
+  // ============================================================
+  // ANOTAÇÕES CRIADAS EM UMA DATA
+  // ============================================================
+
+  Future<
+    List<
+      BrainFile
+    >
+  >
+  loadNotesCreatedOn(
+    DateTime date,
+  ) async {
+    final notes = await loadNotes();
+
+    final normalizedDate = DateTime(
+      date.year,
+      date.month,
+      date.day,
+    );
+
+    final result = notes.where(
+      (
+        note,
+      ) {
+        final createdAt = note.createdAt.toLocal();
+
+        return createdAt.year ==
+                normalizedDate.year &&
+            createdAt.month ==
+                normalizedDate.month &&
+            createdAt.day ==
+                normalizedDate.day;
+      },
+    ).toList();
+
+    result.sort(
+      (
+        first,
+        second,
+      ) {
+        return second.updatedAt.compareTo(
+          first.updatedAt,
+        );
+      },
+    );
+
+    return List<
+      BrainFile
+    >.unmodifiable(
+      result,
+    );
+  }
+
+  // ============================================================
   // INSIDE DIRECTORY
   // ============================================================
 
@@ -975,11 +1432,19 @@ ${concept.description}
       encoding: utf8,
     );
 
-    final updatedAt = await file.lastModified();
+    final fileUpdatedAt = await file.lastModified();
 
     final metadata = _parseMarkdown(
       markdown,
     );
+
+    final createdAt =
+        metadata.createdAt ??
+        fileUpdatedAt;
+
+    final updatedAt =
+        metadata.updatedAt ??
+        fileUpdatedAt;
 
     return BrainFile(
       topic: metadata.topic,
@@ -992,6 +1457,7 @@ ${concept.description}
           >.unmodifiable(
             metadata.concepts,
           ),
+      createdAt: createdAt,
       updatedAt: updatedAt,
     );
   }
@@ -1008,7 +1474,19 @@ ${concept.description}
       BrainConcept
     >
     concepts,
+    DateTime? createdAt,
+    DateTime? updatedAt,
   }) {
+    final now = DateTime.now();
+
+    final effectiveCreatedAt =
+        createdAt ??
+        now;
+
+    final effectiveUpdatedAt =
+        updatedAt ??
+        now;
+
     final encodedConcepts = _encodeConcepts(
       concepts,
     );
@@ -1016,7 +1494,8 @@ ${concept.description}
     return '''---
 tema: $topic
 titulo: $title
-atualizado_em: ${DateTime.now().toIso8601String()}
+criado_em: ${effectiveCreatedAt.toUtc().toIso8601String()}
+atualizado_em: ${effectiveUpdatedAt.toUtc().toIso8601String()}
 conceitos: $encodedConcepts
 ---
 
@@ -1060,6 +1539,10 @@ $content
     var title = 'Sem título';
 
     var content = normalized.trim();
+
+    DateTime? createdAt;
+
+    DateTime? updatedAt;
 
     var concepts =
         <
@@ -1118,6 +1601,22 @@ $content
           case 'titulo':
             if (value.isNotEmpty) {
               title = value;
+            }
+            break;
+
+          case 'criado_em':
+            if (value.isNotEmpty) {
+              createdAt = DateTime.tryParse(
+                value,
+              );
+            }
+            break;
+
+          case 'atualizado_em':
+            if (value.isNotEmpty) {
+              updatedAt = DateTime.tryParse(
+                value,
+              );
             }
             break;
 
@@ -1215,6 +1714,8 @@ $content
       title: title,
       content: content,
       concepts: concepts,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
     );
   }
 
@@ -1434,6 +1935,18 @@ $content
 
     return result;
   }
+
+  // ============================================================
+  // DATE KEY
+  // ============================================================
+
+  String _dateKey(
+    DateTime date,
+  ) {
+    return '${date.year.toString().padLeft(4, '0')}-'
+        '${date.month.toString().padLeft(2, '0')}-'
+        '${date.day.toString().padLeft(2, '0')}';
+  }
 }
 
 // ============================================================
@@ -1452,10 +1965,16 @@ class _BrainMarkdownData {
   >
   concepts;
 
+  final DateTime? createdAt;
+
+  final DateTime? updatedAt;
+
   const _BrainMarkdownData({
     required this.topic,
     required this.title,
     required this.content,
     required this.concepts,
+    this.createdAt,
+    this.updatedAt,
   });
 }

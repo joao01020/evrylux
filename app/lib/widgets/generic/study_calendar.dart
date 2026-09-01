@@ -7,14 +7,29 @@ class StudyCalendar
     super.key,
     required this.selectedDate,
     required this.completedDates,
+    this.contentDates =
+        const <
+          DateTime
+        >[],
     required this.onDateSelected,
   });
 
   final DateTime selectedDate;
+
   final List<
     DateTime
   >
   completedDates;
+
+  /// Datas que possuem conteúdo/anotações.
+  ///
+  /// Opcional para manter o calendário genérico e compatível
+  /// com outras telas que já usam StudyCalendar.
+  final List<
+    DateTime
+  >
+  contentDates;
+
   final ValueChanged<
     DateTime
   >
@@ -486,6 +501,10 @@ class _StudyCalendarState
       date,
     );
 
+    final hasContent = _hasContent(
+      date,
+    );
+
     final today = _sameDate(
       date,
       DateTime.now(),
@@ -582,27 +601,66 @@ class _StudyCalendarState
             ),
 
             // ==================================================
-            // STATUS DOT
+            // STATUS
             // ==================================================
-            Container(
-              width: completed
-                  ? 6
-                  : 4,
-              height: completed
-                  ? 6
-                  : 4,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: completed
-                    ? selected
+            //
+            // ● = estudo concluído
+            // ■ = conteúdo/anotação
+            //
+            // ==================================================
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // ==============================================
+                // STUDY STATUS
+                // ==============================================
+                Container(
+                  width: completed
+                      ? 6
+                      : 4,
+                  height: completed
+                      ? 6
+                      : 4,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: completed
+                        ? selected
+                              ? _primaryDark
+                              : _success
+                        : selected
+                        ? _primaryDark.withValues(
+                            alpha: 0.35,
+                          )
+                        : _textMuted.withValues(
+                            alpha: 0.55,
+                          ),
+                  ),
+                ),
+
+                if (hasContent) ...[
+                  const SizedBox(
+                    width: 4,
+                  ),
+
+                  // ============================================
+                  // CONTENT STATUS
+                  // ============================================
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(
+                        2,
+                      ),
+                      color: selected
                           ? _primaryDark
-                          : _success
-                    : selected
-                    ? _primaryDark.withValues(
-                        alpha: 0.48,
-                      )
-                    : _textMuted,
-              ),
+                          : _primaryDark.withValues(
+                              alpha: 0.82,
+                            ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ],
         ),
@@ -620,6 +678,25 @@ class _StudyCalendarState
     for (final completed in widget.completedDates) {
       if (_sameDate(
         completed,
+        date,
+      )) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  // ============================================================
+  // CONTENT
+  // ============================================================
+
+  bool _hasContent(
+    DateTime date,
+  ) {
+    for (final contentDate in widget.contentDates) {
+      if (_sameDate(
+        contentDate,
         date,
       )) {
         return true;

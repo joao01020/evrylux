@@ -5,6 +5,26 @@ import '../models/brain_concept.dart';
 import '../models/brain_file.dart';
 import '../repositories/brain_repository.dart';
 
+// ============================================================
+// BRAIN CONTROLLER
+// ============================================================
+//
+// O controller NÃO grava arquivos diretamente.
+//
+// Toda persistência passa por:
+//
+// BrainController
+//      ↓
+// BrainRepository
+//      ↓
+// BrainStorage
+//      ↓
+// SyncQueue / SyncService
+//
+// Isso evita arquivos Markdown duplicados ou órfãos.
+//
+// ============================================================
+
 class BrainController
     extends
         ChangeNotifier {
@@ -395,7 +415,7 @@ class BrainController
     bool
   >
   saveNote({
-    String successMessage = 'Conhecimento salvo no banco de dados ✅',
+    String successMessage = 'Conhecimento salvo neste dispositivo ✅',
   }) async {
     if (_isSaving) {
       return false;
@@ -449,7 +469,7 @@ class BrainController
 
       if (noteId.isEmpty) {
         throw StateError(
-          'O Supabase não retornou o ID da anotação.',
+          'O repositório não retornou o caminho local da anotação.',
         );
       }
 
@@ -465,6 +485,26 @@ class BrainController
       }
 
       // ========================================================
+      // IMPORTANTE: NÃO SALVAR NOVAMENTE NO BRAIN STORAGE
+      // ========================================================
+      //
+      // O BrainRepository já fez:
+      //
+      // BrainStorage.saveNote()
+      //      ↓
+      // arquivo .md local
+      //      ↓
+      // SyncQueue
+      //
+      // Salvar novamente aqui criava uma SEGUNDA responsabilidade
+      // de persistência e podia deixar arquivos órfãos quando tema
+      // ou título eram alterados.
+      //
+      // O calendário lê o mesmo arquivo criado pelo repository.
+      //
+      // ========================================================
+
+      // ========================================================
       // UPDATE LOCAL STATE
       // ========================================================
 
@@ -473,8 +513,9 @@ class BrainController
 
         title: title,
 
-        // O antigo path passa a guardar
-        // temporariamente o ID remoto da nota.
+        // BrainFile.path guarda o caminho LOCAL do .md.
+        //
+        // O remote_id pertence apenas à camada de sincronização.
         path: noteId,
 
         content: content,
@@ -485,6 +526,13 @@ class BrainController
             >.from(
               _concepts,
             ),
+
+        createdAt:
+            _parseDate(
+              savedRow['created_at'],
+            ) ??
+            _selectedNote?.createdAt ??
+            DateTime.now(),
 
         updatedAt:
             _parseDate(
@@ -520,7 +568,7 @@ class BrainController
         stackTrace: stackTrace,
       );
 
-      _errorMessage = 'Não foi possível salvar a anotação no banco de dados.';
+      _errorMessage = 'Não foi possível salvar a anotação neste dispositivo.';
 
       return false;
     } finally {
@@ -532,6 +580,28 @@ class BrainController
 
   // ============================================================
   // DELETE NOTE
+  // ============================================================
+  //
+  // Fluxo:
+  //
+  // Controller
+  //      ↓
+  // Repository
+  //      ↓
+  // remove conceitos relacionados
+  //      ↓
+  // remove fisicamente o .md
+  //      ↓
+  // confirma exclusão local
+  //      ↓
+  // SyncQueue recebe DELETE
+  //
+  // Depois recarregamos as notas DO DISCO.
+  //
+  // A UI não remove apenas um item da lista em memória.
+  // O estado exibido passa a refletir exatamente o que ainda
+  // existe no BrainStorage.
+  //
   // ============================================================
 
   Future<
@@ -551,45 +621,75 @@ class BrainController
     );
 
     try {
-      final noteId = note.path.trim();
+      final notePath = note.path.trim();
 
-      if (noteId.isEmpty) {
+      if (notePath.isEmpty) {
         throw StateError(
-          'A anotação não possui ID.',
+          'A anotação não possui um caminho local válido.',
         );
       }
 
       // ========================================================
       // DELETE CONCEPTS
       // ========================================================
+      //
+      // Isso remove os conhecimentos relacionados localmente e
+      // registra os DELETEs correspondentes para sincronização.
+      //
+      // ========================================================
 
       await _repository.deleteConceptsByNoteId(
-        noteId,
+        notePath,
       );
 
       // ========================================================
       // DELETE NOTE
       // ========================================================
+      //
+      // O repository atual só conclui se a exclusão física local
+      // tiver sido confirmada.
+      //
+      // ========================================================
 
       await _repository.deleteNote(
-        noteId,
+        notePath,
       );
 
-      _notes.removeWhere(
+      // ========================================================
+      // RECARREGAR ESTADO REAL DO DISCO
+      // ========================================================
+
+      await _loadNotesInternal();
+
+      // ========================================================
+      // VERIFICAÇÃO EXTRA DO CONTROLLER
+      // ========================================================
+
+      final stillExists = _notes.any(
         (
           item,
         ) {
-          return item.path ==
-              noteId;
+          return item.path.trim() ==
+              notePath;
         },
       );
 
-      if (_selectedNote?.path ==
-          noteId) {
+      if (stillExists) {
+        throw StateError(
+          'A anotação ainda existe localmente após a exclusão.',
+        );
+      }
+
+      // ========================================================
+      // LIMPAR SELEÇÃO
+      // ========================================================
+
+      if (_selectedNote?.path.trim() ==
+          notePath) {
         _clearSelectedNote();
       }
 
-      _successMessage = 'Anotação excluída.';
+      _successMessage = 'Anotação excluída deste dispositivo.';
 
       _safeNotifyListeners();
 
@@ -610,7 +710,7 @@ class BrainController
         stackTrace: stackTrace,
       );
 
-      _errorMessage = 'Não foi possível excluir a anotação.';
+      _errorMessage = 'Não foi possível excluir a anotação localmente.';
 
       _safeNotifyListeners();
 
@@ -1063,6 +1163,15 @@ class BrainController
           const <
             BrainConcept
           >[],
+
+      createdAt:
+          _parseDate(
+            row['created_at'],
+          ) ??
+          _parseDate(
+            row['updated_at'],
+          ) ??
+          DateTime.now(),
 
       updatedAt:
           _parseDate(

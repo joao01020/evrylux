@@ -8,8 +8,14 @@ import '../widgets/generic/study_calendar.dart';
 import 'widgets/study_header.dart';
 import 'widgets/streak_card.dart';
 import 'widgets/current_time_card.dart';
+import 'widgets/history_button.dart';
 
 import 'brain/screen/brain_screen.dart';
+import 'brain/services/brain_storage.dart';
+import 'history/history_screen.dart';
+
+import 'services/study_day_service.dart';
+import 'widgets/dialogs/study_day_dialog.dart';
 
 class StudyScreen
     extends
@@ -39,10 +45,26 @@ class _StudyScreenState
   late DateTime _selectedDate;
 
   // ============================================================
-  // SAVE STATE
+  // DAY MODAL
   // ============================================================
 
-  bool _isSaving = false;
+  late final StudyDayService _studyDayService;
+
+  bool _openingDay = false;
+
+  // ============================================================
+  // DATAS COM CONTEÚDO
+  // ============================================================
+
+  List<
+    DateTime
+  >
+  _contentDates =
+      const <
+        DateTime
+      >[];
+
+  bool _loadingContentDates = false;
 
   // ============================================================
   // INIT
@@ -54,11 +76,18 @@ class _StudyScreenState
 
     _selectedDate = _today();
 
+    _studyDayService = StudyDayService(
+      repository: studyRepository,
+      brainStorage: const BrainStorage(),
+    );
+
     studyController.addListener(
       refresh,
     );
 
     studyController.loadStudies();
+
+    _loadContentDates();
   }
 
   // ============================================================
@@ -89,11 +118,32 @@ class _StudyScreenState
   }
 
   // ============================================================
+  // HISTÓRICO
+  // ============================================================
+
+  void openHistory() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (
+              _,
+            ) {
+              return const HistoryScreen();
+            },
+      ),
+    );
+  }
+
+  // ============================================================
   // CÉREBRO
   // ============================================================
 
-  void openBrain() {
-    Navigator.push(
+  Future<
+    void
+  >
+  openBrain() async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder:
@@ -104,15 +154,94 @@ class _StudyScreenState
             },
       ),
     );
+
+    if (!mounted) {
+      return;
+    }
+
+    // ========================================================
+    // RECARREGAR DATAS COM CONTEÚDO
+    // ========================================================
+    //
+    // Se o usuário criou, editou ou removeu uma anotação no
+    // Cérebro, atualizamos os indicadores do calendário assim
+    // que ele volta para Conhecimento.
+    //
+    // ========================================================
+
+    await _loadContentDates();
+  }
+
+  // ============================================================
+  // LOAD CONTENT DATES
+  // ============================================================
+  //
+  // Carrega as datas que possuem anotações criadas no Cérebro.
+  //
+  // Essas datas são enviadas para StudyCalendar.contentDates.
+  //
+  // ============================================================
+
+  Future<
+    void
+  >
+  _loadContentDates() async {
+    if (_loadingContentDates) {
+      return;
+    }
+
+    _loadingContentDates = true;
+
+    try {
+      final dates = await _studyDayService.loadContentDates();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(
+        () {
+          _contentDates = dates;
+        },
+      );
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        '[STUDY] Erro ao carregar datas com conteúdo: $error',
+      );
+
+      debugPrintStack(
+        stackTrace: stackTrace,
+      );
+    } finally {
+      _loadingContentDates = false;
+    }
   }
 
   // ============================================================
   // SELECT DATE
   // ============================================================
+  //
+  // O StudyCalendar continua genérico.
+  //
+  // Ele apenas informa a data por onDateSelected.
+  //
+  // Aqui fazemos a regra específica de Conhecimento:
+  //
+  // 1. seleciona a data;
+  // 2. mantém o StudyController compatível;
+  // 3. abre o modal daquele dia.
+  //
+  // ============================================================
 
-  void _selectDate(
+  Future<
+    void
+  >
+  _selectDate(
     DateTime date,
-  ) {
+  ) async {
     final normalizedDate = DateTime(
       date.year,
       date.month,
@@ -129,19 +258,79 @@ class _StudyScreenState
         normalizedDate.weekday -
         DateTime.monday;
 
-    if (index <
-        0) {
-      return;
-    }
-
     if (index >=
-        studyController.days.length) {
+            0 &&
+        index <
+            studyController.days.length) {
+      studyController.selectDay(
+        index,
+      );
+    }
+
+    await _openStudyDayModal(
+      normalizedDate,
+    );
+  }
+
+  // ============================================================
+  // OPEN DAY MODAL
+  // ============================================================
+
+  Future<
+    void
+  >
+  _openStudyDayModal(
+    DateTime date,
+  ) async {
+    if (_openingDay) {
       return;
     }
 
-    studyController.selectDay(
-      index,
-    );
+    _openingDay = true;
+
+    try {
+      final summary = await _studyDayService.loadDay(
+        date,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      await StudyDayDialog.show(
+        context,
+        summary: summary,
+      );
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        '[STUDY DAY] '
+        'Erro carregando conteúdo: '
+        '$error',
+      );
+
+      debugPrintStack(
+        stackTrace: stackTrace,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Não foi possível carregar os dados deste dia: $error',
+          ),
+        ),
+      );
+    } finally {
+      _openingDay = false;
+    }
   }
 
   // ============================================================
@@ -212,29 +401,14 @@ class _StudyScreenState
   }
 
   // ============================================================
-  // SAVE STUDY
+  // SALVAR ESTUDO
   // ============================================================
 
   Future<
     void
   >
   saveStudy() async {
-    if (_isSaving) {
-      return;
-    }
-
-    setState(
-      () {
-        _isSaving = true;
-      },
-    );
-
     try {
-      // --------------------------------------------------------
-      // Garante que o dia selecionado no calendário esteja
-      // selecionado também no controller atual.
-      // --------------------------------------------------------
-
       final dayIndex =
           _selectedDate.weekday -
           DateTime.monday;
@@ -282,14 +456,6 @@ class _StudyScreenState
           ),
         ),
       );
-    } finally {
-      if (mounted) {
-        setState(
-          () {
-            _isSaving = false;
-          },
-        );
-      }
     }
   }
 
@@ -310,15 +476,12 @@ class _StudyScreenState
         title: const Text(
           'Conhecimento 📚',
         ),
-
         actions: [
           IconButton(
             tooltip: 'Cérebro',
-
             icon: const Icon(
               Icons.psychology_outlined,
             ),
-
             onPressed: openBrain,
           ),
         ],
@@ -334,12 +497,11 @@ class _StudyScreenState
             crossAxisAlignment: CrossAxisAlignment.start,
 
             children: [
-              // =====================================
+              // =================================================
               // HEADER
-              // =====================================
+              // =================================================
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
-
                 children: [
                   const Expanded(
                     child: StudyHeader(),
@@ -359,14 +521,13 @@ class _StudyScreenState
                 height: 25,
               ),
 
-              // =====================================
+              // =================================================
               // CALENDAR
-              // =====================================
+              // =================================================
               StudyCalendar(
                 selectedDate: _selectedDate,
-
                 completedDates: _completedDates,
-
+                contentDates: _contentDates,
                 onDateSelected: _selectDate,
               ),
 
@@ -374,26 +535,19 @@ class _StudyScreenState
                 height: 24,
               ),
 
-              // =====================================
+              // =================================================
               // TIMER
-              // =====================================
+              // =================================================
               SizedBox(
                 width: double.infinity,
-
                 child: Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(
                       maxWidth: 560,
                     ),
-
                     child: ActivityTimer(
                       title: 'Tempo estudado',
-
                       onTimeChanged: studyController.updateTimer,
-
-                      onSave: _isSaving
-                          ? null
-                          : saveStudy,
                     ),
                   ),
                 ),
@@ -403,15 +557,62 @@ class _StudyScreenState
                 height: 16,
               ),
 
-              // =====================================
+              // =================================================
               // CURRENT TIME
-              // =====================================
+              // =================================================
               CurrentTimeCard(
                 minutes: currentMinutes,
               ),
 
               const SizedBox(
-                height: 24,
+                height: 20,
+              ),
+
+              // =================================================
+              // SAVE
+              // =================================================
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: saveStudy,
+                  icon: const Icon(
+                    Icons.save,
+                  ),
+                  label: const Text(
+                    'Salvar estudo',
+                  ),
+                ),
+              ),
+
+              const SizedBox(
+                height: 12,
+              ),
+
+              // =================================================
+              // BRAIN
+              // =================================================
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: openBrain,
+                  icon: const Icon(
+                    Icons.psychology_outlined,
+                  ),
+                  label: const Text(
+                    'Cérebro',
+                  ),
+                ),
+              ),
+
+              const SizedBox(
+                height: 20,
+              ),
+
+              // =================================================
+              // HISTORY
+              // =================================================
+              HistoryButton(
+                onPressed: openHistory,
               ),
             ],
           ),

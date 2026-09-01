@@ -27,6 +27,7 @@
 | - Routine
 | - Reminders
 | - Study
+| - Brain / Cérebro
 | - Training
 | - Training Body Map
 | - Journey
@@ -85,6 +86,16 @@ import '../../training/body_map/services/body_map_service.dart';
 import '../../evolution/my_journey/controllers/journey_controller.dart';
 
 import '../../study/controllers/study_controller.dart';
+
+// ======================================================
+// STUDY - BRAIN / CÉREBRO
+// ======================================================
+
+import '../../study/brain/controllers/brain_controller.dart';
+import '../../study/brain/models/brain_concept.dart';
+import '../../study/brain/repositories/brain_repository.dart';
+import '../../study/brain/services/brain_storage.dart';
+import '../../study/brain/services/supabase_brain_service.dart';
 
 // ======================================================
 // REMINDERS CONTROLLER
@@ -185,6 +196,10 @@ get supabaseClient {
 // training_activity_plans
 // journey_history
 //
+// Brain / Cérebro:
+// utiliza SupabaseBrainService para preservar os nomes de tabelas
+// e regras remotas já existentes no módulo.
+//
 // Essas tabelas precisam existir no Supabase para o envio remoto
 // funcionar.
 //
@@ -245,6 +260,46 @@ final syncService = SyncService(
   ),
 
   batchSize: 50,
+);
+
+// ======================================================
+// BRAIN / CÉREBRO - DEPENDENCIES
+// ======================================================
+//
+// OFFLINE-FIRST:
+//
+// BrainController
+//      ↓
+// BrainRepository
+//      ↓
+// BrainStorage local
+//      ↓
+// SyncQueue
+//      ↓
+// SyncService
+//      ↓
+// SupabaseBrainService
+//
+// ======================================================
+
+const brainStorage = BrainStorage();
+
+final supabaseBrainService = SupabaseBrainService(
+  client: supabaseClient,
+);
+
+final brainRepository = BrainRepository(
+  remote: supabaseBrainService,
+
+  local: brainStorage,
+
+  syncQueue: syncQueue,
+
+  syncService: syncService,
+);
+
+final brainController = BrainController(
+  repository: brainRepository,
 );
 
 // ======================================================
@@ -337,6 +392,30 @@ _requireQueueUser({
   }
 
   return currentUser;
+}
+
+// ======================================================
+// SYNC PAYLOAD DATE
+// ======================================================
+
+DateTime?
+_syncPayloadDate(
+  dynamic value,
+) {
+  if (value ==
+      null) {
+    return null;
+  }
+
+  final text = value.toString().trim();
+
+  if (text.isEmpty) {
+    return null;
+  }
+
+  return DateTime.tryParse(
+    text,
+  );
 }
 
 // ======================================================
@@ -985,6 +1064,243 @@ registerSyncHandlers() {
                   );
 
               await trainingActivityPlanDao.deletePermanently(
+                item.entityId,
+              );
+
+              break;
+          }
+        },
+  );
+
+  // ====================================================
+  // BRAIN NOTE
+  // ====================================================
+  //
+  // Repository:
+  //
+  // entityType = brain_note
+  //
+  // A persistência local acontece primeiro em BrainStorage.
+  //
+  // O handler apenas envia a alteração pendente para o
+  // Supabase quando houver conexão.
+  //
+  // created_at e updated_at vêm do payload local para que uma
+  // nota criada offline preserve a data original no servidor.
+  //
+  // ====================================================
+
+  syncService.registerHandler(
+    entityType: BrainRepository.noteEntityType,
+
+    handler:
+        (
+          item,
+        ) async {
+          final payload =
+              Map<
+                String,
+                dynamic
+              >.from(
+                item.payload,
+              );
+
+          final user = _requireQueueUser(
+            userId: payload['user_id']?.toString(),
+            entity: BrainRepository.noteEntityType,
+          );
+
+          final topic =
+              payload['topic']?.toString().trim() ??
+              '';
+
+          final title =
+              payload['title']?.toString().trim() ??
+              '';
+
+          final content =
+              payload['content']?.toString() ??
+              '';
+
+          switch (item.operation) {
+            case SyncOperation.create:
+            case SyncOperation.update:
+              if (topic.isEmpty) {
+                throw StateError(
+                  'Operação de brain_note sem topic.',
+                );
+              }
+
+              if (title.isEmpty) {
+                throw StateError(
+                  'Operação de brain_note sem title.',
+                );
+              }
+
+              if (content.trim().isEmpty) {
+                throw StateError(
+                  'Operação de brain_note sem content.',
+                );
+              }
+
+              // ==================================================
+              // REMOTE SAVE
+              // ==================================================
+              //
+              // O SupabaseBrainService continua responsável pelas
+              // tabelas e regras específicas do módulo Brain.
+              //
+              // O ID da SyncQueue é usado como ID remoto estável.
+              //
+              // ==================================================
+
+              await supabaseBrainService.saveNote(
+                id: item.entityId,
+
+                topic: topic,
+
+                title: title,
+
+                content: content,
+
+                createdAt: _syncPayloadDate(
+                  payload['created_at'],
+                ),
+
+                updatedAt: _syncPayloadDate(
+                  payload['updated_at'],
+                ),
+              );
+
+              break;
+
+            case SyncOperation.delete:
+              await supabaseBrainService.deleteNote(
+                item.entityId,
+              );
+
+              break;
+          }
+
+          // Mantém a validação explícita de usuário usada pelos
+          // demais handlers e evita warning de variável não usada.
+          assert(
+            user.id.isNotEmpty,
+          );
+        },
+  );
+
+  // ====================================================
+  // BRAIN CONCEPT
+  // ====================================================
+  //
+  // Repository:
+  //
+  // entityType = brain_concept
+  //
+  // Conceitos também seguem:
+  //
+  // local -> fila -> Supabase.
+  //
+  // As datas locais também são preservadas durante o envio.
+  //
+  // ====================================================
+
+  syncService.registerHandler(
+    entityType: BrainRepository.conceptEntityType,
+
+    handler:
+        (
+          item,
+        ) async {
+          final payload =
+              Map<
+                String,
+                dynamic
+              >.from(
+                item.payload,
+              );
+
+          _requireQueueUser(
+            userId: payload['user_id']?.toString(),
+            entity: BrainRepository.conceptEntityType,
+          );
+
+          switch (item.operation) {
+            case SyncOperation.create:
+            case SyncOperation.update:
+              final title =
+                  payload['title']?.toString().trim() ??
+                  '';
+
+              final description =
+                  payload['description']?.toString().trim() ??
+                  '';
+
+              final typeName =
+                  payload['type']?.toString().trim() ??
+                  '';
+
+              if (title.isEmpty) {
+                throw StateError(
+                  'Operação de brain_concept sem title.',
+                );
+              }
+
+              if (description.isEmpty) {
+                throw StateError(
+                  'Operação de brain_concept sem description.',
+                );
+              }
+
+              final type = BrainConceptType.values.firstWhere(
+                (
+                  value,
+                ) {
+                  return value.name ==
+                      typeName;
+                },
+                orElse: () {
+                  throw StateError(
+                    'Tipo de brain_concept inválido: $typeName',
+                  );
+                },
+              );
+
+              final concept = BrainConcept(
+                id: item.entityId,
+                title: title,
+                description: description,
+                type: type,
+              );
+
+              final rawNoteId = payload['note_id']?.toString().trim();
+
+              final noteId =
+                  rawNoteId ==
+                          null ||
+                      rawNoteId.isEmpty
+                  ? null
+                  : rawNoteId;
+
+              await supabaseBrainService.saveConcept(
+                concept: concept,
+
+                noteId: noteId,
+
+                createdAt: _syncPayloadDate(
+                  payload['created_at'],
+                ),
+
+                updatedAt: _syncPayloadDate(
+                  payload['updated_at'],
+                ),
+              );
+
+              break;
+
+            case SyncOperation.delete:
+              await supabaseBrainService.deleteConcept(
                 item.entityId,
               );
 

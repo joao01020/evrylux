@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../app/dependencies/app_dependencies.dart' as dependencies;
+
 import '../controllers/brain_controller.dart';
 import '../controllers/review_controller.dart';
 
@@ -16,6 +18,21 @@ import 'concept/concept_screen.dart';
 import 'question/question_screen.dart';
 import 'example/example_screen.dart';
 import 'warning/warning_screen.dart';
+
+// ============================================================
+// BRAIN SCREEN
+// ============================================================
+//
+// Esta tela NÃO cria nem destrói o BrainController.
+//
+// Exclusões usam o fluxo offline-first real e removem o arquivo
+// Markdown local antes da sincronização remota.
+//
+// O controller é compartilhado pelo container global de
+// dependências para manter a mesma SyncQueue e o mesmo
+// SyncService utilizados pelo restante do aplicativo.
+//
+// ============================================================
 
 class BrainScreen
     extends
@@ -48,7 +65,33 @@ class _BrainScreenState
   void initState() {
     super.initState();
 
-    _controller = BrainController();
+    // ========================================================
+    // CONTROLLER GLOBAL OFFLINE-FIRST
+    // ========================================================
+    //
+    // Usa exatamente a instância configurada em:
+    //
+    // app_dependencies.dart
+    //
+    // Assim o fluxo permanece:
+    //
+    // BrainController
+    //      ↓
+    // BrainRepository
+    //      ↓
+    // BrainStorage
+    //      ↓
+    // SyncQueue
+    //      ↓
+    // SyncService
+    //      ↓
+    // Supabase
+    //
+    // Não criamos BrainController() localmente nesta tela.
+    //
+    // ========================================================
+
+    _controller = dependencies.brainController;
 
     _controller.addListener(
       _onControllerChanged,
@@ -67,7 +110,19 @@ class _BrainScreenState
       _onControllerChanged,
     );
 
-    _controller.dispose();
+    // ========================================================
+    // NÃO FAZER DISPOSE
+    // ========================================================
+    //
+    // O BrainController pertence ao container global de
+    // dependências da aplicação.
+    //
+    // Esta tela apenas remove seu listener.
+    //
+    // Fazer _controller.dispose() aqui inutilizaria a mesma
+    // instância quando o usuário abrisse o Cérebro novamente.
+    //
+    // ========================================================
 
     super.dispose();
   }
@@ -114,81 +169,55 @@ class _BrainScreenState
   }
 
   // ============================================================
-  // DESCARTAR / LIMPAR
+  // EXCLUIR ANOTAÇÃO
+  // ============================================================
+  //
+  // O BrainEditorSection já pede confirmação ao usuário.
+  //
+  // Aqui executamos a exclusão REAL:
+  //
+  // BrainController
+  //      ↓
+  // BrainRepository
+  //      ↓
+  // BrainStorage apaga o .md local
+  //      ↓
+  // SyncQueue recebe DELETE
+  //      ↓
+  // SyncService envia ao Supabase quando houver conexão
+  //
+  // Como o calendário lê os arquivos locais, ao voltar para
+  // StudyScreen a data é recalculada por loadCreatedDates().
+  //
   // ============================================================
 
   Future<
     void
   >
-  _discardNote(
+  _deleteNote(
     BrainFile note,
   ) async {
-    final hasContent =
-        _controller.titleController.text.trim().isNotEmpty ||
-        _controller.contentController.text.trim().isNotEmpty ||
-        _controller.topicController.text.trim().isNotEmpty;
+    final deleted = await _controller.deleteNote(
+      note,
+    );
 
-    if (!hasContent) {
-      _controller.createNewNote();
+    if (!mounted) {
+      return;
+    }
+
+    if (!deleted) {
+      _showControllerMessage();
 
       return;
     }
 
-    final confirmed =
-        await showDialog<
-          bool
-        >(
-          context: context,
-          builder:
-              (
-                dialogContext,
-              ) {
-                return AlertDialog(
-                  title: const Text(
-                    'Limpar anotação?',
-                  ),
-                  content: const Text(
-                    'O conteúdo atual será descartado.',
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(
-                          dialogContext,
-                          false,
-                        );
-                      },
-                      child: const Text(
-                        'Cancelar',
-                      ),
-                    ),
-                    FilledButton(
-                      onPressed: () {
-                        Navigator.pop(
-                          dialogContext,
-                          true,
-                        );
-                      },
-                      child: const Text(
-                        'Limpar',
-                      ),
-                    ),
-                  ],
-                );
-              },
-        );
-
-    if (!mounted ||
-        confirmed !=
-            true) {
-      return;
-    }
+    // ========================================================
+    // FORMULÁRIO LIMPO APÓS EXCLUSÃO REAL
+    // ========================================================
 
     _controller.createNewNote();
 
-    _showMessage(
-      'Anotação limpa.',
-    );
+    _showControllerMessage();
   }
 
   // ============================================================
@@ -279,12 +308,30 @@ class _BrainScreenState
     }
 
     // ==========================================================
-    // SALVAR .MD
+    // SALVAR OFFLINE-FIRST
+    // ==========================================================
+    //
+    // O controller chama o BrainRepository configurado
+    // globalmente.
+    //
+    // O repository:
+    //
+    // 1. salva o Markdown local;
+    // 2. adiciona a alteração na SyncQueue;
+    // 3. solicita o SyncService;
+    // 4. sincroniza com Supabase quando houver conexão.
+    //
     // ==========================================================
 
-    await _controller.saveNote();
+    final saved = await _controller.saveNote();
 
     if (!mounted) {
+      return;
+    }
+
+    if (!saved) {
+      _showControllerMessage();
+
       return;
     }
 
@@ -847,7 +894,7 @@ class _BrainScreenState
 
                               _buildInfoStep(
                                 number: '2',
-                                text: 'Clique em "Salvar em .md".',
+                                text: 'Clique em "Salvar em .md". O arquivo é salvo primeiro neste dispositivo.',
                               ),
 
                               const SizedBox(
@@ -865,7 +912,7 @@ class _BrainScreenState
 
                               _buildInfoStep(
                                 number: '4',
-                                text: 'O conteúdo será salvo e enviado automaticamente para a página correspondente.',
+                                text: 'O conteúdo fica disponível imediatamente e será sincronizado automaticamente com a nuvem quando houver conexão.',
                               ),
                             ],
                           ),
@@ -1341,7 +1388,10 @@ class _BrainScreenState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Nova anotação',
+                _controller.selectedNote ==
+                        null
+                    ? 'Nova anotação'
+                    : 'Editando anotação',
                 style:
                     Theme.of(
                       context,
@@ -1453,7 +1503,7 @@ class _BrainScreenState
           contentFocusNode: _controller.contentFocusNode,
           isSaving: _controller.isSaving,
           onSave: _saveNote,
-          onDelete: _discardNote,
+          onDelete: _deleteNote,
         ),
       ),
     );

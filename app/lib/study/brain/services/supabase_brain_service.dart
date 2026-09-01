@@ -3,6 +3,24 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/brain_concept.dart';
 
+// ============================================================
+// SUPABASE BRAIN SERVICE
+// ============================================================
+//
+// Papel atual:
+//
+// SyncQueue / SyncService
+//          ↓
+// SupabaseBrainService
+//          ↓
+// Supabase
+//
+// Este service NÃO é mais a fonte principal para salvar na UI.
+// Ele funciona como destino remoto da sincronização e também
+// como fonte para hidratação/recuperação remota quando necessário.
+//
+// ============================================================
+
 class SupabaseBrainService {
   SupabaseBrainService({
     SupabaseClient? client,
@@ -41,8 +59,37 @@ class SupabaseBrainService {
         null;
   }
 
+  String _requireUserId() {
+    final userId = currentUserId?.trim();
+
+    if (userId ==
+            null ||
+        userId.isEmpty) {
+      throw StateError(
+        'Usuário não autenticado.',
+      );
+    }
+
+    return userId;
+  }
+
   // ============================================================
   // SALVAR NOTA
+  // ============================================================
+  //
+  // Este service é o ALVO REMOTO da sincronização.
+  //
+  // O salvamento principal já aconteceu localmente antes de
+  // chegar aqui.
+  //
+  // Requisitos desta operação:
+  //
+  // - aceitar um ID criado localmente;
+  // - inserir se ainda não existir;
+  // - atualizar se já existir;
+  // - preservar created_at em edições;
+  // - ser idempotente para retries da SyncQueue.
+  //
   // ============================================================
 
   Future<
@@ -56,43 +103,75 @@ class SupabaseBrainService {
     required String topic,
     required String title,
     required String content,
+    DateTime? createdAt,
+    DateTime? updatedAt,
   }) async {
+    final userId = _requireUserId();
+
+    final cleanTopic = topic.trim();
+
+    final cleanTitle = title.trim();
+
+    final cleanContent = content.trim();
+
+    if (cleanTopic.isEmpty) {
+      throw const FormatException(
+        'O tema da anotação não pode estar vazio.',
+      );
+    }
+
+    if (cleanTitle.isEmpty) {
+      throw const FormatException(
+        'O título da anotação não pode estar vazio.',
+      );
+    }
+
+    if (cleanContent.isEmpty) {
+      throw const FormatException(
+        'O conteúdo da anotação não pode estar vazio.',
+      );
+    }
+
     final now = DateTime.now().toUtc();
 
-    final data =
-        <
-          String,
-          dynamic
-        >{
-          'topic': topic.trim(),
-          'title': title.trim(),
-          'content': content.trim(),
-          'updated_at': now.toIso8601String(),
-        };
-
-    final userId = currentUserId;
-
-    if (userId !=
-        null) {
-      data['user_id'] = userId;
-    }
+    final normalizedId = id?.trim();
 
     try {
       // ========================================================
-      // INSERT
+      // SEM ID
+      // ========================================================
+      //
+      // Compatibilidade com chamadas antigas.
+      //
+      // O fluxo offline-first novo sempre deve enviar um ID
+      // estável criado antes da sincronização.
+      //
       // ========================================================
 
-      if (id ==
+      if (normalizedId ==
               null ||
-          id.trim().isEmpty) {
-        data['created_at'] = now.toIso8601String();
-
+          normalizedId.isEmpty) {
         final response = await _client
             .from(
               notesTable,
             )
             .insert(
-              data,
+              {
+                'user_id': userId,
+                'topic': cleanTopic,
+                'title': cleanTitle,
+                'content': cleanContent,
+                'created_at':
+                    (createdAt ??
+                            now)
+                        .toUtc()
+                        .toIso8601String(),
+                'updated_at':
+                    (updatedAt ??
+                            now)
+                        .toUtc()
+                        .toIso8601String(),
+              },
             )
             .select()
             .single();
@@ -106,30 +185,77 @@ class SupabaseBrainService {
       }
 
       // ========================================================
-      // UPDATE
+      // VERIFICAR EXISTÊNCIA
+      // ========================================================
+      //
+      // Fazemos isso para preservar created_at quando a mesma
+      // nota for sincronizada novamente.
+      //
       // ========================================================
 
-      var query = _client
+      final existing = await _client
           .from(
             notesTable,
           )
-          .update(
-            data,
+          .select(
+            'id, created_at',
           )
           .eq(
             'id',
-            id,
-          );
+            normalizedId,
+          )
+          .eq(
+            'user_id',
+            userId,
+          )
+          .maybeSingle();
 
-      if (userId !=
-          null) {
-        query = query.eq(
-          'user_id',
-          userId,
-        );
-      }
+      final existingCreatedAt =
+          existing ==
+              null
+          ? null
+          : _parseDate(
+              existing['created_at'],
+            );
 
-      final response = await query.select().single();
+      final effectiveCreatedAt =
+          existingCreatedAt ??
+          createdAt?.toUtc() ??
+          now;
+
+      final effectiveUpdatedAt =
+          updatedAt?.toUtc() ??
+          now;
+
+      // ========================================================
+      // UPSERT
+      // ========================================================
+      //
+      // CREATE e UPDATE usam o mesmo caminho.
+      //
+      // Isso é importante porque a SyncQueue pode repetir uma
+      // operação após queda de conexão sem duplicar a nota.
+      //
+      // ========================================================
+
+      final response = await _client
+          .from(
+            notesTable,
+          )
+          .upsert(
+            {
+              'id': normalizedId,
+              'user_id': userId,
+              'topic': cleanTopic,
+              'title': cleanTitle,
+              'content': cleanContent,
+              'created_at': effectiveCreatedAt.toIso8601String(),
+              'updated_at': effectiveUpdatedAt.toIso8601String(),
+            },
+            onConflict: 'id',
+          )
+          .select()
+          .single();
 
       return Map<
         String,
@@ -142,7 +268,7 @@ class SupabaseBrainService {
       stackTrace
     ) {
       debugPrint(
-        'SupabaseBrainService: erro ao salvar nota.',
+        'SupabaseBrainService: erro ao sincronizar nota.',
       );
 
       debugPrint(
@@ -171,7 +297,7 @@ class SupabaseBrainService {
   >
   loadNotes() async {
     try {
-      final userId = currentUserId;
+      final userId = _requireUserId();
 
       dynamic query = _client
           .from(
@@ -179,13 +305,10 @@ class SupabaseBrainService {
           )
           .select();
 
-      if (userId !=
-          null) {
-        query = query.eq(
-          'user_id',
-          userId,
-        );
-      }
+      query = query.eq(
+        'user_id',
+        userId,
+      );
 
       final response = await query.order(
         'updated_at',
@@ -234,7 +357,7 @@ class SupabaseBrainService {
     String id,
   ) async {
     try {
-      final userId = currentUserId;
+      final userId = _requireUserId();
 
       dynamic query = _client
           .from(
@@ -246,13 +369,10 @@ class SupabaseBrainService {
             id,
           );
 
-      if (userId !=
-          null) {
-        query = query.eq(
-          'user_id',
-          userId,
-        );
-      }
+      query = query.eq(
+        'user_id',
+        userId,
+      );
 
       final response = await query.maybeSingle();
 
@@ -294,7 +414,7 @@ class SupabaseBrainService {
     String id,
   ) async {
     try {
-      final userId = currentUserId;
+      final userId = _requireUserId();
 
       dynamic query = _client
           .from(
@@ -306,13 +426,10 @@ class SupabaseBrainService {
             id,
           );
 
-      if (userId !=
-          null) {
-        query = query.eq(
-          'user_id',
-          userId,
-        );
-      }
+      query = query.eq(
+        'user_id',
+        userId,
+      );
 
       await query;
     } catch (
@@ -334,6 +451,13 @@ class SupabaseBrainService {
   // ============================================================
   // SALVAR CONCEITO
   // ============================================================
+  //
+  // Assim como as notas, conceitos chegam aqui depois de já
+  // terem sido persistidos localmente.
+  //
+  // A operação é idempotente para suportar retry automático.
+  //
+  // ============================================================
 
   Future<
     Map<
@@ -344,101 +468,106 @@ class SupabaseBrainService {
   saveConcept({
     required BrainConcept concept,
     String? noteId,
+    DateTime? createdAt,
+    DateTime? updatedAt,
   }) async {
-    final now = DateTime.now().toUtc();
+    final userId = _requireUserId();
 
-    final data =
-        <
-          String,
-          dynamic
-        >{
-          'id': concept.id,
-          'note_id': noteId,
-          'title': concept.title.trim(),
-          'description': concept.description.trim(),
-          'type': concept.type.name,
-          'updated_at': now.toIso8601String(),
-        };
+    final conceptId = concept.id.trim();
 
-    final userId = currentUserId;
+    final title = concept.title.trim();
 
-    if (userId !=
-        null) {
-      data['user_id'] = userId;
+    final description = concept.description.trim();
+
+    if (conceptId.isEmpty) {
+      throw const FormatException(
+        'O ID do conhecimento não pode estar vazio.',
+      );
     }
+
+    if (title.isEmpty) {
+      throw const FormatException(
+        'O título do conhecimento não pode estar vazio.',
+      );
+    }
+
+    if (description.isEmpty) {
+      throw const FormatException(
+        'A descrição do conhecimento não pode estar vazia.',
+      );
+    }
+
+    final normalizedNoteId = noteId?.trim();
+
+    final now = DateTime.now().toUtc();
 
     try {
       // ========================================================
-      // VERIFICAR SE JÁ EXISTE
+      // CREATED AT EXISTENTE
       // ========================================================
 
-      final existing = await getConcept(
-        concept.id,
-      );
-
-      // ========================================================
-      // INSERT
-      // ========================================================
-
-      if (existing ==
-          null) {
-        data['created_at'] = now.toIso8601String();
-
-        final response = await _client
-            .from(
-              conceptsTable,
-            )
-            .insert(
-              data,
-            )
-            .select()
-            .single();
-
-        return Map<
-          String,
-          dynamic
-        >.from(
-          response,
-        );
-      }
-
-      // ========================================================
-      // UPDATE
-      // ========================================================
-
-      final updateData =
-          Map<
-            String,
-            dynamic
-          >.from(
-            data,
-          );
-
-      updateData.remove(
-        'id',
-      );
-
-      var query = _client
+      final existing = await _client
           .from(
             conceptsTable,
           )
-          .update(
-            updateData,
+          .select(
+            'id, created_at',
           )
           .eq(
             'id',
-            concept.id,
-          );
+            conceptId,
+          )
+          .eq(
+            'user_id',
+            userId,
+          )
+          .maybeSingle();
 
-      if (userId !=
-          null) {
-        query = query.eq(
-          'user_id',
-          userId,
-        );
-      }
+      final existingCreatedAt =
+          existing ==
+              null
+          ? null
+          : _parseDate(
+              existing['created_at'],
+            );
 
-      final response = await query.select().single();
+      final effectiveCreatedAt =
+          existingCreatedAt ??
+          createdAt?.toUtc() ??
+          now;
+
+      final effectiveUpdatedAt =
+          updatedAt?.toUtc() ??
+          now;
+
+      // ========================================================
+      // UPSERT
+      // ========================================================
+
+      final response = await _client
+          .from(
+            conceptsTable,
+          )
+          .upsert(
+            {
+              'id': conceptId,
+              'user_id': userId,
+              'note_id':
+                  normalizedNoteId ==
+                          null ||
+                      normalizedNoteId.isEmpty
+                  ? null
+                  : normalizedNoteId,
+              'title': title,
+              'description': description,
+              'type': concept.type.name,
+              'created_at': effectiveCreatedAt.toIso8601String(),
+              'updated_at': effectiveUpdatedAt.toIso8601String(),
+            },
+            onConflict: 'id',
+          )
+          .select()
+          .single();
 
       return Map<
         String,
@@ -451,7 +580,7 @@ class SupabaseBrainService {
       stackTrace
     ) {
       debugPrint(
-        'SupabaseBrainService: erro ao salvar conhecimento.',
+        'SupabaseBrainService: erro ao sincronizar conhecimento.',
       );
 
       debugPrint(
@@ -477,7 +606,7 @@ class SupabaseBrainService {
   >
   loadConcepts() async {
     try {
-      final userId = currentUserId;
+      final userId = _requireUserId();
 
       dynamic query = _client
           .from(
@@ -485,13 +614,10 @@ class SupabaseBrainService {
           )
           .select();
 
-      if (userId !=
-          null) {
-        query = query.eq(
-          'user_id',
-          userId,
-        );
-      }
+      query = query.eq(
+        'user_id',
+        userId,
+      );
 
       final response = await query.order(
         'created_at',
@@ -530,7 +656,7 @@ class SupabaseBrainService {
     BrainConceptType type,
   ) async {
     try {
-      final userId = currentUserId;
+      final userId = _requireUserId();
 
       dynamic query = _client
           .from(
@@ -542,13 +668,10 @@ class SupabaseBrainService {
             type.name,
           );
 
-      if (userId !=
-          null) {
-        query = query.eq(
-          'user_id',
-          userId,
-        );
-      }
+      query = query.eq(
+        'user_id',
+        userId,
+      );
 
       final response = await query.order(
         'created_at',
@@ -585,7 +708,7 @@ class SupabaseBrainService {
     String id,
   ) async {
     try {
-      final userId = currentUserId;
+      final userId = _requireUserId();
 
       dynamic query = _client
           .from(
@@ -597,13 +720,10 @@ class SupabaseBrainService {
             id,
           );
 
-      if (userId !=
-          null) {
-        query = query.eq(
-          'user_id',
-          userId,
-        );
-      }
+      query = query.eq(
+        'user_id',
+        userId,
+      );
 
       final response = await query.maybeSingle();
 
@@ -647,7 +767,7 @@ class SupabaseBrainService {
     String id,
   ) async {
     try {
-      final userId = currentUserId;
+      final userId = _requireUserId();
 
       dynamic query = _client
           .from(
@@ -659,13 +779,10 @@ class SupabaseBrainService {
             id,
           );
 
-      if (userId !=
-          null) {
-        query = query.eq(
-          'user_id',
-          userId,
-        );
-      }
+      query = query.eq(
+        'user_id',
+        userId,
+      );
 
       await query;
     } catch (
@@ -695,7 +812,7 @@ class SupabaseBrainService {
     String noteId,
   ) async {
     try {
-      final userId = currentUserId;
+      final userId = _requireUserId();
 
       dynamic query = _client
           .from(
@@ -707,13 +824,10 @@ class SupabaseBrainService {
             noteId,
           );
 
-      if (userId !=
-          null) {
-        query = query.eq(
-          'user_id',
-          userId,
-        );
-      }
+      query = query.eq(
+        'user_id',
+        userId,
+      );
 
       await query;
     } catch (
@@ -730,6 +844,29 @@ class SupabaseBrainService {
 
       rethrow;
     }
+  }
+
+  // ============================================================
+  // PARSE DATE
+  // ============================================================
+
+  DateTime? _parseDate(
+    dynamic value,
+  ) {
+    if (value ==
+        null) {
+      return null;
+    }
+
+    final text = value.toString().trim();
+
+    if (text.isEmpty) {
+      return null;
+    }
+
+    return DateTime.tryParse(
+      text,
+    )?.toUtc();
   }
 
   // ============================================================
