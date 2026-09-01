@@ -341,10 +341,23 @@ class _BrainScreenState
 
     if (type ==
         BrainConceptType.question) {
+      final sourceNotePath =
+          _controller.selectedNote?.path.trim() ??
+          '';
+
+      if (sourceNotePath.isEmpty) {
+        _showMessage(
+          'A anotação foi salva, mas não foi possível identificar o arquivo local para criar a revisão.',
+        );
+
+        return;
+      }
+
       await _createQuestionReview(
         concept: concept,
         answer: content,
         title: title,
+        sourceNotePath: sourceNotePath,
       );
 
       if (!mounted) {
@@ -388,6 +401,7 @@ class _BrainScreenState
     required BrainConcept concept,
     required String answer,
     required String title,
+    required String sourceNotePath,
   }) async {
     final reviewController = ReviewController();
 
@@ -406,6 +420,7 @@ class _BrainScreenState
       await reviewController.createFromConcept(
         concept: concept,
         answer: answer,
+        sourceNotePath: sourceNotePath,
         sourceNoteTitle: title,
         firstReviewAt: DateTime.now(),
       );

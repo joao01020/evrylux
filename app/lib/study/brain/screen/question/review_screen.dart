@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../controllers/review_controller.dart';
 import '../../models/brain_review_item.dart';
+import '../../repositories/brain_repository.dart';
 
 class ReviewScreen
     extends
@@ -33,6 +34,8 @@ class _ReviewScreenState
   bool _showAnswer = false;
 
   bool _isSubmitting = false;
+
+  final BrainRepository _brainRepository = BrainRepository();
 
   // ============================================================
   // CURRENT REVIEW
@@ -153,6 +156,157 @@ class _ReviewScreenState
   }
 
   // ============================================================
+  // DELETE
+  // ============================================================
+  //
+  // Exclui:
+  //
+  // 1. a revisão/pergunta;
+  // 2. o BrainConcept relacionado;
+  // 3. a anotação Markdown de origem;
+  // 4. as demais classificações ligadas à mesma anotação;
+  // 5. a presença da anotação no calendário;
+  // 6. registra os DELETEs remotos pela SyncQueue.
+  //
+  // ============================================================
+
+  Future<
+    void
+  >
+  _delete() async {
+    if (_isSubmitting) {
+      return;
+    }
+
+    final review = _review;
+
+    final confirmed =
+        await showDialog<
+          bool
+        >(
+          context: context,
+          builder:
+              (
+                dialogContext,
+              ) {
+                return AlertDialog(
+                  title: const Text(
+                    'Excluir pergunta?',
+                  ),
+                  content: Text(
+                    'Deseja excluir permanentemente "${review.question}"?\n\n'
+                    'A anotação de origem também será apagada do Cérebro e do calendário.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(
+                          dialogContext,
+                          false,
+                        );
+                      },
+                      child: const Text(
+                        'Cancelar',
+                      ),
+                    ),
+                    FilledButton(
+                      onPressed: () {
+                        Navigator.pop(
+                          dialogContext,
+                          true,
+                        );
+                      },
+                      child: const Text(
+                        'Excluir',
+                      ),
+                    ),
+                  ],
+                );
+              },
+        );
+
+    if (!mounted ||
+        confirmed !=
+            true) {
+      return;
+    }
+
+    setState(
+      () {
+        _isSubmitting = true;
+      },
+    );
+
+    try {
+      // ========================================================
+      // CONCEITO + NOTA DE ORIGEM
+      // ========================================================
+
+      final conceptId = review.conceptId.trim();
+
+      if (conceptId.isNotEmpty) {
+        await _brainRepository.deleteConceptAndSourceNote(
+          conceptId,
+        );
+      }
+
+      // ========================================================
+      // REVISÃO
+      // ========================================================
+
+      await widget.controller.deleteReview(
+        review,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      final error = widget.controller.errorMessage;
+
+      if (error !=
+          null) {
+        setState(
+          () {
+            _isSubmitting = false;
+          },
+        );
+
+        _showMessage(
+          error,
+        );
+
+        widget.controller.clearMessages();
+
+        return;
+      }
+
+      widget.controller.clearMessages();
+
+      Navigator.pop(
+        context,
+        true,
+      );
+    } catch (
+      error
+    ) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(
+        () {
+          _isSubmitting = false;
+        },
+      );
+
+      _showMessage(
+        'Não foi possível excluir a pergunta e a anotação de origem.',
+      );
+    }
+  }
+
+  // ============================================================
   // MESSAGE
   // ============================================================
 
@@ -213,7 +367,15 @@ class _ReviewScreenState
                 ),
               ),
             )
-          else
+          else ...[
+            IconButton(
+              tooltip: 'Excluir pergunta',
+              onPressed: _delete,
+              icon: const Icon(
+                Icons.delete_outline_rounded,
+              ),
+            ),
+
             IconButton(
               tooltip: 'Arquivar pergunta',
               onPressed: _archive,
@@ -221,6 +383,7 @@ class _ReviewScreenState
                 Icons.archive_outlined,
               ),
             ),
+          ],
 
           const SizedBox(
             width: 6,

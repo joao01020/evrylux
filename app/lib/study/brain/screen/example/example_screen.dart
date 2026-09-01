@@ -125,7 +125,8 @@ class _ExampleScreenState
                     'Excluir exemplo?',
                   ),
                   content: Text(
-                    'Deseja excluir "${item.title}"?',
+                    'Deseja excluir "${item.title}"?\n\n'
+                    'A anotação de origem também será apagada do Cérebro e do calendário.',
                   ),
                   actions: [
                     TextButton(
@@ -168,7 +169,7 @@ class _ExampleScreenState
     );
 
     try {
-      await _repository.deleteConcept(
+      await _repository.deleteConceptAndSourceNote(
         item.id,
       );
 
@@ -190,7 +191,7 @@ class _ExampleScreenState
       );
 
       _showMessage(
-        'Exemplo excluído.',
+        'Exemplo e anotação de origem excluídos.',
       );
     } catch (
       error
@@ -200,7 +201,7 @@ class _ExampleScreenState
       }
 
       _showMessage(
-        'Não foi possível excluir o exemplo.',
+        'Não foi possível excluir o exemplo e a anotação de origem.',
       );
     } finally {
       if (mounted) {

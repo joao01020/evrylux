@@ -128,7 +128,8 @@ class _WarningScreenState
                     'Excluir atenção?',
                   ),
                   content: Text(
-                    'Deseja excluir "${item.title}"?',
+                    'Deseja excluir "${item.title}"?\n\n'
+                    'A anotação de origem também será apagada do Cérebro e do calendário.',
                   ),
                   actions: [
                     TextButton(
@@ -171,7 +172,7 @@ class _WarningScreenState
     );
 
     try {
-      await _repository.deleteConcept(
+      await _repository.deleteConceptAndSourceNote(
         item.id,
       );
 
@@ -193,7 +194,7 @@ class _WarningScreenState
       );
 
       _showMessage(
-        'Atenção excluída.',
+        'Atenção e anotação de origem excluídas.',
       );
     } catch (
       error
@@ -203,7 +204,7 @@ class _WarningScreenState
       }
 
       _showMessage(
-        'Não foi possível excluir a atenção.',
+        'Não foi possível excluir a atenção e a anotação de origem.',
       );
     } finally {
       if (mounted) {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../controllers/review_controller.dart';
 import '../../models/brain_review_item.dart';
+import '../../repositories/brain_repository.dart';
 
 import 'review_screen.dart';
 
@@ -27,6 +28,8 @@ class _QuestionScreenState
           QuestionScreen
         > {
   late final ReviewController _controller;
+
+  final BrainRepository _brainRepository = BrainRepository();
 
   int _selectedTab = 0;
 
@@ -249,7 +252,8 @@ class _QuestionScreenState
                     'Excluir pergunta?',
                   ),
                   content: Text(
-                    'Deseja excluir permanentemente "${review.question}"?',
+                    'Deseja excluir permanentemente "${review.question}"?\n\n'
+                    'A anotação de origem também será apagada do Cérebro e do calendário.',
                   ),
                   actions: [
                     TextButton(
@@ -292,15 +296,59 @@ class _QuestionScreenState
     );
 
     try {
+      // ========================================================
+      // 1. EXCLUIR A PERGUNTA / REVISÃO
+      // ========================================================
+
       await _controller.deleteReview(
         review,
       );
+
+      // ========================================================
+      // 2. EXCLUIR CONCEITO + ANOTAÇÃO DE ORIGEM
+      // ========================================================
+      //
+      // BrainReviewItem mantém o conceptId usado quando a revisão
+      // foi criada a partir do BrainConcept.
+      //
+      // O repository resolve a anotação que contém esse conceito
+      // e executa a exclusão em cascata:
+      //
+      // conceito -> nota .md -> calendário -> SyncQueue
+      //
+      // ========================================================
+
+      final conceptId = review.conceptId.trim();
+
+      if (conceptId.isNotEmpty) {
+        await _brainRepository.deleteConceptAndSourceNote(
+          conceptId,
+        );
+      }
+
+      // ========================================================
+      // 3. RECARREGAR A LISTA DE REVISÕES
+      // ========================================================
+
+      await _controller.loadReviews();
 
       if (!mounted) {
         return;
       }
 
       _showMessages();
+
+      ScaffoldMessenger.of(
+          context,
+        )
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Pergunta e anotação de origem excluídas.',
+            ),
+          ),
+        );
     } finally {
       if (mounted) {
         setState(

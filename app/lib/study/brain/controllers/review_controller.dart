@@ -309,7 +309,7 @@ class ReviewController
   createFromConcept({
     required BrainConcept concept,
     required String answer,
-    String sourceNotePath = '',
+    required String sourceNotePath,
     String sourceNoteTitle = '',
     DateTime? firstReviewAt,
   }) async {
@@ -326,6 +326,18 @@ class ReviewController
 
     if (cleanAnswer.isEmpty) {
       _errorMessage = 'Informe a resposta da pergunta.';
+
+      notifyListeners();
+
+      return null;
+    }
+
+    final cleanSourceNotePath = sourceNotePath.trim();
+
+    final cleanSourceNoteTitle = sourceNoteTitle.trim();
+
+    if (cleanSourceNotePath.isEmpty) {
+      _errorMessage = 'Não foi possível criar a revisão porque a anotação de origem não possui caminho local.';
 
       notifyListeners();
 
@@ -360,9 +372,9 @@ class ReviewController
 
       answer: cleanAnswer,
 
-      sourceNotePath: sourceNotePath,
+      sourceNotePath: cleanSourceNotePath,
 
-      sourceNoteTitle: sourceNoteTitle,
+      sourceNoteTitle: cleanSourceNoteTitle,
 
       createdAt: now,
 
@@ -898,6 +910,105 @@ class ReviewController
     }
 
     return null;
+  }
+
+  // ============================================================
+  // ENCONTRAR PELO CAMINHO DA ANOTAÇÃO DE ORIGEM
+  // ============================================================
+
+  BrainReviewItem? findBySourceNotePath(
+    String sourceNotePath,
+  ) {
+    final cleanPath = sourceNotePath.trim();
+
+    if (cleanPath.isEmpty) {
+      return null;
+    }
+
+    for (final review in _reviews) {
+      if (review.sourceNotePath.trim() ==
+          cleanPath) {
+        return review;
+      }
+    }
+
+    return null;
+  }
+
+  // ============================================================
+  // REMOVER REVISÕES DA MESMA ANOTAÇÃO
+  // ============================================================
+  //
+  // Útil quando a anotação principal é apagada pelo módulo Brain.
+  // Impede uma revisão órfã de permanecer no ReviewStorage.
+  //
+  // ============================================================
+
+  Future<
+    void
+  >
+  deleteReviewsBySourceNotePath(
+    String sourceNotePath,
+  ) async {
+    final cleanPath = sourceNotePath.trim();
+
+    if (cleanPath.isEmpty) {
+      return;
+    }
+
+    _setSaving(
+      true,
+    );
+
+    _clearMessages();
+
+    try {
+      final previousLength = _reviews.length;
+
+      _reviews.removeWhere(
+        (
+          review,
+        ) {
+          return review.sourceNotePath.trim() ==
+              cleanPath;
+        },
+      );
+
+      if (_reviews.length ==
+          previousLength) {
+        _successMessage = 'Nenhuma revisão vinculada à anotação.';
+        return;
+      }
+
+      _sortReviews();
+
+      await _storage.saveReviews(
+        _reviews,
+      );
+
+      _successMessage = 'Revisões vinculadas à anotação excluídas.';
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        'ReviewController: erro ao excluir revisões da anotação de origem.',
+      );
+
+      debugPrint(
+        'ReviewController: $error',
+      );
+
+      debugPrintStack(
+        stackTrace: stackTrace,
+      );
+
+      _errorMessage = 'Não foi possível excluir as revisões vinculadas à anotação.';
+    } finally {
+      _setSaving(
+        false,
+      );
+    }
   }
 
   // ============================================================

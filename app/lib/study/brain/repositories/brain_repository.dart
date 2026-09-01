@@ -1008,6 +1008,164 @@ class BrainRepository {
   }
 
   // ============================================================
+  // DELETE CONCEPT + SOURCE NOTE
+  // ============================================================
+  //
+  // Use este método nas telas:
+  //
+  // - Conceitos;
+  // - Perguntas;
+  // - Exemplos;
+  // - Atenções.
+  //
+  // Regra:
+  //
+  // ao excluir uma classificação, a anotação que originou essa
+  // classificação também é excluída.
+  //
+  // Assim o mesmo conteúdo desaparece de:
+  //
+  // - tela da categoria;
+  // - Cérebro;
+  // - calendário;
+  // - arquivos Markdown locais;
+  // - Supabase, via SyncQueue.
+  //
+  // Se a anotação possuir outras classificações, elas também são
+  // removidas, pois pertencem à mesma anotação que está sendo
+  // excluída.
+  //
+  // ============================================================
+
+  Future<
+    void
+  >
+  deleteConceptAndSourceNote(
+    String id,
+  ) async {
+    final cleanId = id.trim();
+
+    if (cleanId.isEmpty) {
+      return;
+    }
+
+    // ==========================================================
+    // LOCALIZAR ANOTAÇÃO DE ORIGEM ANTES DE ALTERAR CONCEITOS
+    // ==========================================================
+
+    final notes = await _local.loadNotes();
+
+    BrainFile? sourceNote;
+
+    for (final note in notes) {
+      final containsConcept = note.concepts.any(
+        (
+          concept,
+        ) =>
+            concept.id ==
+            cleanId,
+      );
+
+      if (!containsConcept) {
+        continue;
+      }
+
+      sourceNote = note;
+
+      break;
+    }
+
+    // ==========================================================
+    // SEM NOTA DE ORIGEM
+    // ==========================================================
+    //
+    // Pode acontecer com conceito legado/orfão.
+    //
+    // Nesse caso apagamos somente o conceito.
+    //
+    // ==========================================================
+
+    if (sourceNote ==
+        null) {
+      await deleteConcept(
+        cleanId,
+      );
+
+      return;
+    }
+
+    final sourcePath = sourceNote.path.trim();
+
+    if (sourcePath.isEmpty) {
+      throw StateError(
+        'A anotação de origem não possui um caminho local válido.',
+      );
+    }
+
+    debugPrint(
+      '[BRAIN REPOSITORY] Exclusão em cascata iniciada.',
+    );
+
+    debugPrint(
+      '[BRAIN REPOSITORY] Conceito: $cleanId',
+    );
+
+    debugPrint(
+      '[BRAIN REPOSITORY] Nota de origem: $sourcePath',
+    );
+
+    // ==========================================================
+    // 1. EXCLUIR TODAS AS CLASSIFICAÇÕES DA NOTA
+    // ==========================================================
+    //
+    // Isso limpa os arquivos de _concepts e registra DELETE para
+    // cada classificação na SyncQueue.
+    //
+    // ==========================================================
+
+    await deleteConceptsByNoteId(
+      sourcePath,
+    );
+
+    // ==========================================================
+    // 2. EXCLUIR A ANOTAÇÃO FÍSICA
+    // ==========================================================
+    //
+    // deleteNote() já confirma File.exists() antes de concluir.
+    //
+    // ==========================================================
+
+    await deleteNote(
+      sourcePath,
+    );
+
+    // ==========================================================
+    // 3. CONFIRMAÇÃO FINAL
+    // ==========================================================
+
+    final remaining = await _local.loadNotes();
+
+    final stillExists = remaining.any(
+      (
+        note,
+      ) => _samePath(
+        note.path,
+        sourcePath,
+      ),
+    );
+
+    if (stillExists) {
+      throw StateError(
+        'A anotação de origem ainda existe após a exclusão em cascata.',
+      );
+    }
+
+    debugPrint(
+      '[BRAIN REPOSITORY] Exclusão em cascata concluída.',
+    );
+  }
+
+  // ============================================================
   // DELETE CONCEPT
   // ============================================================
 

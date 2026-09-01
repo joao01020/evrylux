@@ -177,7 +177,8 @@ class _ConceptScreenState
                     'Excluir conceito?',
                   ),
                   content: Text(
-                    'Deseja excluir "${item.title}"?',
+                    'Deseja excluir "${item.title}"?\n\n'
+                    'A anotação de origem também será apagada do Cérebro e do calendário.',
                   ),
                   actions: [
                     TextButton(
@@ -220,7 +221,7 @@ class _ConceptScreenState
     );
 
     try {
-      await _repository.deleteConcept(
+      await _repository.deleteConceptAndSourceNote(
         item.id,
       );
 
@@ -242,7 +243,7 @@ class _ConceptScreenState
       );
 
       _showMessage(
-        'Conceito excluído.',
+        'Conceito e anotação de origem excluídos.',
       );
     } catch (
       error
@@ -252,7 +253,7 @@ class _ConceptScreenState
       }
 
       _showMessage(
-        'Não foi possível excluir o conceito.',
+        'Não foi possível excluir o conceito e a anotação de origem.',
       );
     } finally {
       if (mounted) {
