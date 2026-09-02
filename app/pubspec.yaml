@@ -24,6 +24,8 @@ dependencies:
   supabase_flutter: ^2.17.2
   flutter_dotenv: ^6.0.1
   flutter_svg: ^2.0.17
+  cryptography: ^2.9.0
+  cryptography_flutter: ^2.3.4
 
   window_manager:
     git:
