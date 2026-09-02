@@ -7,12 +7,9 @@ import '../widgets/generic/study_calendar.dart';
 
 import 'widgets/study_header.dart';
 import 'widgets/streak_card.dart';
-import 'widgets/current_time_card.dart';
-import 'widgets/history_button.dart';
 
 import 'brain/screen/brain_screen.dart';
 import 'brain/services/brain_storage.dart';
-import 'history/history_screen.dart';
 
 import 'services/study_day_service.dart';
 import 'widgets/dialogs/study_day_dialog.dart';
@@ -115,24 +112,6 @@ class _StudyScreenState
     );
 
     super.dispose();
-  }
-
-  // ============================================================
-  // HISTÓRICO
-  // ============================================================
-
-  void openHistory() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder:
-            (
-              _,
-            ) {
-              return const HistoryScreen();
-            },
-      ),
-    );
   }
 
   // ============================================================
@@ -403,6 +382,13 @@ class _StudyScreenState
   // ============================================================
   // SALVAR ESTUDO
   // ============================================================
+  //
+  // Chamado pelo ícone de salvar dentro do ActivityTimer.
+  //
+  // O próprio timer garante que o tempo atual foi enviado para
+  // studyController.updateTimer antes deste método ser chamado.
+  //
+  // ============================================================
 
   Future<
     void
@@ -467,24 +453,11 @@ class _StudyScreenState
   Widget build(
     BuildContext context,
   ) {
-    final currentMinutes =
-        studyController.currentSeconds ~/
-        60;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text(
           'Conhecimento 📚',
         ),
-        actions: [
-          IconButton(
-            tooltip: 'Cérebro',
-            icon: const Icon(
-              Icons.psychology_outlined,
-            ),
-            onPressed: openBrain,
-          ),
-        ],
       ),
 
       body: Padding(
@@ -532,6 +505,28 @@ class _StudyScreenState
               ),
 
               const SizedBox(
+                height: 12,
+              ),
+
+              // =================================================
+              // ATALHOS
+              // =================================================
+              //
+              // Mesmo padrão visual dos atalhos da tela de Treino.
+              // O Cérebro fica logo abaixo do calendário.
+              //
+              // =================================================
+              Row(
+                children: [
+                  _StudyShortcutButton(
+                    tooltip: 'Cérebro',
+                    icon: Icons.psychology_outlined,
+                    onTap: openBrain,
+                  ),
+                ],
+              ),
+
+              const SizedBox(
                 height: 24,
               ),
 
@@ -548,6 +543,7 @@ class _StudyScreenState
                     child: ActivityTimer(
                       title: 'Tempo estudado',
                       onTimeChanged: studyController.updateTimer,
+                      onSave: saveStudy,
                     ),
                   ),
                 ),
@@ -556,65 +552,70 @@ class _StudyScreenState
               const SizedBox(
                 height: 16,
               ),
-
-              // =================================================
-              // CURRENT TIME
-              // =================================================
-              CurrentTimeCard(
-                minutes: currentMinutes,
-              ),
-
-              const SizedBox(
-                height: 20,
-              ),
-
-              // =================================================
-              // SAVE
-              // =================================================
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: saveStudy,
-                  icon: const Icon(
-                    Icons.save,
-                  ),
-                  label: const Text(
-                    'Salvar estudo',
-                  ),
-                ),
-              ),
-
-              const SizedBox(
-                height: 12,
-              ),
-
-              // =================================================
-              // BRAIN
-              // =================================================
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: openBrain,
-                  icon: const Icon(
-                    Icons.psychology_outlined,
-                  ),
-                  label: const Text(
-                    'Cérebro',
-                  ),
-                ),
-              ),
-
-              const SizedBox(
-                height: 20,
-              ),
-
-              // =================================================
-              // HISTORY
-              // =================================================
-              HistoryButton(
-                onPressed: openHistory,
-              ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// BOTÃO DOS ATALHOS
+// ============================================================
+//
+// Mesmo padrão visual dos atalhos usados na tela de Treino.
+//
+// ============================================================
+
+class _StudyShortcutButton
+    extends
+        StatelessWidget {
+  const _StudyShortcutButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String tooltip;
+
+  final IconData icon;
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final colorScheme = Theme.of(
+      context,
+    ).colorScheme;
+
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(
+          13,
+        ),
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(
+              13,
+            ),
+            border: Border.all(
+              color: colorScheme.primary.withValues(
+                alpha: 0.16,
+              ),
+            ),
+          ),
+          child: Icon(
+            icon,
+            size: 21,
+            color: colorScheme.primary,
           ),
         ),
       ),

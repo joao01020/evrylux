@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../controllers/update_notification_controller.dart';
 import '../models/app_update_notification.dart';
@@ -9,7 +10,6 @@ class UpdateNotificationPanel
   const UpdateNotificationPanel({
     super.key,
     required this.controller,
-    this.onOpenUpdate,
   });
 
   // ============================================================
@@ -19,24 +19,6 @@ class UpdateNotificationPanel
   final UpdateNotificationController controller;
 
   // ============================================================
-  // AÇÃO
-  // ============================================================
-  //
-  // Depois podemos usar isso para:
-  //
-  // abrir GitHub Release
-  // abrir site
-  // abrir página "Sobre"
-  // iniciar updater
-  //
-  // ============================================================
-
-  final ValueChanged<
-    AppUpdateNotification
-  >?
-  onOpenUpdate;
-
-  // ============================================================
   // CORES
   // ============================================================
 
@@ -44,12 +26,12 @@ class UpdateNotificationPanel
     0xFFFFFFFF,
   );
 
-  static const Color _surface = Color(
-    0xFFF7FAF7,
+  static const Color _surfaceSoft = Color(
+    0xFFF3F8EE,
   );
 
   static const Color _border = Color(
-    0xFFD7E3D9,
+    0xFFC7DFC9,
   );
 
   static const Color _primary = Color(
@@ -68,9 +50,188 @@ class UpdateNotificationPanel
     0xFF68746B,
   );
 
-  static const Color _danger = Color(
+  static const Color _error = Color(
     0xFFB3261E,
   );
+
+  // ============================================================
+  // OPEN DOWNLOAD
+  // ============================================================
+
+  Future<
+    void
+  >
+  _openDownload(
+    BuildContext context,
+    AppUpdateNotification notification,
+  ) async {
+    final rawUrl = notification.downloadUrl?.trim();
+
+    // ==========================================================
+    // SEM URL
+    // ==========================================================
+
+    if (rawUrl ==
+            null ||
+        rawUrl.isEmpty) {
+      _showMessage(
+        context,
+        'Esta atualização ainda não possui um link de download.',
+      );
+
+      return;
+    }
+
+    // ==========================================================
+    // PARSE
+    // ==========================================================
+
+    final uri = Uri.tryParse(
+      rawUrl,
+    );
+
+    if (uri ==
+            null ||
+        !uri.hasScheme) {
+      _showMessage(
+        context,
+        'O link desta atualização é inválido.',
+      );
+
+      return;
+    }
+
+    // ==========================================================
+    // OPEN EXTERNAL
+    // ==========================================================
+    //
+    // Abre no navegador padrão do sistema.
+    //
+    // Exemplo:
+    //
+    // https://updates.evrylux.com/evrylux-1.1.0-linux.tar.gz
+    //
+    // ou:
+    //
+    // https://pub-xxxxx.r2.dev/evrylux-1.1.0-linux.tar.gz
+    //
+    // ==========================================================
+
+    try {
+      final opened = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (!opened) {
+        if (!context.mounted) {
+          return;
+        }
+
+        _showMessage(
+          context,
+          'Não foi possível abrir o download.',
+        );
+      }
+    } catch (
+      error
+    ) {
+      debugPrint(
+        '[APP UPDATE] '
+        'Erro ao abrir download: $error',
+      );
+
+      if (!context.mounted) {
+        return;
+      }
+
+      _showMessage(
+        context,
+        'Não foi possível abrir o link da atualização.',
+      );
+    }
+  }
+
+  // ============================================================
+  // MESSAGE
+  // ============================================================
+
+  void _showMessage(
+    BuildContext context,
+    String message,
+  ) {
+    final messenger = ScaffoldMessenger.maybeOf(
+      context,
+    );
+
+    if (messenger ==
+        null) {
+      debugPrint(
+        '[APP UPDATE] $message',
+      );
+
+      return;
+    }
+
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          content: Text(
+            message,
+          ),
+        ),
+      );
+  }
+
+  // ============================================================
+  // FORMAT DATE
+  // ============================================================
+
+  String _formatDate(
+    DateTime value,
+  ) {
+    // ==========================================================
+    // BRASÍLIA
+    // ==========================================================
+    //
+    // Datas internas permanecem UTC.
+    //
+    // Para exibição:
+    //
+    // UTC - 3
+    //
+    // ==========================================================
+
+    final brasilia = value.toUtc().subtract(
+      const Duration(
+        hours: 3,
+      ),
+    );
+
+    final day = brasilia.day.toString().padLeft(
+      2,
+      '0',
+    );
+
+    final month = brasilia.month.toString().padLeft(
+      2,
+      '0',
+    );
+
+    final hour = brasilia.hour.toString().padLeft(
+      2,
+      '0',
+    );
+
+    final minute = brasilia.minute.toString().padLeft(
+      2,
+      '0',
+    );
+
+    return '$day/$month/${brasilia.year} • $hour:$minute';
+  }
 
   // ============================================================
   // BUILD
@@ -80,44 +241,47 @@ class UpdateNotificationPanel
   Widget build(
     BuildContext context,
   ) {
-    return AnimatedBuilder(
-      animation: controller,
-      builder:
-          (
-            context,
-            _,
-          ) {
-            return Material(
-              color: Colors.transparent,
-              child: Container(
-                width: 390,
-                constraints: const BoxConstraints(
-                  maxHeight: 480,
-                ),
-                decoration: BoxDecoration(
-                  color: _background,
-                  borderRadius: BorderRadius.circular(
-                    18,
-                  ),
-                  border: Border.all(
-                    color: _border,
-                  ),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(
-                        0x1A000000,
-                      ),
-                      blurRadius: 24,
-                      offset: Offset(
-                        0,
-                        10,
-                      ),
-                    ),
-                  ],
-                ),
-                child: Column(
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        width: 390,
+        constraints: const BoxConstraints(
+          maxHeight: 480,
+        ),
+        decoration: BoxDecoration(
+          color: _background,
+          borderRadius: BorderRadius.circular(
+            18,
+          ),
+          border: Border.all(
+            color: _border,
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(
+                0x1F000000,
+              ),
+              blurRadius: 30,
+              offset: Offset(
+                0,
+                10,
+              ),
+            ),
+          ],
+        ),
+        child: AnimatedBuilder(
+          animation: controller,
+          builder:
+              (
+                context,
+                _,
+              ) {
+                return Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // ==========================================
+                    // HEADER
+                    // ==========================================
                     _buildHeader(
                       context,
                     ),
@@ -127,16 +291,19 @@ class UpdateNotificationPanel
                       color: _border,
                     ),
 
+                    // ==========================================
+                    // CONTENT
+                    // ==========================================
                     Flexible(
                       child: _buildContent(
                         context,
                       ),
                     ),
                   ],
-                ),
-              ),
-            );
-          },
+                );
+              },
+        ),
+      ),
     );
   }
 
@@ -150,32 +317,12 @@ class UpdateNotificationPanel
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         16,
-        13,
-        8,
-        13,
+        14,
+        10,
+        14,
       ),
       child: Row(
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: _primarySoft,
-              borderRadius: BorderRadius.circular(
-                10,
-              ),
-            ),
-            child: const Icon(
-              Icons.notifications_none_rounded,
-              color: _primary,
-              size: 19,
-            ),
-          ),
-
-          const SizedBox(
-            width: 10,
-          ),
-
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -184,8 +331,8 @@ class UpdateNotificationPanel
                   'Notificações',
                   style: TextStyle(
                     color: _text,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
 
@@ -205,13 +352,14 @@ class UpdateNotificationPanel
             ),
           ),
 
+          // ==========================================
+          // REFRESH
+          // ==========================================
           IconButton(
-            tooltip: 'Atualizar',
+            tooltip: 'Verificar atualizações',
             onPressed: controller.loading
                 ? null
-                : () {
-                    controller.checkForUpdates();
-                  },
+                : controller.checkForUpdates,
             icon: controller.loading
                 ? const SizedBox(
                     width: 17,
@@ -223,11 +371,13 @@ class UpdateNotificationPanel
                   )
                 : const Icon(
                     Icons.refresh_rounded,
-                    color: _muted,
-                    size: 19,
+                    size: 20,
                   ),
           ),
 
+          // ==========================================
+          // CLOSE
+          // ==========================================
           IconButton(
             tooltip: 'Fechar',
             onPressed: () {
@@ -237,8 +387,7 @@ class UpdateNotificationPanel
             },
             icon: const Icon(
               Icons.close_rounded,
-              color: _muted,
-              size: 19,
+              size: 20,
             ),
           ),
         ],
@@ -253,25 +402,36 @@ class UpdateNotificationPanel
   Widget _buildContent(
     BuildContext context,
   ) {
+    // ==========================================================
+    // LOADING
+    // ==========================================================
+
     if (controller.loading &&
-        !controller.hasUpdate) {
+        controller.notification ==
+            null) {
       return const Padding(
         padding: EdgeInsets.all(
-          34,
+          36,
         ),
         child: Center(
           child: CircularProgressIndicator(
-            strokeWidth: 2.4,
-            color: _primary,
+            strokeWidth: 2,
           ),
         ),
       );
     }
 
-    if (controller.hasError &&
-        !controller.hasUpdate) {
+    // ==========================================================
+    // ERROR
+    // ==========================================================
+
+    if (controller.hasError) {
       return _buildError();
     }
+
+    // ==========================================================
+    // EMPTY
+    // ==========================================================
 
     final notification = controller.notification;
 
@@ -280,7 +440,11 @@ class UpdateNotificationPanel
       return _buildEmpty();
     }
 
-    return _buildUpdateCard(
+    // ==========================================================
+    // UPDATE
+    // ==========================================================
+
+    return _buildUpdate(
       context,
       notification,
     );
@@ -293,8 +457,8 @@ class UpdateNotificationPanel
   Widget _buildEmpty() {
     return const Padding(
       padding: EdgeInsets.symmetric(
-        horizontal: 30,
-        vertical: 40,
+        horizontal: 24,
+        vertical: 34,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -323,7 +487,7 @@ class UpdateNotificationPanel
           ),
 
           Text(
-            'Nenhuma nova versão do aplicativo está disponível.',
+            'Nenhuma nova versão está disponível.',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: _muted,
@@ -342,16 +506,15 @@ class UpdateNotificationPanel
 
   Widget _buildError() {
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 24,
-        vertical: 32,
+      padding: const EdgeInsets.all(
+        24,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(
-            Icons.cloud_off_outlined,
-            color: _danger,
+            Icons.error_outline_rounded,
+            color: _error,
             size: 32,
           ),
 
@@ -365,36 +528,37 @@ class UpdateNotificationPanel
             style: TextStyle(
               color: _text,
               fontSize: 13,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w800,
             ),
           ),
 
-          const SizedBox(
-            height: 5,
-          ),
-
-          Text(
-            controller.errorMessage ??
-                'Tente novamente.',
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: _muted,
-              fontSize: 10,
-              height: 1.4,
+          if (controller.errorMessage !=
+              null) ...[
+            const SizedBox(
+              height: 6,
             ),
-          ),
+
+            Text(
+              controller.errorMessage ??
+                  '',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: _muted,
+                fontSize: 10,
+                height: 1.4,
+              ),
+            ),
+          ],
 
           const SizedBox(
-            height: 14,
+            height: 12,
           ),
 
           TextButton.icon(
-            onPressed: () {
-              controller.checkForUpdates();
-            },
+            onPressed: controller.checkForUpdates,
             icon: const Icon(
               Icons.refresh_rounded,
-              size: 16,
+              size: 17,
             ),
             label: const Text(
               'Tentar novamente',
@@ -409,219 +573,187 @@ class UpdateNotificationPanel
   // UPDATE CARD
   // ============================================================
 
-  Widget _buildUpdateCard(
+  Widget _buildUpdate(
     BuildContext context,
     AppUpdateNotification notification,
   ) {
-    return Padding(
+    final hasDownload =
+        notification.downloadUrl?.trim().isNotEmpty ==
+        true;
+
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(
         14,
       ),
-      child: InkWell(
-        onTap: () {
-          controller.markAsRead();
-
-          onOpenUpdate?.call(
-            notification,
-          );
-        },
-        borderRadius: BorderRadius.circular(
-          14,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(
+          15,
         ),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(
+        decoration: BoxDecoration(
+          color: _surfaceSoft,
+          borderRadius: BorderRadius.circular(
             14,
           ),
-          decoration: BoxDecoration(
-            color: notification.isUnread
-                ? _primarySoft
-                : _surface,
-            borderRadius: BorderRadius.circular(
-              14,
-            ),
-            border: Border.all(
-              color: notification.isUnread
-                  ? _primary.withValues(
-                      alpha: .30,
-                    )
-                  : _border,
-            ),
+          border: Border.all(
+            color: _border,
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: _background,
-                      borderRadius: BorderRadius.circular(
-                        12,
-                      ),
-                      border: Border.all(
-                        color: _border,
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.system_update_alt_rounded,
-                      color: _primary,
-                      size: 20,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ==========================================
+            // VERSION
+            // ==========================================
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _primarySoft,
+                    borderRadius: BorderRadius.circular(
+                      999,
                     ),
                   ),
-
-                  if (notification.isUnread)
-                    Positioned(
-                      right: -2,
-                      top: -2,
-                      child: Container(
-                        width: 9,
-                        height: 9,
-                        decoration: const BoxDecoration(
-                          color: _primary,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
+                  child: Text(
+                    'v${notification.version}',
+                    style: const TextStyle(
+                      color: _primary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
                     ),
-                ],
-              ),
+                  ),
+                ),
 
+                const Spacer(),
+
+                if (notification.isUnread)
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: const BoxDecoration(
+                      color: _primary,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+              ],
+            ),
+
+            const SizedBox(
+              height: 12,
+            ),
+
+            // ==========================================
+            // TITLE
+            // ==========================================
+            Text(
+              notification.title,
+              style: const TextStyle(
+                color: _text,
+                fontSize: 15,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+
+            const SizedBox(
+              height: 7,
+            ),
+
+            // ==========================================
+            // MESSAGE
+            // ==========================================
+            Text(
+              notification.message,
+              style: const TextStyle(
+                color: _muted,
+                fontSize: 11,
+                height: 1.5,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+
+            const SizedBox(
+              height: 12,
+            ),
+
+            // ==========================================
+            // DATE
+            // ==========================================
+            Row(
+              children: [
+                const Icon(
+                  Icons.schedule_rounded,
+                  size: 14,
+                  color: _muted,
+                ),
+
+                const SizedBox(
+                  width: 5,
+                ),
+
+                Text(
+                  _formatDate(
+                    notification.publishedAt,
+                  ),
+                  style: const TextStyle(
+                    color: _muted,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+
+            // ==========================================
+            // DOWNLOAD
+            // ==========================================
+            if (hasDownload) ...[
               const SizedBox(
-                width: 12,
+                height: 16,
               ),
 
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      notification.title.trim().isEmpty
-                          ? 'Nova atualização disponível'
-                          : notification.title.trim(),
-                      style: const TextStyle(
-                        color: _text,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    _openDownload(
+                      context,
+                      notification,
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    elevation: 0,
+                    backgroundColor: _primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 13,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                        11,
                       ),
                     ),
-
-                    const SizedBox(
-                      height: 3,
+                  ),
+                  icon: const Icon(
+                    Icons.download_rounded,
+                    size: 18,
+                  ),
+                  label: const Text(
+                    'Baixar atualização',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
                     ),
-
-                    Text(
-                      'Versão ${notification.version}',
-                      style: const TextStyle(
-                        color: _primary,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-
-                    if (notification.message.trim().isNotEmpty) ...[
-                      const SizedBox(
-                        height: 7,
-                      ),
-
-                      Text(
-                        notification.message.trim(),
-                        style: const TextStyle(
-                          color: _muted,
-                          fontSize: 11,
-                          height: 1.4,
-                        ),
-                      ),
-                    ],
-
-                    const SizedBox(
-                      height: 9,
-                    ),
-
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.schedule_rounded,
-                          size: 12,
-                          color: _muted,
-                        ),
-
-                        const SizedBox(
-                          width: 5,
-                        ),
-
-                        Text(
-                          _formatDate(
-                            notification.publishedAt,
-                          ),
-                          style: const TextStyle(
-                            color: _muted,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-
-                        if (notification.hasDownloadUrl) ...[
-                          const Spacer(),
-
-                          const Text(
-                            'Ver atualização',
-                            style: TextStyle(
-                              color: _primary,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-
-                          const SizedBox(
-                            width: 3,
-                          ),
-
-                          const Icon(
-                            Icons.arrow_forward_rounded,
-                            color: _primary,
-                            size: 13,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ],
-          ),
+          ],
         ),
       ),
     );
-  }
-
-  // ============================================================
-  // FORMAT DATE
-  // ============================================================
-
-  String _formatDate(
-    DateTime value,
-  ) {
-    final brasilia = value.toUtc().subtract(
-      const Duration(
-        hours: 3,
-      ),
-    );
-
-    final day = brasilia.day.toString().padLeft(
-      2,
-      '0',
-    );
-
-    final month = brasilia.month.toString().padLeft(
-      2,
-      '0',
-    );
-
-    final year = brasilia.year.toString();
-
-    return '$day/$month/$year';
   }
 }

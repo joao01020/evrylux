@@ -128,7 +128,7 @@ class BrainEditorSection
           textInputAction: TextInputAction.next,
           decoration: const InputDecoration(
             labelText: 'Tema',
-            hintText: 'Ex.: Programação C++',
+            hintText: 'Ex.: Idiomas, História, Saúde, Trabalho...',
             prefixIcon: Icon(
               Icons.folder_outlined,
               size: 20,
@@ -155,7 +155,7 @@ class BrainEditorSection
           textInputAction: TextInputAction.next,
           decoration: const InputDecoration(
             labelText: 'Título',
-            hintText: 'Ex.: Assunto aprendido hoje',
+            hintText: 'Escreva o titulo do assunto',
             prefixIcon: Icon(
               Icons.title,
               size: 20,
@@ -189,7 +189,7 @@ class BrainEditorSection
 
           decoration: const InputDecoration(
             labelText: 'Anotação em Markdown',
-            hintText: 'Escreva o conteúdo com suas palavras',
+            hintText: 'Escreva o conteúdo do resumo, aprendizado ou ideia principal.',
             alignLabelWithHint: true,
             isDense: true,
             contentPadding: EdgeInsets.symmetric(

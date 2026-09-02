@@ -7,28 +7,61 @@ class ActivityTimer
         StatefulWidget {
   const ActivityTimer({
     super.key,
-
     this.title = 'Tempo',
-
     required this.onTimeChanged,
-
     this.onSave,
   });
 
+  // ============================================================
+  // TITLE
+  // ============================================================
+
   final String title;
 
-  final Function(
+  // ============================================================
+  // TIME CHANGED
+  // ============================================================
+  //
+  // Informa para a tela/controller o tempo atual em segundos.
+  //
+  // ============================================================
+
+  final void Function(
     int seconds,
   )
   onTimeChanged;
 
-  final VoidCallback? onSave;
+  // ============================================================
+  // SAVE
+  // ============================================================
+  //
+  // Pode receber:
+  //
+  // void Function()
+  //
+  // ou:
+  //
+  // Future<void> Function()
+  //
+  // Isso permite usar diretamente:
+  //
+  // onSave: saveStudy
+  //
+  // ============================================================
+
+  final FutureOr<
+    void
+  >
+  Function()?
+  onSave;
 
   @override
   State<
     ActivityTimer
   >
-  createState() => _ActivityTimerState();
+  createState() {
+    return _ActivityTimerState();
+  }
 }
 
 class _ActivityTimerState
@@ -36,15 +69,25 @@ class _ActivityTimerState
         State<
           ActivityTimer
         > {
+  // ============================================================
+  // TIMERS
+  // ============================================================
+
   Timer? timer;
 
   Timer? colorTimer;
+
+  // ============================================================
+  // STATE
+  // ============================================================
 
   int seconds = 0;
 
   bool running = false;
 
   bool minuteCompleted = false;
+
+  bool saving = false;
 
   // ============================================================
   // START
@@ -83,6 +126,10 @@ class _ActivityTimerState
             }
           },
         );
+
+        // ======================================================
+        // SINCRONIZAR TEMPO
+        // ======================================================
 
         widget.onTimeChanged(
           seconds,
@@ -133,6 +180,8 @@ class _ActivityTimerState
   void pauseTimer() {
     timer?.cancel();
 
+    timer = null;
+
     if (!mounted) {
       return;
     }
@@ -141,6 +190,14 @@ class _ActivityTimerState
       () {
         running = false;
       },
+    );
+
+    // ==========================================================
+    // GARANTIR SINCRONIZAÇÃO
+    // ==========================================================
+
+    widget.onTimeChanged(
+      seconds,
     );
   }
 
@@ -151,7 +208,11 @@ class _ActivityTimerState
   void resetTimer() {
     timer?.cancel();
 
+    timer = null;
+
     colorTimer?.cancel();
+
+    colorTimer = null;
 
     if (!mounted) {
       return;
@@ -175,9 +236,86 @@ class _ActivityTimerState
   // ============================================================
   // SAVE
   // ============================================================
+  //
+  // Ao clicar no ícone:
+  //
+  // 1. pega exatamente o tempo atual;
+  // 2. envia para onTimeChanged;
+  // 3. chama o método de salvamento da tela;
+  // 4. mostra loading enquanto estiver salvando.
+  //
+  // O timer NÃO é zerado automaticamente.
+  //
+  // ============================================================
 
-  void saveTimer() {
-    widget.onSave?.call();
+  Future<
+    void
+  >
+  saveTimer() async {
+    final onSave = widget.onSave;
+
+    if (onSave ==
+            null ||
+        saving) {
+      return;
+    }
+
+    // ==========================================================
+    // NÃO SALVAR 00:00
+    // ==========================================================
+
+    if (seconds <=
+        0) {
+      return;
+    }
+
+    // ==========================================================
+    // GARANTIR TEMPO ATUAL
+    // ==========================================================
+
+    widget.onTimeChanged(
+      seconds,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(
+      () {
+        saving = true;
+      },
+    );
+
+    try {
+      await Future<
+        void
+      >.sync(
+        onSave,
+      );
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        '[ACTIVITY TIMER] '
+        'Erro ao salvar tempo: $error',
+      );
+
+      debugPrintStack(
+        stackTrace: stackTrace,
+      );
+    } finally {
+      if (!mounted) {
+        return;
+      }
+
+      setState(
+        () {
+          saving = false;
+        },
+      );
+    }
   }
 
   // ============================================================
@@ -218,6 +356,10 @@ class _ActivityTimerState
   Widget build(
     BuildContext context,
   ) {
+    final colorScheme = Theme.of(
+      context,
+    ).colorScheme;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(
@@ -225,6 +367,9 @@ class _ActivityTimerState
         ),
         child: Column(
           children: [
+            // ==================================================
+            // TITLE
+            // ==================================================
             Text(
               widget.title,
               style: const TextStyle(
@@ -237,6 +382,9 @@ class _ActivityTimerState
               height: 15,
             ),
 
+            // ==================================================
+            // TIME
+            // ==================================================
             AnimatedDefaultTextStyle(
               duration: const Duration(
                 milliseconds: 300,
@@ -245,8 +393,8 @@ class _ActivityTimerState
                 fontSize: 40,
                 fontWeight: FontWeight.bold,
                 color: minuteCompleted
-                    ? Colors.green
-                    : Colors.black,
+                    ? colorScheme.primary
+                    : colorScheme.onSurface,
               ),
               child: Text(
                 formatTime(),
@@ -257,20 +405,23 @@ class _ActivityTimerState
               height: 6,
             ),
 
+            // ==================================================
+            // ACTIONS
+            // ==================================================
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // =================================================
+                // ==============================================
                 // PLAY / PAUSE
-                // =================================================
+                // ==============================================
                 IconButton(
                   tooltip: running
                       ? 'Pausar'
                       : 'Iniciar',
                   icon: Icon(
                     running
-                        ? Icons.pause
-                        : Icons.play_arrow,
+                        ? Icons.pause_rounded
+                        : Icons.play_arrow_rounded,
                   ),
                   iconSize: 40,
                   onPressed: running
@@ -278,29 +429,54 @@ class _ActivityTimerState
                       : startTimer,
                 ),
 
-                // =================================================
+                const SizedBox(
+                  width: 2,
+                ),
+
+                // ==============================================
                 // RESET
-                // =================================================
+                // ==============================================
                 IconButton(
                   tooltip: 'Reiniciar',
                   icon: const Icon(
-                    Icons.restart_alt,
+                    Icons.restart_alt_rounded,
                   ),
+                  iconSize: 23,
                   onPressed: resetTimer,
                 ),
 
-                // =================================================
+                // ==============================================
                 // SAVE
-                // =================================================
+                // ==============================================
                 if (widget.onSave !=
-                    null)
-                  IconButton(
-                    tooltip: 'Salvar estudo',
-                    icon: const Icon(
-                      Icons.save_outlined,
-                    ),
-                    onPressed: saveTimer,
+                    null) ...[
+                  const SizedBox(
+                    width: 2,
                   ),
+
+                  IconButton(
+                    tooltip: 'Salvar tempo estudado',
+                    onPressed:
+                        saving ||
+                            seconds <=
+                                0
+                        ? null
+                        : saveTimer,
+                    icon: saving
+                        ? SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: colorScheme.primary,
+                            ),
+                          )
+                        : const Icon(
+                            Icons.save_outlined,
+                          ),
+                    iconSize: 22,
+                  ),
+                ],
               ],
             ),
           ],

@@ -252,43 +252,56 @@ class _BrainScreenState
   }
 
   // ============================================================
-  // SALVAR
+  // SALVAR CONHECIMENTO
+  // ============================================================
+  //
+  // O tipo agora é escolhido ANTES de abrir o formulário.
+  //
+  // Conceito / Exemplo / Atenção:
+  //
+  //   seletor de tipo
+  //        ↓
+  //   modal de anotação
+  //
+  // Pergunta:
+  //
+  //   seletor de tipo
+  //        ↓
+  //   modal exclusivo de pergunta + revisão
+  //
   // ============================================================
 
   Future<
-    void
+    bool
   >
-  _saveNote() async {
+  _saveKnowledge({
+    required BrainConceptType type,
+    DateTime? firstReviewAt,
+  }) async {
     final title = _controller.titleController.text.trim();
 
     final content = _controller.contentController.text.trim();
 
     if (title.isEmpty) {
       _showMessage(
-        'Digite um título antes de salvar.',
+        type ==
+                BrainConceptType.question
+            ? 'Digite a pergunta antes de salvar.'
+            : 'Digite um título antes de salvar.',
       );
 
-      return;
+      return false;
     }
 
     if (content.isEmpty) {
       _showMessage(
-        'Digite o conteúdo da anotação antes de salvar.',
+        type ==
+                BrainConceptType.question
+            ? 'Digite a resposta antes de salvar.'
+            : 'Digite o conteúdo da anotação antes de salvar.',
       );
 
-      return;
-    }
-
-    // ==========================================================
-    // ESCOLHER TIPO
-    // ==========================================================
-
-    final type = await _showSaveTypeDialog();
-
-    if (!mounted ||
-        type ==
-            null) {
-      return;
+      return false;
     }
 
     // ==========================================================
@@ -334,36 +347,24 @@ class _BrainScreenState
       );
 
       if (!mounted) {
-        return;
+        return false;
       }
     }
 
     // ==========================================================
     // SALVAR OFFLINE-FIRST
     // ==========================================================
-    //
-    // O controller chama o BrainRepository configurado
-    // globalmente.
-    //
-    // O repository:
-    //
-    // 1. salva o Markdown local;
-    // 2. adiciona a alteração na SyncQueue;
-    // 3. solicita o SyncService;
-    // 4. sincroniza com Supabase quando houver conexão.
-    //
-    // ==========================================================
 
     final saved = await _controller.saveNote();
 
     if (!mounted) {
-      return;
+      return false;
     }
 
     if (!saved) {
       _showControllerMessage();
 
-      return;
+      return false;
     }
 
     // ==========================================================
@@ -378,10 +379,10 @@ class _BrainScreenState
 
       if (sourceNotePath.isEmpty) {
         _showMessage(
-          'A anotação foi salva, mas não foi possível identificar o arquivo local para criar a revisão.',
+          'A pergunta foi salva, mas não foi possível identificar o arquivo local para criar a revisão.',
         );
 
-        return;
+        return false;
       }
 
       await _createQuestionReview(
@@ -389,36 +390,23 @@ class _BrainScreenState
         answer: content,
         title: title,
         sourceNotePath: sourceNotePath,
+        firstReviewAt:
+            firstReviewAt ??
+            DateTime.now(),
       );
 
       if (!mounted) {
-        return;
+        return false;
       }
     }
 
     _showControllerMessage();
 
     if (!mounted) {
-      return;
+      return false;
     }
 
-    // ==========================================================
-    // ABRIR DESTINO
-    // ==========================================================
-
-    await _openTypeScreen(
-      type,
-    );
-
-    if (!mounted) {
-      return;
-    }
-
-    // ==========================================================
-    // NOVO FORMULÁRIO AO VOLTAR
-    // ==========================================================
-
-    _controller.createNewNote();
+    return true;
   }
 
   // ============================================================
@@ -433,6 +421,7 @@ class _BrainScreenState
     required String answer,
     required String title,
     required String sourceNotePath,
+    required DateTime firstReviewAt,
   }) async {
     // ========================================================
     // REVIEW CONTROLLER GLOBAL OFFLINE-FIRST
@@ -478,7 +467,7 @@ class _BrainScreenState
       answer: answer,
       sourceNotePath: sourceNotePath,
       sourceNoteTitle: title,
-      firstReviewAt: DateTime.now(),
+      firstReviewAt: firstReviewAt,
     );
 
     if (!mounted) {
@@ -569,7 +558,7 @@ class _BrainScreenState
                                   height: 2,
                                 ),
                                 Text(
-                                  'Escolha como esta anotação será utilizada.',
+                                  'Escolha o que deseja criar.',
                                 ),
                               ],
                             ),
@@ -2215,17 +2204,14 @@ class _BrainScreenState
   }
 
   // ============================================================
-  // MODAL EXCLUSIVO PARA CRIAR ANOTAÇÃO
+  // NOVO CONHECIMENTO
   // ============================================================
   //
-  // IMPORTANTE:
+  // NOVO FLUXO:
   //
-  // Este modal é usado SOMENTE pelo botão "+ Nova anotação".
-  //
-  // Arquivos já existentes nunca passam por este modal.
-  // Eles são abertos exclusivamente em:
-  //
-  // lib/study/brain/screen/note/brain_note_screen.dart
+  // 1. usuário clica em +
+  // 2. escolhe o tipo
+  // 3. abrimos o formulário correto
   //
   // ============================================================
 
@@ -2237,15 +2223,62 @@ class _BrainScreenState
       return;
     }
 
+    // ==========================================================
+    // PRIMEIRO: ESCOLHER O TIPO
+    // ==========================================================
+
+    final type = await _showSaveTypeDialog();
+
+    if (!mounted ||
+        type ==
+            null) {
+      return;
+    }
+
+    // ==========================================================
+    // NOVO FORMULÁRIO LIMPO
+    // ==========================================================
+
     _controller.createNewNote();
 
-    await _showCreateNoteEditorDialog();
+    // ==========================================================
+    // PERGUNTA POSSUI FORMULÁRIO PRÓPRIO
+    // ==========================================================
+
+    if (type ==
+        BrainConceptType.question) {
+      await _showCreateQuestionDialog();
+
+      return;
+    }
+
+    // ==========================================================
+    // CONCEITO / EXEMPLO / ATENÇÃO
+    // ==========================================================
+
+    await _showCreateNoteEditorDialog(
+      type,
+    );
   }
+
+  // ============================================================
+  // MODAL DE ANOTAÇÃO
+  // ============================================================
+  //
+  // Utilizado somente por:
+  //
+  // - Conceito
+  // - Exemplo
+  // - Atenção
+  //
+  // ============================================================
 
   Future<
     void
   >
-  _showCreateNoteEditorDialog() async {
+  _showCreateNoteEditorDialog(
+    BrainConceptType type,
+  ) async {
     if (!mounted) {
       return;
     }
@@ -2273,9 +2306,9 @@ class _BrainScreenState
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // ==================================================
+                    // ==========================================
                     // HEADER
-                    // ==================================================
+                    // ==========================================
                     Padding(
                       padding: const EdgeInsets.fromLTRB(
                         20,
@@ -2285,9 +2318,10 @@ class _BrainScreenState
                       ),
                       child: Row(
                         children: [
-                          const Icon(
-                            Icons.edit_note_rounded,
+                          Icon(
+                            type.icon,
                             size: 22,
+                            color: type.color,
                           ),
 
                           const SizedBox(
@@ -2296,10 +2330,7 @@ class _BrainScreenState
 
                           Expanded(
                             child: Text(
-                              _controller.selectedNote ==
-                                      null
-                                  ? 'Nova anotação'
-                                  : 'Editar anotação',
+                              'Novo ${type.label.toLowerCase()}',
                               style:
                                   Theme.of(
                                     dialogContext,
@@ -2336,9 +2367,9 @@ class _BrainScreenState
                           ),
                     ),
 
-                    // ==================================================
+                    // ==========================================
                     // EDITOR
-                    // ==================================================
+                    // ==========================================
                     Flexible(
                       child: SingleChildScrollView(
                         padding: const EdgeInsets.all(
@@ -2351,7 +2382,34 @@ class _BrainScreenState
                           contentController: _controller.contentController,
                           contentFocusNode: _controller.contentFocusNode,
                           isSaving: _controller.isSaving,
-                          onSave: _saveNote,
+                          onSave: () async {
+                            final saved = await _saveKnowledge(
+                              type: type,
+                            );
+
+                            if (!dialogContext.mounted ||
+                                !saved) {
+                              return;
+                            }
+
+                            Navigator.of(
+                              dialogContext,
+                            ).pop();
+
+                            if (!mounted) {
+                              return;
+                            }
+
+                            await _openTypeScreen(
+                              type,
+                            );
+
+                            if (!mounted) {
+                              return;
+                            }
+
+                            _controller.createNewNote();
+                          },
                           onDelete:
                               (
                                 note,
@@ -2376,6 +2434,860 @@ class _BrainScreenState
               ),
             );
           },
+    );
+  }
+
+  // ============================================================
+  // MODAL EXCLUSIVO DE PERGUNTAS
+  // ============================================================
+  //
+  // Agora o usuário pode criar VÁRIAS perguntas dentro do mesmo
+  // modal utilizando um único tema.
+  //
+  // Exemplo:
+  //
+  // Tema:
+  //   Conhecimento geral
+  //
+  // Pergunta 1:
+  //   Qual é a ideia principal deste conteúdo?
+  //
+  // Pergunta 2:
+  //   Como eu explicaria isso com minhas próprias palavras?
+  //
+  // Cada pergunta possui:
+  //
+  // - sua própria resposta;
+  // - sua própria primeira revisão;
+  // - seu próprio BrainConcept;
+  // - seu próprio BrainReviewItem;
+  //
+  // Assim todas compartilham o mesmo tema, mas continuam sendo
+  // revisões independentes.
+  //
+  // ============================================================
+
+  Future<
+    void
+  >
+  _showCreateQuestionDialog() async {
+    if (!mounted) {
+      return;
+    }
+
+    // ==========================================================
+    // CONTROLLERS LOCAIS DO MODAL
+    // ==========================================================
+    //
+    // Não utilizamos diretamente titleController/contentController
+    // do BrainController enquanto o usuário monta a lista.
+    //
+    // Isso é importante porque _controller.createNewNote() limpa
+    // os controllers globais entre uma pergunta e outra durante o
+    // salvamento em lote.
+    //
+    // ==========================================================
+
+    final topicController = TextEditingController();
+
+    final questions =
+        <
+          _QuestionDraft
+        >[
+          _QuestionDraft(),
+        ];
+
+    var saving = false;
+
+    var savedCount = 0;
+
+    try {
+      await showDialog<
+        void
+      >(
+        context: context,
+        barrierDismissible: false,
+        builder:
+            (
+              dialogContext,
+            ) {
+              return StatefulBuilder(
+                builder:
+                    (
+                      dialogContext,
+                      setDialogState,
+                    ) {
+                      final colorScheme = Theme.of(
+                        dialogContext,
+                      ).colorScheme;
+
+                      // ==========================================
+                      // ADD QUESTION
+                      // ==========================================
+
+                      void addQuestion() {
+                        if (saving) {
+                          return;
+                        }
+
+                        setDialogState(
+                          () {
+                            questions.add(
+                              _QuestionDraft(),
+                            );
+                          },
+                        );
+                      }
+
+                      // ==========================================
+                      // REMOVE QUESTION
+                      // ==========================================
+
+                      void removeQuestion(
+                        int index,
+                      ) {
+                        if (saving ||
+                            questions.length <=
+                                1) {
+                          return;
+                        }
+
+                        final removed = questions.removeAt(
+                          index,
+                        );
+
+                        removed.dispose();
+
+                        setDialogState(
+                          () {},
+                        );
+                      }
+
+                      // ==========================================
+                      // VALIDATE
+                      // ==========================================
+
+                      bool validateQuestions() {
+                        final topic = topicController.text.trim();
+
+                        if (topic.isEmpty) {
+                          _showMessage(
+                            'Informe o tema das perguntas.',
+                          );
+
+                          return false;
+                        }
+
+                        for (
+                          var index = 0;
+                          index <
+                              questions.length;
+                          index++
+                        ) {
+                          final draft = questions[index];
+
+                          final question = draft.questionController.text.trim();
+
+                          final answer = draft.answerController.text.trim();
+
+                          if (question.isEmpty) {
+                            _showMessage(
+                              'Digite a pergunta ${index + 1}.',
+                            );
+
+                            return false;
+                          }
+
+                          if (answer.isEmpty) {
+                            _showMessage(
+                              'Digite a resposta da pergunta ${index + 1}.',
+                            );
+
+                            return false;
+                          }
+                        }
+
+                        return true;
+                      }
+
+                      // ==========================================
+                      // SAVE ALL
+                      // ==========================================
+
+                      Future<
+                        void
+                      >
+                      saveQuestions() async {
+                        if (saving ||
+                            _controller.isSaving) {
+                          return;
+                        }
+
+                        if (!validateQuestions()) {
+                          return;
+                        }
+
+                        final topic = topicController.text.trim();
+
+                        setDialogState(
+                          () {
+                            saving = true;
+
+                            savedCount = 0;
+                          },
+                        );
+
+                        var allSaved = true;
+
+                        try {
+                          for (
+                            var index = 0;
+                            index <
+                                questions.length;
+                            index++
+                          ) {
+                            final draft = questions[index];
+
+                            // ====================================
+                            // NOVA NOTA PARA CADA PERGUNTA
+                            // ====================================
+                            //
+                            // Isso garante que uma pergunta não
+                            // sobrescreva a anterior.
+                            //
+                            // ====================================
+
+                            _controller.createNewNote();
+
+                            _controller.topicController.text = topic;
+
+                            _controller.titleController.text = draft.questionController.text.trim();
+
+                            _controller.contentController.text = draft.answerController.text.trim();
+
+                            final firstReviewAt = DateTime.now().add(
+                              draft.delay.duration,
+                            );
+
+                            final saved = await _saveKnowledge(
+                              type: BrainConceptType.question,
+                              firstReviewAt: firstReviewAt,
+                            );
+
+                            if (!mounted ||
+                                !dialogContext.mounted) {
+                              return;
+                            }
+
+                            if (!saved) {
+                              allSaved = false;
+
+                              break;
+                            }
+
+                            savedCount++;
+
+                            setDialogState(
+                              () {},
+                            );
+                          }
+
+                          if (!allSaved) {
+                            _showMessage(
+                              savedCount ==
+                                      0
+                                  ? 'Não foi possível criar as perguntas.'
+                                  : '$savedCount pergunta${savedCount == 1 ? '' : 's'} foram salvas antes de ocorrer um erro.',
+                            );
+
+                            return;
+                          }
+
+                          // ====================================
+                          // SUCESSO
+                          // ====================================
+
+                          if (!dialogContext.mounted) {
+                            return;
+                          }
+
+                          Navigator.of(
+                            dialogContext,
+                          ).pop();
+
+                          if (!mounted) {
+                            return;
+                          }
+
+                          _showMessage(
+                            questions.length ==
+                                    1
+                                ? 'Pergunta criada e adicionada às revisões.'
+                                : '${questions.length} perguntas criadas e adicionadas às revisões.',
+                          );
+
+                          // ====================================
+                          // ABRIR A ÁREA DE PERGUNTAS UMA VEZ
+                          // ====================================
+
+                          await _openTypeScreen(
+                            BrainConceptType.question,
+                          );
+
+                          if (!mounted) {
+                            return;
+                          }
+
+                          _controller.createNewNote();
+                        } finally {
+                          if (dialogContext.mounted) {
+                            setDialogState(
+                              () {
+                                saving = false;
+                              },
+                            );
+                          }
+                        }
+                      }
+
+                      // ==========================================
+                      // BUILD DIALOG
+                      // ==========================================
+
+                      return Dialog(
+                        clipBehavior: Clip.antiAlias,
+                        insetPadding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 24,
+                        ),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            maxWidth: 780,
+                            maxHeight: 860,
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // ==================================
+                              // HEADER
+                              // ==================================
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  22,
+                                  18,
+                                  12,
+                                  14,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 42,
+                                      height: 42,
+                                      decoration: BoxDecoration(
+                                        color: BrainConceptType.question.color.withValues(
+                                          alpha: 0.12,
+                                        ),
+                                        borderRadius: BorderRadius.circular(
+                                          12,
+                                        ),
+                                      ),
+                                      child: Icon(
+                                        BrainConceptType.question.icon,
+                                        color: BrainConceptType.question.color,
+                                      ),
+                                    ),
+
+                                    const SizedBox(
+                                      width: 12,
+                                    ),
+
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            questions.length ==
+                                                    1
+                                                ? 'Nova pergunta'
+                                                : 'Novas perguntas',
+                                            style: const TextStyle(
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+
+                                          const SizedBox(
+                                            height: 3,
+                                          ),
+
+                                          Text(
+                                            questions.length ==
+                                                    1
+                                                ? 'Crie uma revisão ativa. Você pode adicionar outras perguntas para o mesmo tema.'
+                                                : '${questions.length} perguntas serão salvas dentro do mesmo tema.',
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+
+                                    IconButton(
+                                      tooltip: 'Fechar',
+                                      onPressed:
+                                          saving ||
+                                              _controller.isSaving
+                                          ? null
+                                          : () {
+                                              Navigator.of(
+                                                dialogContext,
+                                              ).pop();
+                                            },
+                                      icon: const Icon(
+                                        Icons.close_rounded,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              Divider(
+                                height: 1,
+                                color:
+                                    Theme.of(
+                                      dialogContext,
+                                    ).dividerColor.withValues(
+                                      alpha: 0.45,
+                                    ),
+                              ),
+
+                              // ==================================
+                              // CONTENT
+                              // ==================================
+                              Flexible(
+                                child: SingleChildScrollView(
+                                  padding: const EdgeInsets.all(
+                                    22,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      // ==========================
+                                      // TEMA COMPARTILHADO
+                                      // ==========================
+                                      TextField(
+                                        controller: topicController,
+                                        enabled: !saving,
+                                        textInputAction: TextInputAction.next,
+                                        decoration: const InputDecoration(
+                                          labelText: 'Tema',
+                                          hintText: 'Ex.: Idiomas, História, Saúde, Trabalho...',
+                                          prefixIcon: Icon(
+                                            Icons.folder_outlined,
+                                          ),
+                                          border: OutlineInputBorder(),
+                                        ),
+                                      ),
+
+                                      const SizedBox(
+                                        height: 7,
+                                      ),
+
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          left: 4,
+                                        ),
+                                        child: Text(
+                                          questions.length ==
+                                                  1
+                                              ? 'Este tema será usado nesta pergunta.'
+                                              : 'Este tema será usado nas ${questions.length} perguntas.',
+                                          style: Theme.of(
+                                            dialogContext,
+                                          ).textTheme.bodySmall,
+                                        ),
+                                      ),
+
+                                      const SizedBox(
+                                        height: 18,
+                                      ),
+
+                                      // ==========================
+                                      // PERGUNTAS
+                                      // ==========================
+                                      for (
+                                        var index = 0;
+                                        index <
+                                            questions.length;
+                                        index++
+                                      ) ...[
+                                        _buildQuestionDraftCard(
+                                          context: dialogContext,
+                                          index: index,
+                                          draft: questions[index],
+                                          canRemove:
+                                              questions.length >
+                                              1,
+                                          saving: saving,
+                                          onRemove: () {
+                                            removeQuestion(
+                                              index,
+                                            );
+                                          },
+                                          onDelayChanged:
+                                              (
+                                                value,
+                                              ) {
+                                                setDialogState(
+                                                  () {
+                                                    questions[index].delay = value;
+                                                  },
+                                                );
+                                              },
+                                        ),
+
+                                        if (index <
+                                            questions.length -
+                                                1)
+                                          const SizedBox(
+                                            height: 14,
+                                          ),
+                                      ],
+
+                                      const SizedBox(
+                                        height: 16,
+                                      ),
+
+                                      // ==========================
+                                      // ADD
+                                      // ==========================
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: OutlinedButton.icon(
+                                          onPressed: saving
+                                              ? null
+                                              : addQuestion,
+                                          icon: const Icon(
+                                            Icons.add_rounded,
+                                          ),
+                                          label: const Text(
+                                            'Adicionar outra pergunta',
+                                          ),
+                                        ),
+                                      ),
+
+                                      const SizedBox(
+                                        height: 20,
+                                      ),
+
+                                      // ==========================
+                                      // EXPLICAÇÃO
+                                      // ==========================
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(
+                                          13,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: colorScheme.primaryContainer.withValues(
+                                            alpha: 0.25,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            13,
+                                          ),
+                                          border: Border.all(
+                                            color: colorScheme.primary.withValues(
+                                              alpha: 0.12,
+                                            ),
+                                          ),
+                                        ),
+                                        child: const Row(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Icon(
+                                              Icons.psychology_alt_outlined,
+                                              size: 18,
+                                            ),
+
+                                            SizedBox(
+                                              width: 8,
+                                            ),
+
+                                            Expanded(
+                                              child: Text(
+                                                'Cada pergunta terá sua própria revisão. Depois da primeira revisão, o Cérebro ajustará os próximos intervalos conforme você marcar Errei, Difícil, Acertei ou Fácil.',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  height: 1.45,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+
+                                      const SizedBox(
+                                        height: 18,
+                                      ),
+
+                                      // ==========================
+                                      // SAVE ALL
+                                      // ==========================
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: FilledButton.icon(
+                                          onPressed:
+                                              saving ||
+                                                  _controller.isSaving
+                                              ? null
+                                              : saveQuestions,
+                                          icon:
+                                              saving ||
+                                                  _controller.isSaving
+                                              ? const SizedBox(
+                                                  width: 17,
+                                                  height: 17,
+                                                  child: CircularProgressIndicator(
+                                                    strokeWidth: 2,
+                                                  ),
+                                                )
+                                              : const Icon(
+                                                  Icons.school_outlined,
+                                                ),
+                                          label: Text(
+                                            saving
+                                                ? savedCount >
+                                                          0
+                                                      ? 'Criando ${savedCount + 1} de ${questions.length}...'
+                                                      : 'Criando perguntas...'
+                                                : questions.length ==
+                                                      1
+                                                ? 'Criar pergunta'
+                                                : 'Criar ${questions.length} perguntas',
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+              );
+            },
+      );
+    } finally {
+      // ========================================================
+      // DISPOSE DOS CONTROLLERS LOCAIS
+      // ========================================================
+
+      topicController.dispose();
+
+      for (final draft in questions) {
+        draft.dispose();
+      }
+    }
+  }
+
+  // ============================================================
+  // CARD DE PERGUNTA
+  // ============================================================
+
+  Widget _buildQuestionDraftCard({
+    required BuildContext context,
+    required int index,
+    required _QuestionDraft draft,
+    required bool canRemove,
+    required bool saving,
+    required VoidCallback onRemove,
+    required ValueChanged<
+      _QuestionReviewDelay
+    >
+    onDelayChanged,
+  }) {
+    final colorScheme = Theme.of(
+      context,
+    ).colorScheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(
+        16,
+      ),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow.withValues(
+          alpha: 0.72,
+        ),
+        borderRadius: BorderRadius.circular(
+          16,
+        ),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(
+            alpha: 0.75,
+          ),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ====================================================
+          // HEADER
+          // ====================================================
+          Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: BrainConceptType.question.color.withValues(
+                    alpha: 0.12,
+                  ),
+                  borderRadius: BorderRadius.circular(
+                    9,
+                  ),
+                ),
+                child: Text(
+                  '${index + 1}',
+                  style: TextStyle(
+                    color: BrainConceptType.question.color,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+
+              const SizedBox(
+                width: 9,
+              ),
+
+              Expanded(
+                child: Text(
+                  'Pergunta ${index + 1}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+
+              IconButton(
+                tooltip: canRemove
+                    ? 'Remover pergunta'
+                    : 'Mantenha pelo menos uma pergunta',
+                onPressed:
+                    !saving &&
+                        canRemove
+                    ? onRemove
+                    : null,
+                icon: const Icon(
+                  Icons.delete_outline_rounded,
+                  size: 19,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(
+            height: 12,
+          ),
+
+          // ====================================================
+          // QUESTION
+          // ====================================================
+          TextField(
+            controller: draft.questionController,
+            enabled: !saving,
+            textInputAction: TextInputAction.next,
+            minLines: 1,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: 'Pergunta',
+              hintText: 'Ex.: Qual é a ideia principal deste tema?',
+              prefixIcon: Icon(
+                Icons.help_outline_rounded,
+              ),
+              border: OutlineInputBorder(),
+            ),
+          ),
+
+          const SizedBox(
+            height: 12,
+          ),
+
+          // ====================================================
+          // ANSWER
+          // ====================================================
+          TextField(
+            controller: draft.answerController,
+            enabled: !saving,
+            minLines: 3,
+            maxLines: 7,
+            decoration: const InputDecoration(
+              labelText: 'Resposta',
+              hintText: 'Escreva a resposta que deverá ser lembrada...',
+              alignLabelWithHint: true,
+              border: OutlineInputBorder(),
+            ),
+          ),
+
+          const SizedBox(
+            height: 14,
+          ),
+
+          // ====================================================
+          // FIRST REVIEW
+          // ====================================================
+          DropdownButtonFormField<
+            _QuestionReviewDelay
+          >(
+            initialValue: draft.delay,
+            decoration: const InputDecoration(
+              labelText: 'Primeira revisão',
+              prefixIcon: Icon(
+                Icons.schedule_rounded,
+              ),
+              border: OutlineInputBorder(),
+            ),
+            items: _QuestionReviewDelay.values
+                .map(
+                  (
+                    delay,
+                  ) {
+                    return DropdownMenuItem<
+                      _QuestionReviewDelay
+                    >(
+                      value: delay,
+                      child: Text(
+                        delay.label,
+                      ),
+                    );
+                  },
+                )
+                .toList(
+                  growable: false,
+                ),
+            onChanged: saving
+                ? null
+                : (
+                    value,
+                  ) {
+                    if (value ==
+                        null) {
+                      return;
+                    }
+
+                    onDelayChanged(
+                      value,
+                    );
+                  },
+          ),
+        ],
+      ),
     );
   }
 
@@ -2453,7 +3365,7 @@ class _BrainScreenState
       ),
       actions: [
         Tooltip(
-          message: 'Nova anotação',
+          message: 'Novo conhecimento',
           child: IconButton(
             onPressed: _controller.isSaving
                 ? null
@@ -2560,5 +3472,118 @@ class _BrainScreenState
             );
           },
     );
+  }
+}
+
+// ============================================================
+// RASCUNHO DE PERGUNTA
+// ============================================================
+//
+// Usado somente pelo modal de criação em lote.
+//
+// Cada pergunta mantém controllers próprios para permitir que
+// várias perguntas sejam preenchidas simultaneamente antes de
+// enviarmos uma por uma para o BrainController.
+//
+// ============================================================
+
+class _QuestionDraft {
+  _QuestionDraft({
+    this.delay = _QuestionReviewDelay.oneDay,
+  });
+
+  final TextEditingController questionController = TextEditingController();
+
+  final TextEditingController answerController = TextEditingController();
+
+  _QuestionReviewDelay delay;
+
+  void dispose() {
+    questionController.dispose();
+
+    answerController.dispose();
+  }
+}
+
+// ============================================================
+// PRIMEIRA REVISÃO DA PERGUNTA
+// ============================================================
+//
+// Configuração individual escolhida ao criar cada pergunta.
+//
+// O ReviewController continua responsável pelos intervalos
+// seguintes após o usuário responder à revisão.
+//
+// ============================================================
+
+enum _QuestionReviewDelay {
+  now,
+  fifteenMinutes,
+  oneHour,
+  oneDay,
+  threeDays,
+  sevenDays,
+  thirtyDays;
+
+  String get label {
+    switch (this) {
+      case _QuestionReviewDelay.now:
+        return 'Agora';
+
+      case _QuestionReviewDelay.fifteenMinutes:
+        return '15 minutos';
+
+      case _QuestionReviewDelay.oneHour:
+        return '1 hora';
+
+      case _QuestionReviewDelay.oneDay:
+        return '1 dia';
+
+      case _QuestionReviewDelay.threeDays:
+        return '3 dias';
+
+      case _QuestionReviewDelay.sevenDays:
+        return '7 dias';
+
+      case _QuestionReviewDelay.thirtyDays:
+        return '30 dias';
+    }
+  }
+
+  Duration get duration {
+    switch (this) {
+      case _QuestionReviewDelay.now:
+        return Duration.zero;
+
+      case _QuestionReviewDelay.fifteenMinutes:
+        return const Duration(
+          minutes: 15,
+        );
+
+      case _QuestionReviewDelay.oneHour:
+        return const Duration(
+          hours: 1,
+        );
+
+      case _QuestionReviewDelay.oneDay:
+        return const Duration(
+          days: 1,
+        );
+
+      case _QuestionReviewDelay.threeDays:
+        return const Duration(
+          days: 3,
+        );
+
+      case _QuestionReviewDelay.sevenDays:
+        return const Duration(
+          days: 7,
+        );
+
+      case _QuestionReviewDelay.thirtyDays:
+        return const Duration(
+          days: 30,
+        );
+    }
   }
 }
