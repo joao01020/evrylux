@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../controllers/routine_state.dart';
+
+import 'reminder_day_status.dart';
 import 'week_calendar.dart';
 import 'week_navigation.dart';
 
@@ -14,7 +16,7 @@ class RoutineCalendarPanel
     required this.onNextWeek,
     required this.onSelectDay,
     required this.onToggleExpanded,
-    required this.hasReminderForDate,
+    required this.reminderStatusForDate,
   });
 
   // ============================================================
@@ -48,27 +50,26 @@ class RoutineCalendarPanel
   final RoutineState state;
 
   // ============================================================
-  // LEMBRETES
+  // STATUS DOS LEMBRETES
   // ============================================================
   //
-  // O painel não precisa conhecer repository nem Supabase.
+  // O painel não conhece repository, Supabase ou banco.
   //
-  // Ele recebe apenas uma função que responde:
+  // Ele recebe apenas uma função que informa o estado
+  // do lembrete para determinada data.
   //
-  // "Esta data possui pelo menos um lembrete?"
-  //
-  // O WeekCalendar usa essa função para decidir se mostra
-  // o sino no card daquele dia.
+  // Essa informação é repassada diretamente para o
+  // WeekCalendar.
   //
   // ============================================================
 
-  final bool Function(
+  final ReminderDayStatus Function(
     DateTime date,
   )
-  hasReminderForDate;
+  reminderStatusForDate;
 
   // ============================================================
-  // ACTIONS
+  // AÇÕES
   // ============================================================
 
   final VoidCallback onPreviousWeek;
@@ -126,7 +127,7 @@ class RoutineCalendarPanel
                     selectedDate: state.selectedDate,
                     days: state.days,
                     onSelected: onSelectDay,
-                    hasReminderForDate: hasReminderForDate,
+                    reminderStatusForDate: reminderStatusForDate,
                   )
                 : const SizedBox(
                     width: double.infinity,
@@ -156,6 +157,7 @@ class RoutineCalendarPanel
                     duration: const Duration(
                       milliseconds: 180,
                     ),
+                    curve: Curves.easeOutCubic,
                     width: 48,
                     height: 26,
                     decoration: BoxDecoration(

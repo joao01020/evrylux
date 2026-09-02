@@ -28,22 +28,32 @@ class ReminderModel {
 
   final String message;
 
-  /// Internamente no Flutter mantemos este horário em LOCAL.
-  ///
-  /// Exemplo:
-  ///
-  /// Usuário escolhe:
-  ///
-  /// 22:30
-  ///
-  /// remindAt:
-  ///
-  /// 2026-08-29 22:30:00
-  ///
-  /// Ao enviar ao Supabase:
-  ///
-  /// 2026-08-30T01:30:00.000Z
-  ///
+  // ============================================================
+  // HORÁRIO DO LEMBRETE
+  // ============================================================
+  //
+  // REGRA DO PROJETO:
+  //
+  // Internamente o ReminderModel trabalha SEMPRE em UTC.
+  //
+  // Exemplo:
+  //
+  // Usuário escolhe em Brasília:
+  //
+  // 01/09/2026 22:30
+  //
+  // Internamente:
+  //
+  // 02/09/2026 01:30:00Z
+  //
+  // O horário de Brasília deve ser calculado somente quando
+  // precisamos exibir a data/hora para o usuário.
+  //
+  // Isso impede que o comportamento do app dependa do timezone
+  // configurado no Linux, Windows ou outro sistema operacional.
+  //
+  // ============================================================
+
   final DateTime remindAt;
 
   final String? sourceType;
@@ -65,37 +75,36 @@ class ReminderModel {
   final DateTime? updatedAt;
 
   // ============================================================
-  // PARSE DATE
+  // PARSE UTC
   // ============================================================
   //
   // Supabase normalmente retorna:
   //
-  // 2026-08-30T01:30:00+00:00
+  // 2026-09-02T01:30:00+00:00
   //
   // ou:
   //
-  // 2026-08-30T01:30:00Z
+  // 2026-09-02T01:30:00Z
   //
-  // O modelo converte imediatamente para o horário local
-  // do dispositivo.
+  // Independentemente do formato recebido, normalizamos para UTC.
   //
   // ============================================================
 
-  static DateTime _parseLocalDateTime(
+  static DateTime _parseUtcDateTime(
     dynamic value,
   ) {
     final parsed = DateTime.parse(
       value.toString(),
     );
 
-    return parsed.toLocal();
+    return parsed.toUtc();
   }
 
   // ============================================================
-  // PARSE DATE OPCIONAL
+  // PARSE UTC OPCIONAL
   // ============================================================
 
-  static DateTime? _parseOptionalLocalDateTime(
+  static DateTime? _parseOptionalUtcDateTime(
     dynamic value,
   ) {
     if (value ==
@@ -107,7 +116,7 @@ class ReminderModel {
       value.toString(),
     );
 
-    return parsed?.toLocal();
+    return parsed?.toUtc();
   }
 
   // ============================================================
@@ -125,44 +134,57 @@ class ReminderModel {
       id:
           json['id']?.toString() ??
           '',
+
       userId:
           json['user_id']?.toString() ??
           '',
+
       title:
           json['title']?.toString() ??
           '',
+
       message:
           json['message']?.toString() ??
           '',
-      remindAt: _parseLocalDateTime(
+
+      remindAt: _parseUtcDateTime(
         json['remind_at'],
       ),
+
       sourceType: json['source_type']?.toString(),
+
       sourceId: json['source_id']?.toString(),
+
       notifyInApp:
           json['notify_in_app']
               as bool? ??
           true,
+
       notifyTelegram:
           json['notify_telegram']
               as bool? ??
           false,
+
       sentInApp:
           json['sent_in_app']
               as bool? ??
           false,
+
       sentTelegram:
           json['sent_telegram']
               as bool? ??
           false,
+
       completed:
           json['completed']
               as bool? ??
           false,
-      createdAt: _parseOptionalLocalDateTime(
+
+      createdAt: _parseOptionalUtcDateTime(
         json['created_at'],
       ),
-      updatedAt: _parseOptionalLocalDateTime(
+
+      updatedAt: _parseOptionalUtcDateTime(
         json['updated_at'],
       ),
     );
@@ -172,19 +194,8 @@ class ReminderModel {
   // TO JSON
   // ============================================================
   //
-  // O Flutter trabalha com horário LOCAL.
-  //
-  // O Supabase recebe UTC.
-  //
-  // Exemplo:
-  //
-  // Flutter:
-  //
-  // 2026-08-29 22:30
-  //
-  // Supabase:
-  //
-  // 2026-08-30T01:30:00.000Z
+  // Todo DateTime enviado para persistência é normalizado
+  // explicitamente para UTC.
   //
   // ============================================================
 
@@ -195,11 +206,14 @@ class ReminderModel {
   toJson() {
     return {
       'id': id,
+
       'user_id': userId,
+
       'title': title,
+
       'message': message,
 
-      'remind_at': remindAt.toLocal().toUtc().toIso8601String(),
+      'remind_at': remindAt.toUtc().toIso8601String(),
 
       'source_type': sourceType,
 
@@ -215,24 +229,14 @@ class ReminderModel {
 
       'completed': completed,
 
-      'created_at': createdAt?.toLocal().toUtc().toIso8601String(),
+      'created_at': createdAt?.toUtc().toIso8601String(),
 
-      'updated_at': updatedAt?.toLocal().toUtc().toIso8601String(),
+      'updated_at': updatedAt?.toUtc().toIso8601String(),
     };
   }
 
   // ============================================================
   // TO INSERT JSON
-  // ============================================================
-  //
-  // Não enviamos:
-  //
-  // id
-  // created_at
-  // updated_at
-  //
-  // porque o Supabase gera esses valores.
-  //
   // ============================================================
 
   Map<
@@ -247,7 +251,7 @@ class ReminderModel {
 
       'message': message,
 
-      'remind_at': remindAt.toLocal().toUtc().toIso8601String(),
+      'remind_at': remindAt.toUtc().toIso8601String(),
 
       'source_type': sourceType,
 
@@ -267,6 +271,10 @@ class ReminderModel {
 
   // ============================================================
   // COPY WITH
+  // ============================================================
+  //
+  // O novo remindAt continua sendo normalizado para UTC.
+  //
   // ============================================================
 
   ReminderModel copyWith({
@@ -305,7 +313,7 @@ class ReminderModel {
       remindAt:
           (remindAt ??
                   this.remindAt)
-              .toLocal(),
+              .toUtc(),
 
       sourceType:
           sourceType ??
@@ -336,12 +344,16 @@ class ReminderModel {
           this.completed,
 
       createdAt:
-          createdAt ??
-          this.createdAt,
+          createdAt !=
+              null
+          ? createdAt.toUtc()
+          : this.createdAt,
 
       updatedAt:
-          updatedAt ??
-          this.updatedAt,
+          updatedAt !=
+              null
+          ? updatedAt.toUtc()
+          : this.updatedAt,
     );
   }
 
@@ -353,32 +365,81 @@ class ReminderModel {
     return !completed;
   }
 
+  // ============================================================
+  // ESTÁ VENCIDO
+  // ============================================================
+  //
+  // Comparamos UTC com UTC.
+  //
+  // ============================================================
+
   bool get isDue {
     if (completed) {
       return false;
     }
 
-    final now = DateTime.now();
+    final nowUtc = DateTime.now().toUtc();
 
-    final localReminder = remindAt.toLocal();
-
-    return !localReminder.isAfter(
-      now,
-    );
-  }
-
-  bool get isFuture {
-    return remindAt.toLocal().isAfter(
-      DateTime.now(),
+    return !remindAt.toUtc().isAfter(
+      nowUtc,
     );
   }
 
   // ============================================================
-  // HORÁRIO LOCAL
+  // ESTÁ NO FUTURO
+  // ============================================================
+
+  bool get isFuture {
+    return remindAt.toUtc().isAfter(
+      DateTime.now().toUtc(),
+    );
+  }
+
+  // ============================================================
+  // HORÁRIO DE BRASÍLIA
+  // ============================================================
+  //
+  // Não usamos DateTime.toLocal(), porque isso dependeria do
+  // timezone configurado no computador.
+  //
+  // Atualmente Brasília / São Paulo está sendo tratada pelo app
+  // como UTC-3.
+  //
+  // ============================================================
+
+  DateTime get brasiliaRemindAt {
+    final utc = remindAt.toUtc();
+
+    return DateTime(
+      utc.year,
+      utc.month,
+      utc.day,
+      utc.hour,
+      utc.minute,
+      utc.second,
+      utc.millisecond,
+      utc.microsecond,
+    ).subtract(
+      const Duration(
+        hours: 3,
+      ),
+    );
+  }
+
+  // ============================================================
+  // COMPATIBILIDADE
+  // ============================================================
+  //
+  // Mantemos localRemindAt para não quebrar widgets existentes,
+  // mas ele agora representa explicitamente o horário utilizado
+  // pela interface do projeto: Brasília.
+  //
+  // Não representa mais o timezone configurado no computador.
+  //
   // ============================================================
 
   DateTime get localRemindAt {
-    return remindAt.toLocal();
+    return brasiliaRemindAt;
   }
 
   // ============================================================
@@ -386,26 +447,17 @@ class ReminderModel {
   // ============================================================
 
   DateTime get utcRemindAt {
-    return remindAt.toLocal().toUtc();
+    return remindAt.toUtc();
   }
 
   // ============================================================
   // DEBUG
   // ============================================================
-  //
-  // Útil enquanto estamos testando timezone.
-  //
-  // Exemplo:
-  //
-  // Local: 2026-08-29 22:30:00
-  // UTC:   2026-08-30 01:30:00Z
-  //
-  // ============================================================
 
   String get debugTime {
     return '''
-Local: ${remindAt.toLocal()}
-UTC: ${remindAt.toLocal().toUtc().toIso8601String()}
+Brasília: $brasiliaRemindAt
+UTC: ${utcRemindAt.toIso8601String()}
 ''';
   }
 }

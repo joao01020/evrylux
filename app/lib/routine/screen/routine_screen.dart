@@ -28,6 +28,7 @@ import '../widgets/blocks/task_block.dart';
 import '../widgets/attachments/document_block.dart';
 import '../widgets/attachments/dialogs/document_import_dialog.dart';
 import '../widgets/attachments/dialogs/document_viewer_dialog.dart';
+import '../widgets/calendar/reminder_day_status.dart';
 import '../widgets/calendar/routine_calendar_panel.dart';
 import '../widgets/comments/board_comment_card.dart';
 import '../widgets/comments/board_comment_editor.dart';
@@ -185,21 +186,27 @@ class _RoutineScreenState
   // LEMBRETES DO CALENDÁRIO
   // ============================================================
   //
-  // Guardamos somente as datas que possuem pelo menos um lembrete.
+  // Agora guardamos o ESTADO dos lembretes por data:
   //
-  // Exemplo:
+  // none    -> nenhum lembrete
+  // active  -> possui somente lembrete(s) futuro(s)
+  // expired -> possui somente lembrete(s) expirado(s)
+  // mixed   -> possui futuro(s) + expirado(s)
   //
-  // 2026-09-01
-  // 2026-09-03
+  // O calendário recebe o ReminderDayStatus completo por meio de
+  // _reminderStatusForDate().
   //
-  // O calendário consulta esse Set de forma síncrona durante o build.
+  // Mantemos também _hasReminderForDate() como helper booleano
+  // para os outros componentes da tela que precisam apenas saber
+  // se existe ou não algum lembrete naquele dia.
   //
   // ============================================================
 
-  final Set<
-    String
+  final Map<
+    String,
+    ReminderDayStatus
   >
-  _reminderDateKeys = {};
+  _reminderDayStatus = {};
 
   String? _loadedReminderWeekKey;
 
@@ -599,14 +606,33 @@ class _RoutineScreenState
     return '$year-$month-$day';
   }
 
+  ReminderDayStatus _reminderStatusForDate(
+    DateTime date,
+  ) {
+    return _reminderDayStatus[_dateKey(
+          date,
+        )] ??
+        ReminderDayStatus.none;
+  }
+
+  // ============================================================
+  // HELPER BOOLEANO DE LEMBRETE
+  // ============================================================
+  //
+  // O calendário principal trabalha com ReminderDayStatus.
+  //
+  // Alguns componentes desta tela ainda precisam apenas saber
+  // se existe pelo menos um lembrete na data. Para esses casos,
+  // usamos este helper sem perder o status completo.
+  //
+  // ============================================================
+
   bool _hasReminderForDate(
     DateTime date,
   ) {
-    return _reminderDateKeys.contains(
-      _dateKey(
-        date,
-      ),
-    );
+    return _reminderStatusForDate(
+      date,
+    ).hasReminder;
   }
 
   DateTime _brasiliaDateTimeToUtc(
@@ -731,10 +757,13 @@ class _RoutineScreenState
             endUtc.toIso8601String(),
           );
 
-      final nextKeys =
+      final nextStatus =
           <
-            String
+            String,
+            ReminderDayStatus
           >{};
+
+      final nowUtc = DateTime.now().toUtc();
 
       for (final rawRow in response) {
         final row =
@@ -762,15 +791,48 @@ class _RoutineScreenState
           continue;
         }
 
+        final remindAtUtc = parsed.toUtc();
+
         final brasilia = _utcToBrasilia(
-          parsed,
+          remindAtUtc,
         );
 
-        nextKeys.add(
-          _dateKey(
-            brasilia,
-          ),
+        final key = _dateKey(
+          brasilia,
         );
+
+        final incomingStatus =
+            remindAtUtc.isAfter(
+              nowUtc,
+            )
+            ? ReminderDayStatus.active
+            : ReminderDayStatus.expired;
+
+        final currentStatus =
+            nextStatus[key] ??
+            ReminderDayStatus.none;
+
+        // ======================================================
+        // COMBINAR LEMBRETES DO MESMO DIA
+        // ======================================================
+        //
+        // Se houver:
+        //
+        // 10:00 -> expirado
+        // 20:00 -> ativo
+        //
+        // então o dia fica como mixed.
+        //
+        // ======================================================
+
+        if (currentStatus ==
+                ReminderDayStatus.none ||
+            currentStatus ==
+                incomingStatus) {
+          nextStatus[key] = incomingStatus;
+        } else {
+          nextStatus[key] = ReminderDayStatus.mixed;
+        }
       }
 
       if (!mounted) {
@@ -779,10 +841,10 @@ class _RoutineScreenState
 
       setState(
         () {
-          _reminderDateKeys
+          _reminderDayStatus
             ..clear()
             ..addAll(
-              nextKeys,
+              nextStatus,
             );
 
           _loadedReminderWeekKey = weekKey;
@@ -2417,7 +2479,7 @@ class _RoutineScreenState
                           );
                         },
                     onToggleExpanded: _routineController.toggleCalendarExpanded,
-                    hasReminderForDate: _hasReminderForDate,
+                    reminderStatusForDate: _reminderStatusForDate,
                   ),
                   if (state.hasError)
                     _buildError(

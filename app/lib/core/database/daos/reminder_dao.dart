@@ -14,6 +14,10 @@ class ReminderDao {
 
   bool _initialized = false;
 
+  // ============================================================
+  // INITIALIZE
+  // ============================================================
+
   Future<
     void
   >
@@ -32,6 +36,14 @@ class ReminderDao {
 
     _initialized = true;
   }
+
+  // ============================================================
+  // UPSERT
+  // ============================================================
+  //
+  // Todos os horários são persistidos em UTC.
+  //
+  // ============================================================
 
   Future<
     void
@@ -86,34 +98,52 @@ class ReminderDao {
         reminder.userId,
         reminder.title,
         reminder.message,
+
+        // ========================================================
+        // UTC
+        // ========================================================
         reminder.remindAt.toUtc().toIso8601String(),
+
         reminder.sourceType,
         reminder.sourceId,
+
         reminder.notifyInApp
             ? 1
             : 0,
+
         reminder.notifyTelegram
             ? 1
             : 0,
+
         reminder.sentInApp
             ? 1
             : 0,
+
         reminder.sentTelegram
             ? 1
             : 0,
+
         reminder.completed
             ? 1
             : 0,
+
         reminder.createdAt?.toUtc().toIso8601String(),
+
         (reminder.updatedAt ??
                 DateTime.now())
             .toUtc()
             .toIso8601String(),
+
         syncStatus.value,
+
         deletedAt?.toUtc().toIso8601String(),
       ],
     );
   }
+
+  // ============================================================
+  // GET ALL
+  // ============================================================
 
   Future<
     List<
@@ -149,6 +179,10 @@ class ReminderDao {
         );
   }
 
+  // ============================================================
+  // GET PENDING
+  // ============================================================
+
   Future<
     List<
       ReminderModel
@@ -183,6 +217,20 @@ class ReminderDao {
         );
   }
 
+  // ============================================================
+  // GET DUE
+  // ============================================================
+  //
+  // IMPORTANTE:
+  //
+  // remind_at está armazenado em UTC.
+  //
+  // Portanto comparamos diretamente com o horário atual em UTC.
+  //
+  // Nenhuma conversão para horário local deve acontecer aqui.
+  //
+  // ============================================================
+
   Future<
     List<
       ReminderModel
@@ -192,6 +240,8 @@ class ReminderDao {
     String userId,
   ) async {
     await _ensureInitialized();
+
+    final nowUtc = DateTime.now().toUtc().toIso8601String();
 
     final rows = _database.db.select(
       '''
@@ -208,7 +258,7 @@ class ReminderDao {
       ''',
       [
         userId,
-        DateTime.now().toUtc().toIso8601String(),
+        nowUtc,
       ],
     );
 
@@ -220,6 +270,10 @@ class ReminderDao {
           growable: false,
         );
   }
+
+  // ============================================================
+  // GET BY ID
+  // ============================================================
 
   Future<
     ReminderModel?
@@ -250,6 +304,10 @@ class ReminderDao {
     );
   }
 
+  // ============================================================
+  // GET SYNC STATUS
+  // ============================================================
+
   Future<
     SyncStatus?
   >
@@ -279,6 +337,10 @@ class ReminderDao {
     );
   }
 
+  // ============================================================
+  // SET SYNC STATUS
+  // ============================================================
+
   Future<
     void
   >
@@ -303,6 +365,10 @@ class ReminderDao {
       ],
     );
   }
+
+  // ============================================================
+  // MARK DELETED
+  // ============================================================
 
   Future<
     void
@@ -333,6 +399,10 @@ class ReminderDao {
     );
   }
 
+  // ============================================================
+  // DELETE PERMANENTLY
+  // ============================================================
+
   Future<
     void
   >
@@ -351,6 +421,15 @@ class ReminderDao {
       ],
     );
   }
+
+  // ============================================================
+  // MAP REMINDER
+  // ============================================================
+  //
+  // ReminderModel.fromJson() é responsável por normalizar
+  // remind_at / created_at / updated_at novamente para UTC.
+  //
+  // ============================================================
 
   ReminderModel _mapReminder(
     Map<
@@ -382,28 +461,41 @@ class ReminderDao {
     return ReminderModel.fromJson(
       {
         'id': row[ReminderTable.id],
+
         'user_id': row[ReminderTable.userId],
+
         'title': row[ReminderTable.title],
+
         'message': row[ReminderTable.message],
+
         'remind_at': row[ReminderTable.remindAt],
+
         'source_type': row[ReminderTable.sourceType],
+
         'source_id': row[ReminderTable.sourceId],
+
         'notify_in_app': asBool(
           ReminderTable.notifyInApp,
         ),
+
         'notify_telegram': asBool(
           ReminderTable.notifyTelegram,
         ),
+
         'sent_in_app': asBool(
           ReminderTable.sentInApp,
         ),
+
         'sent_telegram': asBool(
           ReminderTable.sentTelegram,
         ),
+
         'completed': asBool(
           ReminderTable.completed,
         ),
+
         'created_at': row[ReminderTable.createdAt],
+
         'updated_at': row[ReminderTable.updatedAt],
       },
     );

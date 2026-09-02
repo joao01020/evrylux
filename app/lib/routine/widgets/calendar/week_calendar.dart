@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../models/routine_day.dart';
+
+import 'reminder_day_status.dart';
 import 'week_day_card.dart';
 
 class WeekCalendar
@@ -12,7 +14,7 @@ class WeekCalendar
     required this.selectedDate,
     required this.days,
     required this.onSelected,
-    required this.hasReminderForDate,
+    required this.reminderStatusForDate,
   });
 
   // ============================================================
@@ -38,21 +40,35 @@ class WeekCalendar
   onSelected;
 
   // ============================================================
-  // LEMBRETES
+  // STATUS DOS LEMBRETES
   // ============================================================
   //
-  // Recebe do RoutineCalendarPanel uma função que informa se
-  // determinada data possui pelo menos um lembrete programado.
+  // Recebe do RoutineCalendarPanel uma função que informa
+  // o estado completo dos lembretes de determinada data.
   //
-  // O WeekCalendar apenas consulta essa informação e repassa
-  // para o WeekDayCard.
+  // Estados possíveis:
+  //
+  // none
+  //   -> nenhum lembrete
+  //
+  // active
+  //   -> existe pelo menos um lembrete futuro
+  //
+  // expired
+  //   -> existem apenas lembretes expirados
+  //
+  // mixed
+  //   -> existem lembretes ativos e expirados no mesmo dia
+  //
+  // O WeekCalendar apenas consulta o status e o repassa
+  // diretamente para o WeekDayCard.
   //
   // ============================================================
 
-  final bool Function(
+  final ReminderDayStatus Function(
     DateTime date,
   )
-  hasReminderForDate;
+  reminderStatusForDate;
 
   // ============================================================
   // BUILD
@@ -85,6 +101,10 @@ class WeekCalendar
               _,
               index,
             ) {
+              // ==================================================
+              // DATA DO CARD
+              // ==================================================
+
               final date = _dateOnly(
                 weekStart.add(
                   Duration(
@@ -93,38 +113,57 @@ class WeekCalendar
                 ),
               );
 
+              // ==================================================
+              // DADOS DA ROTINA
+              // ==================================================
+
               final routineDay = _findDay(
                 date,
               );
 
-              final hasReminder = hasReminderForDate(
+              // ==================================================
+              // STATUS DO LEMBRETE
+              // ==================================================
+
+              final reminderStatus = reminderStatusForDate(
                 date,
               );
 
+              // ==================================================
+              // CARD
+              // ==================================================
+
               return WeekDayCard(
                 day: date,
+
                 selected:
                     date ==
                     _dateOnly(
                       selectedDate,
                     ),
+
                 today:
                     date ==
                     _dateOnly(
                       DateTime.now(),
                     ),
+
                 progress:
                     routineDay?.progress ??
                     0,
+
                 hasContent:
                     routineDay?.hasBlocks ??
                     false,
 
                 // ==================================================
-                // INDICADOR DE LEMBRETE
+                // STATUS COMPLETO DO LEMBRETE
                 // ==================================================
-                hasReminder: hasReminder,
+                reminderStatus: reminderStatus,
 
+                // ==================================================
+                // SELEÇÃO
+                // ==================================================
                 onTap: () {
                   onSelected(
                     date,

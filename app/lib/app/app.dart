@@ -10,6 +10,11 @@ import '../core/theme/app_theme.dart';
 
 import '../evolution/controllers/evolution_controller.dart';
 
+import '../profile/notifications/controllers/update_notification_controller.dart';
+import '../profile/notifications/services/app_update_service.dart';
+import '../profile/notifications/widgets/update_notification_bell.dart';
+import '../profile/notifications/widgets/update_notification_panel.dart';
+
 import '../reminders/models/reminder_model.dart';
 
 import '../routine/screen/routine_screen.dart';
@@ -119,12 +124,47 @@ class _GhostAppState
   bool _showingReminder = false;
 
   // ============================================================
+  // NOTIFICAÇÕES DE ATUALIZAÇÃO DO APP
+  // ============================================================
+  //
+  // O controller fica no nível do GhostApp para que o sino
+  // permaneça visível em todas as rotas do aplicativo.
+  //
+  // ============================================================
+
+  late final UpdateNotificationController _updateNotificationController;
+
+  bool _showingUpdateNotifications = false;
+
+  // ============================================================
   // INIT
   // ============================================================
 
   @override
   void initState() {
     super.initState();
+
+    // ==========================================================
+    // NOTIFICAÇÕES DE ATUALIZAÇÃO
+    // ==========================================================
+    //
+    // Nesta primeira versão o sino já funciona globalmente.
+    //
+    // O AppUpdateService ainda não possui uma fonte remota
+    // configurada. Depois podemos ligar fetchLatestUpdate ao
+    // Supabase, GitHub Releases ou uma API própria.
+    //
+    // ==========================================================
+
+    _updateNotificationController = UpdateNotificationController(
+      service: const AppUpdateService(
+        currentVersion: '1.0.0',
+      ),
+    );
+
+    unawaited(
+      _updateNotificationController.initialize(),
+    );
 
     _authenticated =
         supabaseClient.auth.currentUser !=
@@ -293,6 +333,118 @@ class _GhostAppState
   }
 
   // ============================================================
+  // OPEN UPDATE NOTIFICATIONS
+  // ============================================================
+  //
+  // IMPORTANTE:
+  //
+  // O sino fica na barra global criada pelo MaterialApp.builder.
+  // Essa barra fica ACIMA do Navigator na árvore.
+  //
+  // Por isso o próprio sino não deve tentar usar:
+  //
+  // - Tooltip que dependa do Overlay do Navigator;
+  // - showDialog/showGeneralDialog com o BuildContext da barra.
+  //
+  // Abrimos o painel usando o contexto do Navigator global.
+  //
+  // ============================================================
+
+  Future<
+    void
+  >
+  _openUpdateNotifications() async {
+    // ==========================================================
+    // EVITA ABRIR MAIS DE UM PAINEL AO MESMO TEMPO
+    // ==========================================================
+
+    if (_showingUpdateNotifications) {
+      return;
+    }
+
+    final context = _navigatorKey.currentContext;
+
+    if (context ==
+        null) {
+      return;
+    }
+
+    _showingUpdateNotifications = true;
+
+    _updateNotificationController.markAsRead();
+
+    try {
+      await showGeneralDialog<
+        void
+      >(
+        context: context,
+        useRootNavigator: true,
+        barrierDismissible: true,
+        barrierLabel: 'Fechar notificações',
+        barrierColor: Colors.black.withValues(
+          alpha: .08,
+        ),
+        transitionDuration: const Duration(
+          milliseconds: 160,
+        ),
+        pageBuilder:
+            (
+              dialogContext,
+              animation,
+              secondaryAnimation,
+            ) {
+              return SafeArea(
+                child: Align(
+                  alignment: Alignment.topRight,
+                  child: Padding(
+                    padding: const EdgeInsets.only(
+                      top: 14,
+                      right: 16,
+                    ),
+                    child: UpdateNotificationPanel(
+                      controller: _updateNotificationController,
+                    ),
+                  ),
+                ),
+              );
+            },
+        transitionBuilder:
+            (
+              context,
+              animation,
+              secondaryAnimation,
+              child,
+            ) {
+              final curved = CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutCubic,
+              );
+
+              return FadeTransition(
+                opacity: curved,
+                child: ScaleTransition(
+                  scale:
+                      Tween<
+                            double
+                          >(
+                            begin: .97,
+                            end: 1,
+                          )
+                          .animate(
+                            curved,
+                          ),
+                  alignment: Alignment.topRight,
+                  child: child,
+                ),
+              );
+            },
+      );
+    } finally {
+      _showingUpdateNotifications = false;
+    }
+  }
+
+  // ============================================================
   // SUCCESS MESSAGE
   // ============================================================
 
@@ -332,6 +484,8 @@ class _GhostAppState
     _authSubscription?.cancel();
 
     reminderService.dispose();
+
+    _updateNotificationController.dispose();
 
     super.dispose();
   }
@@ -383,6 +537,8 @@ class _GhostAppState
           ) {
             return _GlobalSyncOverlay(
               visible: _authenticated,
+              updateNotificationController: _updateNotificationController,
+              onNotificationTap: _openUpdateNotifications,
               child:
                   child ??
                   const SizedBox.shrink(),
@@ -466,10 +622,16 @@ class _GlobalSyncOverlay
         StatelessWidget {
   const _GlobalSyncOverlay({
     required this.visible,
+    required this.updateNotificationController,
+    required this.onNotificationTap,
     required this.child,
   });
 
   final bool visible;
+
+  final UpdateNotificationController updateNotificationController;
+
+  final VoidCallback onNotificationTap;
 
   final Widget child;
 
@@ -541,9 +703,35 @@ class _GlobalSyncOverlay
             //
             // ==================================================
             child: visible
-                ? SyncStatusIndicator(
-                    syncService: syncService,
-                    connectivityService: connectivityService,
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // ==========================================
+                      // NOTIFICAÇÕES DE ATUALIZAÇÃO
+                      // ==========================================
+                      //
+                      // Fica à esquerda do status:
+                      //
+                      // Online • sincronizado
+                      //
+                      // ==========================================
+                      UpdateNotificationBell(
+                        controller: updateNotificationController,
+                        onTap: onNotificationTap,
+                      ),
+
+                      const SizedBox(
+                        width: 10,
+                      ),
+
+                      // ==========================================
+                      // STATUS GLOBAL DE SINCRONIZAÇÃO
+                      // ==========================================
+                      SyncStatusIndicator(
+                        syncService: syncService,
+                        connectivityService: connectivityService,
+                      ),
+                    ],
                   )
                 : const SizedBox.shrink(),
           ),
