@@ -21,28 +21,23 @@ class BrainStorage {
   static const String _backupFolderName = '_backup';
 
   // ============================================================
-  // ONE-TIME RESET MARKER
+  // ROOT
   // ============================================================
-  //
-  // Esta versão executa um RESET ÚNICO V3 de TODO o conteúdo antigo
-  // existentes no ghost_brain.
-  //
-  // Depois da limpeza, este arquivo marcador é criado.
-  //
-  // Nas próximas inicializações nada será apagado.
   //
   // IMPORTANTE:
   //
-  // Depois que esta versão V4 limpar tudo, NÃO altere novamente o marcador quando começar a usar
-  // o Cérebro com dados reais, pois um novo nome faria a rotina
-  // entender que precisa executar outra limpeza inicial.
+  // Este método é deliberadamente NÃO destrutivo.
   //
-  // ============================================================
-
-  static const String _readyMarkerFileName = '.evrylux_brain_ready_v4';
-
-  // ============================================================
-  // ROOT
+  // Ele apenas garante que a estrutura necessária exista.
+  // Nenhum dado antigo é apagado automaticamente.
+  //
+  // Isso é essencial para a Fase 3 de migração, porque o conteúdo
+  // legado precisa permanecer intacto até que:
+  //
+  // 1. seja migrado para o Vault;
+  // 2. seja validado;
+  // 3. o usuário/sistema decida explicitamente remover o legado.
+  //
   // ============================================================
 
   Future<
@@ -61,18 +56,7 @@ class BrainStorage {
       );
     }
 
-    // ========================================================
-    // LIMPEZA ÚNICA DOS DADOS DE TESTE
-    // ========================================================
-    //
-    // Executa apenas enquanto o marcador ainda não existir.
-    //
-    // Depois da primeira execução o armazenamento fica pronto
-    // para uso normal e esta rotina nunca mais apaga dados.
-    //
-    // ========================================================
-
-    await _prepareStorageForUse(
+    await _ensureStorageStructure(
       directory,
     );
 
@@ -80,71 +64,27 @@ class BrainStorage {
   }
 
   // ============================================================
-  // PREPARE STORAGE FOR USE
+  // ENSURE STORAGE STRUCTURE
   // ============================================================
   //
-  // Objetivo:
+  // Cria somente diretórios ausentes.
   //
-  // - apagar absolutamente tudo que existe no ghost_brain;
-  // - limpar notas;
-  // - limpar conceitos;
-  // - limpar backups;
-  // - deixar a estrutura vazia e pronta para dados reais;
-  // - fazer isso UMA ÚNICA VEZ.
+  // NUNCA:
+  //
+  // - apaga notas;
+  // - apaga conceitos;
+  // - apaga backups;
+  // - depende de marker;
+  // - interpreta ausência de marker como autorização para reset.
   //
   // ============================================================
 
   Future<
     void
   >
-  _prepareStorageForUse(
+  _ensureStorageStructure(
     Directory root,
   ) async {
-    final marker = File(
-      '${root.path}/$_readyMarkerFileName',
-    );
-
-    if (await marker.exists()) {
-      return;
-    }
-
-    debugPrint(
-      'BrainStorage: RESET V4 - preparando armazenamento totalmente limpo.',
-    );
-
-    debugPrint(
-      'BrainStorage: RESET V4 - removendo TODAS as notas, conceitos, backups e marcadores antigos.',
-    );
-
-    debugPrint(
-      'BrainStorage: RESET V4 - pasta: ${root.path}',
-    );
-
-    await _deleteAllChildren(
-      root,
-    );
-
-    // ========================================================
-    // CONFIRMAR QUE A RAIZ FICOU VAZIA
-    // ========================================================
-
-    final remainingAfterReset = await root
-        .list(
-          recursive: false,
-          followLinks: false,
-        )
-        .toList();
-
-    if (remainingAfterReset.isNotEmpty) {
-      throw StateError(
-        'BrainStorage: RESET V4 falhou. Ainda existem arquivos na pasta ghost_brain.',
-      );
-    }
-
-    // ========================================================
-    // RECRIAR ESTRUTURA BASE
-    // ========================================================
-
     final conceptsDirectory = Directory(
       '${root.path}/$_conceptsFolderName',
     );
@@ -153,41 +93,29 @@ class BrainStorage {
       '${root.path}/$_backupFolderName',
     );
 
-    await conceptsDirectory.create(
-      recursive: true,
-    );
+    if (!await conceptsDirectory.exists()) {
+      await conceptsDirectory.create(
+        recursive: true,
+      );
+    }
 
-    await backupDirectory.create(
-      recursive: true,
-    );
+    if (!await backupDirectory.exists()) {
+      await backupDirectory.create(
+        recursive: true,
+      );
+    }
 
     for (final type in BrainConceptType.values) {
       final directory = Directory(
         '${conceptsDirectory.path}/${type.folderName}',
       );
 
-      await directory.create(
-        recursive: true,
-      );
+      if (!await directory.exists()) {
+        await directory.create(
+          recursive: true,
+        );
+      }
     }
-
-    // ========================================================
-    // CRIAR MARCADOR
-    // ========================================================
-
-    await marker.writeAsString(
-      'ready_at=${DateTime.now().toUtc().toIso8601String()}\n',
-      encoding: utf8,
-      flush: true,
-    );
-
-    debugPrint(
-      'BrainStorage: RESET V4 - todos os dados antigos foram removidos.',
-    );
-
-    debugPrint(
-      'BrainStorage: RESET V4 concluído - armazenamento vazio e pronto para uso real.',
-    );
   }
 
   // ============================================================
@@ -252,16 +180,19 @@ class BrainStorage {
   }
 
   // ============================================================
-  // RESET MANUAL
+  // CLEAR ALL LOCAL DATA
   // ============================================================
   //
-  // Mantido para debug/desenvolvimento.
+  // Operação DESTRUTIVA e EXPLÍCITA.
   //
-  // NÃO use em produção sem confirmação explícita do usuário.
+  // Este método continua disponível para ações de debug,
+  // desenvolvimento ou uma futura opção "Apagar dados locais".
   //
-  // Este método remove tudo e recria a estrutura vazia,
-  // mantendo o marcador para que a limpeza automática inicial
-  // não rode novamente.
+  // IMPORTANTE:
+  //
+  // Ele NÃO é chamado automaticamente por getBrainDirectory().
+  //
+  // Nenhum marker controla esta operação.
   //
   // ============================================================
 
@@ -285,40 +216,12 @@ class BrainStorage {
       root,
     );
 
-    final conceptsDirectory = Directory(
-      '${root.path}/$_conceptsFolderName',
-    );
-
-    final backupDirectory = Directory(
-      '${root.path}/$_backupFolderName',
-    );
-
-    await conceptsDirectory.create(
-      recursive: true,
-    );
-
-    await backupDirectory.create(
-      recursive: true,
-    );
-
-    for (final type in BrainConceptType.values) {
-      await Directory(
-        '${conceptsDirectory.path}/${type.folderName}',
-      ).create(
-        recursive: true,
-      );
-    }
-
-    await File(
-      '${root.path}/$_readyMarkerFileName',
-    ).writeAsString(
-      'ready_at=${DateTime.now().toUtc().toIso8601String()}\n',
-      encoding: utf8,
-      flush: true,
+    await _ensureStorageStructure(
+      root,
     );
 
     debugPrint(
-      'BrainStorage: todos os dados locais foram removidos.',
+      'BrainStorage: todos os dados locais foram removidos por solicitação explícita.',
     );
   }
 
