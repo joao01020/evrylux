@@ -116,6 +116,10 @@ import '../../study/brain/security/keys/brain_platform_key_storage.dart';
 import '../../study/brain/vault/services/brain_vault_service.dart';
 import '../../study/brain/vault/stores/brain_review_vault_store.dart';
 
+import '../../study/brain/settings/controllers/brain_data_mode_controller.dart';
+import '../../study/brain/settings/services/brain_data_mode_service.dart';
+import '../../study/brain/settings/storage/brain_data_mode_storage.dart';
+
 // ======================================================
 // REMINDERS CONTROLLER
 // ======================================================
@@ -408,6 +412,51 @@ final reviewRepository = ReviewRepository(
 // ======================================================
 
 final reviewController = ReviewController(repository: reviewRepository);
+
+// ======================================================
+// BRAIN / CÉREBRO - DATA MODE
+// ======================================================
+//
+// FASE 05 — LOCAL / CLOUD
+//
+// Fluxo:
+//
+// BrainDataModeController
+//      ↓
+// BrainDataModeService
+//      ↓
+// BrainDataModeStorage
+//      ↓
+// SharedPreferences
+//
+// IMPORTANTE:
+//
+// Este bloco NÃO implementa ainda o sync E2EE.
+//
+// Ele apenas define o gate operacional:
+//
+// LOCAL
+//   -> o Cérebro não pode sincronizar.
+//
+// CLOUD
+//   -> o Cérebro pode entrar futuramente no fluxo E2EE,
+//      desde que exista autenticação.
+//
+// Mesmo em CLOUD:
+//
+// plaintext NUNCA deve entrar na SyncQueue.
+//
+// ======================================================
+
+final brainDataModeStorage = SharedPreferencesBrainDataModeStorage();
+
+final brainDataModeService = BrainDataModeService(
+  storage: brainDataModeStorage,
+);
+
+final brainDataModeController = BrainDataModeController(
+  service: brainDataModeService,
+);
 
 // ======================================================
 // FINANCE LOCAL DATASOURCE
@@ -1498,6 +1547,29 @@ Future<void> initializeOfflineFirst() async {
   await trainingActivityPlanDao.initialize();
 
   await boardAttachmentDao.initialize();
+
+  // ====================================================
+  // BRAIN DATA MODE
+  // ====================================================
+  //
+  // Inicializa a preferência Local / Cloud antes da futura
+  // integração E2EE.
+  //
+  // Regras:
+  //
+  // - primeira execução -> LOCAL;
+  // - valor desconhecido -> LOCAL;
+  // - CLOUD apenas habilita o gate;
+  // - nenhum sync do Brain é iniciado aqui;
+  // - nenhum plaintext é enviado por esta camada.
+  //
+  // ====================================================
+
+  await brainDataModeController.initialize();
+
+  if (brainDataModeController.errorMessage != null) {
+    throw StateError(brainDataModeController.errorMessage!);
+  }
 
   // ====================================================
   // BRAIN REVIEW VAULT
