@@ -29,10 +29,10 @@ import 'routine_repository.dart';
 //   6. SyncService envia ao Supabase quando houver internet.
 //
 // LOAD
-//   1. tenta carregar o SQLite primeiro;
-//   2. se houver alterações locais pendentes, elas vencem;
-//   3. se não houver pendências, tenta atualizar pelo Supabase;
-//   4. se estiver offline, continua usando o SQLite.
+//   1. carrega o SQLite primeiro;
+//   2. se houver conteúdo local, retorna imediatamente;
+//   3. se não houver conteúdo local e não houver pendência, pode buscar remoto;
+//   4. o Supabase nunca bloqueia uma tela que já possui cache local.
 //
 // DELETE
 //   1. registra a exclusão localmente;
@@ -126,16 +126,30 @@ class RoutineRepositoryImpl
       normalizedUserId,
     );
 
-    // Se existe alteração local pendente, não permitimos que
-    // um snapshot remoto mais antigo a sobrescreva.
-    if (hasPending) {
+    // ==========================================================
+    // CACHE LOCAL DISPONÍVEL
+    // ==========================================================
+    //
+    // Regra central do offline-first:
+    //
+    // conteúdo local existe
+    //     -> retorna agora
+    //     -> não espera Supabase
+    //
+    // Se houver pendências, apenas solicitamos o envio em
+    // background. A UI continua usando o SQLite.
+    //
+    // ==========================================================
+
+    if (localRecords.isNotEmpty) {
+      if (hasPending) {
+        _syncService.requestSync();
+      }
+
       _log(
         'LOAD WEEK',
-        'Existem alterações locais pendentes. '
-            'Usando SQLite como fonte principal.',
+        'Semana carregada imediatamente do SQLite.',
       );
-
-      _syncService.requestSync();
 
       return _recordsToModels(
         localRecords,
@@ -143,7 +157,27 @@ class RoutineRepositoryImpl
     }
 
     // ==========================================================
-    // REMOTE REFRESH
+    // SEM CACHE LOCAL
+    // ==========================================================
+    //
+    // Só tentamos o remoto quando realmente não existe conteúdo
+    // local para esta semana.
+    //
+    // Pendência + cache vazio pode representar uma exclusão
+    // offline. Nesse caso não ressuscitamos dados remotos.
+    //
+    // ==========================================================
+
+    if (hasPending) {
+      _syncService.requestSync();
+
+      return const <
+        RoutineDay
+      >[];
+    }
+
+    // ==========================================================
+    // REMOTE BOOTSTRAP
     // ==========================================================
 
     final remote = _remoteDataSource;
@@ -272,14 +306,26 @@ class RoutineRepositoryImpl
       normalizedUserId,
     );
 
-    if (hasPending) {
-      _syncService.requestSync();
+    // Se o dia existe localmente, ele é devolvido imediatamente.
+    // Nenhuma leitura remota deve bloquear conteúdo já disponível.
+    if (localModel !=
+        null) {
+      if (hasPending) {
+        _syncService.requestSync();
+      }
 
       return localModel;
     }
 
+    // Cache vazio + pendência pode representar exclusão local.
+    if (hasPending) {
+      _syncService.requestSync();
+
+      return null;
+    }
+
     // ==========================================================
-    // REMOTE REFRESH
+    // REMOTE BOOTSTRAP
     // ==========================================================
 
     final remote = _remoteDataSource;
@@ -740,67 +786,6 @@ class RoutineRepositoryImpl
     return _localDataSource.clearUser(
       normalizedUserId,
     );
-  }
-
-  // ============================================================
-  // DIRECT REMOTE SAVE
-  // ============================================================
-  //
-  // Somente fallback para instalações que ainda não injetaram
-  // SyncQueue.
-  //
-  // ============================================================
-
-  Future<
-    void
-  >
-  _tryDirectRemoteSave({
-    required String userId,
-    required RoutineRecord localRecord,
-  }) async {
-    final remote = _remoteDataSource;
-
-    if (remote ==
-        null) {
-      if (!fallbackToLocalOnRemoteError) {
-        throw StateError(
-          'RoutineRemoteDataSource não foi configurado.',
-        );
-      }
-
-      return;
-    }
-
-    try {
-      remote.ensureAuthenticatedUser(
-        userId,
-      );
-
-      final remoteRecord = await remote.saveDay(
-        userId: userId,
-        data: localRecord,
-      );
-
-      await _cacheRemoteRecords(
-        userId: userId,
-        records: [
-          remoteRecord,
-        ],
-      );
-    } catch (
-      error,
-      stackTrace
-    ) {
-      _logError(
-        operation: 'SAVE DAY / DIRECT REMOTE',
-        error: error,
-        stackTrace: stackTrace,
-      );
-
-      if (!fallbackToLocalOnRemoteError) {
-        rethrow;
-      }
-    }
   }
 
   // ============================================================

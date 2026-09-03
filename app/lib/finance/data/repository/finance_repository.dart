@@ -11,7 +11,7 @@ class FinanceRepository {
   FinanceRepository({
     SupabaseClient? client,
     FinanceLocalDataSource? localDataSource,
-    SyncQueue? syncQueue,
+    required SyncQueue syncQueue,
     SyncService? syncService,
   }) : _client =
            client ??
@@ -19,9 +19,7 @@ class FinanceRepository {
        _localDataSource =
            localDataSource ??
            FinanceLocalDataSource(),
-       _syncQueue =
-           syncQueue ??
-           SyncQueue(),
+       _syncQueue = syncQueue,
        _syncService = syncService;
 
   // ============================================================

@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../controllers/mind_map_controller.dart';
@@ -14,11 +14,23 @@ import '../widgets/blocks/mind_map/mind_map_canvas.dart';
 // ============================================================
 // CHANNEL
 // ============================================================
+//
+// A janela principal continua sendo a fonte da verdade.
+//
+// A janela secundária:
+// - recebe um snapshot do BoardBlock;
+// - trabalha somente em memória;
+// - devolve mudanças pelo channel;
+// - NÃO acessa Supabase;
+// - NÃO acessa SQLite;
+// - NÃO processa SyncQueue.
+//
+// ============================================================
 
 const WindowMethodChannel
 _mindMapWindowChannel = WindowMethodChannel(
   'routine_mind_map_window',
-  mode: ChannelMode.unidirectional,
+  mode: ChannelMode.bidirectional,
 );
 
 // ============================================================
@@ -76,11 +88,20 @@ class MindMapWindowArguments {
     required this.window,
     required this.blockId,
     required this.title,
+    required this.block,
   });
 
   final String window;
+
   final String blockId;
+
   final String title;
+
+  final Map<
+    String,
+    dynamic
+  >
+  block;
 
   factory MindMapWindowArguments.fromRaw(
     String raw,
@@ -88,65 +109,78 @@ class MindMapWindowArguments {
     final value = raw.trim();
 
     if (value.isEmpty) {
-      return const MindMapWindowArguments(
-        window: 'mind_map',
-        blockId: '',
-        title: 'Lousa',
+      throw const FormatException(
+        'Argumentos da janela do mapa mental estão vazios.',
       );
     }
 
-    try {
-      final decoded = jsonDecode(
-        value,
+    final decoded = jsonDecode(
+      value,
+    );
+
+    if (decoded
+        is! Map) {
+      throw const FormatException(
+        'Argumentos inválidos para a janela do mapa mental.',
       );
+    }
 
-      if (decoded
-          is! Map) {
-        return const MindMapWindowArguments(
-          window: 'mind_map',
-          blockId: '',
-          title: 'Lousa',
+    final map =
+        Map<
+          String,
+          dynamic
+        >.from(
+          decoded,
         );
-      }
 
-      final map =
+    final window =
+        map['window']?.toString().trim() ??
+        '';
+
+    final blockId =
+        map['block_id']?.toString().trim() ??
+        '';
+
+    final title =
+        map['title']?.toString().trim() ??
+        '';
+
+    final rawBlock = map['block'];
+
+    if (window !=
+        'mind_map') {
+      throw const FormatException(
+        'Tipo de janela inválido.',
+      );
+    }
+
+    if (blockId.isEmpty) {
+      throw const FormatException(
+        'block_id não foi informado.',
+      );
+    }
+
+    if (rawBlock
+        is! Map) {
+      throw const FormatException(
+        'Snapshot do BoardBlock não foi informado.',
+      );
+    }
+
+    return MindMapWindowArguments(
+      window: window,
+      blockId: blockId,
+      title: title.isEmpty
+          ? 'Lousa'
+          : title,
+      block:
           Map<
             String,
             dynamic
           >.from(
-            decoded,
-          );
-
-      final window =
-          map['window']?.toString().trim() ??
-          'mind_map';
-
-      final blockId =
-          map['block_id']?.toString().trim() ??
-          '';
-
-      final title =
-          map['title']?.toString().trim() ??
-          '';
-
-      return MindMapWindowArguments(
-        window: window.isEmpty
-            ? 'mind_map'
-            : window,
-        blockId: blockId,
-        title: title.isEmpty
-            ? 'Lousa'
-            : title,
-      );
-    } catch (
-      _
-    ) {
-      return const MindMapWindowArguments(
-        window: 'mind_map',
-        blockId: '',
-        title: 'Lousa',
-      );
-    }
+            rawBlock,
+          ),
+    );
   }
 }
 
@@ -184,8 +218,6 @@ class _MindMapWindowState
         >
     with
         WindowListener {
-  final SupabaseClient _supabase = Supabase.instance.client;
-
   BoardBlock? _block;
 
   MindMapController? _controller;
@@ -208,9 +240,15 @@ class _MindMapWindowState
       this,
     );
 
+    _mindMapWindowChannel.setMethodCallHandler(
+      _handleChannelCall,
+    );
+
     _initializeWindow();
 
-    _loadBoard();
+    _loadSnapshot(
+      widget.arguments.block,
+    );
   }
 
   // ==========================================================
@@ -222,10 +260,6 @@ class _MindMapWindowState
   >
   _initializeWindow() async {
     try {
-      // ======================================================
-      // NÃO DEIXAR GTK DESTRUIR A JANELA
-      // ======================================================
-
       await windowManager.setPreventClose(
         true,
       );
@@ -257,6 +291,197 @@ class _MindMapWindowState
   }
 
   // ==========================================================
+  // CHANNEL FROM MAIN WINDOW
+  // ==========================================================
+
+  Future<
+    dynamic
+  >
+  _handleChannelCall(
+    MethodCall call,
+  ) async {
+    switch (call.method) {
+      case 'mind_map_replace':
+        final arguments = call.arguments;
+
+        if (arguments
+            is! Map) {
+          return false;
+        }
+
+        final data =
+            Map<
+              String,
+              dynamic
+            >.from(
+              arguments,
+            );
+
+        final blockId =
+            data['block_id']?.toString().trim() ??
+            '';
+
+        if (blockId !=
+            widget.arguments.blockId) {
+          return false;
+        }
+
+        final rawBlock = data['block'];
+
+        if (rawBlock
+            is! Map) {
+          return false;
+        }
+
+        await _loadSnapshot(
+          Map<
+            String,
+            dynamic
+          >.from(
+            rawBlock,
+          ),
+        );
+
+        return true;
+
+      default:
+        return null;
+    }
+  }
+
+  // ==========================================================
+  // LOAD SNAPSHOT
+  // ==========================================================
+
+  Future<
+    void
+  >
+  _loadSnapshot(
+    Map<
+      String,
+      dynamic
+    >
+    map,
+  ) async {
+    try {
+      if (mounted) {
+        setState(
+          () {
+            _loading = true;
+            _error = null;
+          },
+        );
+      }
+
+      final dto = BoardBlockDto.fromMap(
+        map,
+      );
+
+      final block = BoardBlockMapper.toModel(
+        dto,
+      );
+
+      if (block.id !=
+          widget.arguments.blockId) {
+        throw StateError(
+          'Snapshot pertence a outro bloco.',
+        );
+      }
+
+      final controller = MindMapController(
+        onChanged: _publishCurrentBlock,
+      );
+
+      // Garante root apenas localmente.
+      //
+      // Se for necessário criar um root, a alteração também será
+      // enviada à janela principal pelo callback do controller.
+      _block = block;
+      _controller = controller;
+
+      controller.ensureRoot(
+        block,
+      );
+
+      if (!mounted) {
+        controller.dispose();
+        return;
+      }
+
+      setState(
+        () {
+          _loading = false;
+          _error = null;
+        },
+      );
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        '[MIND MAP WINDOW][LOAD SNAPSHOT] $error',
+      );
+
+      debugPrint(
+        '$stackTrace',
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(
+        () {
+          _loading = false;
+          _error = error.toString();
+        },
+      );
+    }
+  }
+
+  // ==========================================================
+  // SERIALIZE CURRENT BLOCK
+  // ==========================================================
+
+  Map<
+    String,
+    dynamic
+  >?
+  _currentBlockMap() {
+    final block = _block;
+
+    if (block ==
+        null) {
+      return null;
+    }
+
+    return BoardBlockMapper.toDto(
+      model: block,
+    ).toMap();
+  }
+
+  // ==========================================================
+  // PUBLISH CHANGE
+  // ==========================================================
+
+  void _publishCurrentBlock() {
+    final blockMap = _currentBlockMap();
+
+    if (blockMap ==
+        null) {
+      return;
+    }
+
+    _mindMapWindowChannel.invokeMethod(
+      'mind_map_changed',
+      {
+        'block_id': widget.arguments.blockId,
+        'block': blockMap,
+      },
+    );
+  }
+
+  // ==========================================================
   // DOCK
   // ==========================================================
 
@@ -271,31 +496,22 @@ class _MindMapWindowState
     _docking = true;
 
     try {
-      // ======================================================
-      // AVISA JANELA PRINCIPAL
-      // ======================================================
+      final blockMap = _currentBlockMap();
 
       await _mindMapWindowChannel.invokeMethod(
         'mind_map_dock',
         {
           'block_id': widget.arguments.blockId,
+          if (blockMap !=
+              null)
+            'block': blockMap,
         },
       );
 
-      // ======================================================
-      // ESCONDE
-      // ======================================================
+      // Não destruímos a engine.
       //
-      // NÃO chamamos:
-      //
-      // windowManager.close()
-      // windowManager.destroy()
-      //
-      // porque destruir essa Flutter Engine é justamente o que
-      // está causando FlutterEngineRemoveView / EGL crash.
-      //
-      // ======================================================
-
+      // Em Linux isso evita o crash que já ocorreu com
+      // FlutterEngineRemoveView / EGL.
       await windowManager.hide();
     } catch (
       error,
@@ -309,8 +525,6 @@ class _MindMapWindowState
         '$stackTrace',
       );
 
-      // Mesmo se a comunicação falhar, esconder é mais seguro
-      // do que destruir a janela.
       try {
         await windowManager.hide();
       } catch (
@@ -322,211 +536,6 @@ class _MindMapWindowState
   }
 
   // ==========================================================
-  // LOAD
-  // ==========================================================
-
-  Future<
-    void
-  >
-  _loadBoard() async {
-    try {
-      if (mounted) {
-        setState(
-          () {
-            _loading = true;
-
-            _error = null;
-          },
-        );
-      }
-
-      final blockId = widget.arguments.blockId.trim();
-
-      if (blockId.isEmpty) {
-        throw StateError(
-          'block_id não foi informado.',
-        );
-      }
-
-      // ======================================================
-      // BLOCK
-      // ======================================================
-
-      final blockResponse = await _supabase
-          .from(
-            'routine_blocks',
-          )
-          .select()
-          .eq(
-            'id',
-            blockId,
-          )
-          .maybeSingle();
-
-      if (blockResponse ==
-          null) {
-        throw StateError(
-          'Bloco não encontrado: $blockId',
-        );
-      }
-
-      final blockMap =
-          Map<
-            String,
-            dynamic
-          >.from(
-            blockResponse,
-          );
-
-      // ======================================================
-      // NODES
-      // ======================================================
-
-      final nodesResponse = await _supabase
-          .from(
-            'mind_map_nodes',
-          )
-          .select()
-          .eq(
-            'mind_map_block_id',
-            blockId,
-          );
-
-      final nodes =
-          <
-            Map<
-              String,
-              dynamic
-            >
-          >[];
-
-      for (final raw in nodesResponse) {
-        final map =
-            Map<
-              String,
-              dynamic
-            >.from(
-              raw,
-            );
-
-        final metadata = _jsonMap(
-          map['metadata'],
-        );
-
-        nodes.add(
-          {
-            ...map,
-            'block_id':
-                map['mind_map_block_id'] ??
-                blockId,
-            'label':
-                map['title'] ??
-                'Nova ideia',
-            'position_x':
-                map['x'] ??
-                0,
-            'position_y':
-                map['y'] ??
-                0,
-            'is_root':
-                map['is_root'] ??
-                false,
-            'parent_id': metadata['parent_id'],
-            'source_port':
-                metadata['source_port'] ??
-                'right',
-            'target_port':
-                metadata['target_port'] ??
-                'left',
-          },
-        );
-      }
-
-      // ======================================================
-      // DTO
-      // ======================================================
-
-      final dto = BoardBlockDto.fromMap(
-        {
-          ...blockMap,
-          'type':
-              blockMap['type'] ??
-              blockMap['block_type'] ??
-              'mind_map',
-          'title':
-              blockMap['title'] ??
-              widget.arguments.title,
-          'content':
-              blockMap['content'] ??
-              '',
-          'content_status':
-              blockMap['content_status'] ??
-              'idea',
-          'items':
-              <
-                Map<
-                  String,
-                  dynamic
-                >
-              >[],
-          'mind_map_nodes': nodes,
-        },
-      );
-
-      final block = BoardBlockMapper.toModel(
-        dto,
-      );
-
-      final controller = MindMapController();
-
-      controller.ensureRoot(
-        block,
-      );
-
-      if (!mounted) {
-        controller.dispose();
-
-        return;
-      }
-
-      _controller?.dispose();
-
-      setState(
-        () {
-          _block = block;
-
-          _controller = controller;
-
-          _loading = false;
-        },
-      );
-    } catch (
-      error,
-      stackTrace
-    ) {
-      debugPrint(
-        '[MIND MAP WINDOW][LOAD] $error',
-      );
-
-      debugPrint(
-        '$stackTrace',
-      );
-
-      if (!mounted) {
-        return;
-      }
-
-      setState(
-        () {
-          _loading = false;
-
-          _error = error.toString();
-        },
-      );
-    }
-  }
-
-  // ==========================================================
   // DISPOSE
   // ==========================================================
 
@@ -534,6 +543,10 @@ class _MindMapWindowState
   void dispose() {
     windowManager.removeListener(
       this,
+    );
+
+    _mindMapWindowChannel.setMethodCallHandler(
+      null,
     );
 
     _controller?.dispose();
@@ -557,7 +570,6 @@ class _MindMapWindowState
         child: Column(
           children: [
             _buildTopBar(),
-
             Expanded(
               child: _buildContent(),
             ),
@@ -566,10 +578,6 @@ class _MindMapWindowState
       ),
     );
   }
-
-  // ==========================================================
-  // TOP BAR
-  // ==========================================================
 
   Widget _buildTopBar() {
     return Container(
@@ -597,11 +605,9 @@ class _MindMapWindowState
               0xFF7BE495,
             ),
           ),
-
           const SizedBox(
             width: 10,
           ),
-
           Expanded(
             child: Text(
               _block?.title ??
@@ -616,10 +622,6 @@ class _MindMapWindowState
               ),
             ),
           ),
-
-          // ==================================================
-          // ENCAIXAR
-          // ==================================================
           IconButton(
             tooltip: 'Encaixar lousa',
             onPressed: _dockAndHide,
@@ -634,10 +636,6 @@ class _MindMapWindowState
       ),
     );
   }
-
-  // ==========================================================
-  // CONTENT
-  // ==========================================================
 
   Widget _buildContent() {
     if (_loading) {
@@ -667,7 +665,6 @@ class _MindMapWindowState
     }
 
     final block = _block;
-
     final controller = _controller;
 
     if (block ==
@@ -699,32 +696,5 @@ class _MindMapWindowState
             );
           },
     );
-  }
-
-  // ==========================================================
-  // JSON MAP
-  // ==========================================================
-
-  Map<
-    String,
-    dynamic
-  >
-  _jsonMap(
-    Object? value,
-  ) {
-    if (value
-        is Map) {
-      return Map<
-        String,
-        dynamic
-      >.from(
-        value,
-      );
-    }
-
-    return <
-      String,
-      dynamic
-    >{};
   }
 }

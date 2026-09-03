@@ -8,7 +8,6 @@ import 'package:window_manager/window_manager.dart';
 
 import 'app/app.dart';
 import 'app/dependencies/app_dependencies.dart';
-
 import 'routine/windows/mind_map_window.dart';
 
 // ============================================================
@@ -39,14 +38,6 @@ main(
   // ==========================================================
   // CURRENT WINDOW
   // ==========================================================
-  //
-  // desktop_multi_window cria uma Flutter Engine independente
-  // para cada janela.
-  //
-  // Por isso descobrimos primeiro qual janela está sendo
-  // inicializada antes de iniciar serviços globais.
-  //
-  // ==========================================================
 
   final windowController = await WindowController.fromCurrentEngine();
 
@@ -57,7 +48,46 @@ main(
   );
 
   // ==========================================================
-  // ENV
+  // WINDOW MANAGER
+  // ==========================================================
+  //
+  // Necessário em todas as engines.
+  //
+  // ==========================================================
+
+  await windowManager.ensureInitialized();
+
+  // ==========================================================
+  // SECONDARY MIND MAP WINDOW
+  // ==========================================================
+  //
+  // A janela secundária é SOMENTE uma view/editora temporária.
+  //
+  // Ela NÃO inicializa:
+  //
+  // - Supabase;
+  // - AppDatabase;
+  // - ConnectivityService;
+  // - SyncService;
+  // - SyncQueue.
+  //
+  // O estado entra e sai pelo WindowMethodChannel.
+  //
+  // ==========================================================
+
+  if (windowType ==
+      _mindMapWindowType) {
+    runApp(
+      MindMapWindowApp(
+        arguments: windowArguments,
+      ),
+    );
+
+    return;
+  }
+
+  // ==========================================================
+  // MAIN WINDOW - ENV
   // ==========================================================
 
   await dotenv.load(
@@ -85,16 +115,7 @@ main(
   }
 
   // ==========================================================
-  // SUPABASE
-  // ==========================================================
-  //
-  // Cada Flutter Engine precisa inicializar o Supabase.
-  //
-  // Isso inclui:
-  //
-  // - janela principal;
-  // - janela do mapa mental.
-  //
+  // SUPABASE - MAIN ENGINE ONLY
   // ==========================================================
 
   await Supabase.initialize(
@@ -103,117 +124,22 @@ main(
   );
 
   // ==========================================================
-  // LOCAL DATABASE
-  // ==========================================================
-  //
-  // O SQLite pode ser usado pelas diferentes janelas.
-  //
-  // Inicializamos a conexão local nesta engine antes de abrir
-  // a interface.
-  //
-  // IMPORTANTE:
-  //
-  // initializeOfflineFirst() será iniciado somente na janela
-  // principal para evitar múltiplos SyncServices processando
-  // a mesma fila simultaneamente em engines diferentes.
-  //
+  // LOCAL DATABASE - MAIN ENGINE ONLY
   // ==========================================================
 
   await appDatabase.initialize();
 
   // ==========================================================
-  // WINDOW MANAGER
-  // ==========================================================
-  //
-  // Cada janela do desktop_multi_window possui sua própria
-  // Flutter Engine.
-  //
-  // window_manager precisa ser inicializado também dentro
-  // da janela secundária.
-  //
+  // OFFLINE-FIRST - MAIN ENGINE ONLY
   // ==========================================================
 
-  await windowManager.ensureInitialized();
+  await initializeOfflineFirst();
 
-  // ==========================================================
-  // WINDOW ROUTER
-  // ==========================================================
-
-  switch (windowType) {
-    // ========================================================
-    // MIND MAP WINDOW
-    // ========================================================
-    //
-    // A janela secundária usa o banco local, mas não inicia
-    // outro SyncService.
-    //
-    // Isso evita:
-    //
-    // - duas filas sendo processadas ao mesmo tempo;
-    // - requisições duplicadas ao Supabase;
-    // - concorrência desnecessária entre engines.
-    //
-    // ========================================================
-
-    case _mindMapWindowType:
-      runApp(
-        MindMapWindowApp(
-          arguments: windowArguments,
-        ),
-      );
-
-      return;
-
-    // ========================================================
-    // MAIN WINDOW
-    // ========================================================
-
-    case _mainWindowType:
-    default:
-      // ======================================================
-      // OFFLINE-FIRST
-      // ======================================================
-      //
-      // Inicializa:
-      //
-      // AppDatabase
-      //      ↓
-      // Sync handlers
-      //      ↓
-      // ConnectivityService
-      //      ↓
-      // SyncService
-      //
-      // A partir daqui:
-      //
-      // FinanceRepository salva primeiro localmente.
-      //
-      // Se estiver offline:
-      //
-      // SQLite
-      //   +
-      // SyncQueue
-      //
-      // guardam a alteração.
-      //
-      // Quando a conexão voltar:
-      //
-      // SyncService
-      //      ↓
-      // Supabase
-      //
-      // ======================================================
-
-      await initializeOfflineFirst();
-
-      runApp(
-        GhostApp(
-          evolutionController: evolutionController,
-        ),
-      );
-
-      return;
-  }
+  runApp(
+    GhostApp(
+      evolutionController: evolutionController,
+    ),
+  );
 }
 
 // ============================================================
@@ -260,7 +186,7 @@ _resolveWindowType(
   } catch (
     _
   ) {
-    // Ignora argumento inválido.
+    // Argumento inválido -> janela principal.
   }
 
   return _mainWindowType;

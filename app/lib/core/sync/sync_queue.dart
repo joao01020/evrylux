@@ -3,17 +3,51 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
-import '../database/app_database.dart';
+import '../database/daos/sync_queue_dao.dart';
 import 'sync_item.dart';
 
 class SyncQueue {
   SyncQueue({
-    AppDatabase? database,
-  }) : _database =
-           database ??
-           AppDatabase.instance;
+    SyncQueueDao? dao,
+  }) : _dao =
+           dao ??
+           SyncQueueDao();
 
-  final AppDatabase _database;
+  // ============================================================
+  // DAO
+  // ============================================================
+
+  final SyncQueueDao _dao;
+
+  // ============================================================
+  // ENQUEUE
+  // ============================================================
+  //
+  // A fila é deduplicada por:
+  //
+  // entityType + entityId
+  //
+  // Isso significa que várias alterações consecutivas do mesmo
+  // objeto viram apenas uma operação pendente.
+  //
+  // Exemplos:
+  //
+  // CREATE + UPDATE
+  //   -> CREATE
+  //
+  // CREATE + DELETE
+  //   -> cancela tudo
+  //
+  // UPDATE + UPDATE
+  //   -> UPDATE mais recente
+  //
+  // UPDATE + DELETE
+  //   -> DELETE
+  //
+  // DELETE + CREATE
+  //   -> UPDATE
+  //
+  // ============================================================
 
   Future<
     SyncItem
@@ -43,27 +77,47 @@ class SyncQueue {
 
     final now = DateTime.now().toUtc();
 
-    final existing = await findByEntity(
+    // ==========================================================
+    // OPERAÇÃO EXISTENTE
+    // ==========================================================
+
+    final existing = await _dao.findByEntity(
       entityType: normalizedEntityType,
       entityId: normalizedEntityId,
     );
+
+    // ==========================================================
+    // RESOLVE OPERAÇÃO
+    // ==========================================================
 
     final resolvedOperation = _resolveOperation(
       existing: existing,
       incoming: operation,
     );
 
+    // ==========================================================
+    // CREATE + DELETE
+    // ==========================================================
+    //
+    // O objeto foi criado localmente e excluído antes de ser
+    // enviado para o servidor.
+    //
+    // Não existe motivo para transmitir nenhuma das operações.
+    //
+    // ==========================================================
+
     if (resolvedOperation ==
         null) {
       if (existing !=
           null) {
-        await remove(
+        await _dao.delete(
           existing.id,
         );
 
         debugPrint(
           '[SYNC QUEUE] '
-          '${existing.entityType}/${existing.entityId}: '
+          '${existing.entityType}/'
+          '${existing.entityId}: '
           'CREATE + DELETE cancelados.',
         );
       }
@@ -86,8 +140,20 @@ class SyncQueue {
             existing?.createdAt ??
             now,
         updatedAt: now,
+        attempts: 0,
+        lastError: null,
+        nextAttemptAt: null,
       );
     }
+
+    // ==========================================================
+    // MERGE PAYLOAD
+    // ==========================================================
+    //
+    // Mantemos valores antigos que não foram enviados novamente
+    // e sobrescrevemos apenas os novos.
+    //
+    // ==========================================================
 
     final resolvedPayload =
         <
@@ -97,8 +163,24 @@ class SyncQueue {
           if (existing !=
               null)
             ...existing.payload,
+
           ...payload,
         };
+
+    // ==========================================================
+    // ITEM FINAL
+    // ==========================================================
+    //
+    // Qualquer nova alteração do objeto:
+    //
+    // - zera attempts;
+    // - remove lastError;
+    // - remove nextAttemptAt.
+    //
+    // Assim uma alteração nova não fica esperando o backoff de
+    // uma versão anterior do objeto.
+    //
+    // ==========================================================
 
     final item = SyncItem(
       id:
@@ -117,46 +199,12 @@ class SyncQueue {
       nextAttemptAt: null,
     );
 
-    final map = item.toDatabaseMap();
+    // ==========================================================
+    // PERSISTÊNCIA
+    // ==========================================================
 
-    _database.db.execute(
-      '''
-      INSERT INTO sync_queue (
-        id,
-        entity_type,
-        entity_id,
-        operation,
-        payload,
-        created_at,
-        updated_at,
-        attempts,
-        last_error,
-        next_attempt_at
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(id)
-      DO UPDATE SET
-        entity_type = excluded.entity_type,
-        entity_id = excluded.entity_id,
-        operation = excluded.operation,
-        payload = excluded.payload,
-        updated_at = excluded.updated_at,
-        attempts = excluded.attempts,
-        last_error = excluded.last_error,
-        next_attempt_at = excluded.next_attempt_at
-      ''',
-      [
-        map['id'],
-        map['entity_type'],
-        map['entity_id'],
-        map['operation'],
-        map['payload'],
-        map['created_at'],
-        map['updated_at'],
-        map['attempts'],
-        map['last_error'],
-        map['next_attempt_at'],
-      ],
+    await _dao.upsert(
+      item,
     );
 
     debugPrint(
@@ -169,6 +217,16 @@ class SyncQueue {
 
     return item;
   }
+
+  // ============================================================
+  // GET PENDING
+  // ============================================================
+  //
+  // Retorna somente itens que podem ser tentados agora.
+  //
+  // Itens aguardando exponential backoff não entram.
+  //
+  // ============================================================
 
   Future<
     List<
@@ -185,42 +243,14 @@ class SyncQueue {
       >[];
     }
 
-    final now = DateTime.now().toUtc().toIso8601String();
-
-    final rows = _database.db.select(
-      '''
-      SELECT *
-      FROM sync_queue
-      WHERE (
-        next_attempt_at IS NULL
-        OR next_attempt_at <= ?
-      )
-      ORDER BY created_at ASC
-      LIMIT ?
-      ''',
-      [
-        now,
-        limit,
-      ],
+    return _dao.getReady(
+      limit: limit,
     );
-
-    return rows
-        .map(
-          (
-            row,
-          ) => SyncItem.fromDatabaseRow(
-            Map<
-              String,
-              Object?
-            >.from(
-              row,
-            ),
-          ),
-        )
-        .toList(
-          growable: false,
-        );
   }
+
+  // ============================================================
+  // GET ALL
+  // ============================================================
 
   Future<
     List<
@@ -228,31 +258,27 @@ class SyncQueue {
     >
   >
   getAll() async {
-    final rows = _database.db.select(
-      '''
-      SELECT *
-      FROM sync_queue
-      ORDER BY created_at ASC
-      ''',
-    );
-
-    return rows
-        .map(
-          (
-            row,
-          ) => SyncItem.fromDatabaseRow(
-            Map<
-              String,
-              Object?
-            >.from(
-              row,
-            ),
-          ),
-        )
-        .toList(
-          growable: false,
-        );
+    return _dao.getAll();
   }
+
+  // ============================================================
+  // FIND BY ID
+  // ============================================================
+
+  Future<
+    SyncItem?
+  >
+  findById(
+    String id,
+  ) async {
+    return _dao.findById(
+      id,
+    );
+  }
+
+  // ============================================================
+  // FIND BY ENTITY
+  // ============================================================
 
   Future<
     SyncItem?
@@ -261,35 +287,24 @@ class SyncQueue {
     required String entityType,
     required String entityId,
   }) async {
-    final rows = _database.db.select(
-      '''
-      SELECT *
-      FROM sync_queue
-      WHERE
-        entity_type = ?
-        AND entity_id = ?
-      ORDER BY created_at ASC
-      LIMIT 1
-      ''',
-      [
-        entityType.trim(),
-        entityId.trim(),
-      ],
-    );
+    final normalizedEntityType = entityType.trim();
 
-    if (rows.isEmpty) {
+    final normalizedEntityId = entityId.trim();
+
+    if (normalizedEntityType.isEmpty ||
+        normalizedEntityId.isEmpty) {
       return null;
     }
 
-    return SyncItem.fromDatabaseRow(
-      Map<
-        String,
-        Object?
-      >.from(
-        rows.first,
-      ),
+    return _dao.findByEntity(
+      entityType: normalizedEntityType,
+      entityId: normalizedEntityId,
     );
   }
+
+  // ============================================================
+  // MARK SUCCESS
+  // ============================================================
 
   Future<
     void
@@ -297,15 +312,40 @@ class SyncQueue {
   markSuccess(
     String id,
   ) async {
-    await remove(
-      id,
+    final normalizedId = id.trim();
+
+    if (normalizedId.isEmpty) {
+      return;
+    }
+
+    await _dao.delete(
+      normalizedId,
     );
 
     debugPrint(
       '[SYNC QUEUE] '
-      'Sincronização concluída: $id',
+      'Sincronização concluída: '
+      '$normalizedId',
     );
   }
+
+  // ============================================================
+  // MARK FAILED
+  // ============================================================
+  //
+  // Exponential backoff:
+  //
+  // tentativa 1 -> 2s
+  // tentativa 2 -> 4s
+  // tentativa 3 -> 8s
+  // tentativa 4 -> 16s
+  // ...
+  //
+  // Máximo:
+  //
+  // 300 segundos
+  //
+  // ============================================================
 
   Future<
     void
@@ -314,33 +354,22 @@ class SyncQueue {
     required String id,
     required Object error,
   }) async {
-    final rows = _database.db.select(
-      '''
-      SELECT attempts
-      FROM sync_queue
-      WHERE id = ?
-      LIMIT 1
-      ''',
-      [
-        id,
-      ],
-    );
+    final normalizedId = id.trim();
 
-    if (rows.isEmpty) {
+    if (normalizedId.isEmpty) {
       return;
     }
 
-    final rawAttempts = rows.first['attempts'];
+    final currentAttempts = await _dao.getAttempts(
+      normalizedId,
+    );
 
-    final currentAttempts =
-        rawAttempts
-            is int
-        ? rawAttempts
-        : int.tryParse(
-                rawAttempts?.toString() ??
-                    '',
-              ) ??
-              0;
+    // O item pode ter sido removido enquanto a operação
+    // remota estava em andamento.
+    if (currentAttempts ==
+        null) {
+      return;
+    }
 
     final attempts =
         currentAttempts +
@@ -354,33 +383,26 @@ class SyncQueue {
       retryDelay,
     );
 
-    _database.db.execute(
-      '''
-      UPDATE sync_queue
-      SET
-        attempts = ?,
-        last_error = ?,
-        next_attempt_at = ?,
-        updated_at = ?
-      WHERE id = ?
-      ''',
-      [
-        attempts,
-        error.toString(),
-        nextAttemptAt.toIso8601String(),
-        DateTime.now().toUtc().toIso8601String(),
-        id,
-      ],
+    await _dao.markFailed(
+      id: normalizedId,
+      attempts: attempts,
+      error: error,
+      nextAttemptAt: nextAttemptAt,
     );
 
     debugPrint(
       '[SYNC QUEUE] '
-      'Falha em $id. '
+      'Falha em $normalizedId. '
       'Tentativa $attempts. '
-      'Nova tentativa em ${retryDelay.inSeconds}s. '
+      'Nova tentativa em '
+      '${retryDelay.inSeconds}s. '
       'Erro: $error',
     );
   }
+
+  // ============================================================
+  // RETRY DELAY
+  // ============================================================
 
   Duration _retryDelay(
     int attempts,
@@ -403,110 +425,105 @@ class SyncQueue {
     );
   }
 
+  // ============================================================
+  // REMOVE
+  // ============================================================
+
   Future<
     void
   >
   remove(
     String id,
   ) async {
-    _database.db.execute(
-      '''
-      DELETE FROM sync_queue
-      WHERE id = ?
-      ''',
-      [
-        id,
-      ],
+    await _dao.delete(
+      id,
     );
   }
+
+  // ============================================================
+  // REMOVE BY ENTITY
+  // ============================================================
+
+  Future<
+    void
+  >
+  removeByEntity({
+    required String entityType,
+    required String entityId,
+  }) async {
+    await _dao.deleteByEntity(
+      entityType: entityType,
+      entityId: entityId,
+    );
+  }
+
+  // ============================================================
+  // CLEAR
+  // ============================================================
 
   Future<
     void
   >
   clear() async {
-    _database.db.execute(
-      'DELETE FROM sync_queue;',
-    );
+    await _dao.clear();
 
     debugPrint(
-      '[SYNC QUEUE] Fila limpa.',
+      '[SYNC QUEUE] '
+      'Fila limpa.',
     );
   }
+
+  // ============================================================
+  // COUNT
+  // ============================================================
 
   Future<
     int
   >
   count() async {
-    final rows = _database.db.select(
-      '''
-      SELECT COUNT(*) AS total
-      FROM sync_queue
-      ''',
-    );
-
-    if (rows.isEmpty) {
-      return 0;
-    }
-
-    final value = rows.first['total'];
-
-    if (value
-        is int) {
-      return value;
-    }
-
-    return int.tryParse(
-          value?.toString() ??
-              '',
-        ) ??
-        0;
+    return _dao.count();
   }
+
+  // ============================================================
+  // COUNT READY
+  // ============================================================
 
   Future<
     int
   >
   countReady() async {
-    final now = DateTime.now().toUtc().toIso8601String();
-
-    final rows = _database.db.select(
-      '''
-      SELECT COUNT(*) AS total
-      FROM sync_queue
-      WHERE (
-        next_attempt_at IS NULL
-        OR next_attempt_at <= ?
-      )
-      ''',
-      [
-        now,
-      ],
-    );
-
-    if (rows.isEmpty) {
-      return 0;
-    }
-
-    final value = rows.first['total'];
-
-    if (value
-        is int) {
-      return value;
-    }
-
-    return int.tryParse(
-          value?.toString() ??
-              '',
-        ) ??
-        0;
+    return _dao.countReady();
   }
+
+  // ============================================================
+  // HAS PENDING
+  // ============================================================
 
   Future<
     bool
   >
   get hasPending async {
-    return await count() >
-        0;
+    return _dao.hasPending;
   }
+
+  // ============================================================
+  // HAS READY
+  // ============================================================
+
+  Future<
+    bool
+  >
+  get hasReady async {
+    return _dao.hasReady;
+  }
+
+  // ============================================================
+  // RESOLVE OPERATION
+  // ============================================================
+  //
+  // Consolida operações repetidas para reduzir chamadas remotas.
+  //
+  // ============================================================
 
   SyncOperation? _resolveOperation({
     required SyncItem? existing,
@@ -518,6 +535,10 @@ class SyncQueue {
     }
 
     switch (existing.operation) {
+      // ========================================================
+      // EXISTING CREATE
+      // ========================================================
+
       case SyncOperation.create:
         switch (incoming) {
           case SyncOperation.create:
@@ -527,6 +548,10 @@ class SyncQueue {
           case SyncOperation.delete:
             return null;
         }
+
+      // ========================================================
+      // EXISTING UPDATE
+      // ========================================================
 
       case SyncOperation.update:
         switch (incoming) {
@@ -538,9 +563,17 @@ class SyncQueue {
             return SyncOperation.delete;
         }
 
+      // ========================================================
+      // EXISTING DELETE
+      // ========================================================
+
       case SyncOperation.delete:
         switch (incoming) {
           case SyncOperation.create:
+            // O objeto foi excluído e depois recriado.
+            //
+            // Do ponto de vista do servidor, o estado final
+            // desejado é novamente um objeto existente.
             return SyncOperation.update;
 
           case SyncOperation.update:
@@ -549,6 +582,10 @@ class SyncQueue {
         }
     }
   }
+
+  // ============================================================
+  // VALIDATE ENTITY
+  // ============================================================
 
   void _validateEntity(
     String entityType,
@@ -566,6 +603,10 @@ class SyncQueue {
       );
     }
   }
+
+  // ============================================================
+  // NEW ID
+  // ============================================================
 
   String _newId() {
     final random = Random.secure();

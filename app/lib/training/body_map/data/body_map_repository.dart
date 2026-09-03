@@ -49,7 +49,7 @@ class BodyMapRepository {
   BodyMapRepository({
     SupabaseClient? client,
     TrainingActivityPlanDao? localDao,
-    SyncQueue? syncQueue,
+    required SyncQueue syncQueue,
     SyncService? syncService,
     Iterable<
           BodyRegionSchedule
@@ -64,9 +64,7 @@ class BodyMapRepository {
        _localDao =
            localDao ??
            TrainingActivityPlanDao(),
-       _syncQueue =
-           syncQueue ??
-           SyncQueue(),
+       _syncQueue = syncQueue,
        _syncService = syncService,
        _initialSchedules =
            List<

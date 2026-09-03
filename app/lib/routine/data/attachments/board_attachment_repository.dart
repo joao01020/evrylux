@@ -48,27 +48,15 @@ import 'board_attachment_dao.dart';
 
 class BoardAttachmentRepository {
   BoardAttachmentRepository({
-    SupabaseClient? client,
-    BoardAttachmentDao? localDao,
-    BoardAttachmentService? service,
-    SyncQueue? syncQueue,
+    required SupabaseClient client,
+    required BoardAttachmentDao localDao,
+    required BoardAttachmentService service,
+    required SyncQueue syncQueue,
     SyncService? syncService,
-  }) : _client =
-           client ??
-           Supabase.instance.client,
-       _localDao =
-           localDao ??
-           BoardAttachmentDao(),
-       _service =
-           service ??
-           BoardAttachmentService(
-             client:
-                 client ??
-                 Supabase.instance.client,
-           ),
-       _syncQueue =
-           syncQueue ??
-           SyncQueue(),
+  }) : _client = client,
+       _localDao = localDao,
+       _service = service,
+       _syncQueue = syncQueue,
        _syncService = syncService;
 
   // ============================================================

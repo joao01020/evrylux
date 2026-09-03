@@ -95,9 +95,23 @@ class RoutineController
   loadWeek() async {
     _cancelAutoSave();
 
+    // ==========================================================
+    // INITIAL LOADING VS REFRESH
+    // ==========================================================
+    //
+    // Loading visual de página inteira só faz sentido quando ainda
+    // não existe nenhum conteúdo em memória.
+    //
+    // Depois da primeira carga, navegações/refreshes mantêm o
+    // conteúdo atual visível enquanto o SQLite responde.
+    //
+    // ==========================================================
+
+    final isInitialLoading = _state.days.isEmpty;
+
     _setState(
       _state.copyWith(
-        loading: true,
+        loading: isInitialLoading,
         clearError: true,
       ),
     );
@@ -319,7 +333,7 @@ class RoutineController
   //
   // O estado que está na memória é a fonte visual de verdade.
   //
-  // O Supabase é usado aqui apenas para persistência.
+  // A persistência é local-first; o SyncService cuida do remoto.
   //
   // ============================================================
 

@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:EVRYLUX/core/sync/sync_queue.dart';
+
 import 'package:EVRYLUX/study/brain/models/brain_review_item.dart';
 
 import 'package:EVRYLUX/study/brain/repositories/review_repository.dart';
@@ -176,6 +178,12 @@ main() {
         return ReviewRepository(
           vaultStore: vaultStore,
           remote: remote,
+
+          // Dependência explícita do teste.
+          //
+          // O repository não cria mais uma SyncQueue escondida em
+          // produção. Aqui a fila é criada pelo próprio test graph.
+          syncQueue: SyncQueue(),
         );
       }
 

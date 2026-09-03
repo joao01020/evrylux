@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart';
 
 import 'tables/board_attachment_table.dart';
+import 'tables/sync_queue_table.dart';
 import 'tables/training_activity_plan_table.dart';
 
 // ============================================================
@@ -25,16 +26,32 @@ import 'tables/training_activity_plan_table.dart';
 // v3
 // - local_board_attachments
 //
+// v4
+// - deduplicação da sync_queue
+// - UNIQUE(entity_type, entity_id)
+//
 // ============================================================
 
 class AppDatabase {
   AppDatabase._();
 
+  // ============================================================
+  // SINGLETON
+  // ============================================================
+
   static final AppDatabase instance = AppDatabase._();
+
+  // ============================================================
+  // CONFIG
+  // ============================================================
 
   static const String _databaseFileName = 'ghost_core.db';
 
-  static const int _schemaVersion = 3;
+  static const int _schemaVersion = 4;
+
+  // ============================================================
+  // DATABASE
+  // ============================================================
 
   Database? _database;
 
@@ -42,9 +59,10 @@ class AppDatabase {
   // STATE
   // ============================================================
 
-  bool get isOpen =>
-      _database !=
-      null;
+  bool get isOpen {
+    return _database !=
+        null;
+  }
 
   Database get db {
     final database = _database;
@@ -90,23 +108,50 @@ class AppDatabase {
       databasePath,
     );
 
-    _database = database;
+    try {
+      // ========================================================
+      // PRAGMAS
+      // ========================================================
 
-    database.execute(
-      'PRAGMA foreign_keys = ON;',
-    );
+      database.execute(
+        'PRAGMA foreign_keys = ON;',
+      );
 
-    database.execute(
-      'PRAGMA journal_mode = WAL;',
-    );
+      database.execute(
+        'PRAGMA journal_mode = WAL;',
+      );
 
-    database.execute(
-      'PRAGMA synchronous = NORMAL;',
-    );
+      database.execute(
+        'PRAGMA synchronous = NORMAL;',
+      );
 
-    _migrate(
-      database,
-    );
+      // ========================================================
+      // MIGRATIONS
+      // ========================================================
+
+      _migrate(
+        database,
+      );
+
+      // ========================================================
+      // PUBLICA INSTÂNCIA
+      // ========================================================
+      //
+      // Só disponibilizamos o banco depois que toda a migração
+      // terminou corretamente.
+      //
+      // ========================================================
+
+      _database = database;
+    } catch (
+      _
+    ) {
+      database.dispose();
+
+      _database = null;
+
+      rethrow;
+    }
   }
 
   // ============================================================
@@ -123,6 +168,24 @@ class AppDatabase {
     var currentVersion = _readSchemaVersion(
       database,
     );
+
+    // ==========================================================
+    // INVALID FUTURE VERSION
+    // ==========================================================
+    //
+    // Evita abrir com uma versão antiga do app um banco criado
+    // por uma versão futura.
+    //
+    // ==========================================================
+
+    if (currentVersion >
+        _schemaVersion) {
+      throw StateError(
+        'Banco local possui versão mais nova que o aplicativo: '
+        '$currentVersion. '
+        'Versão suportada: $_schemaVersion.',
+      );
+    }
 
     // ==========================================================
     // VERSION 1
@@ -194,6 +257,29 @@ class AppDatabase {
     }
 
     // ==========================================================
+    // VERSION 4
+    // ==========================================================
+
+    if (currentVersion <
+        4) {
+      transactionWithDatabase(
+        database,
+        () {
+          _createVersion4(
+            database,
+          );
+
+          _writeSchemaVersion(
+            database,
+            4,
+          );
+        },
+      );
+
+      currentVersion = 4;
+    }
+
+    // ==========================================================
     // FINAL VERSION CHECK
     // ==========================================================
 
@@ -201,7 +287,8 @@ class AppDatabase {
         _schemaVersion) {
       throw StateError(
         'Versão do banco local inesperada: '
-        '$currentVersion. Esperado: $_schemaVersion.',
+        '$currentVersion. '
+        'Esperado: $_schemaVersion.',
       );
     }
   }
@@ -285,47 +372,22 @@ DO UPDATE SET
   // ============================================================
   // VERSION 1
   // ============================================================
+  //
+  // Cria a SyncQueue.
+  //
+  // Para instalações novas usamos diretamente SyncQueueTable,
+  // mantendo schema e índices centralizados em um único local.
+  //
+  // ============================================================
 
   void _createVersion1(
     Database database,
   ) {
-    database.execute(
-      '''
-CREATE TABLE IF NOT EXISTS sync_queue (
-  id TEXT PRIMARY KEY NOT NULL,
-  entity_type TEXT NOT NULL,
-  entity_id TEXT NOT NULL,
-  operation TEXT NOT NULL,
-  payload TEXT NOT NULL,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  attempts INTEGER NOT NULL DEFAULT 0,
-  last_error TEXT,
-  next_attempt_at TEXT
-);
-''',
-    );
-
-    database.execute(
-      '''
-CREATE INDEX IF NOT EXISTS
-idx_sync_queue_next_attempt
-ON sync_queue (
-  next_attempt_at
-);
-''',
-    );
-
-    database.execute(
-      '''
-CREATE INDEX IF NOT EXISTS
-idx_sync_queue_entity
-ON sync_queue (
-  entity_type,
-  entity_id
-);
-''',
-    );
+    for (final statement in SyncQueueTable.createStatements) {
+      database.execute(
+        statement,
+      );
+    }
   }
 
   // ============================================================
@@ -368,6 +430,132 @@ ON sync_queue (
         statement,
       );
     }
+  }
+
+  // ============================================================
+  // VERSION 4
+  // ============================================================
+  //
+  // OBJETIVO:
+  //
+  // Garantir no próprio SQLite que exista no máximo uma operação
+  // pendente para:
+  //
+  // entity_type + entity_id
+  //
+  // A SyncQueue já faz deduplicação em memória/regra de negócio,
+  // mas o banco também precisa garantir essa invariável.
+  //
+  // MIGRAÇÃO SEGURA:
+  //
+  // 1. encontra registros duplicados;
+  // 2. mantém somente a versão mais recentemente alterada;
+  // 3. cria índice UNIQUE;
+  // 4. cria índice otimizado para ready/retry.
+  //
+  // ============================================================
+
+  void _createVersion4(
+    Database database,
+  ) {
+    // ==========================================================
+    // DEDUPLICATE EXISTING QUEUE
+    // ==========================================================
+    //
+    // Mantemos o registro mais recente segundo:
+    //
+    // updated_at DESC
+    // created_at DESC
+    // id DESC
+    //
+    // O id funciona como desempate determinístico.
+    //
+    // ==========================================================
+
+    database.execute(
+      '''
+DELETE FROM ${SyncQueueTable.tableName}
+WHERE ${SyncQueueTable.id} IN (
+  SELECT duplicate.${SyncQueueTable.id}
+  FROM ${SyncQueueTable.tableName} AS duplicate
+  WHERE EXISTS (
+    SELECT 1
+    FROM ${SyncQueueTable.tableName} AS preferred
+    WHERE
+      preferred.${SyncQueueTable.entityType} =
+        duplicate.${SyncQueueTable.entityType}
+      AND
+      preferred.${SyncQueueTable.entityId} =
+        duplicate.${SyncQueueTable.entityId}
+      AND (
+        preferred.${SyncQueueTable.updatedAt} >
+          duplicate.${SyncQueueTable.updatedAt}
+
+        OR (
+          preferred.${SyncQueueTable.updatedAt} =
+            duplicate.${SyncQueueTable.updatedAt}
+          AND
+          preferred.${SyncQueueTable.createdAt} >
+            duplicate.${SyncQueueTable.createdAt}
+        )
+
+        OR (
+          preferred.${SyncQueueTable.updatedAt} =
+            duplicate.${SyncQueueTable.updatedAt}
+          AND
+          preferred.${SyncQueueTable.createdAt} =
+            duplicate.${SyncQueueTable.createdAt}
+          AND
+          preferred.${SyncQueueTable.id} >
+            duplicate.${SyncQueueTable.id}
+        )
+      )
+  )
+);
+''',
+    );
+
+    // ==========================================================
+    // UNIQUE ENTITY INDEX
+    // ==========================================================
+    //
+    // Depois da limpeza, o SQLite passa a impedir duplicidades
+    // mesmo em caso de corrida ou código legado.
+    //
+    // ==========================================================
+
+    database.execute(
+      '''
+CREATE UNIQUE INDEX IF NOT EXISTS
+idx_sync_queue_entity_unique
+ON ${SyncQueueTable.tableName} (
+  ${SyncQueueTable.entityType},
+  ${SyncQueueTable.entityId}
+);
+''',
+    );
+
+    // ==========================================================
+    // READY / RETRY INDEX
+    // ==========================================================
+    //
+    // A consulta mais importante do SyncService é:
+    //
+    // next_attempt_at <= now
+    // ORDER BY created_at
+    //
+    // ==========================================================
+
+    database.execute(
+      '''
+CREATE INDEX IF NOT EXISTS
+idx_sync_queue_ready
+ON ${SyncQueueTable.tableName} (
+  ${SyncQueueTable.nextAttemptAt},
+  ${SyncQueueTable.createdAt}
+);
+''',
+    );
   }
 
   // ============================================================

@@ -9,9 +9,24 @@ class SyncQueueDao {
            database ??
            AppDatabase.instance;
 
+  // ============================================================
+  // DATABASE
+  // ============================================================
+
   final AppDatabase _database;
 
+  // ============================================================
+  // INITIALIZATION
+  // ============================================================
+
   bool _initialized = false;
+
+  Future<
+    void
+  >
+  initialize() async {
+    await _ensureInitialized();
+  }
 
   Future<
     void
@@ -31,6 +46,10 @@ class SyncQueueDao {
 
     _initialized = true;
   }
+
+  // ============================================================
+  // UPSERT
+  // ============================================================
 
   Future<
     void
@@ -59,14 +78,29 @@ class SyncQueueDao {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(${SyncQueueTable.id})
       DO UPDATE SET
-        ${SyncQueueTable.entityType} = excluded.${SyncQueueTable.entityType},
-        ${SyncQueueTable.entityId} = excluded.${SyncQueueTable.entityId},
-        ${SyncQueueTable.operation} = excluded.${SyncQueueTable.operation},
-        ${SyncQueueTable.payload} = excluded.${SyncQueueTable.payload},
-        ${SyncQueueTable.updatedAt} = excluded.${SyncQueueTable.updatedAt},
-        ${SyncQueueTable.attempts} = excluded.${SyncQueueTable.attempts},
-        ${SyncQueueTable.lastError} = excluded.${SyncQueueTable.lastError},
-        ${SyncQueueTable.nextAttemptAt} = excluded.${SyncQueueTable.nextAttemptAt}
+        ${SyncQueueTable.entityType} =
+          excluded.${SyncQueueTable.entityType},
+
+        ${SyncQueueTable.entityId} =
+          excluded.${SyncQueueTable.entityId},
+
+        ${SyncQueueTable.operation} =
+          excluded.${SyncQueueTable.operation},
+
+        ${SyncQueueTable.payload} =
+          excluded.${SyncQueueTable.payload},
+
+        ${SyncQueueTable.updatedAt} =
+          excluded.${SyncQueueTable.updatedAt},
+
+        ${SyncQueueTable.attempts} =
+          excluded.${SyncQueueTable.attempts},
+
+        ${SyncQueueTable.lastError} =
+          excluded.${SyncQueueTable.lastError},
+
+        ${SyncQueueTable.nextAttemptAt} =
+          excluded.${SyncQueueTable.nextAttemptAt}
       ''',
       [
         map[SyncQueueTable.id],
@@ -83,6 +117,10 @@ class SyncQueueDao {
     );
   }
 
+  // ============================================================
+  // GET ALL
+  // ============================================================
+
   Future<
     List<
       SyncItem
@@ -95,27 +133,26 @@ class SyncQueueDao {
       '''
       SELECT *
       FROM ${SyncQueueTable.tableName}
-      ORDER BY ${SyncQueueTable.createdAt} ASC
+      ORDER BY
+        ${SyncQueueTable.createdAt} ASC
       ''',
     );
 
-    return rows
-        .map(
-          (
-            row,
-          ) => SyncItem.fromDatabaseRow(
-            Map<
-              String,
-              Object?
-            >.from(
-              row,
-            ),
-          ),
-        )
-        .toList(
-          growable: false,
-        );
+    return _mapRows(
+      rows,
+    );
   }
+
+  // ============================================================
+  // GET READY
+  // ============================================================
+  //
+  // Retorna somente operações que:
+  //
+  // - nunca falharam;
+  // - OU já chegaram ao horário de retry.
+  //
+  // ============================================================
 
   Future<
     List<
@@ -127,16 +164,26 @@ class SyncQueueDao {
   }) async {
     await _ensureInitialized();
 
+    if (limit <=
+        0) {
+      return const <
+        SyncItem
+      >[];
+    }
+
     final now = DateTime.now().toUtc().toIso8601String();
 
     final rows = _database.db.select(
       '''
       SELECT *
       FROM ${SyncQueueTable.tableName}
-      WHERE
+      WHERE (
         ${SyncQueueTable.nextAttemptAt} IS NULL
-        OR ${SyncQueueTable.nextAttemptAt} <= ?
-      ORDER BY ${SyncQueueTable.createdAt} ASC
+        OR
+        ${SyncQueueTable.nextAttemptAt} <= ?
+      )
+      ORDER BY
+        ${SyncQueueTable.createdAt} ASC
       LIMIT ?
       ''',
       [
@@ -145,23 +192,14 @@ class SyncQueueDao {
       ],
     );
 
-    return rows
-        .map(
-          (
-            row,
-          ) => SyncItem.fromDatabaseRow(
-            Map<
-              String,
-              Object?
-            >.from(
-              row,
-            ),
-          ),
-        )
-        .toList(
-          growable: false,
-        );
+    return _mapRows(
+      rows,
+    );
   }
+
+  // ============================================================
+  // FIND BY ID
+  // ============================================================
 
   Future<
     SyncItem?
@@ -171,15 +209,22 @@ class SyncQueueDao {
   ) async {
     await _ensureInitialized();
 
+    final normalizedId = id.trim();
+
+    if (normalizedId.isEmpty) {
+      return null;
+    }
+
     final rows = _database.db.select(
       '''
       SELECT *
       FROM ${SyncQueueTable.tableName}
-      WHERE ${SyncQueueTable.id} = ?
+      WHERE
+        ${SyncQueueTable.id} = ?
       LIMIT 1
       ''',
       [
-        id,
+        normalizedId,
       ],
     );
 
@@ -187,15 +232,14 @@ class SyncQueueDao {
       return null;
     }
 
-    return SyncItem.fromDatabaseRow(
-      Map<
-        String,
-        Object?
-      >.from(
-        rows.first,
-      ),
+    return _mapRow(
+      rows.first,
     );
   }
+
+  // ============================================================
+  // FIND BY ENTITY
+  // ============================================================
 
   Future<
     SyncItem?
@@ -206,18 +250,30 @@ class SyncQueueDao {
   }) async {
     await _ensureInitialized();
 
+    final normalizedEntityType = entityType.trim();
+
+    final normalizedEntityId = entityId.trim();
+
+    if (normalizedEntityType.isEmpty ||
+        normalizedEntityId.isEmpty) {
+      return null;
+    }
+
     final rows = _database.db.select(
       '''
       SELECT *
       FROM ${SyncQueueTable.tableName}
       WHERE
         ${SyncQueueTable.entityType} = ?
-        AND ${SyncQueueTable.entityId} = ?
+        AND
+        ${SyncQueueTable.entityId} = ?
+      ORDER BY
+        ${SyncQueueTable.createdAt} ASC
       LIMIT 1
       ''',
       [
-        entityType,
-        entityId,
+        normalizedEntityType,
+        normalizedEntityId,
       ],
     );
 
@@ -225,15 +281,60 @@ class SyncQueueDao {
       return null;
     }
 
-    return SyncItem.fromDatabaseRow(
-      Map<
-        String,
-        Object?
-      >.from(
-        rows.first,
-      ),
+    return _mapRow(
+      rows.first,
     );
   }
+
+  // ============================================================
+  // GET ATTEMPTS
+  // ============================================================
+  //
+  // Utilizado pela SyncQueue para calcular exponential backoff.
+  //
+  // ============================================================
+
+  Future<
+    int?
+  >
+  getAttempts(
+    String id,
+  ) async {
+    await _ensureInitialized();
+
+    final normalizedId = id.trim();
+
+    if (normalizedId.isEmpty) {
+      return null;
+    }
+
+    final rows = _database.db.select(
+      '''
+      SELECT
+        ${SyncQueueTable.attempts}
+      FROM
+        ${SyncQueueTable.tableName}
+      WHERE
+        ${SyncQueueTable.id} = ?
+      LIMIT 1
+      ''',
+      [
+        normalizedId,
+      ],
+    );
+
+    if (rows.isEmpty) {
+      return null;
+    }
+
+    return _toInt(
+      rows.first[SyncQueueTable.attempts],
+    );
+  }
+
+  // ============================================================
+  // MARK FAILED
+  // ============================================================
 
   Future<
     void
@@ -246,25 +347,85 @@ class SyncQueueDao {
   }) async {
     await _ensureInitialized();
 
+    final normalizedId = id.trim();
+
+    if (normalizedId.isEmpty) {
+      return;
+    }
+
+    final safeAttempts =
+        attempts <
+            0
+        ? 0
+        : attempts;
+
     _database.db.execute(
       '''
-      UPDATE ${SyncQueueTable.tableName}
+      UPDATE
+        ${SyncQueueTable.tableName}
       SET
         ${SyncQueueTable.attempts} = ?,
         ${SyncQueueTable.lastError} = ?,
         ${SyncQueueTable.nextAttemptAt} = ?,
         ${SyncQueueTable.updatedAt} = ?
-      WHERE ${SyncQueueTable.id} = ?
+      WHERE
+        ${SyncQueueTable.id} = ?
       ''',
       [
-        attempts,
+        safeAttempts,
         error.toString(),
         nextAttemptAt.toUtc().toIso8601String(),
         DateTime.now().toUtc().toIso8601String(),
-        id,
+        normalizedId,
       ],
     );
   }
+
+  // ============================================================
+  // RESET RETRY
+  // ============================================================
+  //
+  // Útil quando uma nova alteração substitui uma operação
+  // que estava aguardando retry.
+  //
+  // ============================================================
+
+  Future<
+    void
+  >
+  resetRetry(
+    String id,
+  ) async {
+    await _ensureInitialized();
+
+    final normalizedId = id.trim();
+
+    if (normalizedId.isEmpty) {
+      return;
+    }
+
+    _database.db.execute(
+      '''
+      UPDATE
+        ${SyncQueueTable.tableName}
+      SET
+        ${SyncQueueTable.attempts} = 0,
+        ${SyncQueueTable.lastError} = NULL,
+        ${SyncQueueTable.nextAttemptAt} = NULL,
+        ${SyncQueueTable.updatedAt} = ?
+      WHERE
+        ${SyncQueueTable.id} = ?
+      ''',
+      [
+        DateTime.now().toUtc().toIso8601String(),
+        normalizedId,
+      ],
+    );
+  }
+
+  // ============================================================
+  // DELETE
+  // ============================================================
 
   Future<
     void
@@ -274,16 +435,28 @@ class SyncQueueDao {
   ) async {
     await _ensureInitialized();
 
+    final normalizedId = id.trim();
+
+    if (normalizedId.isEmpty) {
+      return;
+    }
+
     _database.db.execute(
       '''
-      DELETE FROM ${SyncQueueTable.tableName}
-      WHERE ${SyncQueueTable.id} = ?
+      DELETE FROM
+        ${SyncQueueTable.tableName}
+      WHERE
+        ${SyncQueueTable.id} = ?
       ''',
       [
-        id,
+        normalizedId,
       ],
     );
   }
+
+  // ============================================================
+  // DELETE BY ENTITY
+  // ============================================================
 
   Future<
     void
@@ -294,19 +467,34 @@ class SyncQueueDao {
   }) async {
     await _ensureInitialized();
 
+    final normalizedEntityType = entityType.trim();
+
+    final normalizedEntityId = entityId.trim();
+
+    if (normalizedEntityType.isEmpty ||
+        normalizedEntityId.isEmpty) {
+      return;
+    }
+
     _database.db.execute(
       '''
-      DELETE FROM ${SyncQueueTable.tableName}
+      DELETE FROM
+        ${SyncQueueTable.tableName}
       WHERE
         ${SyncQueueTable.entityType} = ?
-        AND ${SyncQueueTable.entityId} = ?
+        AND
+        ${SyncQueueTable.entityId} = ?
       ''',
       [
-        entityType,
-        entityId,
+        normalizedEntityType,
+        normalizedEntityId,
       ],
     );
   }
+
+  // ============================================================
+  // CLEAR
+  // ============================================================
 
   Future<
     void
@@ -315,9 +503,16 @@ class SyncQueueDao {
     await _ensureInitialized();
 
     _database.db.execute(
-      'DELETE FROM ${SyncQueueTable.tableName}',
+      '''
+      DELETE FROM
+        ${SyncQueueTable.tableName}
+      ''',
     );
   }
+
+  // ============================================================
+  // COUNT
+  // ============================================================
 
   Future<
     int
@@ -327,8 +522,10 @@ class SyncQueueDao {
 
     final rows = _database.db.select(
       '''
-      SELECT COUNT(*) AS total
-      FROM ${SyncQueueTable.tableName}
+      SELECT
+        COUNT(*) AS total
+      FROM
+        ${SyncQueueTable.tableName}
       ''',
     );
 
@@ -336,7 +533,127 @@ class SyncQueueDao {
       return 0;
     }
 
-    final value = rows.first['total'];
+    return _toInt(
+          rows.first['total'],
+        ) ??
+        0;
+  }
+
+  // ============================================================
+  // COUNT READY
+  // ============================================================
+
+  Future<
+    int
+  >
+  countReady() async {
+    await _ensureInitialized();
+
+    final now = DateTime.now().toUtc().toIso8601String();
+
+    final rows = _database.db.select(
+      '''
+      SELECT
+        COUNT(*) AS total
+      FROM
+        ${SyncQueueTable.tableName}
+      WHERE (
+        ${SyncQueueTable.nextAttemptAt} IS NULL
+        OR
+        ${SyncQueueTable.nextAttemptAt} <= ?
+      )
+      ''',
+      [
+        now,
+      ],
+    );
+
+    if (rows.isEmpty) {
+      return 0;
+    }
+
+    return _toInt(
+          rows.first['total'],
+        ) ??
+        0;
+  }
+
+  // ============================================================
+  // HAS PENDING
+  // ============================================================
+
+  Future<
+    bool
+  >
+  get hasPending async {
+    return await count() >
+        0;
+  }
+
+  // ============================================================
+  // HAS READY
+  // ============================================================
+
+  Future<
+    bool
+  >
+  get hasReady async {
+    return await countReady() >
+        0;
+  }
+
+  // ============================================================
+  // ROW MAPPING
+  // ============================================================
+
+  List<
+    SyncItem
+  >
+  _mapRows(
+    Iterable<
+      dynamic
+    >
+    rows,
+  ) {
+    return rows
+        .map(
+          (
+            row,
+          ) {
+            return _mapRow(
+              row,
+            );
+          },
+        )
+        .toList(
+          growable: false,
+        );
+  }
+
+  SyncItem _mapRow(
+    dynamic row,
+  ) {
+    return SyncItem.fromDatabaseRow(
+      Map<
+        String,
+        Object?
+      >.from(
+        row,
+      ),
+    );
+  }
+
+  // ============================================================
+  // INT PARSER
+  // ============================================================
+
+  int? _toInt(
+    Object? value,
+  ) {
+    if (value ==
+        null) {
+      return null;
+    }
 
     if (value
         is int) {
@@ -344,8 +661,7 @@ class SyncQueueDao {
     }
 
     return int.tryParse(
-          value.toString(),
-        ) ??
-        0;
+      value.toString(),
+    );
   }
 }

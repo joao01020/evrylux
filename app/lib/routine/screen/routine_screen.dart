@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:desktop_multi_window/desktop_multi_window.dart';
 
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../app/dependencies/app_dependencies.dart';
 import '../../reminders/widgets/reminder_day_dialog.dart';
 import '../../reminders/widgets/reminder_dialog.dart';
@@ -12,9 +14,8 @@ import '../controllers/comments/board_comment_controller.dart';
 import '../controllers/mind_map_controller.dart';
 import '../controllers/routine_controller.dart';
 import '../controllers/routine_state.dart';
-import '../data/datasources/comments/board_comment_remote_data_source.dart';
-import '../data/repositories/comments/board_comment_repository.dart';
-import '../data/repositories/routine_repository_impl.dart';
+import '../data/dtos/board_block_dto.dart';
+import '../data/mappers/board_block_mapper.dart';
 import '../models/block_type.dart';
 import '../models/board_block.dart';
 import '../models/check_item.dart';
@@ -36,6 +37,16 @@ import '../widgets/comments/board_comment_pin.dart';
 import '../widgets/dialogs/add_block_sheet.dart';
 import '../widgets/dialogs/routine_text_editor.dart';
 
+// ============================================================
+// MIND MAP WINDOW CHANNEL
+// ============================================================
+
+const WindowMethodChannel
+_mindMapWindowChannel = WindowMethodChannel(
+  'routine_mind_map_window',
+  mode: ChannelMode.bidirectional,
+);
+
 class RoutineScreen
     extends
         StatefulWidget {
@@ -47,18 +58,18 @@ class RoutineScreen
 
   /// Permite injetar um controller já configurado.
   ///
-  /// Quando nenhum controller é informado, a tela cria automaticamente:
+  /// Quando nenhum controller é informado, a tela usa as dependências
+  /// globais configuradas em app_dependencies.dart.
   ///
-  /// Supabase Auth
+  /// RoutineScreen
   ///      ↓
   /// RoutineController
   ///      ↓
-  /// RoutineRepositoryImpl
+  /// routineRepository
   ///      ↓
-  /// RoutineRemoteDataSource
+  /// SQLite + SyncQueue + SyncService
   ///
-  /// O [userId] foi mantido apenas por compatibilidade com chamadas antigas.
-  /// Para persistência no Supabase, o ID usado é sempre o usuário autenticado.
+  /// A tela não cria sessão, repository ou SyncQueue próprios.
   final RoutineController? controller;
   final String? userId;
 
@@ -152,7 +163,7 @@ class _RoutineScreenState
   // - entrar novamente na tela;
   // - trocar o dia;
   // - navegar entre semanas;
-  // - restaurar um dia vindo do Supabase.
+  // - restaurar/atualizar o estado persistido.
   //
   // ============================================================
 
@@ -234,6 +245,18 @@ class _RoutineScreenState
 
   double _activeBoardWidth = 390;
 
+  // ============================================================
+  // MIND MAP WINDOWS
+  // ============================================================
+
+  final Set<
+    String
+  >
+  _detachedMindMapBlockIds =
+      <
+        String
+      >{};
+
   @override
   void initState() {
     super.initState();
@@ -250,17 +273,11 @@ class _RoutineScreenState
       onChanged: _onMindMapChanged,
     );
 
-    final commentRemoteDataSource = BoardCommentRemoteDataSource(
-      client: Supabase.instance.client,
-    );
-
-    final commentRepository = BoardCommentRepository(
-      remoteDataSource: commentRemoteDataSource,
-    );
-
-    _commentController = BoardCommentController(
-      repository: commentRepository,
-    );
+    // Controller global criado no composition root.
+    //
+    // A RoutineScreen não cria mais Supabase client, datasource
+    // ou repository próprios para comentários.
+    _commentController = boardCommentController;
 
     _commentController.addListener(
       _onCommentsChanged,
@@ -271,6 +288,10 @@ class _RoutineScreenState
     );
 
     _initializeRoutine();
+
+    _mindMapWindowChannel.setMethodCallHandler(
+      _handleMindMapWindowCall,
+    );
   }
 
   Future<
@@ -284,7 +305,7 @@ class _RoutineScreenState
           null) {
         _routineController = injectedController;
       } else {
-        _routineController = await _createSupabaseController();
+        _routineController = _createRoutineController();
       }
 
       _routineController.addListener(
@@ -361,125 +382,39 @@ class _RoutineScreenState
     }
   }
 
-  Future<
-    RoutineController
-  >
-  _createSupabaseController() async {
-    final supabase = Supabase.instance.client;
-
+  RoutineController _createRoutineController() {
     // ==========================================================
-    // AUTH
+    // COMPOSITION ROOT
     // ==========================================================
     //
-    // Nunca utilizamos mais "local-user".
+    // A RoutineScreen não conhece Supabase Auth.
     //
-    // Se já houver uma sessão, reutilizamos o usuário.
-    // Caso contrário, tentamos autenticação anônima.
+    // A resolução do usuário acontece em app_dependencies.dart:
     //
-    // Para signInAnonymously funcionar, habilite no Supabase:
+    // RoutineScreen
+    //      ↓
+    // createRoutineControllerForCurrentUser()
+    //      ↓
+    // identidade atual / userId injetado
+    //      ↓
+    // RoutineController
+    //      ↓
+    // routineRepository
     //
-    // Authentication
-    //   -> Providers
-    //   -> Anonymous
-    //
-    // ==========================================================
-
-    var user = supabase.auth.currentUser;
-
-    if (user ==
-        null) {
-      debugPrint(
-        '[ROUTINE][AUTH] Nenhuma sessão encontrada.',
-      );
-
-      debugPrint(
-        '[ROUTINE][AUTH] Tentando login anônimo...',
-      );
-
-      final response = await supabase.auth.signInAnonymously();
-
-      user = response.user;
-    }
-
-    if (user ==
-        null) {
-      throw StateError(
-        'Não foi possível obter um usuário autenticado no Supabase.',
-      );
-    }
-
-    final legacyUserId = widget.userId?.trim();
-
-    if (legacyUserId !=
-            null &&
-        legacyUserId.isNotEmpty &&
-        legacyUserId !=
-            'local-user' &&
-        legacyUserId !=
-            user.id) {
-      debugPrint(
-        '[ROUTINE][AUTH] userId recebido pela tela foi ignorado: '
-        '$legacyUserId',
-      );
-
-      debugPrint(
-        '[ROUTINE][AUTH] ID autenticado usado: ${user.id}',
-      );
-    }
-
-    debugPrint(
-      '[ROUTINE][AUTH] Usuário autenticado: ${user.id}',
-    );
-
-    // ==========================================================
-    // REPOSITORY
-    // ==========================================================
-    //
-    // IMPORTANTE:
-    //
-    // A rotina deve usar as MESMAS dependências globais criadas
-    // em app_dependencies.dart.
-    //
-    // Isso garante que:
-    //
-    // - o SQLite usado pela rotina seja o mesmo do app;
-    // - a SyncQueue seja a mesma exibida no card global;
-    // - o SyncService enxergue imediatamente as alterações;
-    // - não exista uma segunda instância isolada da rotina;
-    // - saveDay() consiga enfileirar e sincronizar com Supabase.
+    // Isso deixa a UI pronta para um futuro modo local-only,
+    // porque a estratégia de identidade pode mudar no composition
+    // root sem alterar esta tela.
     //
     // ==========================================================
 
-    final repository = RoutineRepositoryImpl(
-      localDataSource: routineLocalDataSource,
-      remoteDataSource: routineRemoteDataSource,
-      syncQueue: syncQueue,
-      syncService: syncService,
-
-      // Durante a integração não escondemos erros do Supabase.
-      fallbackToLocalOnRemoteError: false,
-    );
-
-    // ==========================================================
-    // CONTROLLER
-    // ==========================================================
-
-    return RoutineController(
-      repository: repository,
-      userId: user.id,
+    return createRoutineControllerForCurrentUser(
+      userId: widget.userId,
     );
   }
 
   String _friendlyInitializationError(
     Object error,
   ) {
-    if (error
-        is AuthException) {
-      return 'Falha na autenticação do Supabase: ${error.message}\n\n'
-          'Se o app ainda não possui tela de login, habilite Anonymous '
-          'Sign-Ins no painel do Supabase.';
-    }
-
     final message = error.toString().trim();
 
     if (message.isEmpty) {
@@ -530,10 +465,15 @@ class _RoutineScreenState
       _onCommentsChanged,
     );
 
-    _commentController.dispose();
+    // _commentController é global e pertence ao app_dependencies.
+    // A tela remove apenas o listener que registrou.
 
     boardAttachmentController.removeListener(
       _onBoardAttachmentsChanged,
+    );
+
+    _mindMapWindowChannel.setMethodCallHandler(
+      null,
     );
 
     super.dispose();
@@ -635,44 +575,6 @@ class _RoutineScreenState
     ).hasReminder;
   }
 
-  DateTime _brasiliaDateTimeToUtc(
-    DateTime value,
-  ) {
-    final year = value.year.toString().padLeft(
-      4,
-      '0',
-    );
-
-    final month = value.month.toString().padLeft(
-      2,
-      '0',
-    );
-
-    final day = value.day.toString().padLeft(
-      2,
-      '0',
-    );
-
-    final hour = value.hour.toString().padLeft(
-      2,
-      '0',
-    );
-
-    final minute = value.minute.toString().padLeft(
-      2,
-      '0',
-    );
-
-    final second = value.second.toString().padLeft(
-      2,
-      '0',
-    );
-
-    return DateTime.parse(
-      '$year-$month-${day}T$hour:$minute:$second-03:00',
-    ).toUtc();
-  }
-
   DateTime _utcToBrasilia(
     DateTime value,
   ) {
@@ -713,49 +615,32 @@ class _RoutineScreenState
       return;
     }
 
-    final user = Supabase.instance.client.auth.currentUser;
-
-    if (user ==
-        null) {
-      return;
-    }
-
     _loadingReminderWeekKey = weekKey;
 
     try {
+      // ========================================================
+      // CONTROLLER / REPOSITORY
+      // ========================================================
+      //
+      // A RoutineScreen não consulta Supabase.
+      //
+      // ReminderController -> ReminderRepository é responsável
+      // pelo fluxo offline-first e pelo cache SQLite.
+      //
+      // ========================================================
+
+      if (force ||
+          reminderController.reminders.isEmpty) {
+        await reminderController.load();
+      }
+
       final end = start.add(
         const Duration(
           days: 7,
         ),
       );
 
-      final startUtc = _brasiliaDateTimeToUtc(
-        start,
-      );
-
-      final endUtc = _brasiliaDateTimeToUtc(
-        end,
-      );
-
-      final response = await Supabase.instance.client
-          .from(
-            'reminders',
-          )
-          .select(
-            'remind_at',
-          )
-          .eq(
-            'user_id',
-            user.id,
-          )
-          .gte(
-            'remind_at',
-            startUtc.toIso8601String(),
-          )
-          .lt(
-            'remind_at',
-            endUtc.toIso8601String(),
-          );
+      final nowUtc = DateTime.now().toUtc();
 
       final nextStatus =
           <
@@ -763,43 +648,29 @@ class _RoutineScreenState
             ReminderDayStatus
           >{};
 
-      final nowUtc = DateTime.now().toUtc();
-
-      for (final rawRow in response) {
-        final row =
-            Map<
-              String,
-              dynamic
-            >.from(
-              rawRow,
-            );
-
-        final rawRemindAt = row['remind_at']?.toString();
-
-        if (rawRemindAt ==
-                null ||
-            rawRemindAt.isEmpty) {
+      for (final reminder in reminderController.reminders) {
+        if (reminder.completed) {
           continue;
         }
-
-        final parsed = DateTime.tryParse(
-          rawRemindAt,
-        );
-
-        if (parsed ==
-            null) {
-          continue;
-        }
-
-        final remindAtUtc = parsed.toUtc();
 
         final brasilia = _utcToBrasilia(
-          remindAtUtc,
+          reminder.remindAt,
         );
+
+        if (brasilia.isBefore(
+              start,
+            ) ||
+            !brasilia.isBefore(
+              end,
+            )) {
+          continue;
+        }
 
         final key = _dateKey(
           brasilia,
         );
+
+        final remindAtUtc = reminder.remindAt.toUtc();
 
         final incomingStatus =
             remindAtUtc.isAfter(
@@ -811,19 +682,6 @@ class _RoutineScreenState
         final currentStatus =
             nextStatus[key] ??
             ReminderDayStatus.none;
-
-        // ======================================================
-        // COMBINAR LEMBRETES DO MESMO DIA
-        // ======================================================
-        //
-        // Se houver:
-        //
-        // 10:00 -> expirado
-        // 20:00 -> ativo
-        //
-        // então o dia fica como mixed.
-        //
-        // ======================================================
 
         if (currentStatus ==
                 ReminderDayStatus.none ||
@@ -855,7 +713,8 @@ class _RoutineScreenState
       stackTrace
     ) {
       debugPrint(
-        '[ROUTINE][REMINDERS] Falha ao carregar lembretes: $error',
+        '[ROUTINE][REMINDERS] '
+        'Falha ao carregar lembretes pelo controller: $error',
       );
 
       debugPrint(
@@ -881,12 +740,10 @@ class _RoutineScreenState
   _loadRemindersForDate(
     DateTime date,
   ) async {
-    final user = Supabase.instance.client.auth.currentUser;
-
-    if (user ==
-        null) {
-      return [];
-    }
+    // Atualiza pelo repository, que já conhece SQLite/Supabase.
+    //
+    // A tela continua completamente alheia à origem do dado.
+    await reminderController.refresh();
 
     final start = DateTime(
       date.year,
@@ -900,93 +757,49 @@ class _RoutineScreenState
       ),
     );
 
-    final startUtc = _brasiliaDateTimeToUtc(
-      start,
-    );
-
-    final endUtc = _brasiliaDateTimeToUtc(
-      end,
-    );
-
-    final response = await Supabase.instance.client
-        .from(
-          'reminders',
-        )
-        .select(
-          'id, title, message, remind_at, notify_in_app, notify_telegram',
-        )
-        .eq(
-          'user_id',
-          user.id,
-        )
-        .gte(
-          'remind_at',
-          startUtc.toIso8601String(),
-        )
-        .lt(
-          'remind_at',
-          endUtc.toIso8601String(),
-        )
-        .order(
-          'remind_at',
-          ascending: true,
-        );
-
     final reminders =
         <
           ReminderDayItem
         >[];
 
-    for (final rawRow in response) {
-      final row =
-          Map<
-            String,
-            dynamic
-          >.from(
-            rawRow,
-          );
-
-      final rawId = row['id']?.toString();
-
-      final rawRemindAt = row['remind_at']?.toString();
-
-      if (rawId ==
-              null ||
-          rawId.isEmpty ||
-          rawRemindAt ==
-              null ||
-          rawRemindAt.isEmpty) {
+    for (final reminder in reminderController.reminders) {
+      if (reminder.completed) {
         continue;
       }
 
-      final remindAt = DateTime.tryParse(
-        rawRemindAt,
+      final brasilia = _utcToBrasilia(
+        reminder.remindAt,
       );
 
-      if (remindAt ==
-          null) {
+      if (brasilia.isBefore(
+            start,
+          ) ||
+          !brasilia.isBefore(
+            end,
+          )) {
         continue;
       }
 
       reminders.add(
         ReminderDayItem(
-          id: rawId,
-          title:
-              row['title']?.toString() ??
-              '',
-          message:
-              row['message']?.toString() ??
-              '',
-          remindAt: remindAt.toUtc(),
-          notifyInApp:
-              row['notify_in_app'] ==
-              true,
-          notifyTelegram:
-              row['notify_telegram'] ==
-              true,
+          id: reminder.id,
+          title: reminder.title,
+          message: reminder.message,
+          remindAt: reminder.remindAt.toUtc(),
+          notifyInApp: reminder.notifyInApp,
+          notifyTelegram: reminder.notifyTelegram,
         ),
       );
     }
+
+    reminders.sort(
+      (
+        first,
+        second,
+      ) => first.remindAt.compareTo(
+        second.remindAt,
+      ),
+    );
 
     return reminders;
   }
@@ -1001,31 +814,17 @@ class _RoutineScreenState
   _deleteReminder(
     ReminderDayItem reminder,
   ) async {
-    final user = Supabase.instance.client.auth.currentUser;
-
-    if (user ==
-        null) {
-      return false;
-    }
-
     try {
-      await Supabase.instance.client
-          .from(
-            'reminders',
-          )
-          .delete()
-          .eq(
-            'id',
-            reminder.id,
-          )
-          .eq(
-            'user_id',
-            user.id,
-          );
+      final deleted = await reminderController.delete(
+        reminder.id,
+      );
 
-      // ========================================================
-      // ATUALIZAR INDICADORES DA SEMANA
-      // ========================================================
+      if (!deleted) {
+        throw StateError(
+          reminderController.errorMessage ??
+              'Não foi possível excluir o lembrete.',
+        );
+      }
 
       _loadedReminderWeekKey = null;
 
@@ -1117,11 +916,7 @@ class _RoutineScreenState
     >
     reminders,
   ) async {
-    final user = Supabase.instance.client.auth.currentUser;
-
-    if (user ==
-            null ||
-        reminders.isEmpty) {
+    if (reminders.isEmpty) {
       return false;
     }
 
@@ -1129,41 +924,41 @@ class _RoutineScreenState
         .map(
           (
             reminder,
-          ) {
-            return reminder.id;
-          },
+          ) => reminder.id.trim(),
         )
         .where(
           (
             id,
-          ) {
-            return id.trim().isNotEmpty;
-          },
+          ) => id.isNotEmpty,
         )
-        .toList();
+        .toList(
+          growable: false,
+        );
 
     if (ids.isEmpty) {
       return false;
     }
 
     try {
-      await Supabase.instance.client
-          .from(
-            'reminders',
-          )
-          .delete()
-          .eq(
-            'user_id',
-            user.id,
-          )
-          .inFilter(
-            'id',
-            ids,
-          );
+      var deletedCount = 0;
 
-      // ========================================================
-      // ATUALIZAR SINOS DO CALENDÁRIO / CABEÇALHO
-      // ========================================================
+      for (final id in ids) {
+        final deleted = await reminderController.delete(
+          id,
+        );
+
+        if (deleted) {
+          deletedCount++;
+        }
+      }
+
+      if (deletedCount !=
+          ids.length) {
+        throw StateError(
+          reminderController.errorMessage ??
+              'Alguns lembretes não puderam ser excluídos.',
+        );
+      }
 
       _loadedReminderWeekKey = null;
 
@@ -1198,10 +993,10 @@ class _RoutineScreenState
                 ),
                 Expanded(
                   child: Text(
-                    ids.length ==
+                    deletedCount ==
                             1
                         ? '1 lembrete expirado excluído.'
-                        : '${ids.length} lembretes expirados excluídos.',
+                        : '$deletedCount lembretes expirados excluídos.',
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
@@ -1995,7 +1790,7 @@ class _RoutineScreenState
   // ============================================================
   //
   // onPanUpdate altera apenas a posição local.
-  // onPanEnd salva uma única vez no Supabase.
+  // onPanEnd persiste uma única vez pelo controller.
   //
   // ============================================================
 
@@ -2086,7 +1881,7 @@ class _RoutineScreenState
       force: true,
     );
 
-    // Força a atualização do Supabase ao trocar manualmente o dia.
+    // Recarrega os comentários ao trocar manualmente o dia.
     await _reloadCommentsForSelectedDay();
   }
 
@@ -2311,6 +2106,369 @@ class _RoutineScreenState
     }
 
     return widgets;
+  }
+
+  // ============================================================
+  // MIND MAP WINDOW - CHANNEL HANDLER
+  // ============================================================
+
+  Future<
+    dynamic
+  >
+  _handleMindMapWindowCall(
+    MethodCall call,
+  ) async {
+    switch (call.method) {
+      case 'mind_map_changed':
+        final data = _channelMap(
+          call.arguments,
+        );
+
+        return _applyMindMapSnapshot(
+          data,
+          dock: false,
+        );
+
+      case 'mind_map_dock':
+        final data = _channelMap(
+          call.arguments,
+        );
+
+        return _applyMindMapSnapshot(
+          data,
+          dock: true,
+        );
+
+      default:
+        return null;
+    }
+  }
+
+  Map<
+    String,
+    dynamic
+  >
+  _channelMap(
+    Object? value,
+  ) {
+    if (value
+        is Map) {
+      return Map<
+        String,
+        dynamic
+      >.from(
+        value,
+      );
+    }
+
+    return <
+      String,
+      dynamic
+    >{};
+  }
+
+  bool _applyMindMapSnapshot(
+    Map<
+      String,
+      dynamic
+    >
+    data, {
+    required bool dock,
+  }) {
+    final blockId =
+        data['block_id']?.toString().trim() ??
+        '';
+
+    if (blockId.isEmpty) {
+      return false;
+    }
+
+    final rawBlock = data['block'];
+
+    if (rawBlock
+        is Map) {
+      try {
+        final dto = BoardBlockDto.fromMap(
+          Map<
+            String,
+            dynamic
+          >.from(
+            rawBlock,
+          ),
+        );
+
+        final updated = BoardBlockMapper.toModel(
+          dto,
+        );
+
+        final target = _findRoutineBlockById(
+          blockId,
+        );
+
+        if (target !=
+            null) {
+          target.title = updated.title;
+          target.content = updated.content;
+          target.status = updated.status;
+          target.position = updated.position;
+          target.width = updated.width;
+          target.height = updated.height;
+          target.attachmentId = updated.attachmentId;
+
+          target.mindNodes
+            ..clear()
+            ..addAll(
+              updated.mindNodes,
+            );
+
+          _routineController.notifyBlockChanged();
+        }
+      } catch (
+        error,
+        stackTrace
+      ) {
+        debugPrint(
+          '[ROUTINE][MIND MAP WINDOW][APPLY] $error',
+        );
+
+        debugPrint(
+          '$stackTrace',
+        );
+
+        return false;
+      }
+    }
+
+    if (dock) {
+      _detachedMindMapBlockIds.remove(
+        blockId,
+      );
+    } else {
+      _detachedMindMapBlockIds.add(
+        blockId,
+      );
+    }
+
+    if (mounted) {
+      setState(
+        () {},
+      );
+    }
+
+    return true;
+  }
+
+  BoardBlock? _findRoutineBlockById(
+    String blockId,
+  ) {
+    for (final day in _routineController.state.days) {
+      for (final block in day.blocks) {
+        if (block.id ==
+            blockId) {
+          return block;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  bool _isMindMapDetached(
+    BoardBlock block,
+  ) {
+    return _detachedMindMapBlockIds.contains(
+      block.id,
+    );
+  }
+
+  String? _mindMapBlockIdFromArguments(
+    String rawArguments,
+  ) {
+    final raw = rawArguments.trim();
+
+    if (raw.isEmpty) {
+      return null;
+    }
+
+    try {
+      final decoded = jsonDecode(
+        raw,
+      );
+
+      if (decoded
+          is! Map) {
+        return null;
+      }
+
+      final map =
+          Map<
+            String,
+            dynamic
+          >.from(
+            decoded,
+          );
+
+      if (map['window']?.toString().trim() !=
+          'mind_map') {
+        return null;
+      }
+
+      final blockId = map['block_id']?.toString().trim();
+
+      if (blockId ==
+              null ||
+          blockId.isEmpty) {
+        return null;
+      }
+
+      return blockId;
+    } catch (
+      _
+    ) {
+      return null;
+    }
+  }
+
+  Future<
+    WindowController?
+  >
+  _findMindMapWindow(
+    String blockId,
+  ) async {
+    final windows = await WindowController.getAll();
+
+    for (final window in windows) {
+      final currentBlockId = _mindMapBlockIdFromArguments(
+        window.arguments,
+      );
+
+      if (currentBlockId ==
+          blockId) {
+        return window;
+      }
+    }
+
+    return null;
+  }
+
+  Map<
+    String,
+    dynamic
+  >
+  _mindMapBlockMap(
+    BoardBlock block,
+  ) {
+    return BoardBlockMapper.toDto(
+      model: block,
+    ).toMap();
+  }
+
+  Future<
+    void
+  >
+  _openMindMapWindow(
+    BoardBlock block,
+  ) async {
+    if (block.type !=
+        BlockType.mindMap) {
+      return;
+    }
+
+    try {
+      _mindMapController.ensureRoot(
+        block,
+      );
+
+      // Persiste localmente antes de destacar.
+      //
+      // Nenhuma leitura remota é necessária para abrir a janela.
+      await _routineController.saveSelectedDay();
+
+      final blockMap = _mindMapBlockMap(
+        block,
+      );
+
+      final existingWindow = await _findMindMapWindow(
+        block.id,
+      );
+
+      if (existingWindow !=
+          null) {
+        _detachedMindMapBlockIds.add(
+          block.id,
+        );
+
+        if (mounted) {
+          setState(
+            () {},
+          );
+        }
+
+        await existingWindow.show();
+
+        // Atualiza a engine escondida com o snapshot mais recente.
+        await _mindMapWindowChannel.invokeMethod(
+          'mind_map_replace',
+          {
+            'block_id': block.id,
+            'block': blockMap,
+          },
+        );
+
+        return;
+      }
+
+      final arguments = jsonEncode(
+        {
+          'window': 'mind_map',
+          'block_id': block.id,
+          'title': block.title.trim().isEmpty
+              ? 'Nova ideia'
+              : block.title.trim(),
+          'block': blockMap,
+        },
+      );
+
+      final window = await WindowController.create(
+        WindowConfiguration(
+          hiddenAtLaunch: true,
+          arguments: arguments,
+        ),
+      );
+
+      _detachedMindMapBlockIds.add(
+        block.id,
+      );
+
+      if (mounted) {
+        setState(
+          () {},
+        );
+      }
+
+      await window.show();
+    } catch (
+      error,
+      stackTrace
+    ) {
+      _detachedMindMapBlockIds.remove(
+        block.id,
+      );
+
+      if (mounted) {
+        setState(
+          () {},
+        );
+      }
+
+      debugPrint(
+        '[ROUTINE][MIND MAP WINDOW][OPEN] $error',
+      );
+
+      debugPrint(
+        '$stackTrace',
+      );
+    }
   }
 
   void _notifyRoutineMutation() {
@@ -3580,6 +3738,13 @@ class _RoutineScreenState
           day,
           block,
         ),
+        onOpenMindMap:
+            block.type ==
+                BlockType.mindMap
+            ? () => _openMindMapWindow(
+                block,
+              )
+            : null,
         child: _blockContent(
           block,
           day: day,
@@ -3636,6 +3801,19 @@ class _RoutineScreenState
           ),
         );
       case BlockType.mindMap:
+        if (_isMindMapDetached(
+          block,
+        )) {
+          return _MindMapDetachedPlaceholder(
+            block: block,
+            onOpen: () {
+              _openMindMapWindow(
+                block,
+              );
+            },
+          );
+        }
+
         return MindMapBlock(
           block: block,
           controller: _mindMapController,
@@ -4723,6 +4901,7 @@ class _BoardCard
     required this.onReminder,
     required this.onDelete,
     required this.child,
+    this.onOpenMindMap,
     this.onResize,
     this.onResizeEnd,
   });
@@ -4746,6 +4925,7 @@ class _BoardCard
   final VoidCallback onDuplicate;
   final VoidCallback onReminder;
   final VoidCallback onDelete;
+  final VoidCallback? onOpenMindMap;
   final Widget child;
 
   bool get _resizable =>
@@ -4953,6 +5133,18 @@ class _BoardCard
                   ),
                 ),
               ),
+
+              if (onOpenMindMap !=
+                  null)
+                IconButton(
+                  tooltip: 'Abrir lousa em janela',
+                  onPressed: onOpenMindMap,
+                  icon: const Icon(
+                    Icons.open_in_new_rounded,
+                    color: _RoutineScreenState._primary,
+                    size: 18,
+                  ),
+                ),
 
               Tooltip(
                 message: 'Criar lembrete para este bloco',
@@ -5343,6 +5535,114 @@ class _EmptyBoard
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// MIND MAP DETACHED PLACEHOLDER
+// ============================================================
+//
+// Exibido dentro do card enquanto a lousa está aberta em uma
+// janela desktop separada.
+//
+// A janela principal continua sendo a fonte da verdade.
+// ============================================================
+
+class _MindMapDetachedPlaceholder
+    extends
+        StatelessWidget {
+  const _MindMapDetachedPlaceholder({
+    required this.block,
+    required this.onOpen,
+  });
+
+  final BoardBlock block;
+
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 14,
+        vertical: 12,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onOpen,
+          borderRadius: BorderRadius.circular(
+            13,
+          ),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(
+              16,
+            ),
+            decoration: BoxDecoration(
+              color: _RoutineScreenState._surfaceLight,
+              borderRadius: BorderRadius.circular(
+                13,
+              ),
+              border: Border.all(
+                color: _RoutineScreenState._border,
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.open_in_new_rounded,
+                  color: _RoutineScreenState._primary,
+                ),
+
+                const SizedBox(
+                  width: 10,
+                ),
+
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Lousa aberta em outra janela',
+                        style: TextStyle(
+                          color: _RoutineScreenState._text,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+
+                      const SizedBox(
+                        height: 3,
+                      ),
+
+                      Text(
+                        '${block.mindNodes.length} nó(s) • clique para trazer a janela',
+                        style: const TextStyle(
+                          color: _RoutineScreenState._muted,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(
+                  width: 8,
+                ),
+
+                const Icon(
+                  Icons.open_in_new_rounded,
+                  color: _RoutineScreenState._muted,
+                  size: 18,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

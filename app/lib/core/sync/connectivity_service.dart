@@ -15,20 +15,44 @@ class ConnectivityService
         ChangeNotifier {
   ConnectivityService({
     Connectivity? connectivity,
-    this.checkInterval = const Duration(
-      seconds: 15,
-    ),
     this.probeHost = 'supabase.com',
     this.probePort = 443,
+    this.probeTimeout = const Duration(
+      seconds: 3,
+    ),
+    this.probeCacheDuration = const Duration(
+      seconds: 30,
+    ),
   }) : _connectivity =
            connectivity ??
            Connectivity();
 
+  // ============================================================
+  // DEPENDENCIES
+  // ============================================================
+
   final Connectivity _connectivity;
 
-  final Duration checkInterval;
+  // ============================================================
+  // PROBE
+  // ============================================================
+
   final String probeHost;
+
   final int probePort;
+
+  final Duration probeTimeout;
+
+  /// Durante este período reutilizamos o resultado do último
+  /// probe remoto.
+  ///
+  /// Isso evita abrir sockets repetidamente quando vários
+  /// serviços perguntam pela conexão quase ao mesmo tempo.
+  final Duration probeCacheDuration;
+
+  // ============================================================
+  // SUBSCRIPTION
+  // ============================================================
 
   StreamSubscription<
     List<
@@ -37,89 +61,175 @@ class ConnectivityService
   >?
   _subscription;
 
-  Timer? _timer;
+  // ============================================================
+  // STATE
+  // ============================================================
 
   ConnectionStateStatus _status = ConnectionStateStatus.checking;
 
   DateTime? _lastCheckedAt;
 
+  DateTime? _lastRemoteProbeAt;
+
   bool _started = false;
+
   bool _checking = false;
 
-  ConnectionStateStatus get status => _status;
+  bool _disposed = false;
 
-  bool get isOnline =>
-      _status ==
-      ConnectionStateStatus.online;
+  // ============================================================
+  // GETTERS
+  // ============================================================
 
-  bool get isOffline =>
-      _status ==
-      ConnectionStateStatus.offline;
+  ConnectionStateStatus get status {
+    return _status;
+  }
 
-  bool get isChecking =>
-      _status ==
-      ConnectionStateStatus.checking;
+  bool get isOnline {
+    return _status ==
+        ConnectionStateStatus.online;
+  }
 
-  DateTime? get lastCheckedAt => _lastCheckedAt;
+  bool get isOffline {
+    return _status ==
+        ConnectionStateStatus.offline;
+  }
 
-  bool get isStarted => _started;
+  bool get isChecking {
+    return _checking;
+  }
+
+  bool get isStarted {
+    return _started;
+  }
+
+  DateTime? get lastCheckedAt {
+    return _lastCheckedAt;
+  }
+
+  DateTime? get lastRemoteProbeAt {
+    return _lastRemoteProbeAt;
+  }
+
+  // ============================================================
+  // START
+  // ============================================================
 
   Future<
     void
   >
   start() async {
-    if (_started) {
+    if (_disposed ||
+        _started) {
       return;
     }
 
     _started = true;
 
+    // ==========================================================
+    // EVENT DRIVEN
+    // ==========================================================
+    //
+    // Não fazemos mais Timer.periodic aqui.
+    //
+    // O sistema operacional informa quando a conectividade muda.
+    //
+    // Assim não abrimos um socket para o Supabase a cada
+    // poucos segundos sem necessidade.
+    //
+    // ==========================================================
+
     _subscription = _connectivity.onConnectivityChanged.listen(
-      (
-        _,
-      ) {
-        unawaited(
-          checkNow(),
-        );
-      },
+      _onConnectivityChanged,
     );
 
-    await checkNow();
-
-    _timer = Timer.periodic(
-      checkInterval,
-      (
-        _,
-      ) {
-        unawaited(
-          checkNow(),
-        );
-      },
+    // Uma única verificação real na inicialização.
+    await checkNow(
+      forceRemoteProbe: true,
     );
   }
+
+  // ============================================================
+  // CONNECTIVITY EVENT
+  // ============================================================
+
+  void _onConnectivityChanged(
+    List<
+      ConnectivityResult
+    >
+    results,
+  ) {
+    if (_disposed ||
+        !_started) {
+      return;
+    }
+
+    final hasInterface = _hasNetworkInterface(
+      results,
+    );
+
+    if (!hasInterface) {
+      _lastCheckedAt = DateTime.now();
+
+      _setStatus(
+        ConnectionStateStatus.offline,
+      );
+
+      return;
+    }
+
+    // A interface reapareceu.
+    //
+    // Fazemos um probe real porque:
+    //
+    // Wi-Fi/Ethernet ativo != internet disponível.
+    unawaited(
+      checkNow(
+        forceRemoteProbe: true,
+      ),
+    );
+  }
+
+  // ============================================================
+  // CHECK NOW
+  // ============================================================
 
   Future<
     bool
   >
-  checkNow() async {
+  checkNow({
+    bool forceRemoteProbe = false,
+  }) async {
+    if (_disposed) {
+      return false;
+    }
+
+    // Outra checagem já está em andamento.
+    //
+    // Não abrimos um segundo socket simultaneamente.
     if (_checking) {
+      return isOnline;
+    }
+
+    // ==========================================================
+    // CACHE DO PROBE
+    // ==========================================================
+
+    if (!forceRemoteProbe &&
+        _canReuseLastProbe()) {
       return isOnline;
     }
 
     _checking = true;
 
     try {
-      final connectivityResults = await _connectivity.checkConnectivity();
+      final results = await _connectivity.checkConnectivity();
 
-      final hasNetworkInterface = connectivityResults.any(
-        (
-          result,
-        ) =>
-            result !=
-            ConnectivityResult.none,
+      final hasInterface = _hasNetworkInterface(
+        results,
       );
 
-      if (!hasNetworkInterface) {
+      if (!hasInterface) {
         _setStatus(
           ConnectionStateStatus.offline,
         );
@@ -129,6 +239,8 @@ class ConnectivityService
 
       final reachable = await _probeRemote();
 
+      _lastRemoteProbeAt = DateTime.now();
+
       _setStatus(
         reachable
             ? ConnectionStateStatus.online
@@ -137,8 +249,13 @@ class ConnectivityService
 
       return reachable;
     } catch (
-      _
+      error
     ) {
+      debugPrint(
+        '[CONNECTIVITY] '
+        'Falha ao verificar conexão: $error',
+      );
+
       _setStatus(
         ConnectionStateStatus.offline,
       );
@@ -146,9 +263,53 @@ class ConnectivityService
       return false;
     } finally {
       _checking = false;
+
       _lastCheckedAt = DateTime.now();
     }
   }
+
+  // ============================================================
+  // REUSE PROBE
+  // ============================================================
+
+  bool _canReuseLastProbe() {
+    final last = _lastRemoteProbeAt;
+
+    if (last ==
+        null) {
+      return false;
+    }
+
+    final elapsed = DateTime.now().difference(
+      last,
+    );
+
+    return elapsed <
+        probeCacheDuration;
+  }
+
+  // ============================================================
+  // NETWORK INTERFACE
+  // ============================================================
+
+  bool _hasNetworkInterface(
+    List<
+      ConnectivityResult
+    >
+    results,
+  ) {
+    return results.any(
+      (
+        result,
+      ) =>
+          result !=
+          ConnectivityResult.none,
+    );
+  }
+
+  // ============================================================
+  // REMOTE PROBE
+  // ============================================================
 
   Future<
     bool
@@ -160,9 +321,7 @@ class ConnectivityService
       socket = await Socket.connect(
         probeHost,
         probePort,
-        timeout: const Duration(
-          seconds: 3,
-        ),
+        timeout: probeTimeout,
       );
 
       return true;
@@ -175,6 +334,10 @@ class ConnectivityService
     }
   }
 
+  // ============================================================
+  // STATUS
+  // ============================================================
+
   void _setStatus(
     ConnectionStateStatus value,
   ) {
@@ -183,28 +346,59 @@ class ConnectivityService
       return;
     }
 
+    final previous = _status;
+
     _status = value;
 
-    notifyListeners();
+    debugPrint(
+      '[CONNECTIVITY] '
+      '${previous.name} -> ${value.name}',
+    );
+
+    if (!_disposed) {
+      notifyListeners();
+    }
   }
+
+  // ============================================================
+  // STOP
+  // ============================================================
 
   Future<
     void
   >
   stop() async {
-    _timer?.cancel();
-    _timer = null;
+    if (!_started) {
+      return;
+    }
 
     await _subscription?.cancel();
+
     _subscription = null;
 
     _started = false;
   }
 
+  // ============================================================
+  // DISPOSE
+  // ============================================================
+
   @override
   void dispose() {
-    _timer?.cancel();
-    _subscription?.cancel();
+    if (_disposed) {
+      return;
+    }
+
+    _disposed = true;
+
+    unawaited(
+      _subscription?.cancel() ??
+          Future<
+            void
+          >.value(),
+    );
+
+    _subscription = null;
 
     super.dispose();
   }

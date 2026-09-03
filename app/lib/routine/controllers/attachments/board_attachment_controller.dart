@@ -7,10 +7,8 @@ class BoardAttachmentController
     extends
         ChangeNotifier {
   BoardAttachmentController({
-    BoardAttachmentRepository? repository,
-  }) : _repository =
-           repository ??
-           BoardAttachmentRepository();
+    required BoardAttachmentRepository repository,
+  }) : _repository = repository;
 
   // ============================================================
   // REPOSITORY

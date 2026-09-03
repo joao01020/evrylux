@@ -5,10 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class RoutineStorageService {
   RoutineStorageService({
-    SupabaseClient? client,
-  }) : _client =
-           client ??
-           Supabase.instance.client;
+    required SupabaseClient client,
+  }) : _client = client;
 
   final SupabaseClient _client;
 

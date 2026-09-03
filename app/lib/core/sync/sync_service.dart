@@ -11,7 +11,13 @@ import 'sync_queue.dart';
 // HANDLER
 // ============================================================
 
-typedef SyncItemHandler = Future<void> Function(SyncItem item);
+typedef SyncItemHandler =
+    Future<
+      void
+    >
+    Function(
+      SyncItem item,
+    );
 
 // ============================================================
 // PROCESSING GATE
@@ -32,13 +38,26 @@ typedef SyncItemHandler = Future<void> Function(SyncItem item);
 //
 // ============================================================
 
-typedef SyncItemProcessingGate = Future<bool> Function(SyncItem item);
+typedef SyncItemProcessingGate =
+    Future<
+      bool
+    >
+    Function(
+      SyncItem item,
+    );
 
 // ============================================================
 // SERVICE STATE
 // ============================================================
 
-enum SyncServiceState { stopped, checking, offline, idle, syncing, error }
+enum SyncServiceState {
+  stopped,
+  checking,
+  offline,
+  idle,
+  syncing,
+  error,
+}
 
 // ============================================================
 // SYNC SERVICE
@@ -58,16 +77,23 @@ enum SyncServiceState { stopped, checking, offline, idle, syncing, error }
 //
 // ============================================================
 
-class SyncService extends ChangeNotifier {
+class SyncService
+    extends
+        ChangeNotifier {
   SyncService({
     required SyncQueue queue,
     required ConnectivityService connectivityService,
     SupabaseClient? client,
-    this.syncInterval = const Duration(seconds: 20),
+    this.syncInterval = const Duration(
+      minutes: 1,
+    ),
     this.batchSize = 50,
-  }) : _queue = queue,
+  }) : _queue =
+           queue,
        _connectivityService = connectivityService,
-       _client = client ?? Supabase.instance.client;
+       _client =
+           client ??
+           Supabase.instance.client;
 
   // ============================================================
   // DEPENDENCIES
@@ -91,10 +117,25 @@ class SyncService extends ChangeNotifier {
   // HANDLERS
   // ============================================================
 
-  final Map<String, SyncItemHandler> _handlers = <String, SyncItemHandler>{};
+  final Map<
+    String,
+    SyncItemHandler
+  >
+  _handlers =
+      <
+        String,
+        SyncItemHandler
+      >{};
 
-  final Map<String, SyncItemProcessingGate> _processingGates =
-      <String, SyncItemProcessingGate>{};
+  final Map<
+    String,
+    SyncItemProcessingGate
+  >
+  _processingGates =
+      <
+        String,
+        SyncItemProcessingGate
+      >{};
 
   // ============================================================
   // STATE
@@ -165,28 +206,44 @@ class SyncService extends ChangeNotifier {
 
   DateTime? get lastAttemptAt => _lastAttemptAt;
 
-  bool get hasPending => _pendingCount > 0;
+  bool get hasPending =>
+      _pendingCount >
+      0;
 
-  bool get hasReady => _readyCount > 0;
+  bool get hasReady =>
+      _readyCount >
+      0;
 
-  bool get hasError => _lastError != null;
+  bool get hasError =>
+      _lastError !=
+      null;
 
   // ============================================================
   // START
   // ============================================================
 
-  Future<void> start() async {
-    if (_disposed || _started) {
+  Future<
+    void
+  >
+  start() async {
+    if (_disposed ||
+        _started) {
       return;
     }
 
     _started = true;
 
-    debugPrint('[SYNC SERVICE] Iniciando...');
+    debugPrint(
+      '[SYNC SERVICE] Iniciando...',
+    );
 
-    _setState(SyncServiceState.checking);
+    _setState(
+      SyncServiceState.checking,
+    );
 
-    _connectivityService.addListener(_onConnectivityChanged);
+    _connectivityService.addListener(
+      _onConnectivityChanged,
+    );
 
     try {
       await _connectivityService.start();
@@ -202,30 +259,78 @@ class SyncService extends ChangeNotifier {
         'handlers=${_handlers.length}',
       );
 
-      if (_connectivityService.isOnline) {
-        await syncNow(checkConnection: false);
+      if (_connectivityService.isOffline) {
+        _setState(
+          SyncServiceState.offline,
+        );
+      } else if (_readyCount >
+          0) {
+        await syncNow(
+          checkConnection: false,
+        );
       } else {
-        _setState(SyncServiceState.offline);
+        _setState(
+          SyncServiceState.idle,
+        );
       }
 
-      _timer = Timer.periodic(syncInterval, (_) {
-        unawaited(_periodicCheck());
-      });
-    } catch (error, stackTrace) {
+      // ======================================================
+      // FALLBACK TIMER
+      // ======================================================
+      //
+      // O timer NÃO é o motor principal da sincronização.
+      //
+      // Fluxo normal:
+      //
+      // Repository
+      //   -> SyncQueue.enqueue()
+      //   -> SyncService.requestSync()
+      //
+      // Ou:
+      //
+      // offline -> online
+      //   -> ConnectivityService
+      //   -> _onConnectionRestored()
+      //
+      // O timer existe apenas para recuperar situações raras em
+      // que algum evento deixou de ser entregue.
+      //
+      // ======================================================
+
+      _timer = Timer.periodic(
+        syncInterval,
+        (
+          _,
+        ) {
+          unawaited(
+            _periodicCheck(),
+          );
+        },
+      );
+    } catch (
+      error,
+      stackTrace
+    ) {
       _started = false;
 
-      _connectivityService.removeListener(_onConnectivityChanged);
+      _connectivityService.removeListener(
+        _onConnectivityChanged,
+      );
 
       _lastError = error.toString();
 
-      _setState(SyncServiceState.error);
+      _setState(
+        SyncServiceState.error,
+      );
 
       debugPrint(
         '[SYNC SERVICE] '
         'Erro ao iniciar: $error',
       );
 
-      debugPrint(stackTrace.toString());
+      debugPrint(
+        stackTrace.toString(),
+      );
 
       rethrow;
     }
@@ -235,35 +340,66 @@ class SyncService extends ChangeNotifier {
   // PERIODIC CHECK
   // ============================================================
 
-  Future<void> _periodicCheck() async {
-    if (!_started || _disposed) {
+  Future<
+    void
+  >
+  _periodicCheck() async {
+    if (!_started ||
+        _disposed ||
+        _syncing) {
       return;
     }
 
-    final online = await _connectivityService.checkNow();
+    // ==========================================================
+    // LOCAL FIRST
+    // ==========================================================
+    //
+    // Primeiro consultamos somente a fila SQLite.
+    //
+    // Se não há nada pronto para transmitir, encerramos aqui.
+    //
+    // Portanto:
+    //
+    // sync_queue vazia
+    //     -> zero probe remoto
+    //     -> zero request Supabase
+    //
+    // ==========================================================
 
     await refreshPendingCount();
 
+    if (_readyCount <=
+        0) {
+      if (_connectivityService.isOffline) {
+        _setState(
+          SyncServiceState.offline,
+        );
+      } else {
+        _setState(
+          SyncServiceState.idle,
+        );
+      }
+
+      return;
+    }
+
+    // ==========================================================
+    // SÓ CONFIRMA REDE QUANDO EXISTE TRABALHO
+    // ==========================================================
+
+    final online = await _connectivityService.checkNow();
+
     if (!online) {
-      _setState(SyncServiceState.offline);
+      _setState(
+        SyncServiceState.offline,
+      );
 
       return;
     }
 
-    if (_readyCount > 0) {
-      await syncNow(checkConnection: false);
-
-      return;
-    }
-
-    if (_pendingCount > 0) {
-      // Existem itens aguardando next_attempt_at.
-      _setState(SyncServiceState.idle);
-
-      return;
-    }
-
-    _setState(SyncServiceState.idle);
+    await syncNow(
+      checkConnection: false,
+    );
   }
 
   // ============================================================
@@ -271,22 +407,30 @@ class SyncService extends ChangeNotifier {
   // ============================================================
 
   void _onConnectivityChanged() {
-    if (!_started || _disposed) {
+    if (!_started ||
+        _disposed) {
       return;
     }
 
     if (_connectivityService.isOffline) {
-      _setState(SyncServiceState.offline);
+      _setState(
+        SyncServiceState.offline,
+      );
 
       return;
     }
 
     if (_connectivityService.isOnline) {
-      unawaited(_onConnectionRestored());
+      unawaited(
+        _onConnectionRestored(),
+      );
     }
   }
 
-  Future<void> _onConnectionRestored() async {
+  Future<
+    void
+  >
+  _onConnectionRestored() async {
     debugPrint(
       '[SYNC SERVICE] '
       'Conexão restaurada.',
@@ -294,13 +438,18 @@ class SyncService extends ChangeNotifier {
 
     await refreshPendingCount();
 
-    if (_pendingCount == 0) {
-      _setState(SyncServiceState.idle);
+    if (_pendingCount ==
+        0) {
+      _setState(
+        SyncServiceState.idle,
+      );
 
       return;
     }
 
-    await syncNow(checkConnection: false);
+    await syncNow(
+      checkConnection: false,
+    );
   }
 
   // ============================================================
@@ -315,13 +464,18 @@ class SyncService extends ChangeNotifier {
     final key = entityType.trim();
 
     if (key.isEmpty) {
-      throw ArgumentError('entityType não pode ser vazio.');
+      throw ArgumentError(
+        'entityType não pode ser vazio.',
+      );
     }
 
     _handlers[key] = handler;
 
-    if (processingGate == null) {
-      _processingGates.remove(key);
+    if (processingGate ==
+        null) {
+      _processingGates.remove(
+        key,
+      );
     } else {
       _processingGates[key] = processingGate;
     }
@@ -349,42 +503,70 @@ class SyncService extends ChangeNotifier {
     final normalizedIdColumn = idColumn.trim();
 
     if (normalizedEntityType.isEmpty) {
-      throw ArgumentError('entityType não pode ser vazio.');
+      throw ArgumentError(
+        'entityType não pode ser vazio.',
+      );
     }
 
     if (normalizedTable.isEmpty) {
-      throw ArgumentError('table não pode ser vazia.');
+      throw ArgumentError(
+        'table não pode ser vazia.',
+      );
     }
 
     if (normalizedIdColumn.isEmpty) {
-      throw ArgumentError('idColumn não pode ser vazio.');
+      throw ArgumentError(
+        'idColumn não pode ser vazio.',
+      );
     }
 
     registerHandler(
       entityType: normalizedEntityType,
-      handler: (item) async {
-        switch (item.operation) {
-          case SyncOperation.create:
-          case SyncOperation.update:
-            final payload = Map<String, dynamic>.from(item.payload);
+      handler:
+          (
+            item,
+          ) async {
+            switch (item.operation) {
+              case SyncOperation.create:
+              case SyncOperation.update:
+                final payload =
+                    Map<
+                      String,
+                      dynamic
+                    >.from(
+                      item.payload,
+                    );
 
-            payload.putIfAbsent(normalizedIdColumn, () => item.entityId);
+                payload.putIfAbsent(
+                  normalizedIdColumn,
+                  () => item.entityId,
+                );
 
-            await _client
-                .from(normalizedTable)
-                .upsert(payload, onConflict: normalizedIdColumn);
+                await _client
+                    .from(
+                      normalizedTable,
+                    )
+                    .upsert(
+                      payload,
+                      onConflict: normalizedIdColumn,
+                    );
 
-            break;
+                break;
 
-          case SyncOperation.delete:
-            await _client
-                .from(normalizedTable)
-                .delete()
-                .eq(normalizedIdColumn, item.entityId);
+              case SyncOperation.delete:
+                await _client
+                    .from(
+                      normalizedTable,
+                    )
+                    .delete()
+                    .eq(
+                      normalizedIdColumn,
+                      item.entityId,
+                    );
 
-            break;
-        }
-      },
+                break;
+            }
+          },
     );
   }
 
@@ -392,16 +574,26 @@ class SyncService extends ChangeNotifier {
   // UNREGISTER
   // ============================================================
 
-  void unregisterHandler(String entityType) {
+  void unregisterHandler(
+    String entityType,
+  ) {
     final key = entityType.trim();
 
-    _handlers.remove(key);
+    _handlers.remove(
+      key,
+    );
 
-    _processingGates.remove(key);
+    _processingGates.remove(
+      key,
+    );
   }
 
-  bool hasHandler(String entityType) {
-    return _handlers.containsKey(entityType.trim());
+  bool hasHandler(
+    String entityType,
+  ) {
+    return _handlers.containsKey(
+      entityType.trim(),
+    );
   }
 
   // ============================================================
@@ -436,11 +628,17 @@ class SyncService extends ChangeNotifier {
       'Sincronização solicitada.',
     );
 
-    unawaited(_requestSyncInternal());
+    unawaited(
+      _requestSyncInternal(),
+    );
   }
 
-  Future<void> _requestSyncInternal() async {
-    if (_disposed || !_started) {
+  Future<
+    void
+  >
+  _requestSyncInternal() async {
+    if (_disposed ||
+        !_started) {
       return;
     }
 
@@ -455,8 +653,20 @@ class SyncService extends ChangeNotifier {
       'ready=$_readyCount',
     );
 
-    if (!_connectivityService.isOnline) {
-      _setState(SyncServiceState.offline);
+    // Nada pronto para transmitir.
+    //
+    // Pode haver itens em backoff ou bloqueados por política.
+    if (_readyCount <=
+        0) {
+      if (_connectivityService.isOffline) {
+        _setState(
+          SyncServiceState.offline,
+        );
+      } else {
+        _setState(
+          SyncServiceState.idle,
+        );
+      }
 
       return;
     }
@@ -466,15 +676,37 @@ class SyncService extends ChangeNotifier {
       return;
     }
 
-    await syncNow(checkConnection: false);
+    // requestSync() normalmente é chamado logo após uma escrita
+    // local. Se o estado conhecido já é online, não fazemos novo
+    // probe aqui.
+    //
+    // Caso o estado conhecido seja offline, o item permanece na
+    // fila e o evento de reconexão cuidará do envio.
+    if (!_connectivityService.isOnline) {
+      _setState(
+        SyncServiceState.offline,
+      );
+
+      return;
+    }
+
+    await syncNow(
+      checkConnection: false,
+    );
   }
 
   // ============================================================
   // SYNC NOW
   // ============================================================
 
-  Future<void> syncNow({bool checkConnection = true}) async {
-    if (!_started || _disposed) {
+  Future<
+    void
+  >
+  syncNow({
+    bool checkConnection = true,
+  }) async {
+    if (!_started ||
+        _disposed) {
       return;
     }
 
@@ -485,6 +717,31 @@ class SyncService extends ChangeNotifier {
         '[SYNC SERVICE] '
         'syncNow já em execução; nova passagem agendada.',
       );
+
+      return;
+    }
+
+    // ========================================================
+    // LOCAL QUEUE GUARD
+    // ========================================================
+    //
+    // Nunca verificamos a internet se não existe operação pronta.
+    //
+    // ========================================================
+
+    await refreshPendingCount();
+
+    if (_readyCount <=
+        0) {
+      if (_connectivityService.isOffline) {
+        _setState(
+          SyncServiceState.offline,
+        );
+      } else {
+        _setState(
+          SyncServiceState.idle,
+        );
+      }
 
       return;
     }
@@ -502,7 +759,15 @@ class SyncService extends ChangeNotifier {
 
     _lastError = null;
 
-    _setState(SyncServiceState.checking);
+    if (checkConnection) {
+      _setState(
+        SyncServiceState.checking,
+      );
+    } else {
+      _setState(
+        SyncServiceState.syncing,
+      );
+    }
 
     try {
       // ========================================================
@@ -510,15 +775,21 @@ class SyncService extends ChangeNotifier {
       // ========================================================
 
       if (checkConnection) {
-        final online = await _connectivityService.checkNow();
+        final online = await _connectivityService.checkNow(
+          forceRemoteProbe: true,
+        );
 
         if (!online) {
-          _setState(SyncServiceState.offline);
+          _setState(
+            SyncServiceState.offline,
+          );
 
           return;
         }
       } else if (!_connectivityService.isOnline) {
-        _setState(SyncServiceState.offline);
+        _setState(
+          SyncServiceState.offline,
+        );
 
         return;
       }
@@ -535,12 +806,15 @@ class SyncService extends ChangeNotifier {
       //
       // ========================================================
 
-      if (_client.auth.currentUser == null) {
+      if (_client.auth.currentUser ==
+          null) {
         await refreshPendingCount();
 
         _lastError = null;
 
-        _setState(SyncServiceState.idle);
+        _setState(
+          SyncServiceState.idle,
+        );
 
         debugPrint(
           '[SYNC SERVICE] '
@@ -551,7 +825,9 @@ class SyncService extends ChangeNotifier {
         return;
       }
 
-      _setState(SyncServiceState.syncing);
+      _setState(
+        SyncServiceState.syncing,
+      );
 
       // ========================================================
       // PROCESS BATCHES
@@ -583,7 +859,9 @@ class SyncService extends ChangeNotifier {
 
         for (final item in items) {
           if (!_connectivityService.isOnline) {
-            _setState(SyncServiceState.offline);
+            _setState(
+              SyncServiceState.offline,
+            );
 
             continueProcessing = false;
 
@@ -592,7 +870,8 @@ class SyncService extends ChangeNotifier {
 
           final handler = _handlers[item.entityType];
 
-          if (handler == null) {
+          if (handler ==
+              null) {
             _lastFailedCount++;
 
             _lastError =
@@ -618,9 +897,13 @@ class SyncService extends ChangeNotifier {
               '(${item.operation.value})',
             );
 
-            await handler(item);
+            await handler(
+              item,
+            );
 
-            await _queue.markSuccess(item.id);
+            await _queue.markSuccess(
+              item.id,
+            );
 
             _lastSyncedCount++;
             processedThisBatch++;
@@ -631,7 +914,10 @@ class SyncService extends ChangeNotifier {
               '${item.entityType}/${item.entityId} '
               '(${item.operation.value})',
             );
-          } catch (error, stackTrace) {
+          } catch (
+            error,
+            stackTrace
+          ) {
             _lastFailedCount++;
             processedThisBatch++;
 
@@ -644,16 +930,28 @@ class SyncService extends ChangeNotifier {
               '(${item.operation.value})',
             );
 
-            debugPrint('[SYNC SERVICE] $error');
+            debugPrint(
+              '[SYNC SERVICE] $error',
+            );
 
-            debugPrint(stackTrace.toString());
+            debugPrint(
+              stackTrace.toString(),
+            );
 
-            await _queue.markFailed(id: item.id, error: error);
+            await _queue.markFailed(
+              id: item.id,
+              error: error,
+            );
 
-            final online = await _connectivityService.checkNow();
-
-            if (!online) {
-              _setState(SyncServiceState.offline);
+            // Não fazemos um novo probe remoto para cada erro.
+            //
+            // O ConnectivityService já reage a mudanças reais da
+            // interface de rede. Erros funcionais/RLS/servidor
+            // permanecem na fila com exponential backoff.
+            if (_connectivityService.isOffline) {
+              _setState(
+                SyncServiceState.offline,
+              );
 
               continueProcessing = false;
 
@@ -664,13 +962,15 @@ class SyncService extends ChangeNotifier {
 
         // Se nenhum item do lote pôde ser processado, geralmente
         // significa ausência de handler. Evitamos loop infinito.
-        if (processedThisBatch == 0) {
+        if (processedThisBatch ==
+            0) {
           continueProcessing = false;
         }
 
         // Se o lote veio menor que batchSize, já chegamos ao fim
         // dos itens atualmente prontos.
-        if (items.length < batchSize) {
+        if (items.length <
+            batchSize) {
           continueProcessing = false;
         }
       }
@@ -680,11 +980,20 @@ class SyncService extends ChangeNotifier {
       _lastSyncAt = DateTime.now();
 
       if (_connectivityService.isOffline) {
-        _setState(SyncServiceState.offline);
-      } else if (_lastFailedCount > 0 && _lastSyncedCount == 0) {
-        _setState(SyncServiceState.error);
+        _setState(
+          SyncServiceState.offline,
+        );
+      } else if (_lastFailedCount >
+              0 &&
+          _lastSyncedCount ==
+              0) {
+        _setState(
+          SyncServiceState.error,
+        );
       } else {
-        _setState(SyncServiceState.idle);
+        _setState(
+          SyncServiceState.idle,
+        );
       }
 
       debugPrint(
@@ -695,7 +1004,10 @@ class SyncService extends ChangeNotifier {
         'pending=$_pendingCount '
         'ready=$_readyCount',
       );
-    } catch (error, stackTrace) {
+    } catch (
+      error,
+      stackTrace
+    ) {
       _lastError = error.toString();
 
       debugPrint(
@@ -703,12 +1015,18 @@ class SyncService extends ChangeNotifier {
         'Erro geral: $error',
       );
 
-      debugPrint(stackTrace.toString());
+      debugPrint(
+        stackTrace.toString(),
+      );
 
       if (_connectivityService.isOffline) {
-        _setState(SyncServiceState.offline);
+        _setState(
+          SyncServiceState.offline,
+        );
       } else {
-        _setState(SyncServiceState.error);
+        _setState(
+          SyncServiceState.error,
+        );
       }
     } finally {
       _syncing = false;
@@ -731,9 +1049,15 @@ class SyncService extends ChangeNotifier {
         _resyncRequested = false;
 
         unawaited(
-          Future<void>.delayed(
-            const Duration(milliseconds: 100),
-            () => syncNow(checkConnection: false),
+          Future<
+            void
+          >.delayed(
+            const Duration(
+              milliseconds: 100,
+            ),
+            () => syncNow(
+              checkConnection: false,
+            ),
           ),
         );
       }
@@ -765,10 +1089,18 @@ class SyncService extends ChangeNotifier {
   //
   // ============================================================
 
-  Future<List<SyncItem>> _loadProcessableItems() async {
+  Future<
+    List<
+      SyncItem
+    >
+  >
+  _loadProcessableItems() async {
     final all = await _queue.getAll();
 
-    final result = <SyncItem>[];
+    final result =
+        <
+          SyncItem
+        >[];
 
     for (final item in all) {
       if (!item.canAttemptNow) {
@@ -777,12 +1109,18 @@ class SyncService extends ChangeNotifier {
 
       final gate = _processingGates[item.entityType];
 
-      if (gate != null) {
+      if (gate !=
+          null) {
         var allowed = false;
 
         try {
-          allowed = await gate(item);
-        } catch (error, stackTrace) {
+          allowed = await gate(
+            item,
+          );
+        } catch (
+          error,
+          stackTrace
+        ) {
           // ====================================================
           // FAIL CLOSED
           // ====================================================
@@ -801,9 +1139,13 @@ class SyncService extends ChangeNotifier {
             '${item.entityType}/${item.entityId}',
           );
 
-          debugPrint('[SYNC SERVICE] $error');
+          debugPrint(
+            '[SYNC SERVICE] $error',
+          );
 
-          debugPrint(stackTrace.toString());
+          debugPrint(
+            stackTrace.toString(),
+          );
 
           allowed = false;
         }
@@ -819,9 +1161,12 @@ class SyncService extends ChangeNotifier {
         }
       }
 
-      result.add(item);
+      result.add(
+        item,
+      );
 
-      if (result.length >= batchSize) {
+      if (result.length >=
+          batchSize) {
         break;
       }
     }
@@ -833,13 +1178,20 @@ class SyncService extends ChangeNotifier {
   // REFRESH PENDING COUNT
   // ============================================================
 
-  Future<void> refreshPendingCount() async {
+  Future<
+    void
+  >
+  refreshPendingCount() async {
     try {
       final count = await _queue.count();
 
       final ready = await _queue.countReady();
 
-      final changed = _pendingCount != count || _readyCount != ready;
+      final changed =
+          _pendingCount !=
+              count ||
+          _readyCount !=
+              ready;
 
       _pendingCount = count;
 
@@ -854,7 +1206,9 @@ class SyncService extends ChangeNotifier {
 
         _safeNotifyListeners();
       }
-    } catch (error) {
+    } catch (
+      error
+    ) {
       debugPrint(
         '[SYNC SERVICE] '
         'Erro ao contar pendências: $error',
@@ -867,18 +1221,25 @@ class SyncService extends ChangeNotifier {
   // ============================================================
 
   void clearError() {
-    if (_lastError == null) {
+    if (_lastError ==
+        null) {
       return;
     }
 
     _lastError = null;
 
     if (_connectivityService.isOffline) {
-      _setState(SyncServiceState.offline);
+      _setState(
+        SyncServiceState.offline,
+      );
     } else if (_syncing) {
-      _setState(SyncServiceState.syncing);
+      _setState(
+        SyncServiceState.syncing,
+      );
     } else {
-      _setState(SyncServiceState.idle);
+      _setState(
+        SyncServiceState.idle,
+      );
     }
   }
 
@@ -895,7 +1256,8 @@ class SyncService extends ChangeNotifier {
         return 'Verificando conexão...';
 
       case SyncServiceState.offline:
-        if (_pendingCount > 0) {
+        if (_pendingCount >
+            0) {
           return 'Offline • $_pendingCount alteração'
               '${_pendingCount == 1 ? '' : 'ões'} salva'
               '${_pendingCount == 1 ? '' : 's'} neste dispositivo';
@@ -904,7 +1266,8 @@ class SyncService extends ChangeNotifier {
         return 'Offline';
 
       case SyncServiceState.syncing:
-        if (_pendingCount > 0) {
+        if (_pendingCount >
+            0) {
           return 'Sincronizando $_pendingCount alteração'
               '${_pendingCount == 1 ? '' : 'ões'}...';
         }
@@ -915,8 +1278,10 @@ class SyncService extends ChangeNotifier {
         return 'Erro de sincronização';
 
       case SyncServiceState.idle:
-        if (_pendingCount > 0) {
-          if (_readyCount == 0) {
+        if (_pendingCount >
+            0) {
+          if (_readyCount ==
+              0) {
             return '$_pendingCount alteração'
                 '${_pendingCount == 1 ? '' : 'ões'} aguardando nova tentativa';
           }
@@ -933,8 +1298,11 @@ class SyncService extends ChangeNotifier {
   // STATE
   // ============================================================
 
-  void _setState(SyncServiceState value) {
-    if (_state == value) {
+  void _setState(
+    SyncServiceState value,
+  ) {
+    if (_state ==
+        value) {
       return;
     }
 
@@ -955,7 +1323,10 @@ class SyncService extends ChangeNotifier {
   // STOP
   // ============================================================
 
-  Future<void> stop() async {
+  Future<
+    void
+  >
+  stop() async {
     if (!_started) {
       return;
     }
@@ -964,7 +1335,9 @@ class SyncService extends ChangeNotifier {
 
     _timer = null;
 
-    _connectivityService.removeListener(_onConnectivityChanged);
+    _connectivityService.removeListener(
+      _onConnectivityChanged,
+    );
 
     await _connectivityService.stop();
 
@@ -974,9 +1347,13 @@ class SyncService extends ChangeNotifier {
 
     _resyncRequested = false;
 
-    _setState(SyncServiceState.stopped);
+    _setState(
+      SyncServiceState.stopped,
+    );
 
-    debugPrint('[SYNC SERVICE] Parado.');
+    debugPrint(
+      '[SYNC SERVICE] Parado.',
+    );
   }
 
   // ============================================================
@@ -995,9 +1372,13 @@ class SyncService extends ChangeNotifier {
 
     _timer = null;
 
-    _connectivityService.removeListener(_onConnectivityChanged);
+    _connectivityService.removeListener(
+      _onConnectivityChanged,
+    );
 
-    unawaited(_connectivityService.stop());
+    unawaited(
+      _connectivityService.stop(),
+    );
 
     super.dispose();
   }

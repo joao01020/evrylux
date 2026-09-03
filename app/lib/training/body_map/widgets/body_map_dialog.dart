@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../app/dependencies/app_dependencies.dart';
+
 import '../../models/training_activity_type.dart';
 import '../controllers/body_map_controller.dart';
-import '../data/body_map_repository.dart';
 import '../models/body_region.dart';
 import '../models/body_region_schedule.dart';
 import '../services/body_map_service.dart';
@@ -169,9 +170,7 @@ class _BodyMapDialogState
 
     _service =
         widget.service ??
-        BodyMapService(
-          repository: BodyMapRepository(),
-        );
+        bodyMapService;
 
     _controller.addListener(
       _onControllerChanged,
