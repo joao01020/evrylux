@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import '../../../core/sync/sync_item.dart';
 import '../../../core/sync/sync_queue.dart';
 import '../../../core/sync/sync_service.dart';
 
@@ -60,6 +61,16 @@ import '../vault/stores/brain_note_vault_store.dart';
 // - alterações de sources entram na BrainSyncQueueService como
 //   BrainVaultObject criptografado.
 //
+// EXCLUSÃO DURANTE A MIGRAÇÃO:
+//
+// - local/Vault continuam sendo a verdade principal;
+// - tombstone E2EE continua indo para brain_objects;
+// - enquanto BrainScreen ainda pesquisa brain_notes, uma exclusão
+//   também registra DELETE da cópia legada;
+// - ficar offline não impede apagar localmente;
+// - se houver SyncQueue legada, o DELETE remoto fica pendente até
+//   a conexão voltar.
+//
 // ============================================================
 
 class BrainRepository {
@@ -77,6 +88,8 @@ class BrainRepository {
        _local =
            local ??
            const BrainStorage(),
+       _legacySyncQueue = syncQueue,
+       _legacySyncService = syncService,
        _noteVaultStore = noteVaultStore,
        _conceptVaultStore = conceptVaultStore,
        _brainSyncQueueService = brainSyncQueueService;
@@ -88,6 +101,23 @@ class BrainRepository {
   final SupabaseBrainService _remote;
 
   final BrainStorage _local;
+
+  // ============================================================
+  // LEGACY REMOTE CLEANUP
+  // ============================================================
+  //
+  // A busca remota ainda consulta brain_notes durante a migração.
+  //
+  // Por isso, ao excluir uma nota, também precisamos registrar a
+  // exclusão da cópia legada. A fila antiga é usada somente para
+  // essa limpeza transitória; o conteúdo novo continua seguindo
+  // exclusivamente pelo fluxo E2EE.
+  //
+  // ============================================================
+
+  final SyncQueue? _legacySyncQueue;
+
+  final SyncService? _legacySyncService;
 
   final BrainNoteVaultStore? _noteVaultStore;
 
@@ -467,6 +497,7 @@ class BrainRepository {
           directPath,
         )) {
           target = note;
+
           break;
         }
       }
@@ -501,10 +532,25 @@ class BrainRepository {
         if (legacyId ==
             cleanId) {
           target = note;
+
           break;
         }
       }
     }
+
+    // ==========================================================
+    // SEM NOTA LOCAL
+    // ==========================================================
+    //
+    // Ainda podemos ter:
+    //
+    // - arquivo já removido;
+    // - resultado remoto legado;
+    // - tombstone já parcialmente criado.
+    //
+    // A exclusão precisa ser idempotente.
+    //
+    // ==========================================================
 
     if (target ==
         null) {
@@ -536,6 +582,19 @@ class BrainRepository {
           );
         }
 
+        if (userId !=
+                null &&
+            userId.isNotEmpty) {
+          final legacyRemoteId = _remoteNoteId(
+            userId: userId,
+            localPath: directPath,
+          );
+
+          await _deleteLegacyRemoteNote(
+            legacyRemoteId,
+          );
+        }
+
         return;
       }
 
@@ -553,6 +612,14 @@ class BrainRepository {
           );
         }
 
+        // Resultado vindo diretamente de brain_notes:
+        //
+        // mesmo sem cópia local, a exclusão precisa remover a linha
+        // legada para ela não reaparecer na próxima pesquisa.
+        await _deleteLegacyRemoteNote(
+          cleanId,
+        );
+
         return;
       }
 
@@ -560,6 +627,10 @@ class BrainRepository {
         'Não foi possível localizar a anotação local para excluir.',
       );
     }
+
+    // ==========================================================
+    // COLETAR CÓPIAS HISTÓRICAS
+    // ==========================================================
 
     final notesToDelete =
         <
@@ -607,6 +678,46 @@ class BrainRepository {
       );
     }
 
+    // ==========================================================
+    // IDs REMOTOS LEGADOS
+    // ==========================================================
+    //
+    // Precisamos calculá-los ANTES de apagar os arquivos.
+    //
+    // Também preservamos cleanId quando a exclusão começou a partir
+    // de um UUID remoto antigo.
+    //
+    // ==========================================================
+
+    final legacyRemoteIds = <String>{};
+
+    if (_looksLikeUuid(
+      cleanId,
+    )) {
+      legacyRemoteIds.add(
+        cleanId,
+      );
+    }
+
+    if (userId !=
+            null &&
+        userId.isNotEmpty) {
+      for (final note in notesToDelete) {
+        final path = note.path.trim();
+
+        if (path.isEmpty) {
+          continue;
+        }
+
+        legacyRemoteIds.add(
+          _remoteNoteId(
+            userId: userId,
+            localPath: path,
+          ),
+        );
+      }
+    }
+
     // Tombstone conceitos pertencentes às cópias removidas.
     final conceptIds =
         <
@@ -622,6 +733,10 @@ class BrainRepository {
         }
       }
     }
+
+    // ==========================================================
+    // EXCLUIR LOCAL + TOMBSTONE E2EE
+    // ==========================================================
 
     for (final note in notesToDelete) {
       final path = note.path.trim();
@@ -671,6 +786,10 @@ class BrainRepository {
       );
     }
 
+    // ==========================================================
+    // TOMBSTONES DOS CONCEITOS
+    // ==========================================================
+
     for (final conceptId in conceptIds) {
       final conceptTombstone = await _conceptVaultStore?.deleteConcept(
         conceptId,
@@ -684,10 +803,122 @@ class BrainRepository {
       }
     }
 
+    // ==========================================================
+    // LIMPAR BRAIN_NOTES LEGADO
+    // ==========================================================
+    //
+    // Isso existe enquanto BrainScreen ainda consulta brain_notes.
+    //
+    // Sem esta etapa, a nota some do armazenamento local, mas volta
+    // a aparecer na pesquisa remota e pode ser recriada localmente
+    // quando o usuário clica no resultado.
+    //
+    // A exclusão local JÁ terminou. Portanto falha de rede aqui não
+    // desfaz a exclusão local.
+    //
+    // Se a fila legada estiver configurada, o DELETE fica pendente
+    // e será transmitido quando a conexão voltar.
+    //
+    // ==========================================================
+
+    for (final legacyRemoteId in legacyRemoteIds) {
+      await _deleteLegacyRemoteNote(
+        legacyRemoteId,
+      );
+    }
+
     debugPrint(
       '[BRAIN REPOSITORY] '
-      'Exclusão concluída com tombstones E2EE.',
+      'Exclusão concluída: local + tombstone E2EE + limpeza legada.',
     );
+  }
+
+  // ============================================================
+  // DELETE LEGACY REMOTE NOTE
+  // ============================================================
+  //
+  // Compatibilidade temporária com brain_notes.
+  //
+  // Prioridade:
+  //
+  // 1. SyncQueue legada
+  //    - mantém offline-first;
+  //    - retry automático;
+  //
+  // 2. fallback direto
+  //    - usado somente se a fila não foi injetada;
+  //    - falha de rede não faz a exclusão local voltar.
+  //
+  // ============================================================
+
+  Future<
+    void
+  >
+  _deleteLegacyRemoteNote(
+    String remoteId,
+  ) async {
+    final cleanRemoteId = remoteId.trim();
+
+    if (cleanRemoteId.isEmpty ||
+        !_looksLikeUuid(
+          cleanRemoteId,
+        )) {
+      return;
+    }
+
+    final queue = _legacySyncQueue;
+
+    if (queue !=
+        null) {
+      await queue.enqueue(
+        entityType: noteEntityType,
+        entityId: cleanRemoteId,
+        operation: SyncOperation.delete,
+      );
+
+      _legacySyncService?.requestSync();
+
+      debugPrint(
+        '[BRAIN REPOSITORY] '
+        'DELETE legado enfileirado: $cleanRemoteId',
+      );
+
+      return;
+    }
+
+    if (!isAuthenticated) {
+      debugPrint(
+        '[BRAIN REPOSITORY] '
+        'DELETE legado aguardando contexto autenticado: '
+        '$cleanRemoteId',
+      );
+
+      return;
+    }
+
+    try {
+      await _remote.deleteNote(
+        cleanRemoteId,
+      );
+
+      debugPrint(
+        '[BRAIN REPOSITORY] '
+        'brain_notes legado removido diretamente: '
+        '$cleanRemoteId',
+      );
+    } catch (
+      error
+    ) {
+      // Não propagamos:
+      //
+      // a exclusão local + tombstone E2EE já foi concluída.
+      debugPrint(
+        '[BRAIN REPOSITORY] '
+        'Falha ao limpar brain_notes legado. '
+        'A exclusão local permanece válida. '
+        'ID=$cleanRemoteId erro=$error',
+      );
+    }
   }
 
   // ============================================================
