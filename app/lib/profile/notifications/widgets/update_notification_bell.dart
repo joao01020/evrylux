@@ -77,24 +77,15 @@ class UpdateNotificationBell
                     clipBehavior: Clip.none,
                     children: [
                       Center(
-                        child: controller.loading
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: _primary,
-                                ),
-                              )
-                            : Icon(
-                                unread
-                                    ? Icons.notifications_active_outlined
-                                    : Icons.notifications_none_rounded,
-                                color: unread
-                                    ? _primary
-                                    : _muted,
-                                size: 21,
-                              ),
+                        child: Icon(
+                          unread
+                              ? Icons.notifications_active_outlined
+                              : Icons.notifications_none_rounded,
+                          color: unread
+                              ? _primary
+                              : _muted,
+                          size: 21,
+                        ),
                       ),
 
                       // ==========================================

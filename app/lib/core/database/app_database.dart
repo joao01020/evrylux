@@ -4,7 +4,9 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart';
 
+import 'tables/app_update_cache_table.dart';
 import 'tables/board_attachment_table.dart';
+import 'tables/board_comment_table.dart';
 import 'tables/sync_queue_table.dart';
 import 'tables/training_activity_plan_table.dart';
 
@@ -30,6 +32,13 @@ import 'tables/training_activity_plan_table.dart';
 // - deduplicação da sync_queue
 // - UNIQUE(entity_type, entity_id)
 //
+// v5
+// - local_board_comments
+// - local_board_comment_scopes
+//
+// v6
+// - app_update_cache
+//
 // ============================================================
 
 class AppDatabase {
@@ -47,7 +56,7 @@ class AppDatabase {
 
   static const String _databaseFileName = 'ghost_core.db';
 
-  static const int _schemaVersion = 4;
+  static const int _schemaVersion = 6;
 
   // ============================================================
   // DATABASE
@@ -277,6 +286,52 @@ class AppDatabase {
       );
 
       currentVersion = 4;
+    }
+
+    // ==========================================================
+    // VERSION 5
+    // ==========================================================
+
+    if (currentVersion <
+        5) {
+      transactionWithDatabase(
+        database,
+        () {
+          _createVersion5(
+            database,
+          );
+
+          _writeSchemaVersion(
+            database,
+            5,
+          );
+        },
+      );
+
+      currentVersion = 5;
+    }
+
+    // ==========================================================
+    // VERSION 6
+    // ==========================================================
+
+    if (currentVersion <
+        6) {
+      transactionWithDatabase(
+        database,
+        () {
+          _createVersion6(
+            database,
+          );
+
+          _writeSchemaVersion(
+            database,
+            6,
+          );
+        },
+      );
+
+      currentVersion = 6;
     }
 
     // ==========================================================
@@ -556,6 +611,42 @@ ON ${SyncQueueTable.tableName} (
 );
 ''',
     );
+  }
+
+  // ============================================================
+  // VERSION 5
+  // ============================================================
+  //
+  // Persistência offline-first dos comentários da lousa.
+  //
+  // ============================================================
+
+  void _createVersion5(
+    Database database,
+  ) {
+    for (final statement in BoardCommentTable.createStatements) {
+      database.execute(
+        statement,
+      );
+    }
+  }
+
+  // ============================================================
+  // VERSION 6
+  // ============================================================
+  //
+  // Cache local da notificação de atualização do aplicativo.
+  //
+  // ============================================================
+
+  void _createVersion6(
+    Database database,
+  ) {
+    for (final statement in AppUpdateCacheTable.createStatements) {
+      database.execute(
+        statement,
+      );
+    }
   }
 
   // ============================================================

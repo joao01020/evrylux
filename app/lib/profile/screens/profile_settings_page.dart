@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/constants/app_info.dart';
+
 import '../../app/dependencies/app_dependencies.dart';
 import '../../study/brain/devices/models/brain_device_record.dart';
 import 'legal/privacy_policy_page.dart';
@@ -1771,8 +1773,8 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
           onTap: () {
             showLicensePage(
               context: context,
-              applicationName: 'EVRYLUX',
-              applicationVersion: '1.0.0',
+              applicationName: AppInfo.name,
+              applicationVersion: AppInfo.version,
               applicationLegalese: 'Desenvolvido por João Vitor',
             );
           },
@@ -1894,7 +1896,7 @@ class _AboutHero extends StatelessWidget {
                 SizedBox(height: 4),
 
                 Text(
-                  'Versão 1.0.0',
+                  AppInfo.versionLabel,
                   style: TextStyle(
                     color: _ProfileSettingsPageState._primaryDark,
                     fontSize: 12,

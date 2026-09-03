@@ -144,76 +144,96 @@ class BoardCommentRemoteDataSource {
   // ============================================================
   // CRIAR
   // ============================================================
+  //
+  // O comentário já chega com UUID definitivo criado localmente.
+  // Não trocamos o ID durante a sincronização.
+  //
+  // ============================================================
 
-  Future<
-    BoardComment
-  >
-  create(
+  Future<BoardComment> create(
     BoardComment comment,
   ) async {
-    // ==========================================================
-    // MAP DO MODEL
-    // ==========================================================
-
-    final data =
-        Map<
-          String,
-          dynamic
-        >.from(
-          comment.toMap(),
-        );
-
-    // ==========================================================
-    // ID
-    // ==========================================================
-    //
-    // O BoardCommentController usa um ID temporário local.
-    //
-    // A coluna "id" do Supabase é UUID:
-    //
-    // id uuid primary key default gen_random_uuid()
-    //
-    // Portanto NÃO enviamos o ID temporário.
-    //
-    // O próprio PostgreSQL cria o UUID real.
-    //
-    // ==========================================================
-
-    data.remove(
-      'id',
+    final data = Map<String, dynamic>.from(
+      comment.toMap(),
     );
 
-    // ==========================================================
-    // USER
-    // ==========================================================
-
+    data['id'] = comment.id;
     data['user_id'] = _userId;
-
-    // ==========================================================
-    // INSERT
-    // ==========================================================
 
     final response = await _client
         .from(
           _table,
         )
-        .insert(
+        .upsert(
           data,
+          onConflict: 'id',
         )
         .select()
         .single();
 
-    // ==========================================================
-    // RETORNO
-    // ==========================================================
-    //
-    // Aqui já recebemos o UUID real criado pelo Supabase.
-    //
-    // ==========================================================
-
     return BoardComment.fromMap(
       response,
     );
+  }
+
+  // ============================================================
+  // SYNC QUEUE
+  // ============================================================
+
+  Future<void> upsertQueued({
+    required String userId,
+    required String commentId,
+    required Map<String, dynamic> payload,
+  }) async {
+    _ensureUser(userId);
+
+    final normalizedId = commentId.trim();
+    if (normalizedId.isEmpty) {
+      throw ArgumentError('commentId não pode estar vazio.');
+    }
+
+    await _client.from(_table).upsert(
+      <String, dynamic>{
+        'id': normalizedId,
+        'user_id': userId,
+        'day_id': payload['day_id'],
+        'message': payload['message'],
+        'position_x': payload['position_x'] ?? 0,
+        'position_y': payload['position_y'] ?? 0,
+        'author_name': payload['author_name'] ?? 'Você',
+        'resolved': payload['resolved'] ?? false,
+        'created_at': payload['created_at'] ??
+            DateTime.now().toUtc().toIso8601String(),
+      },
+      onConflict: 'id',
+    );
+  }
+
+  Future<void> deleteQueued({
+    required String userId,
+    required String commentId,
+  }) async {
+    _ensureUser(userId);
+
+    final normalizedId = commentId.trim();
+    if (normalizedId.isEmpty) {
+      return;
+    }
+
+    await _client
+        .from(_table)
+        .delete()
+        .eq('id', normalizedId)
+        .eq('user_id', userId);
+  }
+
+  void _ensureUser(String userId) {
+    final normalized = userId.trim();
+    if (normalized.isEmpty || normalized != _userId) {
+      throw StateError(
+        'Operação de comentário pertence a outro usuário.',
+      );
+    }
   }
 
   // ============================================================

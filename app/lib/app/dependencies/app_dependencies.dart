@@ -64,6 +64,7 @@ import '../../core/database/daos/routine_dao.dart';
 import '../../core/database/daos/sync_queue_dao.dart';
 import '../../core/database/daos/training_activity_plan_dao.dart';
 import '../../core/database/daos/board_attachment_dao.dart';
+import '../../core/database/daos/board_comment_dao.dart';
 
 // ======================================================
 // CORE - SYNC
@@ -855,6 +856,14 @@ final reminderDao = ReminderDao(
 );
 
 // ======================================================
+// BOARD COMMENT DAO
+// ======================================================
+
+final boardCommentDao = BoardCommentDao(
+  database: appDatabase,
+);
+
+// ======================================================
 // TRAINING ACTIVITY PLAN DAO
 // ======================================================
 //
@@ -1150,6 +1159,58 @@ registerSyncHandlers() {
               );
 
               await routineDao.deletePermanently(
+                item.entityId,
+              );
+
+              break;
+          }
+        },
+  );
+
+  // ====================================================
+  // BOARD COMMENT
+  // ====================================================
+
+  syncService.registerHandler(
+    entityType: BoardCommentRepository.entityType,
+
+    handler:
+        (
+          item,
+        ) async {
+          final payload =
+              Map<String, dynamic>.from(
+                item.payload,
+              );
+
+          final user = _requireQueueUser(
+            userId: payload['user_id']?.toString(),
+            entity: BoardCommentRepository.entityType,
+          );
+
+          switch (item.operation) {
+            case SyncOperation.create:
+            case SyncOperation.update:
+              await boardCommentRemoteDataSource.upsertQueued(
+                userId: user.id,
+                commentId: item.entityId,
+                payload: payload,
+              );
+
+              await boardCommentDao.setSyncStatus(
+                item.entityId,
+                SyncStatus.synced,
+              );
+
+              break;
+
+            case SyncOperation.delete:
+              await boardCommentRemoteDataSource.deleteQueued(
+                userId: user.id,
+                commentId: item.entityId,
+              );
+
+              await boardCommentDao.deletePermanently(
                 item.entityId,
               );
 
@@ -2550,22 +2611,23 @@ final journeyController = JourneyController(
 // ROUTINE - BOARD COMMENTS
 // ======================================================
 //
-// Nesta etapa os comentários ainda usam datasource remoto.
-//
-// A diferença importante é arquitetural:
+// OFFLINE-FIRST:
 //
 // RoutineScreen
 //      ↓
-// BoardCommentController global
+// BoardCommentController
 //      ↓
 // BoardCommentRepository
 //      ↓
+// BoardCommentDao / SQLite
+//      ↓
+// SyncQueue
+//      ↓
+// SyncService
+//      ↓
 // BoardCommentRemoteDataSource
-//
-// A tela não cria mais client/datasource/repository próprios.
-//
-// O próximo passo será adicionar armazenamento local + SyncQueue
-// para transformar comentários em offline-first de verdade.
+//      ↓
+// Supabase
 //
 // ======================================================
 
@@ -2574,7 +2636,11 @@ final boardCommentRemoteDataSource = BoardCommentRemoteDataSource(
 );
 
 final boardCommentRepository = BoardCommentRepository(
+  client: supabaseClient,
+  localDao: boardCommentDao,
   remoteDataSource: boardCommentRemoteDataSource,
+  syncQueue: syncQueue,
+  syncService: syncService,
 );
 
 final boardCommentController = BoardCommentController(

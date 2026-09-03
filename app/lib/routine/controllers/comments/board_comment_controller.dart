@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import '../../data/repositories/comments/board_comment_repository.dart';
@@ -268,11 +270,9 @@ class BoardCommentController
     final normalizedAuthor = authorName.trim();
 
     final draft = BoardComment(
-      // ID temporário.
-      //
-      // O datasource deve deixar o Supabase gerar o UUID real
-      // durante o INSERT e devolver o registro criado.
-      id: _createTemporaryId(),
+      // UUID v4 definitivo criado antes de qualquer acesso remoto.
+      // O mesmo ID é usado no SQLite, SyncQueue e Supabase.
+      id: _createStableId(),
       dayId: normalizedDayId,
       message: normalizedMessage,
       position: position,
@@ -526,7 +526,7 @@ class BoardCommentController
   // ============================================================
   //
   // move() continua disponível para casos em que você deseja
-  // mover e salvar imediatamente no Supabase.
+  // mover e persistir imediatamente no fluxo local-first.
   //
   // Para arrastar pela lousa, prefira:
   //
@@ -589,7 +589,7 @@ class BoardCommentController
   //
   // Usado durante onPanUpdate.
   //
-  // NÃO acessa o Supabase.
+  // NÃO persiste durante o movimento contínuo.
   //
   // ============================================================
 
@@ -652,7 +652,7 @@ class BoardCommentController
   //
   // Usado no onPanEnd.
   //
-  // Só aqui fazemos UPDATE no Supabase.
+  // Só aqui persistimos no SQLite e enfileiramos o sync.
   //
   // ============================================================
 
@@ -1054,7 +1054,27 @@ class BoardCommentController
     );
   }
 
-  String _createTemporaryId() {
-    return 'local_${DateTime.now().microsecondsSinceEpoch}';
+  String _createStableId() {
+    final random = Random.secure();
+
+    final bytes = List<int>.generate(
+      16,
+      (_) => random.nextInt(256),
+    );
+
+    bytes[6] = (bytes[6] & 0x0F) | 0x40;
+    bytes[8] = (bytes[8] & 0x3F) | 0x80;
+
+    String hex(int value) {
+      return value.toRadixString(16).padLeft(2, '0');
+    }
+
+    final value = bytes.map(hex).join();
+
+    return '${value.substring(0, 8)}-'
+        '${value.substring(8, 12)}-'
+        '${value.substring(12, 16)}-'
+        '${value.substring(16, 20)}-'
+        '${value.substring(20, 32)}';
   }
 }

@@ -1,131 +1,123 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/app_update_notification.dart';
 import '../services/app_update_service.dart';
 
-class UpdateNotificationController
-    extends
-        ChangeNotifier {
+class UpdateNotificationController extends ChangeNotifier {
   UpdateNotificationController({
     required this.service,
   });
 
-  // ============================================================
-  // SERVICE
-  // ============================================================
-
   final AppUpdateService service;
-
-  // ============================================================
-  // STATE
-  // ============================================================
 
   AppUpdateNotification? _notification;
 
-  bool _loading = false;
-
+  bool _initialLoading = false;
+  bool _refreshing = false;
   bool _initialized = false;
-
   bool _disposed = false;
+
+  RealtimeChannel? _realtimeChannel;
 
   String? _errorMessage;
 
-  // ============================================================
-  // GETTERS
-  // ============================================================
+  AppUpdateNotification? get notification => _notification;
 
-  AppUpdateNotification? get notification {
-    return _notification;
-  }
+  String get currentVersion => service.currentVersion;
 
-  bool get loading {
-    return _loading;
-  }
+  // Compatibilidade com widgets/callers antigos.
+  // Loading agora significa somente ausência inicial de cache.
+  bool get loading => _initialLoading;
 
-  bool get initialized {
-    return _initialized;
-  }
+  bool get initialLoading => _initialLoading;
 
-  String? get errorMessage {
-    return _errorMessage;
-  }
+  bool get refreshing => _refreshing;
 
-  bool get hasError {
-    return _errorMessage !=
-        null;
-  }
+  bool get initialized => _initialized;
 
-  // ============================================================
-  // POSSUI ATUALIZAÇÃO
-  // ============================================================
+  String? get errorMessage => _errorMessage;
 
-  bool get hasUpdate {
-    return _notification !=
-        null;
-  }
+  bool get hasError =>
+      _errorMessage != null && _errorMessage!.trim().isNotEmpty;
 
-  // ============================================================
-  // POSSUI NÃO LIDA
-  // ============================================================
+  bool get hasUpdate => _notification != null;
 
-  bool get hasUnread {
-    return _notification?.isUnread ??
-        false;
-  }
+  bool get hasUnread => _notification?.isUnread ?? false;
 
-  // ============================================================
-  // CONTADOR
-  // ============================================================
-  //
-  // Como atualmente trabalhamos apenas com a atualização mais
-  // recente, o contador será sempre:
-  //
-  // 0 ou 1
-  //
-  // ============================================================
-
-  int get unreadCount {
-    return hasUnread
-        ? 1
-        : 0;
-  }
+  int get unreadCount => hasUnread ? 1 : 0;
 
   // ============================================================
   // INITIALIZE
   // ============================================================
+  //
+  // 1. carrega SQLite;
+  // 2. libera UI imediatamente;
+  // 3. refresh remoto continua em background.
+  //
+  // ============================================================
 
-  Future<
-    void
-  >
-  initialize() async {
-    if (_disposed ||
-        _initialized) {
+  Future<void> initialize() async {
+    if (_disposed || _initialized) {
       return;
     }
 
     _initialized = true;
+    _initialLoading = true;
+    _errorMessage = null;
 
-    await checkForUpdates();
-  }
+    _safeNotifyListeners();
 
-  // ============================================================
-  // CHECK
-  // ============================================================
+    try {
+      _notification = await service.loadCachedUpdate();
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        '[UPDATE NOTIFICATION] Erro ao carregar cache: $error',
+      );
+      debugPrint(
+        stackTrace.toString(),
+      );
+    } finally {
+      _initialLoading = false;
+      _safeNotifyListeners();
+    }
 
-  Future<
-    void
-  >
-  checkForUpdates() async {
-    if (_disposed ||
-        _loading) {
+    if (_disposed) {
       return;
     }
 
-    _setLoading(
-      true,
-    );
+    _startRealtime();
 
-    _errorMessage = null;
+    unawaited(
+      checkForUpdates(
+        silent: true,
+      ),
+    );
+  }
+
+  // ============================================================
+  // REFRESH
+  // ============================================================
+
+  Future<void> checkForUpdates({
+    bool silent = false,
+  }) async {
+    if (_disposed || _refreshing) {
+      return;
+    }
+
+    _refreshing = true;
+
+    if (!silent) {
+      _errorMessage = null;
+    }
+
+    _safeNotifyListeners();
 
     try {
       final result = await service.checkForUpdate();
@@ -134,148 +126,138 @@ class UpdateNotificationController
         return;
       }
 
-      // ========================================================
-      // PRESERVAR ESTADO DE LEITURA
-      // ========================================================
-      //
-      // Se a mesma versão já estava carregada e o usuário já
-      // havia lido, não voltamos para não lida.
-      //
-      // ========================================================
-
-      final current = _notification;
-
-      if (result ==
-          null) {
-        _notification = null;
-      } else if (current !=
-              null &&
-          current.version ==
-              result.version) {
-        _notification = result.copyWith(
-          isRead: current.isRead,
-        );
-      } else {
-        _notification = result.copyWith(
-          isRead: false,
-        );
-      }
+      _notification = result;
+      _errorMessage = null;
     } catch (
       error,
       stackTrace
     ) {
-      _errorMessage = error.toString();
+      if (!silent) {
+        _errorMessage = error.toString();
+      }
 
       debugPrint(
-        '[UPDATE NOTIFICATION] '
-        'Erro ao verificar atualização: $error',
+        '[UPDATE NOTIFICATION] Erro ao verificar atualização: $error',
       );
-
       debugPrint(
         stackTrace.toString(),
       );
     } finally {
-      _setLoading(
-        false,
-      );
+      _refreshing = false;
+      _safeNotifyListeners();
     }
   }
 
+
   // ============================================================
-  // MARK AS READ
+  // REALTIME
+  // ============================================================
+
+  void _startRealtime() {
+    if (_disposed || _realtimeChannel != null) {
+      return;
+    }
+
+    _realtimeChannel = service.subscribeToRealtime(
+      onChanged: () {
+        if (_disposed) {
+          return;
+        }
+
+        // O evento chega imediatamente pelo Realtime.
+        // Em seguida buscamos o snapshot mais recente para cobrir
+        // INSERT, UPDATE, DELETE e mudanças de active sem duplicar
+        // regra de negócio dentro do listener.
+        unawaited(
+          checkForUpdates(
+            silent: true,
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _stopRealtime() async {
+    final channel = _realtimeChannel;
+
+    _realtimeChannel = null;
+
+    if (channel == null) {
+      return;
+    }
+
+    await service.unsubscribeFromRealtime(
+      channel,
+    );
+  }
+
+  // ============================================================
+  // READ STATE
   // ============================================================
 
   void markAsRead() {
     final current = _notification;
 
-    if (_disposed ||
-        current ==
-            null ||
-        current.isRead) {
+    if (_disposed || current == null || current.isRead) {
       return;
     }
 
-    _notification = current.copyWith(
+    final updated = current.copyWith(
       isRead: true,
     );
 
+    _notification = updated;
     _safeNotifyListeners();
-  }
 
-  // ============================================================
-  // MARK AS UNREAD
-  // ============================================================
+    unawaited(
+      service.saveCachedUpdate(
+        updated,
+      ),
+    );
+  }
 
   void markAsUnread() {
     final current = _notification;
 
-    if (_disposed ||
-        current ==
-            null ||
-        !current.isRead) {
+    if (_disposed || current == null || !current.isRead) {
       return;
     }
 
-    _notification = current.copyWith(
+    final updated = current.copyWith(
       isRead: false,
     );
 
+    _notification = updated;
     _safeNotifyListeners();
+
+    unawaited(
+      service.saveCachedUpdate(
+        updated,
+      ),
+    );
   }
 
-  // ============================================================
-  // CLEAR
-  // ============================================================
-
   void clear() {
-    if (_disposed ||
-        _notification ==
-            null) {
+    if (_disposed || _notification == null) {
       return;
     }
 
     _notification = null;
-
     _safeNotifyListeners();
+
+    unawaited(
+      service.clearCachedUpdate(),
+    );
   }
 
-  // ============================================================
-  // CLEAR ERROR
-  // ============================================================
-
   void clearError() {
-    if (_disposed ||
-        _errorMessage ==
-            null) {
+    if (_disposed || _errorMessage == null) {
       return;
     }
 
     _errorMessage = null;
-
     _safeNotifyListeners();
   }
-
-  // ============================================================
-  // LOADING
-  // ============================================================
-
-  void _setLoading(
-    bool value,
-  ) {
-    if (_disposed ||
-        _loading ==
-            value) {
-      return;
-    }
-
-    _loading = value;
-
-    _safeNotifyListeners();
-  }
-
-  // ============================================================
-  // NOTIFY
-  // ============================================================
 
   void _safeNotifyListeners() {
     if (_disposed) {
@@ -285,10 +267,6 @@ class UpdateNotificationController
     notifyListeners();
   }
 
-  // ============================================================
-  // DISPOSE
-  // ============================================================
-
   @override
   void dispose() {
     if (_disposed) {
@@ -296,6 +274,10 @@ class UpdateNotificationController
     }
 
     _disposed = true;
+
+    unawaited(
+      _stopRealtime(),
+    );
 
     super.dispose();
   }

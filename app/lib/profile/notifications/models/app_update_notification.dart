@@ -160,6 +160,10 @@ class AppUpdateNotification {
       downloadUrl: _nullIfEmpty(
         map['download_url']?.toString(),
       ),
+
+      isRead: _parseBool(
+        map['is_read'],
+      ),
     );
   }
 
@@ -185,6 +189,26 @@ class AppUpdateNotification {
 
       'is_read': isRead,
     };
+  }
+
+  // ============================================================
+  // PARSE BOOL
+  // ============================================================
+
+  static bool _parseBool(
+    dynamic value,
+  ) {
+    if (value is bool) {
+      return value;
+    }
+
+    if (value is num) {
+      return value != 0;
+    }
+
+    final normalized = value?.toString().trim().toLowerCase();
+
+    return normalized == '1' || normalized == 'true';
   }
 
   // ============================================================

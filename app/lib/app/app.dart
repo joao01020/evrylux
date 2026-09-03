@@ -5,6 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../auth/auth_gate.dart';
 
+import '../core/constants/app_info.dart';
+
 import '../core/sync/widgets/sync_status_indicator.dart';
 import '../core/theme/app_theme.dart';
 
@@ -146,7 +148,7 @@ class _GhostAppState extends State<GhostApp> {
     unawaited(_loadProfile());
 
     _updateNotificationController = UpdateNotificationController(
-      service: const AppUpdateService(currentVersion: '1.0.0'),
+      service: const AppUpdateService(currentVersion: AppInfo.version),
     );
 
     unawaited(_updateNotificationController.initialize());

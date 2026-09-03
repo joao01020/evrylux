@@ -357,10 +357,10 @@ class UpdateNotificationPanel
           // ==========================================
           IconButton(
             tooltip: 'Verificar atualizações',
-            onPressed: controller.loading
+            onPressed: controller.refreshing
                 ? null
                 : controller.checkForUpdates,
-            icon: controller.loading
+            icon: controller.refreshing
                 ? const SizedBox(
                     width: 17,
                     height: 17,
@@ -406,7 +406,7 @@ class UpdateNotificationPanel
     // LOADING
     // ==========================================================
 
-    if (controller.loading &&
+    if (controller.initialLoading &&
         controller.notification ==
             null) {
       return const Padding(
@@ -455,25 +455,25 @@ class UpdateNotificationPanel
   // ============================================================
 
   Widget _buildEmpty() {
-    return const Padding(
-      padding: EdgeInsets.symmetric(
+    return Padding(
+      padding: const EdgeInsets.symmetric(
         horizontal: 24,
         vertical: 34,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
+          const Icon(
             Icons.check_circle_outline_rounded,
             color: _primary,
             size: 34,
           ),
 
-          SizedBox(
+          const SizedBox(
             height: 12,
           ),
 
-          Text(
+          const Text(
             'Tudo atualizado',
             style: TextStyle(
               color: _text,
@@ -482,17 +482,32 @@ class UpdateNotificationPanel
             ),
           ),
 
-          SizedBox(
+          const SizedBox(
             height: 5,
           ),
 
-          Text(
+          const Text(
             'Nenhuma nova versão está disponível.',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: _muted,
               fontSize: 11,
               height: 1.4,
+            ),
+          ),
+
+          const SizedBox(
+            height: 7,
+          ),
+
+          Text(
+            'Versão atual: ${controller.currentVersion}',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: _muted,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              height: 1.3,
             ),
           ),
         ],
