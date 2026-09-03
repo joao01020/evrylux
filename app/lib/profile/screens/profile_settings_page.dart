@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../app/dependencies/app_dependencies.dart';
+import '../../study/brain/devices/models/brain_device_record.dart';
 import 'legal/privacy_policy_page.dart';
 import 'legal/terms_of_use_page.dart';
 
@@ -11,7 +13,8 @@ import 'legal/terms_of_use_page.dart';
 // Página dedicada para:
 //
 // - Preferências;
-// - Segurança;
+// - Segurança da conta;
+// - Cérebro;
 // - Sobre o aplicativo.
 //
 // Preferências são salvas no user_metadata do Supabase.
@@ -22,6 +25,7 @@ import 'legal/terms_of_use_page.dart';
 enum ProfileSettingsSection {
   preferences,
   security,
+  brain,
   about,
 }
 
@@ -103,6 +107,42 @@ class _ProfileSettingsPageState
 
   bool _changingPassword = false;
 
+  // ============================================================
+  // BRAIN SETTINGS
+  // ============================================================
+
+  bool _loadingBrainSettings = false;
+
+  bool _switchingBrainMode = false;
+
+  bool _brainCloudMode = false;
+
+  String? _brainVaultId;
+
+  int? _brainKeyVersion;
+
+  bool _brainMasterKeyAvailable = false;
+
+  // ============================================================
+  // BRAIN DEVICES
+  // ============================================================
+
+  bool _loadingBrainDevices = false;
+
+  String? _brainDevicesError;
+
+  String? _currentBrainDeviceId;
+
+  String? _revokingBrainDeviceId;
+
+  List<
+    BrainDeviceRecord
+  >
+  _brainDevices =
+      const <
+        BrainDeviceRecord
+      >[];
+
   String? _message;
 
   bool _messageIsError = false;
@@ -118,6 +158,8 @@ class _ProfileSettingsPageState
     _section = widget.initialSection;
 
     _loadPreferences();
+
+    _loadBrainSettings();
   }
 
   // ============================================================
@@ -231,15 +273,13 @@ class _ProfileSettingsPageState
         },
       );
     } finally {
-      if (!mounted) {
-        return;
+      if (mounted) {
+        setState(
+          () {
+            _savingPreferences = false;
+          },
+        );
       }
-
-      setState(
-        () {
-          _savingPreferences = false;
-        },
-      );
     }
   }
 
@@ -474,16 +514,984 @@ class _ProfileSettingsPageState
         },
       );
     } finally {
+      if (mounted) {
+        setState(
+          () {
+            _changingPassword = false;
+          },
+        );
+      }
+    }
+  }
+
+
+  // ============================================================
+  // LOAD BRAIN SETTINGS
+  // ============================================================
+
+  Future<void> _loadBrainSettings() async {
+    if (_loadingBrainSettings) {
+      return;
+    }
+
+    setState(
+      () {
+        _loadingBrainSettings = true;
+      },
+    );
+
+    try {
+      if (!brainDataModeController.isInitialized) {
+        await brainDataModeController.initialize();
+      }
+
+      final manifest =
+          await brainVaultService.openVault();
+
+      final hasMasterKey =
+          await brainKeyService.hasKeyBundle(
+        vaultId: manifest.vaultId,
+      );
+
       if (!mounted) {
         return;
       }
 
       setState(
         () {
-          _changingPassword = false;
+          _brainCloudMode =
+              brainDataModeController.isCloudMode;
+
+          _brainVaultId =
+              manifest.vaultId;
+
+          _brainKeyVersion =
+              manifest.keyVersion;
+
+          _brainMasterKeyAvailable =
+              hasMasterKey;
         },
       );
+
+      await _loadBrainDevices();
+    } catch (
+      error
+    ) {
+      debugPrint(
+        '[PROFILE SETTINGS] '
+        'Erro carregando configurações do Cérebro: $error',
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(
+        () {
+          _message =
+              'Não foi possível carregar todas as configurações do Cérebro.';
+          _messageIsError = true;
+        },
+      );
+    } finally {
+      if (mounted) {
+        setState(
+          () {
+            _loadingBrainSettings = false;
+          },
+        );
+      }
     }
+  }
+
+  // ============================================================
+  // SWITCH BRAIN DATA MODE
+  // ============================================================
+
+  Future<void> _setBrainCloudMode(
+    bool cloud,
+  ) async {
+    if (_switchingBrainMode) {
+      return;
+    }
+
+    setState(
+      () {
+        _switchingBrainMode = true;
+        _message = null;
+      },
+    );
+
+    try {
+      if (cloud) {
+        if (_user == null) {
+          throw StateError(
+            'Entre na sua conta antes de ativar o modo Cloud.',
+          );
+        }
+
+        await brainDataModeController.useCloudMode();
+      } else {
+        await brainDataModeController.useLocalMode();
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(
+        () {
+          _brainCloudMode =
+              brainDataModeController.isCloudMode;
+
+          _message = cloud
+              ? 'Modo Cloud ativado. O Cérebro continua local-first e sincroniza somente objetos criptografados.'
+              : 'Modo Local ativado. O Cérebro não realizará sincronização em nuvem.';
+
+          _messageIsError = false;
+        },
+      );
+
+      if (cloud) {
+        syncService.requestSync();
+      }
+    } catch (
+      error
+    ) {
+      debugPrint(
+        '[PROFILE SETTINGS] '
+        'Erro alterando modo do Cérebro: $error',
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(
+        () {
+          _message =
+              'Não foi possível alterar o modo de dados do Cérebro.';
+          _messageIsError = true;
+        },
+      );
+    } finally {
+      if (mounted) {
+        setState(
+          () {
+            _switchingBrainMode = false;
+          },
+        );
+      }
+    }
+  }
+
+  // ============================================================
+  // BRAIN BACKUP INFO
+  // ============================================================
+  //
+  // A infraestrutura .evbrain já existe na camada de backup.
+  //
+  // Nesta tela deixamos a entrada centralizada. O seletor de
+  // arquivo/exportação física será conectado no próximo bloco
+  // específico da Fase 08 sem misturar file picker nesta página.
+  //
+  // ============================================================
+
+  void _showBrainBackupPending({
+    required bool importBackup,
+  }) {
+    setState(
+      () {
+        _message = importBackup
+            ? 'Importação .evbrain: infraestrutura pronta; falta conectar o seletor de arquivo nesta tela.'
+            : 'Exportação .evbrain: infraestrutura pronta; falta conectar o seletor de destino nesta tela.';
+
+        _messageIsError = false;
+      },
+    );
+  }
+
+  // ============================================================
+  // LOAD BRAIN DEVICES
+  // ============================================================
+  //
+  // A tela não conversa diretamente com RPCs do Supabase.
+  //
+  // ProfileSettingsPage
+  //        ↓
+  // BrainDeviceAuthorizationService
+  //        ↓
+  // BrainDeviceRemotePort
+  //        ↓
+  // BrainDeviceSupabaseService
+  //
+  // ============================================================
+
+  Future<
+    void
+  >
+  _loadBrainDevices() async {
+    if (_loadingBrainDevices) {
+      return;
+    }
+
+    setState(
+      () {
+        _loadingBrainDevices = true;
+        _brainDevicesError = null;
+      },
+    );
+
+    try {
+      final manifest = await brainVaultService.openVault();
+
+      final local = await brainDeviceIdentityService.loadLocalSecrets();
+
+      final devices = await brainDeviceAuthorizationService.listDevices(
+        vaultId: manifest.vaultId,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(
+        () {
+          _currentBrainDeviceId = local?.deviceId;
+
+          _brainDevices =
+              List<
+                BrainDeviceRecord
+              >.unmodifiable(
+                devices,
+              );
+
+          _brainDevicesError = null;
+        },
+      );
+    } catch (
+      error
+    ) {
+      debugPrint(
+        '[PROFILE SETTINGS] '
+        'Erro carregando dispositivos do Cérebro: $error',
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(
+        () {
+          _brainDevicesError = 'Não foi possível carregar os dispositivos do Cérebro.';
+        },
+      );
+    } finally {
+      if (mounted) {
+        setState(
+          () {
+            _loadingBrainDevices = false;
+          },
+        );
+      }
+    }
+  }
+
+  // ============================================================
+  // CONFIRM REVOKE DEVICE
+  // ============================================================
+
+  Future<
+    void
+  >
+  _confirmRevokeBrainDevice(
+    BrainDeviceRecord device,
+  ) async {
+    if (_revokingBrainDeviceId !=
+        null) {
+      return;
+    }
+
+    final isCurrentDevice =
+        device.deviceId ==
+        _currentBrainDeviceId;
+
+    if (isCurrentDevice) {
+      setState(
+        () {
+          _message = 'Este dispositivo não pode ser revogado por esta tela.';
+          _messageIsError = true;
+        },
+      );
+
+      return;
+    }
+
+    if (device.isRevoked) {
+      return;
+    }
+
+    final confirmed =
+        await showDialog<
+          bool
+        >(
+          context: context,
+          builder:
+              (
+                dialogContext,
+              ) {
+                return AlertDialog(
+                  backgroundColor: _surface,
+                  surfaceTintColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(
+                      20,
+                    ),
+                    side: const BorderSide(
+                      color: _border,
+                    ),
+                  ),
+                  title: const Row(
+                    children: [
+                      Icon(
+                        Icons.phonelink_erase_rounded,
+                        color: _danger,
+                      ),
+                      SizedBox(
+                        width: 10,
+                      ),
+                      Expanded(
+                        child: Text(
+                          'Revogar acesso',
+                        ),
+                      ),
+                    ],
+                  ),
+                  content: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxWidth: 440,
+                    ),
+                    child: Text(
+                      'Revogar o acesso de "${device.deviceName}"?\n\n'
+                      'Este dispositivo não poderá mais sincronizar '
+                      'novos dados do Cérebro pela nuvem.\n\n'
+                      'Dados e chaves que já existam localmente nesse '
+                      'computador não podem ser apagados remotamente.',
+                      style: const TextStyle(
+                        color: _muted,
+                        height: 1.5,
+                      ),
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(
+                          dialogContext,
+                        ).pop(
+                          false,
+                        );
+                      },
+                      child: const Text(
+                        'Cancelar',
+                      ),
+                    ),
+                    FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _danger,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () {
+                        Navigator.of(
+                          dialogContext,
+                        ).pop(
+                          true,
+                        );
+                      },
+                      icon: const Icon(
+                        Icons.block_rounded,
+                        size: 18,
+                      ),
+                      label: const Text(
+                        'Revogar acesso',
+                      ),
+                    ),
+                  ],
+                );
+              },
+        );
+
+    if (confirmed !=
+        true) {
+      return;
+    }
+
+    await _revokeBrainDevice(
+      device,
+    );
+  }
+
+  // ============================================================
+  // REVOKE DEVICE
+  // ============================================================
+
+  Future<
+    void
+  >
+  _revokeBrainDevice(
+    BrainDeviceRecord device,
+  ) async {
+    if (_revokingBrainDeviceId !=
+        null) {
+      return;
+    }
+
+    setState(
+      () {
+        _revokingBrainDeviceId = device.deviceId;
+
+        _message = null;
+      },
+    );
+
+    try {
+      final manifest = await brainVaultService.openVault();
+
+      await brainDeviceAuthorizationService.revokeDevice(
+        vaultId: manifest.vaultId,
+        targetDeviceId: device.deviceId,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(
+        () {
+          _message = 'Acesso de "${device.deviceName}" revogado com sucesso.';
+          _messageIsError = false;
+        },
+      );
+
+      await _loadBrainDevices();
+    } catch (
+      error
+    ) {
+      debugPrint(
+        '[PROFILE SETTINGS] '
+        'Erro revogando dispositivo: $error',
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(
+        () {
+          _message =
+              'Não foi possível revogar o acesso de '
+              '"${device.deviceName}".';
+          _messageIsError = true;
+        },
+      );
+    } finally {
+      if (mounted) {
+        setState(
+          () {
+            _revokingBrainDeviceId = null;
+          },
+        );
+      }
+    }
+  }
+
+  // ============================================================
+  // BRAIN DEVICE STATUS
+  // ============================================================
+
+  String _brainDeviceStatusLabel(
+    BrainDeviceRecord device,
+  ) {
+    if (device.isAuthorized) {
+      return 'Autorizado';
+    }
+
+    if (device.isPending) {
+      return 'Pendente';
+    }
+
+    return 'Revogado';
+  }
+
+  Color _brainDeviceStatusColor(
+    BrainDeviceRecord device,
+  ) {
+    if (device.isAuthorized) {
+      return _primaryDark;
+    }
+
+    if (device.isPending) {
+      return const Color(
+        0xFF9A6700,
+      );
+    }
+
+    return _danger;
+  }
+
+  // ============================================================
+  // DATE LABEL
+  // ============================================================
+
+  String _formatBrainDeviceDate(
+    DateTime? value,
+  ) {
+    if (value ==
+        null) {
+      return 'sem registro';
+    }
+
+    final local = value.toLocal();
+
+    final day = local.day.toString().padLeft(
+      2,
+      '0',
+    );
+
+    final month = local.month.toString().padLeft(
+      2,
+      '0',
+    );
+
+    final year = local.year.toString();
+
+    final hour = local.hour.toString().padLeft(
+      2,
+      '0',
+    );
+
+    final minute = local.minute.toString().padLeft(
+      2,
+      '0',
+    );
+
+    return '$day/$month/$year às $hour:$minute';
+  }
+
+  // ============================================================
+  // BRAIN DEVICES SECTION
+  // ============================================================
+
+  Widget _buildBrainDevicesSection() {
+    if (_loadingBrainDevices &&
+        _brainDevices.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(
+          18,
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+              ),
+            ),
+            SizedBox(
+              width: 12,
+            ),
+            Expanded(
+              child: Text(
+                'Carregando dispositivos autorizados...',
+                style: TextStyle(
+                  color: _muted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_brainDevicesError !=
+        null) {
+      return Padding(
+        padding: const EdgeInsets.all(
+          14,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.error_outline_rounded,
+              color: _danger,
+            ),
+
+            const SizedBox(
+              width: 10,
+            ),
+
+            Expanded(
+              child: Text(
+                _brainDevicesError!,
+                style: const TextStyle(
+                  color: _danger,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+
+            const SizedBox(
+              width: 10,
+            ),
+
+            TextButton.icon(
+              onPressed: _loadBrainDevices,
+              icon: const Icon(
+                Icons.refresh_rounded,
+                size: 17,
+              ),
+              label: const Text(
+                'Tentar novamente',
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_brainDevices.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(
+          16,
+        ),
+        child: Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Nenhum dispositivo do Cérebro foi encontrado.',
+                style: TextStyle(
+                  color: _muted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+
+            IconButton(
+              tooltip: 'Atualizar',
+              onPressed: _loadBrainDevices,
+              icon: const Icon(
+                Icons.refresh_rounded,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            14,
+            12,
+            8,
+            10,
+          ),
+          child: Row(
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Dispositivos do Cérebro',
+                      style: TextStyle(
+                        color: _text,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    SizedBox(
+                      height: 2,
+                    ),
+                    Text(
+                      'Controle quais computadores podem sincronizar seus dados criptografados.',
+                      style: TextStyle(
+                        color: _muted,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              IconButton(
+                tooltip: 'Atualizar dispositivos',
+                onPressed: _loadingBrainDevices
+                    ? null
+                    : _loadBrainDevices,
+                icon: _loadingBrainDevices
+                    ? const SizedBox(
+                        width: 17,
+                        height: 17,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.refresh_rounded,
+                      ),
+              ),
+            ],
+          ),
+        ),
+
+        const Divider(
+          height: 1,
+          color: _border,
+        ),
+
+        for (
+          var index = 0;
+          index <
+              _brainDevices.length;
+          index++
+        ) ...[
+          _buildBrainDeviceRow(
+            _brainDevices[index],
+          ),
+
+          if (index <
+              _brainDevices.length -
+                  1)
+            const Divider(
+              height: 1,
+              color: _border,
+            ),
+        ],
+      ],
+    );
+  }
+
+  // ============================================================
+  // BRAIN DEVICE ROW
+  // ============================================================
+
+  Widget _buildBrainDeviceRow(
+    BrainDeviceRecord device,
+  ) {
+    final isCurrent =
+        device.deviceId ==
+        _currentBrainDeviceId;
+
+    final revoking =
+        _revokingBrainDeviceId ==
+        device.deviceId;
+
+    final statusColor = _brainDeviceStatusColor(
+      device,
+    );
+
+    final canRevoke =
+        !isCurrent &&
+        device.isAuthorized &&
+        _revokingBrainDeviceId ==
+            null;
+
+    final lastSeen = _formatBrainDeviceDate(
+      device.lastSeenAt,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.all(
+        14,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: isCurrent
+                  ? _primary
+                  : _surface,
+              borderRadius: BorderRadius.circular(
+                12,
+              ),
+              border: Border.all(
+                color: isCurrent
+                    ? _primaryDark.withValues(
+                        alpha: 0.25,
+                      )
+                    : _border,
+              ),
+            ),
+            child: Icon(
+              isCurrent
+                  ? Icons.computer_rounded
+                  : Icons.devices_other_rounded,
+              size: 20,
+              color: isCurrent
+                  ? _primaryDark
+                  : _muted,
+            ),
+          ),
+
+          const SizedBox(
+            width: 12,
+          ),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      device.deviceName,
+                      style: const TextStyle(
+                        color: _text,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+
+                    if (isCurrent)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _primary,
+                          borderRadius: BorderRadius.circular(
+                            999,
+                          ),
+                        ),
+                        child: const Text(
+                          'Este dispositivo',
+                          style: TextStyle(
+                            color: _primaryDark,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(
+                          alpha: 0.10,
+                        ),
+                        borderRadius: BorderRadius.circular(
+                          999,
+                        ),
+                        border: Border.all(
+                          color: statusColor.withValues(
+                            alpha: 0.22,
+                          ),
+                        ),
+                      ),
+                      child: Text(
+                        _brainDeviceStatusLabel(
+                          device,
+                        ),
+                        style: TextStyle(
+                          color: statusColor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(
+                  height: 5,
+                ),
+
+                Text(
+                  'Fingerprint: ${device.keyFingerprint}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: _muted,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+
+                const SizedBox(
+                  height: 3,
+                ),
+
+                Text(
+                  'Último acesso: $lastSeen',
+                  style: const TextStyle(
+                    color: _muted,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(
+            width: 12,
+          ),
+
+          if (revoking)
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+              ),
+            )
+          else if (canRevoke)
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _danger,
+                side: BorderSide(
+                  color: _danger.withValues(
+                    alpha: 0.35,
+                  ),
+                ),
+              ),
+              onPressed: () {
+                _confirmRevokeBrainDevice(
+                  device,
+                );
+              },
+              icon: const Icon(
+                Icons.block_rounded,
+                size: 16,
+              ),
+              label: const Text(
+                'Revogar acesso',
+              ),
+            )
+          else if (device.isRevoked)
+            const Icon(
+              Icons.block_rounded,
+              color: _danger,
+              size: 20,
+            ),
+        ],
+      ),
+    );
   }
 
   // ============================================================
@@ -596,6 +1604,27 @@ class _ProfileSettingsPageState
           ),
 
           _SettingsNavItem(
+            icon: Icons.psychology_alt_outlined,
+            label: 'Cérebro',
+            selected:
+                _section ==
+                ProfileSettingsSection.brain,
+            onTap: () {
+              setState(
+                () {
+                  _section = ProfileSettingsSection.brain;
+                },
+              );
+
+              _loadBrainSettings();
+            },
+          ),
+
+          const SizedBox(
+            height: 8,
+          ),
+
+          _SettingsNavItem(
             icon: Icons.info_outline_rounded,
             label: 'Sobre',
             selected:
@@ -619,9 +1648,17 @@ class _ProfileSettingsPageState
   // ============================================================
 
   Widget _buildContent() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+    return Scrollbar(
+      thumbVisibility: true,
+      child: SingleChildScrollView(
+        primary: true,
+        padding: const EdgeInsets.only(
+          right: 8,
+          bottom: 24,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
         if (_message !=
             null) ...[
           Container(
@@ -689,9 +1726,15 @@ class _ProfileSettingsPageState
           _buildSecurity(),
 
         if (_section ==
+            ProfileSettingsSection.brain)
+          _buildBrainSettings(),
+
+        if (_section ==
             ProfileSettingsSection.about)
           _buildAbout(),
-      ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -766,35 +1809,6 @@ class _ProfileSettingsPageState
               },
         ),
 
-        const SizedBox(
-          height: 18,
-        ),
-
-        Align(
-          alignment: Alignment.centerRight,
-          child: FilledButton.icon(
-            onPressed: _savingPreferences
-                ? null
-                : _savePreferences,
-            icon: _savingPreferences
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                    ),
-                  )
-                : const Icon(
-                    Icons.save_outlined,
-                    size: 18,
-                  ),
-            label: Text(
-              _savingPreferences
-                  ? 'Salvando...'
-                  : 'Salvar preferências',
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -857,6 +1871,491 @@ class _ProfileSettingsPageState
           subtitle: 'Sua sessão atual está protegida pelo Supabase Auth.',
         ),
       ],
+    );
+  }
+
+  // ============================================================
+  // BRAIN SETTINGS
+  // ============================================================
+
+  Widget _buildBrainSettings() {
+    return _SettingsPanel(
+      icon: Icons.psychology_alt_outlined,
+      title: 'Cérebro',
+      subtitle:
+          'Controle onde seus conhecimentos ficam, como são sincronizados e como são protegidos.',
+      children: [
+        _buildBrainDataModeSection(),
+
+        const Divider(
+          height: 1,
+          color: _border,
+        ),
+
+        _buildBrainVaultSection(),
+
+        const Divider(
+          height: 1,
+          color: _border,
+        ),
+
+        _buildBrainDevicesSection(),
+
+        const Divider(
+          height: 1,
+          color: _border,
+        ),
+
+        _buildBrainBackupSection(),
+
+        const Divider(
+          height: 1,
+          color: _border,
+        ),
+
+        _buildBrainSecuritySection(),
+
+        const Divider(
+          height: 1,
+          color: _border,
+        ),
+
+        _buildBrainRecoverySection(),
+      ],
+    );
+  }
+
+  // ============================================================
+  // BRAIN DATA MODE
+  // ============================================================
+
+  Widget _buildBrainDataModeSection() {
+    return Padding(
+      padding: const EdgeInsets.all(
+        14,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(
+                Icons.sync_alt_rounded,
+                size: 20,
+                color: _primaryDark,
+              ),
+
+              SizedBox(
+                width: 10,
+              ),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Modo de dados',
+                      style: TextStyle(
+                        color: _text,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    SizedBox(
+                      height: 2,
+                    ),
+                    Text(
+                      'Escolha se o Cérebro fica somente neste dispositivo ou também sincroniza pela nuvem.',
+                      style: TextStyle(
+                        color: _muted,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(
+            height: 14,
+          ),
+
+          Row(
+            children: [
+              Expanded(
+                child: _BrainModeOption(
+                  icon: Icons.laptop_rounded,
+                  title: 'Local',
+                  subtitle:
+                      'Seus dados permanecem neste dispositivo. Nenhum sync do Cérebro é realizado.',
+                  selected:
+                      !_brainCloudMode,
+                  enabled:
+                      !_switchingBrainMode,
+                  onTap: () {
+                    _setBrainCloudMode(
+                      false,
+                    );
+                  },
+                ),
+              ),
+
+              const SizedBox(
+                width: 10,
+              ),
+
+              Expanded(
+                child: _BrainModeOption(
+                  icon: Icons.cloud_done_outlined,
+                  title: 'Cloud',
+                  subtitle:
+                      'Local-first + sincronização E2EE somente entre dispositivos autorizados.',
+                  selected:
+                      _brainCloudMode,
+                  enabled:
+                      !_switchingBrainMode,
+                  onTap: () {
+                    _setBrainCloudMode(
+                      true,
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+
+          if (_switchingBrainMode) ...[
+            const SizedBox(
+              height: 12,
+            ),
+
+            const LinearProgressIndicator(
+              minHeight: 2,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // BRAIN VAULT
+  // ============================================================
+
+  Widget _buildBrainVaultSection() {
+    final vaultId =
+        _brainVaultId ??
+        'Carregando...';
+
+    final keyVersion =
+        _brainKeyVersion?.toString() ??
+        '-';
+
+    return Padding(
+      padding: const EdgeInsets.all(
+        14,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.inventory_2_outlined,
+                size: 20,
+                color: _primaryDark,
+              ),
+
+              const SizedBox(
+                width: 10,
+              ),
+
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Vault',
+                      style: TextStyle(
+                        color: _text,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    SizedBox(
+                      height: 2,
+                    ),
+                    Text(
+                      'Identidade e estado criptográfico do seu Cérebro local.',
+                      style: TextStyle(
+                        color: _muted,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              IconButton(
+                tooltip: 'Atualizar',
+                onPressed: _loadingBrainSettings
+                    ? null
+                    : _loadBrainSettings,
+                icon: _loadingBrainSettings
+                    ? const SizedBox(
+                        width: 17,
+                        height: 17,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.refresh_rounded,
+                      ),
+              ),
+            ],
+          ),
+
+          const SizedBox(
+            height: 12,
+          ),
+
+          _BrainInfoRow(
+            label: 'Vault ID',
+            value: vaultId,
+          ),
+
+          const SizedBox(
+            height: 8,
+          ),
+
+          _BrainInfoRow(
+            label: 'Versão da chave',
+            value: keyVersion,
+          ),
+
+          const SizedBox(
+            height: 8,
+          ),
+
+          _BrainInfoRow(
+            label: 'Master Key',
+            value: _brainMasterKeyAvailable
+                ? 'Disponível no secure storage'
+                : 'Indisponível',
+            good:
+                _brainMasterKeyAvailable,
+          ),
+
+          const SizedBox(
+            height: 8,
+          ),
+
+          _BrainInfoRow(
+            label: 'Sincronização',
+            value: _brainCloudMode
+                ? 'Cloud E2EE'
+                : 'Somente local',
+            good: true,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // BRAIN BACKUP
+  // ============================================================
+
+  Widget _buildBrainBackupSection() {
+    return Padding(
+      padding: const EdgeInsets.all(
+        14,
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.backup_outlined,
+            size: 20,
+            color: _primaryDark,
+          ),
+
+          const SizedBox(
+            width: 10,
+          ),
+
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Backup .evbrain',
+                  style: TextStyle(
+                    color: _text,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(
+                  height: 2,
+                ),
+                Text(
+                  'Backup portátil criptografado do Vault. O arquivo não contém a Master Key em plaintext.',
+                  style: TextStyle(
+                    color: _muted,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(
+            width: 12,
+          ),
+
+          OutlinedButton.icon(
+            onPressed: () {
+              _showBrainBackupPending(
+                importBackup: true,
+              );
+            },
+            icon: const Icon(
+              Icons.file_open_outlined,
+              size: 17,
+            ),
+            label: const Text(
+              'Importar',
+            ),
+          ),
+
+          const SizedBox(
+            width: 8,
+          ),
+
+          FilledButton.tonalIcon(
+            onPressed: () {
+              _showBrainBackupPending(
+                importBackup: false,
+              );
+            },
+            icon: const Icon(
+              Icons.download_outlined,
+              size: 17,
+            ),
+            label: const Text(
+              'Exportar',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // BRAIN SECURITY
+  // ============================================================
+
+  Widget _buildBrainSecuritySection() {
+    return const Padding(
+      padding: EdgeInsets.all(
+        14,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.enhanced_encryption_outlined,
+            size: 20,
+            color: _primaryDark,
+          ),
+
+          SizedBox(
+            width: 10,
+          ),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Proteção dos dados',
+                  style: TextStyle(
+                    color: _text,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(
+                  height: 6,
+                ),
+                Text(
+                  '• O Vault usa criptografia local.\n'
+                  '• A Master Key fica no secure storage do sistema operacional.\n'
+                  '• O Supabase recebe somente objetos criptografados do Cérebro.\n'
+                  '• Cloud exige conta autenticada, Master Key e dispositivo autorizado.',
+                  style: TextStyle(
+                    color: _muted,
+                    fontSize: 11,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // BRAIN RECOVERY
+  // ============================================================
+
+  Widget _buildBrainRecoverySection() {
+    return const Padding(
+      padding: EdgeInsets.all(
+        14,
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.settings_backup_restore_rounded,
+            size: 20,
+            color: _muted,
+          ),
+
+          SizedBox(
+            width: 10,
+          ),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Recovery Device',
+                  style: TextStyle(
+                    color: _text,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(
+                  height: 2,
+                ),
+                Text(
+                  'Recuperação segura em um novo dispositivo será concluída na Fase 16.',
+                  style: TextStyle(
+                    color: _muted,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          _PhaseBadge(
+            text: 'Fase 16',
+          ),
+        ],
+      ),
     );
   }
 
@@ -1518,6 +3017,236 @@ class _PreferenceSwitch
         style: const TextStyle(
           color: _ProfileSettingsPageState._muted,
           fontSize: 11,
+        ),
+      ),
+    );
+  }
+}
+
+
+// ============================================================
+// BRAIN MODE OPTION
+// ============================================================
+
+class _BrainModeOption
+    extends
+        StatelessWidget {
+  const _BrainModeOption({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.selected,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final IconData icon;
+
+  final String title;
+
+  final String subtitle;
+
+  final bool selected;
+
+  final bool enabled;
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: enabled
+            ? onTap
+            : null,
+        borderRadius: BorderRadius.circular(
+          14,
+        ),
+        child: AnimatedContainer(
+          duration: const Duration(
+            milliseconds: 160,
+          ),
+          padding: const EdgeInsets.all(
+            13,
+          ),
+          decoration: BoxDecoration(
+            color: selected
+                ? _ProfileSettingsPageState._primary
+                : _ProfileSettingsPageState._surface,
+            borderRadius: BorderRadius.circular(
+              14,
+            ),
+            border: Border.all(
+              color: selected
+                  ? _ProfileSettingsPageState._primaryDark.withValues(
+                      alpha: 0.35,
+                    )
+                  : _ProfileSettingsPageState._border,
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                icon,
+                color: selected
+                    ? _ProfileSettingsPageState._primaryDark
+                    : _ProfileSettingsPageState._muted,
+                size: 21,
+              ),
+
+              const SizedBox(
+                width: 9,
+              ),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: const TextStyle(
+                              color: _ProfileSettingsPageState._text,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+
+                        Icon(
+                          selected
+                              ? Icons.radio_button_checked_rounded
+                              : Icons.radio_button_off_rounded,
+                          size: 18,
+                          color: selected
+                              ? _ProfileSettingsPageState._primaryDark
+                              : _ProfileSettingsPageState._muted,
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(
+                      height: 4,
+                    ),
+
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: _ProfileSettingsPageState._muted,
+                        fontSize: 10,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// BRAIN INFO ROW
+// ============================================================
+
+class _BrainInfoRow
+    extends
+        StatelessWidget {
+  const _BrainInfoRow({
+    required this.label,
+    required this.value,
+    this.good = false,
+  });
+
+  final String label;
+
+  final String value;
+
+  final bool good;
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 130,
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: _ProfileSettingsPageState._muted,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+
+        Expanded(
+          child: Text(
+            value,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: good
+                  ? _ProfileSettingsPageState._primaryDark
+                  : _ProfileSettingsPageState._text,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ============================================================
+// PHASE BADGE
+// ============================================================
+
+class _PhaseBadge
+    extends
+        StatelessWidget {
+  const _PhaseBadge({
+    required this.text,
+  });
+
+  final String text;
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 9,
+        vertical: 4,
+      ),
+      decoration: BoxDecoration(
+        color: _ProfileSettingsPageState._surface,
+        borderRadius: BorderRadius.circular(
+          999,
+        ),
+        border: Border.all(
+          color: _ProfileSettingsPageState._border,
+        ),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: _ProfileSettingsPageState._muted,
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
         ),
       ),
     );

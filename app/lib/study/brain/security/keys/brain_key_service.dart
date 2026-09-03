@@ -7,9 +7,9 @@ import 'brain_key_storage.dart';
 // BRAIN KEY SERVICE
 // ============================================================
 //
-// Responsável pelo ciclo local inicial da Master Key.
+// Responsável pelo ciclo local da Master Key do Cérebro.
 //
-// Nesta Fase 01:
+// FASE 01:
 //
 // - gerar Master Key;
 // - validar Master Key;
@@ -18,27 +18,34 @@ import 'brain_key_storage.dart';
 // - carregar através de BrainKeyStorage;
 // - criar chave caso ainda não exista.
 //
-// NÃO pertence à Fase 01:
+// FASE 07:
 //
-// - autorização de novos dispositivos;
-// - wrapped keys;
-// - sincronização da chave;
-// - Recovery Device;
-// - rotação real de chave;
-// - recuperação de conta.
+// - exportar os bytes da Master Key somente para fluxo interno
+//   de autorização de dispositivo;
+// - importar uma Master Key recebida por envelope E2EE;
+// - validar vaultId, keyVersion e tamanho da chave;
+// - impedir sobrescrita silenciosa de uma chave diferente;
+// - continuar usando BrainKeyStorage como única persistência.
+//
+// IMPORTANTE:
+//
+// - este service NÃO conhece Supabase;
+// - este service NÃO conhece UI;
+// - este service NÃO conhece dispositivos diretamente;
+// - este service NÃO faz key wrapping;
+// - este service NÃO transmite chave;
+// - este service NÃO salva Master Key fora do BrainKeyStorage;
+// - a Master Key nunca deve ser serializada em plaintext para rede,
+//   arquivo comum, SharedPreferences ou SyncQueue.
+//
+// A Fase 07 deve acessar este service através de um adapter/port.
 //
 // ============================================================
 
 class BrainKeyService {
-  BrainKeyService({
-    BrainSecureRandom? secureRandom,
-    BrainKeyStorage? storage,
-  }) : _secureRandom =
-           secureRandom ??
-           BrainSecureRandom(),
-       _storage =
-           storage ??
-           InMemoryBrainKeyStorage();
+  BrainKeyService({BrainSecureRandom? secureRandom, BrainKeyStorage? storage})
+    : _secureRandom = secureRandom ?? BrainSecureRandom(),
+      _storage = storage ?? InMemoryBrainKeyStorage();
 
   final BrainSecureRandom _secureRandom;
 
@@ -60,19 +67,41 @@ class BrainKeyService {
     final bytes = _secureRandom.generateMasterKey();
 
     final bundle = BrainKeyBundle(
-      masterKeyBytes:
-          List<
-            int
-          >.unmodifiable(
-            bytes,
-          ),
+      masterKeyBytes: List<int>.unmodifiable(bytes),
       keyVersion: initialKeyVersion,
       createdAt: DateTime.now().toUtc(),
     );
 
-    validateKeyBundle(
-      bundle,
+    validateKeyBundle(bundle);
+
+    return bundle;
+  }
+
+  // ============================================================
+  // CREATE FROM IMPORTED BYTES — FASE 07
+  // ============================================================
+  //
+  // Constrói um BrainKeyBundle a partir de uma Master Key que já
+  // foi recuperada de um envelope E2EE de outro dispositivo.
+  //
+  // Este método NÃO persiste automaticamente.
+  //
+  // ============================================================
+
+  BrainKeyBundle createImportedKeyBundle({
+    required List<int> masterKeyBytes,
+    required int keyVersion,
+    DateTime? createdAt,
+  }) {
+    final normalizedBytes = List<int>.unmodifiable(masterKeyBytes);
+
+    final bundle = BrainKeyBundle(
+      masterKeyBytes: normalizedBytes,
+      keyVersion: keyVersion,
+      createdAt: (createdAt ?? DateTime.now()).toUtc(),
     );
+
+    validateKeyBundle(bundle);
 
     return bundle;
   }
@@ -81,11 +110,8 @@ class BrainKeyService {
   // VALIDATE
   // ============================================================
 
-  void validateKeyBundle(
-    BrainKeyBundle bundle,
-  ) {
-    if (bundle.masterKeyBytes.length !=
-        masterKeyLengthBytes) {
+  void validateKeyBundle(BrainKeyBundle bundle) {
+    if (bundle.masterKeyBytes.length != masterKeyLengthBytes) {
       throw BrainCryptoException.invalidKey(
         message:
             'Master Key inválida: esperado '
@@ -93,11 +119,18 @@ class BrainKeyService {
       );
     }
 
-    if (bundle.keyVersion <=
-        0) {
+    if (bundle.keyVersion <= 0) {
       throw BrainCryptoException.invalidKey(
         message: 'Versão da Master Key inválida.',
       );
+    }
+
+    for (final byte in bundle.masterKeyBytes) {
+      if (byte < 0 || byte > 255) {
+        throw BrainCryptoException.invalidKey(
+          message: 'Master Key contém byte inválido.',
+        );
+      }
     }
   }
 
@@ -105,10 +138,7 @@ class BrainKeyService {
   // SAVE
   // ============================================================
 
-  Future<
-    void
-  >
-  saveKeyBundle({
+  Future<void> saveKeyBundle({
     required String vaultId,
     required BrainKeyBundle bundle,
   }) async {
@@ -120,26 +150,16 @@ class BrainKeyService {
       );
     }
 
-    validateKeyBundle(
-      bundle,
-    );
+    validateKeyBundle(bundle);
 
     try {
-      await _storage.saveKeyBundle(
-        vaultId: cleanVaultId,
-        bundle: bundle,
-      );
-    } catch (
-      error
-    ) {
-      if (error
-          is BrainCryptoException) {
+      await _storage.saveKeyBundle(vaultId: cleanVaultId, bundle: bundle);
+    } catch (error) {
+      if (error is BrainCryptoException) {
         rethrow;
       }
 
-      throw BrainCryptoException.keyStorageFailed(
-        cause: error,
-      );
+      throw BrainCryptoException.keyStorageFailed(cause: error);
     }
   }
 
@@ -147,12 +167,7 @@ class BrainKeyService {
   // LOAD
   // ============================================================
 
-  Future<
-    BrainKeyBundle?
-  >
-  loadKeyBundle({
-    required String vaultId,
-  }) async {
+  Future<BrainKeyBundle?> loadKeyBundle({required String vaultId}) async {
     final cleanVaultId = vaultId.trim();
 
     if (cleanVaultId.isEmpty) {
@@ -160,31 +175,21 @@ class BrainKeyService {
     }
 
     try {
-      final bundle = await _storage.loadKeyBundle(
-        vaultId: cleanVaultId,
-      );
+      final bundle = await _storage.loadKeyBundle(vaultId: cleanVaultId);
 
-      if (bundle ==
-          null) {
+      if (bundle == null) {
         return null;
       }
 
-      validateKeyBundle(
-        bundle,
-      );
+      validateKeyBundle(bundle);
 
       return bundle;
-    } catch (
-      error
-    ) {
-      if (error
-          is BrainCryptoException) {
+    } catch (error) {
+      if (error is BrainCryptoException) {
         rethrow;
       }
 
-      throw BrainCryptoException.keyStorageFailed(
-        cause: error,
-      );
+      throw BrainCryptoException.keyStorageFailed(cause: error);
     }
   }
 
@@ -192,18 +197,10 @@ class BrainKeyService {
   // REQUIRE
   // ============================================================
 
-  Future<
-    BrainKeyBundle
-  >
-  requireKeyBundle({
-    required String vaultId,
-  }) async {
-    final bundle = await loadKeyBundle(
-      vaultId: vaultId,
-    );
+  Future<BrainKeyBundle> requireKeyBundle({required String vaultId}) async {
+    final bundle = await loadKeyBundle(vaultId: vaultId);
 
-    if (bundle ==
-        null) {
+    if (bundle == null) {
       throw BrainCryptoException.keyNotFound();
     }
 
@@ -214,35 +211,22 @@ class BrainKeyService {
   // GET OR CREATE
   // ============================================================
 
-  Future<
-    BrainKeyBundle
-  >
-  getOrCreateKeyBundle({
-    required String vaultId,
-  }) async {
+  Future<BrainKeyBundle> getOrCreateKeyBundle({required String vaultId}) async {
     final cleanVaultId = vaultId.trim();
 
     if (cleanVaultId.isEmpty) {
-      throw BrainCryptoException.invalidKey(
-        message: 'vaultId inválido.',
-      );
+      throw BrainCryptoException.invalidKey(message: 'vaultId inválido.');
     }
 
-    final existing = await loadKeyBundle(
-      vaultId: cleanVaultId,
-    );
+    final existing = await loadKeyBundle(vaultId: cleanVaultId);
 
-    if (existing !=
-        null) {
+    if (existing != null) {
       return existing;
     }
 
     final created = createKeyBundle();
 
-    await saveKeyBundle(
-      vaultId: cleanVaultId,
-      bundle: created,
-    );
+    await saveKeyBundle(vaultId: cleanVaultId, bundle: created);
 
     return created;
   }
@@ -251,12 +235,7 @@ class BrainKeyService {
   // EXISTS
   // ============================================================
 
-  Future<
-    bool
-  >
-  hasKeyBundle({
-    required String vaultId,
-  }) async {
+  Future<bool> hasKeyBundle({required String vaultId}) async {
     final cleanVaultId = vaultId.trim();
 
     if (cleanVaultId.isEmpty) {
@@ -264,28 +243,154 @@ class BrainKeyService {
     }
 
     try {
-      return await _storage.containsKeyBundle(
-        vaultId: cleanVaultId,
-      );
-    } catch (
-      error
-    ) {
-      throw BrainCryptoException.keyStorageFailed(
-        cause: error,
+      return await _storage.containsKeyBundle(vaultId: cleanVaultId);
+    } catch (error) {
+      throw BrainCryptoException.keyStorageFailed(cause: error);
+    }
+  }
+
+  // ============================================================
+  // EXPORT MASTER KEY — FASE 07
+  // ============================================================
+  //
+  // Usado exclusivamente pelo adapter da autorização de dispositivo.
+  //
+  // O retorno é uma cópia imutável dos bytes.
+  //
+  // IMPORTANTE:
+  //
+  // Este método NÃO:
+  //
+  // - serializa;
+  // - envia;
+  // - loga;
+  // - persiste em outro lugar;
+  // - cria envelope.
+  //
+  // ============================================================
+
+  Future<List<int>> exportMasterKeyBytes({required String vaultId}) async {
+    final cleanVaultId = vaultId.trim();
+
+    if (cleanVaultId.isEmpty) {
+      throw BrainCryptoException.invalidKey(
+        message: 'vaultId inválido para exportação da Master Key.',
       );
     }
+
+    final bundle = await requireKeyBundle(vaultId: cleanVaultId);
+
+    validateKeyBundle(bundle);
+
+    return List<int>.unmodifiable(List<int>.from(bundle.masterKeyBytes));
+  }
+
+  // ============================================================
+  // IMPORT MASTER KEY — FASE 07
+  // ============================================================
+  //
+  // Importa uma Master Key recebida por um fluxo criptograficamente
+  // autenticado de outro dispositivo.
+  //
+  // Regras:
+  //
+  // 1. vaultId obrigatório;
+  // 2. chave precisa ter exatamente 32 bytes;
+  // 3. keyVersion precisa ser positiva;
+  // 4. se já existir a MESMA chave/versão, operação é idempotente;
+  // 5. se já existir chave DIFERENTE, falha fechado;
+  // 6. não sobrescreve chave silenciosamente.
+  //
+  // Isso evita destruir acesso ao Vault local caso um envelope
+  // incorreto, antigo ou mal vinculado seja importado.
+  //
+  // ============================================================
+
+  Future<BrainKeyBundle> importMasterKeyBytes({
+    required String vaultId,
+    required int keyVersion,
+    required List<int> masterKeyBytes,
+    DateTime? createdAt,
+  }) async {
+    final cleanVaultId = vaultId.trim();
+
+    if (cleanVaultId.isEmpty) {
+      throw BrainCryptoException.invalidKey(
+        message: 'vaultId inválido para importação da Master Key.',
+      );
+    }
+
+    final imported = createImportedKeyBundle(
+      masterKeyBytes: masterKeyBytes,
+      keyVersion: keyVersion,
+      createdAt: createdAt,
+    );
+
+    final existing = await loadKeyBundle(vaultId: cleanVaultId);
+
+    if (existing != null) {
+      final sameVersion = existing.keyVersion == imported.keyVersion;
+
+      final sameKey = _constantTimeEquals(
+        existing.masterKeyBytes,
+        imported.masterKeyBytes,
+      );
+
+      if (sameVersion && sameKey) {
+        return existing;
+      }
+
+      throw BrainCryptoException.invalidKey(
+        message:
+            'Já existe uma Master Key diferente para este Vault. '
+            'Importação recusada para evitar sobrescrita insegura.',
+      );
+    }
+
+    await saveKeyBundle(vaultId: cleanVaultId, bundle: imported);
+
+    return imported;
+  }
+
+  // ============================================================
+  // MATCHES EXISTING KEY — FASE 07
+  // ============================================================
+  //
+  // Útil para validar idempotência do onboarding de dispositivo.
+  //
+  // ============================================================
+
+  Future<bool> matchesExistingKey({
+    required String vaultId,
+    required int keyVersion,
+    required List<int> masterKeyBytes,
+  }) async {
+    final cleanVaultId = vaultId.trim();
+
+    if (cleanVaultId.isEmpty ||
+        keyVersion <= 0 ||
+        masterKeyBytes.length != masterKeyLengthBytes) {
+      return false;
+    }
+
+    final existing = await loadKeyBundle(vaultId: cleanVaultId);
+
+    if (existing == null) {
+      return false;
+    }
+
+    if (existing.keyVersion != keyVersion) {
+      return false;
+    }
+
+    return _constantTimeEquals(existing.masterKeyBytes, masterKeyBytes);
   }
 
   // ============================================================
   // DELETE
   // ============================================================
 
-  Future<
-    void
-  >
-  deleteKeyBundle({
-    required String vaultId,
-  }) async {
+  Future<void> deleteKeyBundle({required String vaultId}) async {
     final cleanVaultId = vaultId.trim();
 
     if (cleanVaultId.isEmpty) {
@@ -293,15 +398,34 @@ class BrainKeyService {
     }
 
     try {
-      await _storage.deleteKeyBundle(
-        vaultId: cleanVaultId,
-      );
-    } catch (
-      error
-    ) {
-      throw BrainCryptoException.keyStorageFailed(
-        cause: error,
-      );
+      await _storage.deleteKeyBundle(vaultId: cleanVaultId);
+    } catch (error) {
+      throw BrainCryptoException.keyStorageFailed(cause: error);
     }
+  }
+
+  // ============================================================
+  // CONSTANT-TIME BYTE COMPARISON
+  // ============================================================
+  //
+  // Evita early-return baseado no primeiro byte diferente.
+  //
+  // Não substitui primitivas criptográficas para MAC/assinatura,
+  // mas é suficiente aqui para comparar material de chave local.
+  //
+  // ============================================================
+
+  bool _constantTimeEquals(List<int> first, List<int> second) {
+    if (first.length != second.length) {
+      return false;
+    }
+
+    var difference = 0;
+
+    for (var index = 0; index < first.length; index++) {
+      difference |= first[index] ^ second[index];
+    }
+
+    return difference == 0;
   }
 }

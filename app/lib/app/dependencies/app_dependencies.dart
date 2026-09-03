@@ -96,9 +96,6 @@ import '../../study/controllers/study_controller.dart';
 import '../../study/brain/controllers/brain_controller.dart';
 import '../../study/brain/controllers/review_controller.dart';
 
-import '../../study/brain/models/brain_concept.dart';
-import '../../study/brain/models/brain_review_item.dart';
-
 import '../../study/brain/repositories/brain_repository.dart';
 import '../../study/brain/repositories/review_repository.dart';
 
@@ -114,11 +111,28 @@ import '../../study/brain/security/keys/brain_key_service.dart';
 import '../../study/brain/security/keys/brain_platform_key_storage.dart';
 
 import '../../study/brain/vault/services/brain_vault_service.dart';
+import '../../study/brain/vault/storage/brain_vault_storage.dart';
 import '../../study/brain/vault/stores/brain_review_vault_store.dart';
+import '../../study/brain/vault/stores/brain_note_vault_store.dart';
+import '../../study/brain/vault/stores/brain_concept_vault_store.dart';
 
 import '../../study/brain/settings/controllers/brain_data_mode_controller.dart';
 import '../../study/brain/settings/services/brain_data_mode_service.dart';
 import '../../study/brain/settings/storage/brain_data_mode_storage.dart';
+
+import '../../study/brain/sync/services/brain_cloud_pull_service.dart';
+import '../../study/brain/sync/services/brain_core_sync_queue_writer.dart';
+import '../../study/brain/sync/services/brain_e2ee_sync_coordinator.dart';
+import '../../study/brain/sync/services/brain_supabase_e2ee_service.dart';
+import '../../study/brain/sync/services/brain_sync_queue_service.dart';
+
+import '../../study/brain/devices/adapters/brain_key_service_device_master_key_adapter.dart';
+import '../../study/brain/devices/security/brain_device_crypto_service.dart';
+import '../../study/brain/devices/security/brain_device_secure_storage.dart';
+import '../../study/brain/devices/services/brain_device_authorization_service.dart';
+import '../../study/brain/devices/services/brain_device_gate_service.dart';
+import '../../study/brain/devices/services/brain_device_identity_service.dart';
+import '../../study/brain/devices/services/brain_device_supabase_service.dart';
 
 // ======================================================
 // REMINDERS CONTROLLER
@@ -315,12 +329,10 @@ final supabaseBrainService = SupabaseBrainService(client: supabaseClient);
 
 final brainRepository = BrainRepository(
   remote: supabaseBrainService,
-
   local: brainStorage,
-
-  syncQueue: syncQueue,
-
-  syncService: syncService,
+  noteVaultStore: brainNoteVaultStore,
+  conceptVaultStore: brainConceptVaultStore,
+  brainSyncQueueService: brainSyncQueueService,
 );
 
 final brainController = BrainController(repository: brainRepository);
@@ -353,8 +365,8 @@ final brainController = BrainController(repository: brainRepository);
 // - ReviewStorage permanece apenas como legado/migração;
 // - novas revisões não entram na SyncQueue antiga em plaintext;
 // - SupabaseReviewService permanece temporariamente apenas para
-//   importação remota legada e para drenar operações antigas já
-//   existentes na fila;
+//   compatibilidade/importação remota legada;
+// - a SyncQueue antiga de brain_review é purgada após a migração;
 // - não existe fallback inseguro para InMemoryBrainKeyStorage.
 //
 // ======================================================
@@ -374,10 +386,312 @@ final brainKeyStorage = BrainPlatformKeyStorage();
 final brainKeyService = BrainKeyService(storage: brainKeyStorage);
 
 // ======================================================
+// BRAIN VAULT STORAGE
+// ======================================================
+//
+// Instância explícita e única.
+//
+// O BrainVaultService e o BrainCloudPullService precisam apontar
+// para o mesmo armazenamento físico.
+//
+// ======================================================
+
+final brainVaultStorage = BrainVaultStorage();
+
+// ======================================================
 // BRAIN VAULT
 // ======================================================
 
-final brainVaultService = BrainVaultService(keyService: brainKeyService);
+final brainVaultService = BrainVaultService(
+  keyService: brainKeyService,
+  storage: brainVaultStorage,
+);
+
+// ======================================================
+// NOTE / CONCEPT VAULT STORES
+// ======================================================
+
+final brainNoteVaultStore = BrainNoteVaultStore(
+  vaultService: brainVaultService,
+);
+
+final brainConceptVaultStore = BrainConceptVaultStore(
+  vaultService: brainVaultService,
+);
+
+// ======================================================
+// BRAIN DATA MODE — FASE 05
+// ======================================================
+
+final brainDataModeStorage = SharedPreferencesBrainDataModeStorage();
+
+final brainDataModeService = BrainDataModeService(
+  storage: brainDataModeStorage,
+);
+
+final brainDataModeController = BrainDataModeController(
+  service: brainDataModeService,
+);
+
+// ======================================================
+// BRAIN E2EE — FASE 06
+// ======================================================
+//
+// Vault
+//   ↓
+// BrainSyncPayload
+//   ↓
+// SyncQueue (brain_e2ee_object)
+//   ↓
+// SyncService
+//   ↓
+// BrainSupabaseE2eeService
+//   ↓
+// public.brain_objects
+//
+// ======================================================
+
+final brainCoreSyncQueueWriter = CoreBrainSyncQueueWriter(
+  queue: syncQueue,
+  syncService: syncService,
+);
+
+final brainSyncQueueService = BrainSyncQueueService(
+  dataModeService: brainDataModeService,
+  vaultService: brainVaultService,
+  writer: brainCoreSyncQueueWriter,
+);
+
+final brainSupabaseE2eeService = BrainSupabaseE2eeService(
+  client: supabaseClient,
+);
+
+final brainCloudPullService = BrainCloudPullService(
+  remote: brainSupabaseE2eeService,
+  vaultService: brainVaultService,
+  vaultStorage: brainVaultStorage,
+  keyService: brainKeyService,
+);
+
+final brainE2eeSyncCoordinator = BrainE2eeSyncCoordinator(
+  dataModeService: brainDataModeService,
+  queueService: brainSyncQueueService,
+  pullService: brainCloudPullService,
+
+  // ==========================================================
+  // FASE 07 — GATE TAMBÉM PARA O PULL
+  // ==========================================================
+  //
+  // O coordinator não pode acessar brain_objects apenas porque
+  // existe uma sessão autenticada.
+  //
+  // Agora o mesmo gate utilizado pelo SyncService protege:
+  //
+  // - bootstrap pull;
+  // - pull manual;
+  // - transmissão dos objetos E2EE.
+  //
+  // Requisitos:
+  //
+  // Cloud
+  // + auth
+  // + Vault
+  // + Master Key local
+  // + device identity
+  // + device authorized
+  //
+  // ==========================================================
+
+  canUseCloudOperations:
+      _canUseBrainCloudWithAuthorizedDevice,
+);
+
+// ======================================================
+// BRAIN AUTHORIZED DEVICES — FASE 07
+// ======================================================
+//
+// Device Private Key
+//      ↓
+// PlatformBrainDeviceSecureStorage
+//
+// Public Key / status / envelope criptografado
+//      ↓
+// BrainDeviceSupabaseService
+//
+// Master Key
+//      ↓
+// BrainKeyServiceDeviceMasterKeyAdapter
+//      ↓
+// BrainKeyService
+//      ↓
+// BrainPlatformKeyStorage
+//
+// IMPORTANTE:
+//
+// - não existe segundo storage de Master Key;
+// - private key X25519 fica no secure storage local;
+// - Supabase nunca recebe a Master Key em plaintext;
+// - Cloud sync do Brain passa a exigir dispositivo autorizado;
+// - qualquer erro no gate falha fechado.
+//
+// ======================================================
+
+final brainDeviceSecureStorage = PlatformBrainDeviceSecureStorage();
+
+final brainDeviceCryptoService = BrainDeviceCryptoService();
+
+final brainDeviceIdentityService = BrainDeviceIdentityService(
+  storage: brainDeviceSecureStorage,
+  cryptoService: brainDeviceCryptoService,
+);
+
+final brainDeviceSupabaseService = BrainDeviceSupabaseService(
+  client: supabaseClient,
+);
+
+final brainDeviceMasterKeyAdapter = BrainKeyServiceDeviceMasterKeyAdapter(
+  keyService: brainKeyService,
+);
+
+final brainDeviceAuthorizationService = BrainDeviceAuthorizationService(
+  identityService: brainDeviceIdentityService,
+  remote: brainDeviceSupabaseService,
+  masterKeyPort: brainDeviceMasterKeyAdapter,
+  cryptoService: brainDeviceCryptoService,
+);
+
+final brainDeviceGateService = BrainDeviceGateService(
+  identityService: brainDeviceIdentityService,
+  remote: brainDeviceSupabaseService,
+  masterKeyPort: brainDeviceMasterKeyAdapter,
+);
+
+// ======================================================
+// BRAIN DEVICE NAME
+// ======================================================
+
+String _brainDeviceName() {
+  final host = Platform.localHostname.trim();
+
+  final os = Platform.operatingSystem.trim();
+
+  if (host.isNotEmpty && os.isNotEmpty) {
+    return '$host • $os';
+  }
+
+  if (host.isNotEmpty) {
+    return host;
+  }
+
+  if (os.isNotEmpty) {
+    return 'EVRYLUX • $os';
+  }
+
+  return 'EVRYLUX Device';
+}
+
+// ======================================================
+// BRAIN CLOUD + AUTHORIZED DEVICE GATE
+// ======================================================
+//
+// Gate final:
+//
+// Cloud mode
+// + sessão autenticada
+// + Vault local válido
+// + identidade local de dispositivo
+// + Master Key disponível localmente
+// + dispositivo autorizado no Supabase
+//
+// Qualquer falha:
+// false
+//
+// ======================================================
+
+Future<bool> _canUseBrainCloudWithAuthorizedDevice() async {
+  final isAuthenticated = supabaseClient.auth.currentUser != null;
+
+  final dataModeAllowsCloud = brainDataModeService.canUseCloudSync(
+    isAuthenticated: isAuthenticated,
+  );
+
+  if (!dataModeAllowsCloud) {
+    return false;
+  }
+
+  try {
+    final manifest = await brainVaultService.openVault();
+
+    return await brainDeviceGateService.canUseCloud(
+      vaultId: manifest.vaultId,
+      isAuthenticated: isAuthenticated,
+      dataModeAllowsCloud: dataModeAllowsCloud,
+    );
+  } catch (error) {
+    print(
+      '[BRAIN DEVICE GATE] '
+      'Cloud bloqueado: $error',
+    );
+
+    return false;
+  }
+}
+
+// ======================================================
+// BRAIN DEVICE BOOTSTRAP
+// ======================================================
+//
+// Executado apenas quando:
+//
+// - o modo permite Cloud;
+// - existe usuário autenticado;
+// - o Vault local já foi aberto.
+//
+// Primeiro dispositivo do Vault:
+// servidor poderá marcá-lo como authorized.
+//
+// Dispositivos seguintes:
+// começam pending e exigem aprovação explícita.
+//
+// Falha remota NÃO destrói o Vault local.
+// O processingGate continuará fail-closed.
+//
+// ======================================================
+
+Future<void> _bootstrapBrainAuthorizedDevice() async {
+  final isAuthenticated = supabaseClient.auth.currentUser != null;
+
+  final dataModeAllowsCloud = brainDataModeService.canUseCloudSync(
+    isAuthenticated: isAuthenticated,
+  );
+
+  if (!dataModeAllowsCloud) {
+    return;
+  }
+
+  try {
+    final manifest = await brainVaultService.openVault();
+
+    final device = await brainDeviceAuthorizationService.registerCurrentDevice(
+      vaultId: manifest.vaultId,
+      deviceName: _brainDeviceName(),
+    );
+
+    print(
+      '[BRAIN DEVICE] '
+      '${device.deviceName} '
+      '(${device.deviceId}) '
+      'status=${device.status.name} '
+      'fingerprint=${device.keyFingerprint}',
+    );
+  } catch (error) {
+    print(
+      '[BRAIN DEVICE] '
+      'Bootstrap remoto indisponível/bloqueado: '
+      '$error',
+    );
+  }
+}
 
 // ======================================================
 // REVIEW VAULT STORE
@@ -390,21 +704,38 @@ final brainReviewVaultStore = BrainReviewVaultStore(
 // ======================================================
 // LEGACY REMOTE REVIEW SERVICE
 // ======================================================
+//
+// Mantido temporariamente apenas para compatibilidade/migração
+// do backend antigo.
+//
+// ======================================================
 
 final supabaseReviewService = SupabaseReviewService(client: supabaseClient);
 
 // ======================================================
 // REVIEW REPOSITORY
 // ======================================================
+//
+// Novos saves/deletes:
+//
+// ReviewRepository
+//      ↓
+// BrainReviewVaultStore
+//      ↓
+// Vault criptografado
+//      ↓
+// BrainSyncQueueService
+//
+// Nenhuma pergunta/resposta nova entra na fila legada.
+//
+// ======================================================
 
 final reviewRepository = ReviewRepository(
   vaultStore: brainReviewVaultStore,
-
   remote: supabaseReviewService,
-
   local: reviewStorage,
-
   syncQueue: syncQueue,
+  brainSyncQueueService: brainSyncQueueService,
 );
 
 // ======================================================
@@ -412,51 +743,6 @@ final reviewRepository = ReviewRepository(
 // ======================================================
 
 final reviewController = ReviewController(repository: reviewRepository);
-
-// ======================================================
-// BRAIN / CÉREBRO - DATA MODE
-// ======================================================
-//
-// FASE 05 — LOCAL / CLOUD
-//
-// Fluxo:
-//
-// BrainDataModeController
-//      ↓
-// BrainDataModeService
-//      ↓
-// BrainDataModeStorage
-//      ↓
-// SharedPreferences
-//
-// IMPORTANTE:
-//
-// Este bloco NÃO implementa ainda o sync E2EE.
-//
-// Ele apenas define o gate operacional:
-//
-// LOCAL
-//   -> o Cérebro não pode sincronizar.
-//
-// CLOUD
-//   -> o Cérebro pode entrar futuramente no fluxo E2EE,
-//      desde que exista autenticação.
-//
-// Mesmo em CLOUD:
-//
-// plaintext NUNCA deve entrar na SyncQueue.
-//
-// ======================================================
-
-final brainDataModeStorage = SharedPreferencesBrainDataModeStorage();
-
-final brainDataModeService = BrainDataModeService(
-  storage: brainDataModeStorage,
-);
-
-final brainDataModeController = BrainDataModeController(
-  service: brainDataModeService,
-);
 
 // ======================================================
 // FINANCE LOCAL DATASOURCE
@@ -570,21 +856,50 @@ User _requireQueueUser({required String? userId, required String entity}) {
 }
 
 // ======================================================
-// SYNC PAYLOAD DATE
+// PURGE LEGACY BRAIN QUEUE
+// ======================================================
+//
+// Remove somente entityTypes antigos do Cérebro que carregavam
+// payload lógico/plaintext.
+//
+// A fonte local já foi migrada para o Vault antes desta limpeza.
+//
+// NÃO remove brain_e2ee_object.
+//
+// Isso evita:
+// - plaintext legado permanecer indefinidamente no SQLite;
+// - handlers antigos precisarem continuar registrados;
+// - uma versão futura voltar a transmitir esses itens por engano.
+//
 // ======================================================
 
-DateTime? _syncPayloadDate(dynamic value) {
-  if (value == null) {
-    return null;
+Future<void> _purgeLegacyBrainQueueItems() async {
+  const legacyEntityTypes = <String>{
+    'brain_note',
+    'brain_concept',
+    'brain_review',
+  };
+
+  final items = await syncQueue.getAll();
+
+  var removed = 0;
+
+  for (final item in items) {
+    if (!legacyEntityTypes.contains(item.entityType)) {
+      continue;
+    }
+
+    await syncQueue.remove(item.id);
+
+    removed++;
   }
 
-  final text = value.toString().trim();
-
-  if (text.isEmpty) {
-    return null;
+  if (removed > 0) {
+    print(
+      '[BRAIN E2EE] '
+      '$removed item(ns) legado(s) removido(s) da SyncQueue.',
+    );
   }
-
-  return DateTime.tryParse(text);
 }
 
 // ======================================================
@@ -1162,310 +1477,87 @@ void registerSyncHandlers() {
   );
 
   // ====================================================
-  // BRAIN NOTE
+  // BRAIN E2EE OBJECT — FASE 06
   // ====================================================
   //
-  // Repository:
+  // A fila contém somente BrainVaultObject já criptografado.
   //
-  // entityType = brain_note
+  // Não reconstruímos pergunta/resposta aqui.
   //
-  // A persistência local acontece primeiro em BrainStorage.
+  // O Supabase recebe:
   //
-  // O handler apenas envia a alteração pendente para o
-  // Supabase quando houver conexão.
-  //
-  // created_at e updated_at vêm do payload local para que uma
-  // nota criada offline preserve a data original no servidor.
+  // - metadata técnica;
+  // - encrypted_object;
+  // - tombstone quando excluído.
   //
   // ====================================================
 
   syncService.registerHandler(
-    entityType: BrainRepository.noteEntityType,
+    entityType: BrainSyncQueueService.entityType,
+
+    // ==================================================
+    // GATE DE TRANSMISSÃO DO BRAIN
+    // ==================================================
+    //
+    // Segurança crítica:
+    //
+    // LOCAL
+    //   -> false
+    //   -> item permanece na fila
+    //   -> NÃO chama Supabase
+    //
+    // CLOUD + autenticado
+    //   -> true
+    //
+    // O SyncService trata false como "adiado":
+    //
+    // - não markSuccess;
+    // - não markFailed;
+    // - não remove;
+    // - não incrementa retry.
+    //
+    // ==================================================
+    processingGate: (_) async {
+      return _canUseBrainCloudWithAuthorizedDevice();
+    },
 
     handler: (item) async {
-      final payload = Map<String, dynamic>.from(item.payload);
+      // ==================================================
+      // SEGUNDA CHECAGEM — FAIL CLOSED
+      // ==================================================
+      //
+      // O processingGate bloqueia itens pendentes antes do
+      // processamento.
+      //
+      // Rechecamos imediatamente antes do acesso remoto para
+      // reduzir a janela de mudança Cloud -> Local.
+      //
+      // ==================================================
 
-      final user = _requireQueueUser(
-        userId: payload['user_id']?.toString(),
-        entity: BrainRepository.noteEntityType,
-      );
+      final canTransmit = await _canUseBrainCloudWithAuthorizedDevice();
 
-      final topic = payload['topic']?.toString().trim() ?? '';
-
-      final title = payload['title']?.toString().trim() ?? '';
-
-      final content = payload['content']?.toString() ?? '';
-
-      switch (item.operation) {
-        case SyncOperation.create:
-        case SyncOperation.update:
-          if (topic.isEmpty) {
-            throw StateError('Operação de brain_note sem topic.');
-          }
-
-          if (title.isEmpty) {
-            throw StateError('Operação de brain_note sem title.');
-          }
-
-          if (content.trim().isEmpty) {
-            throw StateError('Operação de brain_note sem content.');
-          }
-
-          // ==================================================
-          // REMOTE SAVE
-          // ==================================================
-          //
-          // O SupabaseBrainService continua responsável pelas
-          // tabelas e regras específicas do módulo Brain.
-          //
-          // O ID da SyncQueue é usado como ID remoto estável.
-          //
-          // ==================================================
-
-          await supabaseBrainService.saveNote(
-            id: item.entityId,
-
-            topic: topic,
-
-            title: title,
-
-            content: content,
-
-            createdAt: _syncPayloadDate(payload['created_at']),
-
-            updatedAt: _syncPayloadDate(payload['updated_at']),
-          );
-
-          break;
-
-        case SyncOperation.delete:
-          await supabaseBrainService.deleteNote(item.entityId);
-
-          break;
+      if (!canTransmit) {
+        throw StateError(
+          'Transmissão do Cérebro bloqueada: '
+          'modo Local, sessão ausente ou '
+          'dispositivo não autorizado.',
+        );
       }
 
-      // Mantém a validação explícita de usuário usada pelos
-      // demais handlers e evita warning de variável não usada.
-      assert(user.id.isNotEmpty);
-    },
-  );
-
-  // ====================================================
-  // BRAIN CONCEPT
-  // ====================================================
-  //
-  // Repository:
-  //
-  // entityType = brain_concept
-  //
-  // Conceitos também seguem:
-  //
-  // local -> fila -> Supabase.
-  //
-  // As datas locais também são preservadas durante o envio.
-  //
-  // ====================================================
-
-  syncService.registerHandler(
-    entityType: BrainRepository.conceptEntityType,
-
-    handler: (item) async {
-      final payload = Map<String, dynamic>.from(item.payload);
-
-      _requireQueueUser(
-        userId: payload['user_id']?.toString(),
-        entity: BrainRepository.conceptEntityType,
-      );
-
       switch (item.operation) {
         case SyncOperation.create:
         case SyncOperation.update:
-          final title = payload['title']?.toString().trim() ?? '';
-
-          final description = payload['description']?.toString().trim() ?? '';
-
-          final typeName = payload['type']?.toString().trim() ?? '';
-
-          if (title.isEmpty) {
-            throw StateError('Operação de brain_concept sem title.');
-          }
-
-          if (description.isEmpty) {
-            throw StateError('Operação de brain_concept sem description.');
-          }
-
-          final type = BrainConceptType.values.firstWhere(
-            (value) {
-              return value.name == typeName;
-            },
-            orElse: () {
-              throw StateError('Tipo de brain_concept inválido: $typeName');
-            },
-          );
-
-          final concept = BrainConcept(
-            id: item.entityId,
-            title: title,
-            description: description,
-            type: type,
-          );
-
-          final rawNoteId = payload['note_id']?.toString().trim();
-
-          final noteId = rawNoteId == null || rawNoteId.isEmpty
-              ? null
-              : rawNoteId;
-
-          await supabaseBrainService.saveConcept(
-            concept: concept,
-
-            noteId: noteId,
-
-            createdAt: _syncPayloadDate(payload['created_at']),
-
-            updatedAt: _syncPayloadDate(payload['updated_at']),
+          await brainSupabaseE2eeService.upsertQueuePayload(
+            Map<String, dynamic>.from(item.payload),
           );
 
           break;
 
         case SyncOperation.delete:
-          await supabaseBrainService.deleteConcept(item.entityId);
-
-          break;
-      }
-    },
-  );
-
-  // ====================================================
-  // BRAIN REVIEW - LEGACY SYNC HANDLER
-  // ====================================================
-  //
-  // Este handler existe SOMENTE para processar itens antigos
-  // de brain_review que já estavam na SyncQueue antes da
-  // migração para o Vault.
-  //
-  // O ReviewRepository Vault-first NÃO cria novos itens deste
-  // tipo na fila.
-  //
-  // Portanto:
-  //
-  // - nenhuma revisão nova é colocada aqui em plaintext;
-  // - operações antigas ainda podem ser drenadas;
-  // - este bloco será removido quando a SyncQueue E2EE e a
-  //   tabela brain_objects estiverem prontas.
-  //
-  // ====================================================
-
-  syncService.registerHandler(
-    entityType: ReviewRepository.entityType,
-
-    handler: (item) async {
-      final payload = Map<String, dynamic>.from(item.payload);
-
-      _requireQueueUser(
-        userId: payload['user_id']?.toString(),
-        entity: ReviewRepository.entityType,
-      );
-
-      switch (item.operation) {
-        case SyncOperation.create:
-        case SyncOperation.update:
-          final conceptId = payload['concept_id']?.toString().trim() ?? '';
-
-          final question = payload['question']?.toString().trim() ?? '';
-
-          final answer = payload['answer']?.toString().trim() ?? '';
-
-          final sourceNotePath =
-              payload['source_note_path']?.toString().trim() ?? '';
-
-          final sourceNoteTitle =
-              payload['source_note_title']?.toString().trim() ?? '';
-
-          if (conceptId.isEmpty) {
-            throw StateError('Operação de brain_review sem concept_id.');
-          }
-
-          if (question.isEmpty) {
-            throw StateError('Operação de brain_review sem question.');
-          }
-
-          if (answer.isEmpty) {
-            throw StateError('Operação de brain_review sem answer.');
-          }
-
-          if (sourceNotePath.isEmpty) {
-            throw StateError('Operação de brain_review sem source_note_path.');
-          }
-
-          final createdAt =
-              _syncPayloadDate(payload['created_at']) ?? DateTime.now();
-
-          final nextReviewAt =
-              _syncPayloadDate(payload['next_review_at']) ?? DateTime.now();
-
-          final lastReviewedAt = _syncPayloadDate(payload['last_reviewed_at']);
-
-          final archivedAt = _syncPayloadDate(payload['archived_at']);
-
-          int parseInt(dynamic value) {
-            if (value is int) {
-              return value;
-            }
-
-            return int.tryParse(value?.toString().trim() ?? '') ?? 0;
-          }
-
-          bool parseBool(dynamic value) {
-            if (value is bool) {
-              return value;
-            }
-
-            final normalized = value?.toString().trim().toLowerCase();
-
-            return normalized == 'true' || normalized == '1';
-          }
-
-          final review = BrainReviewItem(
-            id: item.entityId,
-
-            conceptId: conceptId,
-
-            question: question,
-
-            answer: answer,
-
-            sourceNotePath: sourceNotePath,
-
-            sourceNoteTitle: sourceNoteTitle,
-
-            createdAt: createdAt,
-
-            nextReviewAt: nextReviewAt,
-
-            lastReviewedAt: lastReviewedAt,
-
-            archivedAt: archivedAt,
-
-            reviewCount: parseInt(payload['review_count']),
-
-            correctCount: parseInt(payload['correct_count']),
-
-            wrongCount: parseInt(payload['wrong_count']),
-
-            streak: parseInt(payload['streak']),
-
-            archived: parseBool(payload['archived']),
+          throw StateError(
+            'brain_e2ee_object não usa SyncOperation.delete. '
+            'Exclusões são tombstones versionados enviados como update.',
           );
-
-          await supabaseReviewService.saveReview(review);
-
-          break;
-
-        case SyncOperation.delete:
-          await supabaseReviewService.deleteReview(item.entityId);
-
-          break;
       }
     },
   );
@@ -1572,6 +1664,24 @@ Future<void> initializeOfflineFirst() async {
   }
 
   // ====================================================
+  // BRAIN DATA MODE — PREFERÊNCIA PERSISTIDA
+  // ====================================================
+  //
+  // Nenhum modo é forçado no startup.
+  //
+  // A preferência carregada por BrainDataModeController:
+  //
+  // LOCAL
+  //   -> permanece somente no dispositivo;
+  //   -> não enfileira novos objetos Brain para cloud;
+  //   -> processingGate impede a saída de itens pendentes.
+  //
+  // CLOUD
+  //   -> permite sincronização E2EE quando autenticado.
+  //
+  // ====================================================
+
+  // ====================================================
   // BRAIN REVIEW VAULT
   // ====================================================
   //
@@ -1582,6 +1692,28 @@ Future<void> initializeOfflineFirst() async {
   // ====================================================
 
   await reviewRepository.initialize();
+
+  // ====================================================
+  // BRAIN AUTHORIZED DEVICE BOOTSTRAP — FASE 07
+  // ====================================================
+  //
+  // O Vault já existe localmente neste ponto.
+  //
+  // Em Local:
+  //   nenhuma chamada remota.
+  //
+  // Em Cloud autenticado:
+  //   registra/reconhece a identidade desta instalação.
+  //
+  // IMPORTANTE:
+  //
+  // Novo dispositivo ainda precisa do fluxo explícito de
+  // aprovação + importação do envelope antes de poder abrir
+  // um Vault existente sem uma Master Key local.
+  //
+  // ====================================================
+
+  await _bootstrapBrainAuthorizedDevice();
 
   // ====================================================
   // BRAIN LEGACY MIGRATION RUNTIME
@@ -1621,18 +1753,50 @@ Future<void> initializeOfflineFirst() async {
   await brainReviewStartupMigrationService.run();
 
   // ====================================================
-  // SYNC
+  // PURGE LEGACY BRAIN QUEUE
   // ====================================================
   //
-  // Só iniciamos a sincronização depois de:
+  // A migração local já terminou. Agora descartamos somente
+  // operações antigas brain_note / brain_concept / brain_review
+  // que poderiam conter plaintext.
   //
-  // - banco local;
-  // - Vault;
-  // - migração de reviews legadas.
+  // ====================================================
+
+  await _purgeLegacyBrainQueueItems();
+
+  // ====================================================
+  // SYNC HANDLERS
+  // ====================================================
+  //
+  // Registramos handlers antes do bootstrap E2EE.
   //
   // ====================================================
 
   registerSyncHandlers();
+
+  // ====================================================
+  // BRAIN E2EE BOOTSTRAP — FASE 06
+  // ====================================================
+  //
+  // LOCAL:
+  //   nenhuma operação de nuvem.
+  //
+  // CLOUD:
+  //   1. exige auth + Master Key + dispositivo authorized;
+  //   2. só então tenta pull remoto;
+  //   3. valida AEAD/binding antes de persistir;
+  //   4. enfileira o estado criptografado local;
+  //   5. SyncService reaplica o gate antes do envio.
+  //
+  // Uma falha de rede no pull NÃO invalida o Vault local.
+  //
+  // ====================================================
+
+  await brainE2eeSyncCoordinator.bootstrap();
+
+  // ====================================================
+  // START GLOBAL SYNC
+  // ====================================================
 
   await syncService.start();
 }

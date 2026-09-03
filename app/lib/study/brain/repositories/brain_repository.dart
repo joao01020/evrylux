@@ -10,6 +10,9 @@ import '../models/brain_concept.dart';
 import '../models/brain_file.dart';
 import '../services/brain_storage.dart';
 import '../services/supabase_brain_service.dart';
+import '../sync/services/brain_sync_queue_service.dart';
+import '../vault/stores/brain_concept_vault_store.dart';
+import '../vault/stores/brain_note_vault_store.dart';
 
 // ============================================================
 // BRAIN REPOSITORY
@@ -23,13 +26,13 @@ import '../services/supabase_brain_service.dart';
 //  ↓
 // BrainRepository
 //  ↓
-// BrainStorage local
+// BrainStorage local mirror + Vault criptografado
 //  ↓
-// SyncQueue
+// BrainSyncQueueService
 //  ↓
-// SyncService
+// brain_e2ee_object
 //  ↓
-// Supabase
+// Supabase brain_objects
 //
 // REGRA PRINCIPAL:
 //
@@ -55,16 +58,18 @@ class BrainRepository {
     BrainStorage? local,
     SyncQueue? syncQueue,
     SyncService? syncService,
+    BrainNoteVaultStore? noteVaultStore,
+    BrainConceptVaultStore? conceptVaultStore,
+    BrainSyncQueueService? brainSyncQueueService,
   }) : _remote =
            remote ??
            SupabaseBrainService(),
        _local =
            local ??
            const BrainStorage(),
-       _syncQueue =
-           syncQueue ??
-           SyncQueue(),
-       _syncService = syncService;
+       _noteVaultStore = noteVaultStore,
+       _conceptVaultStore = conceptVaultStore,
+       _brainSyncQueueService = brainSyncQueueService;
 
   // ============================================================
   // DEPENDENCIES
@@ -74,9 +79,11 @@ class BrainRepository {
 
   final BrainStorage _local;
 
-  final SyncQueue _syncQueue;
+  final BrainNoteVaultStore? _noteVaultStore;
 
-  final SyncService? _syncService;
+  final BrainConceptVaultStore? _conceptVaultStore;
+
+  final BrainSyncQueueService? _brainSyncQueueService;
 
   // ============================================================
   // SYNC ENTITY TYPES
@@ -98,38 +105,23 @@ class BrainRepository {
     return _remote.currentUserId;
   }
 
-  String _requireUserId() {
-    final userId = currentUserId?.trim();
-
-    if (userId ==
-            null ||
-        userId.isEmpty) {
-      throw StateError(
-        'Usuário não autenticado.',
-      );
-    }
-
-    return userId;
-  }
-
   // ============================================================
-  // SAVE NOTE
+  // SAVE NOTE — VAULT / E2EE
   // ============================================================
   //
-  // 1. salva local;
-  // 2. devolve sucesso para a UI;
-  // 3. registra operação na SyncQueue;
-  // 4. solicita sincronização sem bloquear a tela.
+  // Fluxo atual:
   //
-  // O parâmetro "id" é mantido por compatibilidade com o
-  // BrainController atual.
+  // BrainStorage (mirror Markdown local)
+  //      ↓
+  // BrainNoteVaultStore
+  //      ↓
+  // BrainVaultObjectType.note
+  //      ↓
+  // BrainSyncQueueService
+  //      ↓
+  // brain_e2ee_object
   //
-  // Nesta fase ele pode representar:
-  //
-  // - caminho local .md;
-  // - antigo UUID remoto.
-  //
-  // Se for caminho .md, ele é usado para editar o mesmo arquivo.
+  // Nenhum title/content entra na SyncQueue antiga.
   //
   // ============================================================
 
@@ -145,12 +137,8 @@ class BrainRepository {
     required String title,
     required String content,
   }) async {
-    final userId = _requireUserId();
-
     final cleanTopic = topic.trim();
-
     final cleanTitle = title.trim();
-
     final cleanContent = content.trim();
 
     if (cleanTopic.isEmpty) {
@@ -190,10 +178,6 @@ class BrainRepository {
       }
     }
 
-    // ==========================================================
-    // LOCAL FIRST
-    // ==========================================================
-
     final saved = await _local.saveNote(
       topic: cleanTopic,
       title: cleanTitle,
@@ -207,81 +191,46 @@ class BrainRepository {
     );
 
     debugPrint(
-      '[BRAIN REPOSITORY] Nota salva localmente: ${saved.path}',
+      '[BRAIN REPOSITORY] '
+      'Nota salva no mirror local: ${saved.path}',
     );
 
-    // ==========================================================
-    // REMOTE ID
-    // ==========================================================
-    //
-    // O modelo atual ainda não possui um "id" local persistido
-    // dentro do BrainFile.
-    //
-    // Para a fila ser idempotente, geramos um UUID determinístico
-    // a partir de:
-    //
-    // user + caminho local.
-    //
-    // Quando BrainFile ganhar um campo id próprio, este helper
-    // pode ser removido e o ID local passa a ser usado diretamente.
-    //
-    // ==========================================================
+    final userId = currentUserId?.trim();
 
-    final remoteId = _resolveRemoteNoteId(
-      userId: userId,
-      originalId: id,
-      localPath: saved.path,
-    );
+    final legacyRemoteId =
+        userId ==
+                null ||
+            userId.isEmpty
+        ? null
+        : _resolveRemoteNoteId(
+            userId: userId,
+            originalId: id,
+            localPath: saved.path,
+          );
 
-    final operation =
-        previousNote ==
-            null
-        ? SyncOperation.create
-        : SyncOperation.update;
+    final noteStore = _noteVaultStore;
 
-    // ==========================================================
-    // QUEUE
-    // ==========================================================
+    if (noteStore !=
+        null) {
+      final encryptedObject = await noteStore.saveNote(
+        saved,
+        legacyRemoteId: legacyRemoteId,
+      );
 
-    await _syncQueue.enqueue(
-      entityType: noteEntityType,
-      entityId: remoteId,
-      operation: operation,
-      payload:
-          <
-            String,
-            dynamic
-          >{
-            'id': remoteId,
-            'user_id': userId,
-            'topic': saved.topic,
-            'title': saved.title,
-            'content': saved.content,
-            'created_at': saved.createdAt.toUtc().toIso8601String(),
-            'updated_at': saved.updatedAt.toUtc().toIso8601String(),
-          },
-    );
+      await _brainSyncQueueService?.enqueueObject(
+        encryptedObject,
+      );
 
-    _syncService?.requestSync();
-
-    // ==========================================================
-    // CONTROLLER COMPATIBILITY
-    // ==========================================================
-    //
-    // O BrainController usa row['id'] como BrainFile.path.
-    //
-    // Retornamos o caminho LOCAL de propósito.
-    //
-    // Assim, a partir daqui, edição e exclusão continuam
-    // funcionando offline.
-    //
-    // remote_id fica disponível separadamente para debug/migração.
-    //
-    // ==========================================================
+      debugPrint(
+        '[BRAIN REPOSITORY] '
+        'Nota salva no Vault criptografado: '
+        '${encryptedObject.header.objectId}',
+      );
+    }
 
     return _noteToRow(
       saved,
-      remoteId: remoteId,
+      remoteId: legacyRemoteId,
       userId: userId,
     );
   }
@@ -430,21 +379,7 @@ class BrainRepository {
   }
 
   // ============================================================
-  // DELETE NOTE
-  // ============================================================
-  //
-  // EXCLUSÃO FÍSICA OBRIGATÓRIA:
-  //
-  // 1. resolve a nota local pelo caminho .md;
-  // 2. se necessário, resolve pelo UUID remoto determinístico;
-  // 3. remove também duplicatas locais históricas da mesma nota;
-  // 4. confirma com File.exists() que o arquivo realmente sumiu;
-  // 5. somente depois registra DELETE na SyncQueue;
-  // 6. se não conseguir apagar localmente, lança erro.
-  //
-  // Isso impede a interface de dizer "excluída" enquanto o
-  // Markdown ainda continua no ghost_brain.
-  //
+  // DELETE NOTE — TOMBSTONE E2EE
   // ============================================================
 
   Future<
@@ -453,8 +388,6 @@ class BrainRepository {
   deleteNote(
     String id,
   ) async {
-    final userId = _requireUserId();
-
     final cleanId = id.trim();
 
     if (cleanId.isEmpty) {
@@ -463,17 +396,9 @@ class BrainRepository {
       );
     }
 
-    // ==========================================================
-    // CARREGAR ESTADO LOCAL ATUAL
-    // ==========================================================
-
     final localNotes = await _local.loadNotes();
 
     BrainFile? target;
-
-    // ==========================================================
-    // 1. CAMINHO LOCAL DIRETO
-    // ==========================================================
 
     final directPath = _localPathFromId(
       cleanId,
@@ -487,7 +412,6 @@ class BrainRepository {
           directPath,
         )) {
           target = note;
-
           break;
         }
       }
@@ -506,138 +430,142 @@ class BrainRepository {
       }
     }
 
-    // ==========================================================
-    // 2. UUID REMOTO / LEGACY
-    // ==========================================================
+    final userId = currentUserId?.trim();
 
     if (target ==
-        null) {
+            null &&
+        userId !=
+            null &&
+        userId.isNotEmpty) {
       for (final note in localNotes) {
-        final remoteId = _remoteNoteId(
+        final legacyId = _remoteNoteId(
           userId: userId,
           localPath: note.path,
         );
 
-        if (remoteId ==
+        if (legacyId ==
             cleanId) {
           target = note;
-
           break;
         }
       }
     }
 
-    // ==========================================================
-    // REMOTE ID BASE
-    // ==========================================================
-
-    var requestedRemoteId =
-        _looksLikeUuid(
-          cleanId,
-        )
-        ? cleanId
-        : '';
-
-    if (target !=
+    if (target ==
         null) {
-      requestedRemoteId = _remoteNoteId(
-        userId: userId,
-        localPath: target.path,
+      if (directPath !=
+          null) {
+        final file = File(
+          directPath,
+        );
+
+        if (await file.exists()) {
+          await file.delete();
+        }
+
+        if (await file.exists()) {
+          throw FileSystemException(
+            'O arquivo local continuou existindo após a exclusão.',
+            directPath,
+          );
+        }
+
+        final tombstone = await _noteVaultStore?.deleteNoteByPath(
+          directPath,
+        );
+
+        if (tombstone !=
+            null) {
+          await _brainSyncQueueService?.enqueueObject(
+            tombstone,
+          );
+        }
+
+        return;
+      }
+
+      if (_looksLikeUuid(
+        cleanId,
+      )) {
+        final tombstone = await _noteVaultStore?.deleteNoteByLegacyRemoteId(
+          cleanId,
+        );
+
+        if (tombstone !=
+            null) {
+          await _brainSyncQueueService?.enqueueObject(
+            tombstone,
+          );
+        }
+
+        return;
+      }
+
+      throw StateError(
+        'Não foi possível localizar a anotação local para excluir.',
       );
     }
-
-    // ==========================================================
-    // 3. LOCAL FIRST - EXCLUSÃO FÍSICA
-    // ==========================================================
-    //
-    // Durante a migração antiga o mesmo conteúdo podia ter sido
-    // salvo mais de uma vez:
-    //
-    // repository.saveNote()
-    // +
-    // antigo cache local do BrainController
-    //
-    // Por isso, quando encontramos a nota alvo, apagamos também
-    // cópias locais equivalentes da MESMA anotação.
-    //
-    // Critério:
-    //
-    // - mesmo caminho; OU
-    // - mesmo remoteId; OU
-    // - mesmo tema + título + conteúdo.
-    //
-    // ==========================================================
 
     final notesToDelete =
         <
           BrainFile
         >[];
 
-    if (target !=
-        null) {
-      for (final note in localNotes) {
-        final sameLocalPath = _samePath(
-          note.path,
-          target.path,
-        );
+    for (final note in localNotes) {
+      final sameLocalPath = _samePath(
+        note.path,
+        target.path,
+      );
 
-        final sameRemoteId =
-            _remoteNoteId(
-              userId: userId,
-              localPath: note.path,
-            ) ==
-            requestedRemoteId;
+      final sameHistoricalCopy = _sameNoteContent(
+        note,
+        target,
+      );
 
-        final sameHistoricalCopy = _sameNoteContent(
-          note,
-          target,
-        );
-
-        if (sameLocalPath ||
-            sameRemoteId ||
-            sameHistoricalCopy) {
-          if (!notesToDelete.any(
-            (
-              item,
-            ) => _samePath(
-              item.path,
-              note.path,
-            ),
-          )) {
-            notesToDelete.add(
-              note,
-            );
-          }
+      if (sameLocalPath ||
+          sameHistoricalCopy) {
+        if (!notesToDelete.any(
+          (
+            item,
+          ) => _samePath(
+            item.path,
+            note.path,
+          ),
+        )) {
+          notesToDelete.add(
+            note,
+          );
         }
-      }
-
-      if (!notesToDelete.any(
-        (
-          item,
-        ) => _samePath(
-          item.path,
-          target!.path,
-        ),
-      )) {
-        notesToDelete.add(
-          target,
-        );
       }
     }
 
-    // ==========================================================
-    // APAGAR CADA ARQUIVO E CONFIRMAR
-    // ==========================================================
+    if (!notesToDelete.any(
+      (
+        item,
+      ) => _samePath(
+        item.path,
+        target!.path,
+      ),
+    )) {
+      notesToDelete.add(
+        target,
+      );
+    }
 
-    final remoteIdsToDelete =
+    // Tombstone conceitos pertencentes às cópias removidas.
+    final conceptIds =
         <
           String
         >{};
 
-    if (requestedRemoteId.isNotEmpty) {
-      remoteIdsToDelete.add(
-        requestedRemoteId,
-      );
+    for (final note in notesToDelete) {
+      for (final concept in note.concepts) {
+        if (concept.id.trim().isNotEmpty) {
+          conceptIds.add(
+            concept.id.trim(),
+          );
+        }
+      }
     }
 
     for (final note in notesToDelete) {
@@ -647,68 +575,17 @@ class BrainRepository {
         continue;
       }
 
-      final remoteId = _remoteNoteId(
-        userId: userId,
-        localPath: path,
-      );
-
-      remoteIdsToDelete.add(
-        remoteId,
-      );
-
       final file = File(
         path,
       );
 
       debugPrint(
-        '[BRAIN REPOSITORY] Excluindo arquivo local: $path',
+        '[BRAIN REPOSITORY] '
+        'Excluindo arquivo local: $path',
       );
 
       await _local.deleteNote(
         note,
-      );
-
-      // ========================================================
-      // CONFIRMAÇÃO FÍSICA
-      // ========================================================
-
-      if (await file.exists()) {
-        // Última tentativa direta.
-        await file.delete();
-
-        if (await file.exists()) {
-          throw FileSystemException(
-            'Não foi possível excluir fisicamente a anotação.',
-            path,
-          );
-        }
-      }
-
-      debugPrint(
-        '[BRAIN REPOSITORY] Arquivo local removido: $path',
-      );
-    }
-
-    // ==========================================================
-    // NOTA LOCAL NÃO ENCONTRADA
-    // ==========================================================
-    //
-    // Se recebemos um caminho .md e o arquivo não foi encontrado,
-    // não tratamos como sucesso silencioso.
-    //
-    // Isso é importante para não esconder erro da UI.
-    //
-    // UUID remoto sem correspondente local ainda pode ser
-    // removido remotamente, pois pode ser um registro legado.
-    //
-    // ==========================================================
-
-    if (target ==
-            null &&
-        directPath !=
-            null) {
-      final file = File(
-        directPath,
       );
 
       if (await file.exists()) {
@@ -717,116 +594,49 @@ class BrainRepository {
 
       if (await file.exists()) {
         throw FileSystemException(
-          'O arquivo local continuou existindo após a exclusão.',
-          directPath,
+          'Não foi possível excluir fisicamente a anotação.',
+          path,
         );
       }
 
-      // O caminho já não existe. Consideramos a parte local
-      // concluída e ainda calculamos o ID remoto correspondente.
-      remoteIdsToDelete.add(
-        _remoteNoteId(
-          userId: userId,
-          localPath: directPath,
-        ),
+      final noteTombstone = await _noteVaultStore?.deleteNoteByPath(
+        path,
+      );
+
+      if (noteTombstone !=
+          null) {
+        await _brainSyncQueueService?.enqueueObject(
+          noteTombstone,
+        );
+      }
+
+      debugPrint(
+        '[BRAIN REPOSITORY] '
+        'Arquivo local removido: $path',
       );
     }
 
-    if (target ==
-            null &&
-        directPath ==
-            null &&
-        !_looksLikeUuid(
-          cleanId,
-        )) {
-      throw StateError(
-        'Não foi possível localizar a anotação local para excluir.',
-      );
-    }
-
-    // ==========================================================
-    // 4. VERIFICAÇÃO FINAL NO BRAIN STORAGE
-    // ==========================================================
-
-    if (target !=
-        null) {
-      final remaining = await _local.loadNotes();
-
-      final stillExists = remaining.any(
-        (
-          note,
-        ) {
-          if (_samePath(
-            note.path,
-            target!.path,
-          )) {
-            return true;
-          }
-
-          return _sameNoteContent(
-            note,
-            target!,
-          );
-        },
+    for (final conceptId in conceptIds) {
+      final conceptTombstone = await _conceptVaultStore?.deleteConcept(
+        conceptId,
       );
 
-      if (stillExists) {
-        throw StateError(
-          'A anotação ainda existe no armazenamento local após a exclusão.',
+      if (conceptTombstone !=
+          null) {
+        await _brainSyncQueueService?.enqueueObject(
+          conceptTombstone,
         );
       }
     }
-
-    // ==========================================================
-    // 5. QUEUE DELETE
-    // ==========================================================
-    //
-    // Só chegamos aqui depois da confirmação local.
-    //
-    // ==========================================================
-
-    for (final remoteId in remoteIdsToDelete) {
-      if (remoteId.trim().isEmpty) {
-        continue;
-      }
-
-      await _syncQueue.enqueue(
-        entityType: noteEntityType,
-        entityId: remoteId,
-        operation: SyncOperation.delete,
-        payload:
-            <
-              String,
-              dynamic
-            >{
-              'id': remoteId,
-              'user_id': userId,
-            },
-      );
-    }
-
-    _syncService?.requestSync();
 
     debugPrint(
-      '[BRAIN REPOSITORY] Exclusão concluída e confirmada localmente.',
+      '[BRAIN REPOSITORY] '
+      'Exclusão concluída com tombstones E2EE.',
     );
   }
 
   // ============================================================
-  // SAVE CONCEPT
-  // ============================================================
-  //
-  // Também é local-first.
-  //
-  // Se noteId for um caminho local:
-  //
-  // - abre a nota;
-  // - insere/atualiza o conceito;
-  // - regrava o Markdown;
-  // - BrainStorage sincroniza os arquivos individuais locais.
-  //
-  // Depois registramos o conceito na SyncQueue.
-  //
+  // SAVE CONCEPT — VAULT / E2EE
   // ============================================================
 
   Future<
@@ -839,8 +649,6 @@ class BrainRepository {
     required BrainConcept concept,
     String? noteId,
   }) async {
-    final userId = _requireUserId();
-
     final cleanNoteId = noteId?.trim();
 
     BrainFile? note;
@@ -866,9 +674,7 @@ class BrainRepository {
       }
     }
 
-    // ==========================================================
-    // LOCAL FIRST
-    // ==========================================================
+    BrainFile? updatedNote;
 
     if (note !=
         null) {
@@ -896,61 +702,68 @@ class BrainRepository {
         );
       }
 
-      await _local.saveNote(
+      updatedNote = await _local.saveNote(
         topic: note.topic,
         title: note.title,
         content: note.content,
         concepts: concepts,
         existingPath: note.path,
       );
-    }
 
-    // ==========================================================
-    // NOTE REMOTE ID
-    // ==========================================================
+      final userId = currentUserId?.trim();
 
-    String? remoteNoteId;
+      final legacyRemoteId =
+          userId ==
+                  null ||
+              userId.isEmpty
+          ? null
+          : _remoteNoteId(
+              userId: userId,
+              localPath: updatedNote.path,
+            );
 
-    if (note !=
-        null) {
-      remoteNoteId = _remoteNoteId(
-        userId: userId,
-        localPath: note.path,
+      final encryptedNote = await _noteVaultStore?.saveNote(
+        updatedNote,
+        legacyRemoteId: legacyRemoteId,
       );
-    } else if (cleanNoteId !=
-            null &&
-        _looksLikeUuid(
-          cleanNoteId,
-        )) {
-      remoteNoteId = cleanNoteId;
+
+      if (encryptedNote !=
+          null) {
+        await _brainSyncQueueService?.enqueueObject(
+          encryptedNote,
+        );
+      }
     }
 
-    final now = DateTime.now();
-
-    final payload =
-        <
-          String,
-          dynamic
-        >{
-          'id': concept.id,
-          'user_id': userId,
-          'note_id': remoteNoteId,
-          'title': concept.title,
-          'description': concept.description,
-          'type': concept.type.name,
-          'updated_at': now.toUtc().toIso8601String(),
-        };
-
-    await _syncQueue.enqueue(
-      entityType: conceptEntityType,
-      entityId: concept.id,
-      operation: SyncOperation.update,
-      payload: payload,
+    final encryptedConcept = await _conceptVaultStore?.saveConcept(
+      concept: concept,
+      sourceNotePath:
+          updatedNote?.path ??
+          note?.path ??
+          cleanNoteId,
     );
 
-    _syncService?.requestSync();
+    if (encryptedConcept !=
+        null) {
+      await _brainSyncQueueService?.enqueueObject(
+        encryptedConcept,
+      );
+    }
 
-    return payload;
+    return <
+      String,
+      dynamic
+    >{
+      'id': concept.id,
+      'note_id':
+          updatedNote?.path ??
+          note?.path ??
+          cleanNoteId,
+      'title': concept.title,
+      'description': concept.description,
+      'type': concept.type.name,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    };
   }
 
   // ============================================================
@@ -963,6 +776,13 @@ class BrainRepository {
     >
   >
   loadConcepts() {
+    final store = _conceptVaultStore;
+
+    if (store !=
+        null) {
+      return store.loadConcepts();
+    }
+
     return _local.loadAllConcepts();
   }
 
@@ -974,6 +794,15 @@ class BrainRepository {
   loadConceptsByType(
     BrainConceptType type,
   ) {
+    final store = _conceptVaultStore;
+
+    if (store !=
+        null) {
+      return store.loadConceptsByType(
+        type,
+      );
+    }
+
     return _local.loadConceptsByType(
       type,
     );
@@ -993,6 +822,20 @@ class BrainRepository {
 
     if (cleanId.isEmpty) {
       return null;
+    }
+
+    final store = _conceptVaultStore;
+
+    if (store !=
+        null) {
+      final fromVault = await store.getConcept(
+        cleanId,
+      );
+
+      if (fromVault !=
+          null) {
+        return fromVault;
+      }
     }
 
     final concepts = await _local.loadAllConcepts();
@@ -1166,7 +1009,7 @@ class BrainRepository {
   }
 
   // ============================================================
-  // DELETE CONCEPT
+  // DELETE CONCEPT — TOMBSTONE E2EE
   // ============================================================
 
   Future<
@@ -1175,22 +1018,11 @@ class BrainRepository {
   deleteConcept(
     String id,
   ) async {
-    final userId = _requireUserId();
-
     final cleanId = id.trim();
 
     if (cleanId.isEmpty) {
       return;
     }
-
-    // ==========================================================
-    // LOCAL FIRST
-    // ==========================================================
-    //
-    // Removemos o conceito de qualquer anotação local que o
-    // contenha e deixamos BrainStorage regenerar os arquivos.
-    //
-    // ==========================================================
 
     final notes = await _local.loadNotes();
 
@@ -1207,7 +1039,7 @@ class BrainRepository {
         continue;
       }
 
-      final updated = note.concepts
+      final updatedConcepts = note.concepts
           .where(
             (
               concept,
@@ -1217,34 +1049,49 @@ class BrainRepository {
           )
           .toList();
 
-      await _local.saveNote(
+      final updatedNote = await _local.saveNote(
         topic: note.topic,
         title: note.title,
         content: note.content,
-        concepts: updated,
+        concepts: updatedConcepts,
         existingPath: note.path,
       );
+
+      final userId = currentUserId?.trim();
+
+      final legacyRemoteId =
+          userId ==
+                  null ||
+              userId.isEmpty
+          ? null
+          : _remoteNoteId(
+              userId: userId,
+              localPath: updatedNote.path,
+            );
+
+      final encryptedNote = await _noteVaultStore?.saveNote(
+        updatedNote,
+        legacyRemoteId: legacyRemoteId,
+      );
+
+      if (encryptedNote !=
+          null) {
+        await _brainSyncQueueService?.enqueueObject(
+          encryptedNote,
+        );
+      }
     }
 
-    // ==========================================================
-    // QUEUE DELETE
-    // ==========================================================
-
-    await _syncQueue.enqueue(
-      entityType: conceptEntityType,
-      entityId: cleanId,
-      operation: SyncOperation.delete,
-      payload:
-          <
-            String,
-            dynamic
-          >{
-            'id': cleanId,
-            'user_id': userId,
-          },
+    final tombstone = await _conceptVaultStore?.deleteConcept(
+      cleanId,
     );
 
-    _syncService?.requestSync();
+    if (tombstone !=
+        null) {
+      await _brainSyncQueueService?.enqueueObject(
+        tombstone,
+      );
+    }
   }
 
   // ============================================================
@@ -1263,23 +1110,25 @@ class BrainRepository {
       return;
     }
 
-    BrainFile? note;
-
     final localPath = _localPathFromId(
       cleanNoteId,
     );
 
-    if (localPath !=
+    if (localPath ==
         null) {
-      try {
-        note = await _local.openNote(
-          localPath,
-        );
-      } catch (
-        _
-      ) {
-        note = null;
-      }
+      return;
+    }
+
+    BrainFile? note;
+
+    try {
+      note = await _local.openNote(
+        localPath,
+      );
+    } catch (
+      _
+    ) {
+      note = null;
     }
 
     if (note ==
@@ -1291,20 +1140,18 @@ class BrainRepository {
         .map(
           (
             concept,
-          ) => concept.id,
+          ) => concept.id.trim(),
         )
         .where(
           (
             id,
-          ) => id.trim().isNotEmpty,
+          ) => id.isNotEmpty,
         )
-        .toList();
+        .toList(
+          growable: false,
+        );
 
-    // ==========================================================
-    // LOCAL FIRST
-    // ==========================================================
-
-    await _local.saveNote(
+    final updatedNote = await _local.saveNote(
       topic: note.topic,
       title: note.title,
       content: note.content,
@@ -1315,14 +1162,41 @@ class BrainRepository {
       existingPath: note.path,
     );
 
-    // ==========================================================
-    // QUEUE
-    // ==========================================================
+    final userId = currentUserId?.trim();
+
+    final legacyRemoteId =
+        userId ==
+                null ||
+            userId.isEmpty
+        ? null
+        : _remoteNoteId(
+            userId: userId,
+            localPath: updatedNote.path,
+          );
+
+    final encryptedNote = await _noteVaultStore?.saveNote(
+      updatedNote,
+      legacyRemoteId: legacyRemoteId,
+    );
+
+    if (encryptedNote !=
+        null) {
+      await _brainSyncQueueService?.enqueueObject(
+        encryptedNote,
+      );
+    }
 
     for (final conceptId in conceptIds) {
-      await deleteConcept(
+      final tombstone = await _conceptVaultStore?.deleteConcept(
         conceptId,
       );
+
+      if (tombstone !=
+          null) {
+        await _brainSyncQueueService?.enqueueObject(
+          tombstone,
+        );
+      }
     }
   }
 
