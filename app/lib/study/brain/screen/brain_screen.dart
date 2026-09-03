@@ -2501,588 +2501,634 @@ class _BrainScreenState
 
     var savedCount = 0;
 
+    int? createdCount;
+
     try {
-      await showDialog<
-        void
-      >(
-        context: context,
-        barrierDismissible: false,
-        builder:
-            (
-              dialogContext,
-            ) {
-              return StatefulBuilder(
-                builder:
-                    (
-                      dialogContext,
-                      setDialogState,
-                    ) {
-                      final colorScheme = Theme.of(
-                        dialogContext,
-                      ).colorScheme;
-
-                      // ==========================================
-                      // ADD QUESTION
-                      // ==========================================
-
-                      void addQuestion() {
-                        if (saving) {
-                          return;
-                        }
-
-                        setDialogState(
-                          () {
-                            questions.add(
-                              _QuestionDraft(),
-                            );
-                          },
-                        );
-                      }
-
-                      // ==========================================
-                      // REMOVE QUESTION
-                      // ==========================================
-
-                      void removeQuestion(
-                        int index,
-                      ) {
-                        if (saving ||
-                            questions.length <=
-                                1) {
-                          return;
-                        }
-
-                        final removed = questions.removeAt(
-                          index,
-                        );
-
-                        removed.dispose();
-
-                        setDialogState(
-                          () {},
-                        );
-                      }
-
-                      // ==========================================
-                      // VALIDATE
-                      // ==========================================
-
-                      bool validateQuestions() {
-                        final topic = topicController.text.trim();
-
-                        if (topic.isEmpty) {
-                          _showMessage(
-                            'Informe o tema das perguntas.',
-                          );
-
-                          return false;
-                        }
-
-                        for (
-                          var index = 0;
-                          index <
-                              questions.length;
-                          index++
+      createdCount =
+          await showDialog<
+            int
+          >(
+            context: context,
+            barrierDismissible: false,
+            builder:
+                (
+                  dialogContext,
+                ) {
+                  return StatefulBuilder(
+                    builder:
+                        (
+                          dialogContext,
+                          setDialogState,
                         ) {
-                          final draft = questions[index];
+                          final colorScheme = Theme.of(
+                            dialogContext,
+                          ).colorScheme;
 
-                          final question = draft.questionController.text.trim();
+                          // ==========================================
+                          // ADD QUESTION
+                          // ==========================================
 
-                          final answer = draft.answerController.text.trim();
-
-                          if (question.isEmpty) {
-                            _showMessage(
-                              'Digite a pergunta ${index + 1}.',
-                            );
-
-                            return false;
-                          }
-
-                          if (answer.isEmpty) {
-                            _showMessage(
-                              'Digite a resposta da pergunta ${index + 1}.',
-                            );
-
-                            return false;
-                          }
-                        }
-
-                        return true;
-                      }
-
-                      // ==========================================
-                      // SAVE ALL
-                      // ==========================================
-
-                      Future<
-                        void
-                      >
-                      saveQuestions() async {
-                        if (saving ||
-                            _controller.isSaving) {
-                          return;
-                        }
-
-                        if (!validateQuestions()) {
-                          return;
-                        }
-
-                        final topic = topicController.text.trim();
-
-                        setDialogState(
-                          () {
-                            saving = true;
-
-                            savedCount = 0;
-                          },
-                        );
-
-                        var allSaved = true;
-
-                        try {
-                          for (
-                            var index = 0;
-                            index <
-                                questions.length;
-                            index++
-                          ) {
-                            final draft = questions[index];
-
-                            // ====================================
-                            // NOVA NOTA PARA CADA PERGUNTA
-                            // ====================================
-                            //
-                            // Isso garante que uma pergunta não
-                            // sobrescreva a anterior.
-                            //
-                            // ====================================
-
-                            _controller.createNewNote();
-
-                            _controller.topicController.text = topic;
-
-                            _controller.titleController.text = draft.questionController.text.trim();
-
-                            _controller.contentController.text = draft.answerController.text.trim();
-
-                            final firstReviewAt = DateTime.now().add(
-                              draft.delay.duration,
-                            );
-
-                            final saved = await _saveKnowledge(
-                              type: BrainConceptType.question,
-                              firstReviewAt: firstReviewAt,
-                            );
-
-                            if (!mounted ||
-                                !dialogContext.mounted) {
+                          void addQuestion() {
+                            if (saving) {
                               return;
                             }
 
-                            if (!saved) {
-                              allSaved = false;
-
-                              break;
-                            }
-
-                            savedCount++;
-
-                            setDialogState(
-                              () {},
-                            );
-                          }
-
-                          if (!allSaved) {
-                            _showMessage(
-                              savedCount ==
-                                      0
-                                  ? 'Não foi possível criar as perguntas.'
-                                  : '$savedCount pergunta${savedCount == 1 ? '' : 's'} foram salvas antes de ocorrer um erro.',
-                            );
-
-                            return;
-                          }
-
-                          // ====================================
-                          // SUCESSO
-                          // ====================================
-
-                          if (!dialogContext.mounted) {
-                            return;
-                          }
-
-                          Navigator.of(
-                            dialogContext,
-                          ).pop();
-
-                          if (!mounted) {
-                            return;
-                          }
-
-                          _showMessage(
-                            questions.length ==
-                                    1
-                                ? 'Pergunta criada e adicionada às revisões.'
-                                : '${questions.length} perguntas criadas e adicionadas às revisões.',
-                          );
-
-                          // ====================================
-                          // ABRIR A ÁREA DE PERGUNTAS UMA VEZ
-                          // ====================================
-
-                          await _openTypeScreen(
-                            BrainConceptType.question,
-                          );
-
-                          if (!mounted) {
-                            return;
-                          }
-
-                          _controller.createNewNote();
-                        } finally {
-                          if (dialogContext.mounted) {
                             setDialogState(
                               () {
-                                saving = false;
+                                questions.add(
+                                  _QuestionDraft(),
+                                );
                               },
                             );
                           }
-                        }
-                      }
 
-                      // ==========================================
-                      // BUILD DIALOG
-                      // ==========================================
+                          // ==========================================
+                          // REMOVE QUESTION
+                          // ==========================================
 
-                      return Dialog(
-                        clipBehavior: Clip.antiAlias,
-                        insetPadding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 24,
-                        ),
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(
-                            maxWidth: 780,
-                            maxHeight: 860,
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // ==================================
-                              // HEADER
-                              // ==================================
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  22,
-                                  18,
-                                  12,
-                                  14,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 42,
-                                      height: 42,
-                                      decoration: BoxDecoration(
-                                        color: BrainConceptType.question.color.withValues(
-                                          alpha: 0.12,
-                                        ),
-                                        borderRadius: BorderRadius.circular(
-                                          12,
-                                        ),
-                                      ),
-                                      child: Icon(
-                                        BrainConceptType.question.icon,
-                                        color: BrainConceptType.question.color,
-                                      ),
+                          void removeQuestion(
+                            int index,
+                          ) {
+                            if (saving ||
+                                questions.length <=
+                                    1) {
+                              return;
+                            }
+
+                            late final _QuestionDraft removed;
+
+                            setDialogState(
+                              () {
+                                removed = questions.removeAt(
+                                  index,
+                                );
+                              },
+                            );
+
+                            // ========================================
+                            // DISPOSE APÓS O FRAME
+                            // ========================================
+                            //
+                            // O card removido ainda pode estar sendo
+                            // desmontado neste frame. Descartar os
+                            // TextEditingControllers antes disso pode
+                            // fazer um TextField tentar reutilizar um
+                            // controller já disposed.
+                            //
+                            // ========================================
+
+                            WidgetsBinding.instance.addPostFrameCallback(
+                              (
+                                _,
+                              ) {
+                                removed.dispose();
+                              },
+                            );
+                          }
+
+                          // ==========================================
+                          // VALIDATE
+                          // ==========================================
+
+                          bool validateQuestions() {
+                            final topic = topicController.text.trim();
+
+                            if (topic.isEmpty) {
+                              _showMessage(
+                                'Informe o tema das perguntas.',
+                              );
+
+                              return false;
+                            }
+
+                            for (
+                              var index = 0;
+                              index <
+                                  questions.length;
+                              index++
+                            ) {
+                              final draft = questions[index];
+
+                              final question = draft.questionController.text.trim();
+
+                              final answer = draft.answerController.text.trim();
+
+                              if (question.isEmpty) {
+                                _showMessage(
+                                  'Digite a pergunta ${index + 1}.',
+                                );
+
+                                return false;
+                              }
+
+                              if (answer.isEmpty) {
+                                _showMessage(
+                                  'Digite a resposta da pergunta ${index + 1}.',
+                                );
+
+                                return false;
+                              }
+                            }
+
+                            return true;
+                          }
+
+                          // ==========================================
+                          // SAVE ALL
+                          // ==========================================
+
+                          Future<
+                            void
+                          >
+                          saveQuestions() async {
+                            if (saving ||
+                                _controller.isSaving) {
+                              return;
+                            }
+
+                            if (!validateQuestions()) {
+                              return;
+                            }
+
+                            final topic = topicController.text.trim();
+
+                            setDialogState(
+                              () {
+                                saving = true;
+
+                                savedCount = 0;
+                              },
+                            );
+
+                            var allSaved = true;
+
+                            try {
+                              for (
+                                var index = 0;
+                                index <
+                                    questions.length;
+                                index++
+                              ) {
+                                final draft = questions[index];
+
+                                // ====================================
+                                // NOVA NOTA PARA CADA PERGUNTA
+                                // ====================================
+                                //
+                                // Isso garante que uma pergunta não
+                                // sobrescreva a anterior.
+                                //
+                                // ====================================
+
+                                _controller.createNewNote();
+
+                                _controller.topicController.text = topic;
+
+                                _controller.titleController.text = draft.questionController.text.trim();
+
+                                _controller.contentController.text = draft.answerController.text.trim();
+
+                                final firstReviewAt = DateTime.now().add(
+                                  draft.delay.duration,
+                                );
+
+                                final saved = await _saveKnowledge(
+                                  type: BrainConceptType.question,
+                                  firstReviewAt: firstReviewAt,
+                                );
+
+                                if (!mounted ||
+                                    !dialogContext.mounted) {
+                                  return;
+                                }
+
+                                if (!saved) {
+                                  allSaved = false;
+
+                                  break;
+                                }
+
+                                savedCount++;
+
+                                setDialogState(
+                                  () {},
+                                );
+                              }
+
+                              if (!allSaved) {
+                                _showMessage(
+                                  savedCount ==
+                                          0
+                                      ? 'Não foi possível criar as perguntas.'
+                                      : '$savedCount pergunta${savedCount == 1 ? '' : 's'} foram salvas antes de ocorrer um erro.',
+                                );
+
+                                return;
+                              }
+
+                              // ====================================
+                              // SUCESSO
+                              // ====================================
+
+                              if (!dialogContext.mounted) {
+                                return;
+                              }
+
+                              // ====================================
+                              // FECHAR O MODAL COM RESULTADO
+                              // ====================================
+                              //
+                              // Não navegamos para QuestionScreen daqui.
+                              //
+                              // Primeiro deixamos o Dialog terminar todo
+                              // o ciclo de remoção da árvore. Só depois,
+                              // fora do builder, descartamos os
+                              // controllers locais e abrimos a tela de
+                              // perguntas.
+                              //
+                              // Isso evita:
+                              //
+                              // TextEditingController was used after
+                              // being disposed.
+                              //
+                              // ====================================
+
+                              Navigator.of(
+                                dialogContext,
+                              ).pop(
+                                savedCount,
+                              );
+
+                              return;
+                            } finally {
+                              if (dialogContext.mounted) {
+                                setDialogState(
+                                  () {
+                                    saving = false;
+                                  },
+                                );
+                              }
+                            }
+                          }
+
+                          // ==========================================
+                          // BUILD DIALOG
+                          // ==========================================
+
+                          return Dialog(
+                            clipBehavior: Clip.antiAlias,
+                            insetPadding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 24,
+                            ),
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                maxWidth: 780,
+                                maxHeight: 860,
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // ==================================
+                                  // HEADER
+                                  // ==================================
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      22,
+                                      18,
+                                      12,
+                                      14,
                                     ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 42,
+                                          height: 42,
+                                          decoration: BoxDecoration(
+                                            color: BrainConceptType.question.color.withValues(
+                                              alpha: 0.12,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                          ),
+                                          child: Icon(
+                                            BrainConceptType.question.icon,
+                                            color: BrainConceptType.question.color,
+                                          ),
+                                        ),
 
-                                    const SizedBox(
-                                      width: 12,
+                                        const SizedBox(
+                                          width: 12,
+                                        ),
+
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                questions.length ==
+                                                        1
+                                                    ? 'Nova pergunta'
+                                                    : 'Novas perguntas',
+                                                style: const TextStyle(
+                                                  fontSize: 20,
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                              ),
+
+                                              const SizedBox(
+                                                height: 3,
+                                              ),
+
+                                              Text(
+                                                questions.length ==
+                                                        1
+                                                    ? 'Crie uma revisão ativa. Você pode adicionar outras perguntas para o mesmo tema.'
+                                                    : '${questions.length} perguntas serão salvas dentro do mesmo tema.',
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+
+                                        IconButton(
+                                          tooltip: 'Fechar',
+                                          onPressed:
+                                              saving ||
+                                                  _controller.isSaving
+                                              ? null
+                                              : () {
+                                                  Navigator.of(
+                                                    dialogContext,
+                                                  ).pop();
+                                                },
+                                          icon: const Icon(
+                                            Icons.close_rounded,
+                                          ),
+                                        ),
+                                      ],
                                     ),
+                                  ),
 
-                                    Expanded(
+                                  Divider(
+                                    height: 1,
+                                    color:
+                                        Theme.of(
+                                          dialogContext,
+                                        ).dividerColor.withValues(
+                                          alpha: 0.45,
+                                        ),
+                                  ),
+
+                                  // ==================================
+                                  // CONTENT
+                                  // ==================================
+                                  Flexible(
+                                    child: SingleChildScrollView(
+                                      padding: const EdgeInsets.all(
+                                        22,
+                                      ),
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Text(
-                                            questions.length ==
-                                                    1
-                                                ? 'Nova pergunta'
-                                                : 'Novas perguntas',
-                                            style: const TextStyle(
-                                              fontSize: 20,
-                                              fontWeight: FontWeight.w800,
+                                          // ==========================
+                                          // TEMA COMPARTILHADO
+                                          // ==========================
+                                          TextField(
+                                            controller: topicController,
+                                            enabled: !saving,
+                                            textInputAction: TextInputAction.next,
+                                            decoration: const InputDecoration(
+                                              labelText: 'Tema',
+                                              hintText: 'Ex.: Idiomas, História, Saúde, Trabalho...',
+                                              prefixIcon: Icon(
+                                                Icons.folder_outlined,
+                                              ),
+                                              border: OutlineInputBorder(),
                                             ),
                                           ),
 
                                           const SizedBox(
-                                            height: 3,
+                                            height: 7,
                                           ),
 
-                                          Text(
-                                            questions.length ==
-                                                    1
-                                                ? 'Crie uma revisão ativa. Você pode adicionar outras perguntas para o mesmo tema.'
-                                                : '${questions.length} perguntas serão salvas dentro do mesmo tema.',
-                                            style: const TextStyle(
-                                              fontSize: 11,
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              left: 4,
+                                            ),
+                                            child: Text(
+                                              questions.length ==
+                                                      1
+                                                  ? 'Este tema será usado nesta pergunta.'
+                                                  : 'Este tema será usado nas ${questions.length} perguntas.',
+                                              style: Theme.of(
+                                                dialogContext,
+                                              ).textTheme.bodySmall,
+                                            ),
+                                          ),
+
+                                          const SizedBox(
+                                            height: 18,
+                                          ),
+
+                                          // ==========================
+                                          // PERGUNTAS
+                                          // ==========================
+                                          for (
+                                            var index = 0;
+                                            index <
+                                                questions.length;
+                                            index++
+                                          ) ...[
+                                            _buildQuestionDraftCard(
+                                              context: dialogContext,
+                                              index: index,
+                                              draft: questions[index],
+                                              canRemove:
+                                                  questions.length >
+                                                  1,
+                                              saving: saving,
+                                              onRemove: () {
+                                                removeQuestion(
+                                                  index,
+                                                );
+                                              },
+                                              onDelayChanged:
+                                                  (
+                                                    value,
+                                                  ) {
+                                                    setDialogState(
+                                                      () {
+                                                        questions[index].delay = value;
+                                                      },
+                                                    );
+                                                  },
+                                            ),
+
+                                            if (index <
+                                                questions.length -
+                                                    1)
+                                              const SizedBox(
+                                                height: 14,
+                                              ),
+                                          ],
+
+                                          const SizedBox(
+                                            height: 16,
+                                          ),
+
+                                          // ==========================
+                                          // ADD
+                                          // ==========================
+                                          SizedBox(
+                                            width: double.infinity,
+                                            child: OutlinedButton.icon(
+                                              onPressed: saving
+                                                  ? null
+                                                  : addQuestion,
+                                              icon: const Icon(
+                                                Icons.add_rounded,
+                                              ),
+                                              label: const Text(
+                                                'Adicionar outra pergunta',
+                                              ),
+                                            ),
+                                          ),
+
+                                          const SizedBox(
+                                            height: 20,
+                                          ),
+
+                                          // ==========================
+                                          // EXPLICAÇÃO
+                                          // ==========================
+                                          Container(
+                                            width: double.infinity,
+                                            padding: const EdgeInsets.all(
+                                              13,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: colorScheme.primaryContainer.withValues(
+                                                alpha: 0.25,
+                                              ),
+                                              borderRadius: BorderRadius.circular(
+                                                13,
+                                              ),
+                                              border: Border.all(
+                                                color: colorScheme.primary.withValues(
+                                                  alpha: 0.12,
+                                                ),
+                                              ),
+                                            ),
+                                            child: const Row(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Icon(
+                                                  Icons.psychology_alt_outlined,
+                                                  size: 18,
+                                                ),
+
+                                                SizedBox(
+                                                  width: 8,
+                                                ),
+
+                                                Expanded(
+                                                  child: Text(
+                                                    'Cada pergunta terá sua própria revisão. Depois da primeira revisão, o Cérebro ajustará os próximos intervalos conforme você marcar Errei, Difícil, Acertei ou Fácil.',
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      height: 1.45,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+
+                                          const SizedBox(
+                                            height: 18,
+                                          ),
+
+                                          // ==========================
+                                          // SAVE ALL
+                                          // ==========================
+                                          SizedBox(
+                                            width: double.infinity,
+                                            child: FilledButton.icon(
+                                              onPressed:
+                                                  saving ||
+                                                      _controller.isSaving
+                                                  ? null
+                                                  : saveQuestions,
+                                              icon:
+                                                  saving ||
+                                                      _controller.isSaving
+                                                  ? const SizedBox(
+                                                      width: 17,
+                                                      height: 17,
+                                                      child: CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                      ),
+                                                    )
+                                                  : const Icon(
+                                                      Icons.school_outlined,
+                                                    ),
+                                              label: Text(
+                                                saving
+                                                    ? savedCount >
+                                                              0
+                                                          ? 'Criando ${savedCount + 1} de ${questions.length}...'
+                                                          : 'Criando perguntas...'
+                                                    : questions.length ==
+                                                          1
+                                                    ? 'Criar pergunta'
+                                                    : 'Criar ${questions.length} perguntas',
+                                              ),
                                             ),
                                           ),
                                         ],
                                       ),
                                     ),
-
-                                    IconButton(
-                                      tooltip: 'Fechar',
-                                      onPressed:
-                                          saving ||
-                                              _controller.isSaving
-                                          ? null
-                                          : () {
-                                              Navigator.of(
-                                                dialogContext,
-                                              ).pop();
-                                            },
-                                      icon: const Icon(
-                                        Icons.close_rounded,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              Divider(
-                                height: 1,
-                                color:
-                                    Theme.of(
-                                      dialogContext,
-                                    ).dividerColor.withValues(
-                                      alpha: 0.45,
-                                    ),
-                              ),
-
-                              // ==================================
-                              // CONTENT
-                              // ==================================
-                              Flexible(
-                                child: SingleChildScrollView(
-                                  padding: const EdgeInsets.all(
-                                    22,
                                   ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      // ==========================
-                                      // TEMA COMPARTILHADO
-                                      // ==========================
-                                      TextField(
-                                        controller: topicController,
-                                        enabled: !saving,
-                                        textInputAction: TextInputAction.next,
-                                        decoration: const InputDecoration(
-                                          labelText: 'Tema',
-                                          hintText: 'Ex.: Idiomas, História, Saúde, Trabalho...',
-                                          prefixIcon: Icon(
-                                            Icons.folder_outlined,
-                                          ),
-                                          border: OutlineInputBorder(),
-                                        ),
-                                      ),
-
-                                      const SizedBox(
-                                        height: 7,
-                                      ),
-
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          left: 4,
-                                        ),
-                                        child: Text(
-                                          questions.length ==
-                                                  1
-                                              ? 'Este tema será usado nesta pergunta.'
-                                              : 'Este tema será usado nas ${questions.length} perguntas.',
-                                          style: Theme.of(
-                                            dialogContext,
-                                          ).textTheme.bodySmall,
-                                        ),
-                                      ),
-
-                                      const SizedBox(
-                                        height: 18,
-                                      ),
-
-                                      // ==========================
-                                      // PERGUNTAS
-                                      // ==========================
-                                      for (
-                                        var index = 0;
-                                        index <
-                                            questions.length;
-                                        index++
-                                      ) ...[
-                                        _buildQuestionDraftCard(
-                                          context: dialogContext,
-                                          index: index,
-                                          draft: questions[index],
-                                          canRemove:
-                                              questions.length >
-                                              1,
-                                          saving: saving,
-                                          onRemove: () {
-                                            removeQuestion(
-                                              index,
-                                            );
-                                          },
-                                          onDelayChanged:
-                                              (
-                                                value,
-                                              ) {
-                                                setDialogState(
-                                                  () {
-                                                    questions[index].delay = value;
-                                                  },
-                                                );
-                                              },
-                                        ),
-
-                                        if (index <
-                                            questions.length -
-                                                1)
-                                          const SizedBox(
-                                            height: 14,
-                                          ),
-                                      ],
-
-                                      const SizedBox(
-                                        height: 16,
-                                      ),
-
-                                      // ==========================
-                                      // ADD
-                                      // ==========================
-                                      SizedBox(
-                                        width: double.infinity,
-                                        child: OutlinedButton.icon(
-                                          onPressed: saving
-                                              ? null
-                                              : addQuestion,
-                                          icon: const Icon(
-                                            Icons.add_rounded,
-                                          ),
-                                          label: const Text(
-                                            'Adicionar outra pergunta',
-                                          ),
-                                        ),
-                                      ),
-
-                                      const SizedBox(
-                                        height: 20,
-                                      ),
-
-                                      // ==========================
-                                      // EXPLICAÇÃO
-                                      // ==========================
-                                      Container(
-                                        width: double.infinity,
-                                        padding: const EdgeInsets.all(
-                                          13,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: colorScheme.primaryContainer.withValues(
-                                            alpha: 0.25,
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            13,
-                                          ),
-                                          border: Border.all(
-                                            color: colorScheme.primary.withValues(
-                                              alpha: 0.12,
-                                            ),
-                                          ),
-                                        ),
-                                        child: const Row(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Icon(
-                                              Icons.psychology_alt_outlined,
-                                              size: 18,
-                                            ),
-
-                                            SizedBox(
-                                              width: 8,
-                                            ),
-
-                                            Expanded(
-                                              child: Text(
-                                                'Cada pergunta terá sua própria revisão. Depois da primeira revisão, o Cérebro ajustará os próximos intervalos conforme você marcar Errei, Difícil, Acertei ou Fácil.',
-                                                style: TextStyle(
-                                                  fontSize: 10,
-                                                  height: 1.45,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-
-                                      const SizedBox(
-                                        height: 18,
-                                      ),
-
-                                      // ==========================
-                                      // SAVE ALL
-                                      // ==========================
-                                      SizedBox(
-                                        width: double.infinity,
-                                        child: FilledButton.icon(
-                                          onPressed:
-                                              saving ||
-                                                  _controller.isSaving
-                                              ? null
-                                              : saveQuestions,
-                                          icon:
-                                              saving ||
-                                                  _controller.isSaving
-                                              ? const SizedBox(
-                                                  width: 17,
-                                                  height: 17,
-                                                  child: CircularProgressIndicator(
-                                                    strokeWidth: 2,
-                                                  ),
-                                                )
-                                              : const Icon(
-                                                  Icons.school_outlined,
-                                                ),
-                                          label: Text(
-                                            saving
-                                                ? savedCount >
-                                                          0
-                                                      ? 'Criando ${savedCount + 1} de ${questions.length}...'
-                                                      : 'Criando perguntas...'
-                                                : questions.length ==
-                                                      1
-                                                ? 'Criar pergunta'
-                                                : 'Criar ${questions.length} perguntas',
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                                ],
                               ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-              );
-            },
+                            ),
+                          );
+                        },
+                  );
+                },
+          );
+
+      // ========================================================
+      // AGUARDAR O DIÁLOGO SAIR DA ÁRVORE
+      // ========================================================
+      //
+      // O Future retornado por Navigator.pop pode concluir antes
+      // de todos os últimos frames da transição do Dialog terem
+      // terminado.
+      //
+      // Damos tempo para o route terminar o teardown antes de
+      // destruir TextEditingControllers usados pelos TextFields.
+      //
+      // ========================================================
+
+      await Future<
+        void
+      >.delayed(
+        const Duration(
+          milliseconds: 300,
+        ),
       );
     } finally {
       // ========================================================
       // DISPOSE DOS CONTROLLERS LOCAIS
+      // ========================================================
+      //
+      // Neste ponto o Dialog já terminou sua saída visual.
+      //
       // ========================================================
 
       topicController.dispose();
@@ -3091,6 +3137,51 @@ class _BrainScreenState
         draft.dispose();
       }
     }
+
+    // ==========================================================
+    // CANCELADO / FECHADO SEM SALVAR
+    // ==========================================================
+
+    if (!mounted ||
+        createdCount ==
+            null ||
+        createdCount <=
+            0) {
+      return;
+    }
+
+    // ==========================================================
+    // FEEDBACK
+    // ==========================================================
+
+    _showMessage(
+      createdCount ==
+              1
+          ? 'Pergunta criada e adicionada às revisões.'
+          : '$createdCount perguntas criadas e adicionadas às revisões.',
+    );
+
+    // ==========================================================
+    // ABRIR A ÁREA DE PERGUNTAS
+    // ==========================================================
+    //
+    // A navegação acontece SOMENTE depois:
+    //
+    // 1. do Dialog fechar;
+    // 2. da transição terminar;
+    // 3. dos controllers locais serem descartados.
+    //
+    // ==========================================================
+
+    await _openTypeScreen(
+      BrainConceptType.question,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    _controller.createNewNote();
   }
 
   // ============================================================
@@ -3114,6 +3205,9 @@ class _BrainScreenState
     ).colorScheme;
 
     return Container(
+      key: ObjectKey(
+        draft,
+      ),
       width: double.infinity,
       padding: const EdgeInsets.all(
         16,

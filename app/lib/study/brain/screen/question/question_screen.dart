@@ -874,6 +874,7 @@ class _QuestionScreenState
             PopupMenuButton<
               String
             >(
+              tooltip: 'Opções',
               enabled: !_isDeleting,
               onSelected:
                   (

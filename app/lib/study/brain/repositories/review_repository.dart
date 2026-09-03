@@ -1,18 +1,18 @@
 import 'package:flutter/foundation.dart';
 
-import '../../../core/sync/sync_item.dart';
 import '../../../core/sync/sync_queue.dart';
-import '../../../core/sync/sync_service.dart';
 
 import '../models/brain_review_item.dart';
 import '../services/review_storage.dart';
 import '../services/supabase_review_service.dart';
 
+import '../vault/stores/brain_review_vault_store.dart';
+
 // ============================================================
 // REVIEW REPOSITORY
 // ============================================================
 //
-// Arquitetura OFFLINE-FIRST:
+// Arquitetura atual:
 //
 // UI
 //  ↓
@@ -20,56 +20,104 @@ import '../services/supabase_review_service.dart';
 //  ↓
 // ReviewRepository
 //  ↓
-// ReviewStorage local
+// BrainReviewVaultStore
 //  ↓
-// SyncQueue
+// BrainVaultService
 //  ↓
-// SyncService
-//  ↓
-// SupabaseReviewService
-//  ↓
-// brain_reviews
+// Vault criptografado
+//
+// ============================================================
+//
+// ReviewStorage:
+//
+// continua existindo temporariamente como armazenamento legado.
+//
+// Ele NÃO é mais a fonte principal.
+//
+// ============================================================
+//
+// SupabaseReviewService:
+//
+// continua existindo apenas para compatibilidade/importação
+// explícita do backend legado.
+//
+// Novas alterações locais NÃO são enviadas para brain_reviews.
+//
+// ============================================================
+//
+// SyncQueue:
+//
+// nesta etapa NÃO recebe novos payloads de review.
+//
+// Motivo:
+//
+// o formato antigo colocava:
+//
+// - question;
+// - answer;
+// - source_note_path;
+// - source_note_title;
+//
+// em plaintext.
+//
+// A sincronização será reativada quando existir:
+//
+// brain_objects
+// +
+// payload criptografado
+// +
+// SyncQueue E2EE.
+//
+// ============================================================
 //
 // REGRA:
 //
-// - leitura principal: local;
-// - escrita: local primeiro;
-// - Supabase: sincronização posterior;
-// - sem internet: revisão continua funcionando.
+// - Vault é a fonte local principal;
+// - save/delete funcionam sem login;
+// - autenticação só é necessária para operações remotas explícitas;
+// - nenhum plaintext novo de review entra na SyncQueue.
 //
 // ============================================================
 
 class ReviewRepository {
   ReviewRepository({
+    required BrainReviewVaultStore vaultStore,
     SupabaseReviewService? remote,
     ReviewStorage? local,
     SyncQueue? syncQueue,
-    SyncService? syncService,
-  }) : _remote =
+  }) : _vaultStore =
+           vaultStore,
+       _remote =
            remote ??
            SupabaseReviewService(),
-       _local =
+       _legacyLocal =
            local ??
            const ReviewStorage(),
-       _syncQueue =
+       _legacySyncQueue =
            syncQueue ??
-           SyncQueue(),
-       _syncService = syncService;
+           SyncQueue();
 
   // ============================================================
   // DEPENDENCIES
   // ============================================================
 
+  final BrainReviewVaultStore _vaultStore;
+
   final SupabaseReviewService _remote;
 
-  final ReviewStorage _local;
+  final ReviewStorage _legacyLocal;
 
-  final SyncQueue _syncQueue;
-
-  final SyncService? _syncService;
+  final SyncQueue _legacySyncQueue;
 
   // ============================================================
-  // SYNC ENTITY TYPE
+  // LEGACY ENTITY TYPE
+  // ============================================================
+  //
+  // Mantido porque refreshFromRemote() ainda precisa reconhecer
+  // alterações antigas já existentes na SyncQueue.
+  //
+  // Novas alterações NÃO são enfileiradas por este repository.
+  //
   // ============================================================
 
   static const String entityType = 'brain_review';
@@ -101,10 +149,23 @@ class ReviewRepository {
   }
 
   // ============================================================
+  // INITIALIZE
+  // ============================================================
+
+  Future<
+    void
+  >
+  initialize() async {
+    await _vaultStore.initialize();
+  }
+
+  // ============================================================
   // LOAD ALL
   // ============================================================
   //
-  // Sempre lê primeiro do armazenamento local.
+  // Fonte principal:
+  //
+  // Vault criptografado.
   //
   // ============================================================
 
@@ -114,7 +175,34 @@ class ReviewRepository {
     >
   >
   loadReviews() async {
-    final reviews = await _local.loadReviews();
+    await initialize();
+
+    final reviews = await _vaultStore.loadReviews();
+
+    _sort(
+      reviews,
+    );
+
+    return reviews;
+  }
+
+  // ============================================================
+  // LEGACY FALLBACK LOAD
+  // ============================================================
+  //
+  // Método separado para compatibilidade/migração.
+  //
+  // Não é usado como leitura principal.
+  //
+  // ============================================================
+
+  Future<
+    List<
+      BrainReviewItem
+    >
+  >
+  loadLegacyReviews() async {
+    final reviews = await _legacyLocal.loadReviews();
 
     _sort(
       reviews,
@@ -127,10 +215,16 @@ class ReviewRepository {
   // REFRESH FROM REMOTE
   // ============================================================
   //
-  // Atualiza o cache local com o Supabase.
+  // IMPORTANTE:
   //
-  // Só deve ser chamado quando quisermos explicitamente trazer
-  // os dados remotos para este dispositivo.
+  // Isto NÃO é a nova sincronização E2EE.
+  //
+  // É apenas uma ponte explícita para importar dados existentes
+  // da tabela legada brain_reviews.
+  //
+  // Requer autenticação porque acessa Supabase.
+  //
+  // Depois de carregados, os itens são gravados no Vault.
   //
   // ============================================================
 
@@ -144,29 +238,46 @@ class ReviewRepository {
 
     final remoteReviews = await _remote.loadReviews();
 
-    final pendingLocal = await _local.loadReviews();
-
-    // ========================================================
-    // NÃO SOBRESCREVER ITEM COM ALTERAÇÃO PENDENTE
-    // ========================================================
+    final vaultReviews = await _vaultStore.loadReviews();
 
     final merged =
         <
           String,
           BrainReviewItem
         >{
-          for (final review in remoteReviews) review.id: review,
+          for (final review in vaultReviews) review.id: review,
         };
 
-    for (final localReview in pendingLocal) {
-      final pending = await _syncQueue.findByEntity(
+    // ========================================================
+    // LEGACY PENDING PROTECTION
+    // ========================================================
+    //
+    // Se existir uma operação antiga pendente na SyncQueue,
+    // mantemos a versão local do Vault.
+    //
+    // Isso evita que um refresh do backend antigo sobrescreva
+    // uma alteração que ainda estava pendente antes da migração.
+    //
+    // ========================================================
+
+    for (final remoteReview in remoteReviews) {
+      final localReview = merged[remoteReview.id];
+
+      if (localReview ==
+          null) {
+        merged[remoteReview.id] = remoteReview;
+
+        continue;
+      }
+
+      final pending = await _legacySyncQueue.findByEntity(
         entityType: entityType,
-        entityId: localReview.id,
+        entityId: remoteReview.id,
       );
 
-      if (pending !=
+      if (pending ==
           null) {
-        merged[localReview.id] = localReview;
+        merged[remoteReview.id] = remoteReview;
       }
     }
 
@@ -176,7 +287,48 @@ class ReviewRepository {
       result,
     );
 
-    await _local.saveReviews(
+    // ========================================================
+    // IMPORT INTO VAULT
+    // ========================================================
+
+    for (final review in result) {
+      await _vaultStore.saveReview(
+        review,
+      );
+    }
+
+    return result;
+  }
+
+  // ============================================================
+  // IMPORT LEGACY LOCAL
+  // ============================================================
+  //
+  // Permite importar explicitamente reviews.json legado para o
+  // Vault.
+  //
+  // É idempotente porque BrainReviewVaultStore faz upsert por
+  // review.id.
+  //
+  // ============================================================
+
+  Future<
+    List<
+      BrainReviewItem
+    >
+  >
+  importLegacyLocalReviews() async {
+    final legacyReviews = await _legacyLocal.loadReviews();
+
+    for (final review in legacyReviews) {
+      await _vaultStore.saveReview(
+        review,
+      );
+    }
+
+    final result = await _vaultStore.loadReviews();
+
+    _sort(
       result,
     );
 
@@ -186,6 +338,20 @@ class ReviewRepository {
   // ============================================================
   // SAVE ONE
   // ============================================================
+  //
+  // Não exige autenticação.
+  //
+  // Fluxo:
+  //
+  // review
+  // ↓
+  // normalize
+  // ↓
+  // Vault
+  //
+  // Nenhum payload é enviado para SyncQueue nesta etapa.
+  //
+  // ============================================================
 
   Future<
     BrainReviewItem
@@ -193,72 +359,20 @@ class ReviewRepository {
   saveReview(
     BrainReviewItem review,
   ) async {
-    final userId = _requireUserId();
-
     final normalized = _normalizeReview(
       review,
     );
 
-    final reviews = await _local.loadReviews();
-
-    final index = reviews.indexWhere(
-      (
-        item,
-      ) {
-        return item.id ==
-            normalized.id;
-      },
-    );
-
-    final operation =
-        index >=
-            0
-        ? SyncOperation.update
-        : SyncOperation.create;
-
-    if (index >=
-        0) {
-      reviews[index] = normalized;
-    } else {
-      reviews.add(
-        normalized,
-      );
-    }
-
-    _sort(
-      reviews,
-    );
-
-    // ========================================================
-    // LOCAL FIRST
-    // ========================================================
-
-    await _local.saveReviews(
-      reviews,
+    final saved = await _vaultStore.saveReview(
+      normalized,
     );
 
     debugPrint(
       '[REVIEW REPOSITORY] '
-      '${normalized.id} salvo localmente.',
+      '${saved.id} salvo no Vault criptografado.',
     );
 
-    // ========================================================
-    // SYNC QUEUE
-    // ========================================================
-
-    await _syncQueue.enqueue(
-      entityType: entityType,
-      entityId: normalized.id,
-      operation: operation,
-      payload: _toSyncPayload(
-        normalized,
-        userId: userId,
-      ),
-    );
-
-    _syncService?.requestSync();
-
-    return normalized;
+    return saved;
   }
 
   // ============================================================
@@ -297,16 +411,9 @@ class ReviewRepository {
       return null;
     }
 
-    final reviews = await _local.loadReviews();
-
-    for (final review in reviews) {
-      if (review.id ==
-          cleanId) {
-        return review;
-      }
-    }
-
-    return null;
+    return _vaultStore.getReview(
+      cleanId,
+    );
   }
 
   // ============================================================
@@ -325,16 +432,9 @@ class ReviewRepository {
       return null;
     }
 
-    final reviews = await _local.loadReviews();
-
-    for (final review in reviews) {
-      if (review.conceptId ==
-          cleanConceptId) {
-        return review;
-      }
-    }
-
-    return null;
+    return _vaultStore.getReviewByConceptId(
+      cleanConceptId,
+    );
   }
 
   // ============================================================
@@ -347,12 +447,15 @@ class ReviewRepository {
   hasReviewForConcept(
     String conceptId,
   ) async {
-    final review = await getReviewByConceptId(
-      conceptId,
-    );
+    final cleanConceptId = conceptId.trim();
 
-    return review !=
-        null;
+    if (cleanConceptId.isEmpty) {
+      return false;
+    }
+
+    return _vaultStore.hasReviewForConcept(
+      cleanConceptId,
+    );
   }
 
   // ============================================================
@@ -366,32 +469,10 @@ class ReviewRepository {
   >
   loadDueReviews({
     DateTime? now,
-  }) async {
-    final current =
-        now ??
-        DateTime.now();
-
-    final reviews = await loadReviews();
-
-    final result = reviews.where(
-      (
-        review,
-      ) {
-        if (review.archived) {
-          return false;
-        }
-
-        return !review.nextReviewAt.isAfter(
-          current,
-        );
-      },
-    ).toList();
-
-    _sort(
-      result,
+  }) {
+    return _vaultStore.loadDueReviews(
+      now: now,
     );
-
-    return result;
   }
 
   // ============================================================
@@ -405,32 +486,10 @@ class ReviewRepository {
   >
   loadUpcomingReviews({
     DateTime? now,
-  }) async {
-    final current =
-        now ??
-        DateTime.now();
-
-    final reviews = await loadReviews();
-
-    final result = reviews.where(
-      (
-        review,
-      ) {
-        if (review.archived) {
-          return false;
-        }
-
-        return review.nextReviewAt.isAfter(
-          current,
-        );
-      },
-    ).toList();
-
-    _sort(
-      result,
+  }) {
+    return _vaultStore.loadUpcomingReviews(
+      now: now,
     );
-
-    return result;
   }
 
   // ============================================================
@@ -442,16 +501,8 @@ class ReviewRepository {
       BrainReviewItem
     >
   >
-  loadActiveReviews() async {
-    final reviews = await loadReviews();
-
-    return reviews.where(
-      (
-        review,
-      ) {
-        return !review.archived;
-      },
-    ).toList();
+  loadActiveReviews() {
+    return _vaultStore.loadActiveReviews();
   }
 
   // ============================================================
@@ -463,37 +514,8 @@ class ReviewRepository {
       BrainReviewItem
     >
   >
-  loadArchivedReviews() async {
-    final reviews = await loadReviews();
-
-    final result = reviews.where(
-      (
-        review,
-      ) {
-        return review.archived;
-      },
-    ).toList();
-
-    result.sort(
-      (
-        first,
-        second,
-      ) {
-        final firstDate =
-            first.archivedAt ??
-            first.createdAt;
-
-        final secondDate =
-            second.archivedAt ??
-            second.createdAt;
-
-        return secondDate.compareTo(
-          firstDate,
-        );
-      },
-    );
-
-    return result;
+  loadArchivedReviews() {
+    return _vaultStore.loadArchivedReviews();
   }
 
   // ============================================================
@@ -584,6 +606,14 @@ class ReviewRepository {
   // ============================================================
   // DELETE BY ID
   // ============================================================
+  //
+  // Não exige autenticação.
+  //
+  // BrainReviewVaultStore cria tombstone.
+  //
+  // Nenhum delete novo é colocado na SyncQueue antiga.
+  //
+  // ============================================================
 
   Future<
     void
@@ -591,53 +621,20 @@ class ReviewRepository {
   deleteReview(
     String id,
   ) async {
-    final userId = _requireUserId();
-
     final cleanId = id.trim();
 
     if (cleanId.isEmpty) {
       return;
     }
 
-    final reviews = await _local.loadReviews();
-
-    reviews.removeWhere(
-      (
-        review,
-      ) {
-        return review.id ==
-            cleanId;
-      },
-    );
-
-    // ========================================================
-    // LOCAL FIRST
-    // ========================================================
-
-    await _local.saveReviews(
-      reviews,
+    await _vaultStore.deleteReview(
+      cleanId,
     );
 
     debugPrint(
       '[REVIEW REPOSITORY] '
-      '$cleanId excluído localmente.',
+      '$cleanId excluído do Vault por tombstone.',
     );
-
-    // ========================================================
-    // SYNC QUEUE
-    // ========================================================
-
-    await _syncQueue.enqueue(
-      entityType: entityType,
-      entityId: cleanId,
-      operation: SyncOperation.delete,
-      payload: {
-        'id': cleanId,
-        'user_id': userId,
-      },
-    );
-
-    _syncService?.requestSync();
   }
 
   // ============================================================
@@ -656,22 +653,9 @@ class ReviewRepository {
       return;
     }
 
-    final reviews = await _local.loadReviews();
-
-    final matches = reviews.where(
-      (
-        review,
-      ) {
-        return review.conceptId ==
-            cleanConceptId;
-      },
-    ).toList();
-
-    for (final review in matches) {
-      await deleteReview(
-        review.id,
-      );
-    }
+    await _vaultStore.deleteReviewByConceptId(
+      cleanConceptId,
+    );
   }
 
   // ============================================================
@@ -690,65 +674,20 @@ class ReviewRepository {
       return;
     }
 
-    final reviews = await _local.loadReviews();
-
-    final matches = reviews.where(
-      (
-        review,
-      ) {
-        return review.sourceNotePath.trim() ==
-            cleanPath;
-      },
-    ).toList();
-
-    for (final review in matches) {
-      await deleteReview(
-        review.id,
-      );
-    }
+    await _vaultStore.deleteReviewsBySourceNotePath(
+      cleanPath,
+    );
   }
 
   // ============================================================
-  // SYNC PAYLOAD
+  // COUNT
   // ============================================================
 
-  Map<
-    String,
-    dynamic
+  Future<
+    int
   >
-  _toSyncPayload(
-    BrainReviewItem review, {
-    required String userId,
-  }) {
-    return {
-      'id': review.id,
-      'user_id': userId,
-
-      'concept_id': review.conceptId,
-
-      'question': review.question,
-      'answer': review.answer,
-
-      'source_note_path': review.sourceNotePath,
-      'source_note_title': review.sourceNoteTitle,
-
-      'created_at': review.createdAt.toUtc().toIso8601String(),
-
-      'next_review_at': review.nextReviewAt.toUtc().toIso8601String(),
-
-      'last_reviewed_at': review.lastReviewedAt?.toUtc().toIso8601String(),
-
-      'archived_at': review.archivedAt?.toUtc().toIso8601String(),
-
-      'review_count': review.reviewCount,
-      'correct_count': review.correctCount,
-      'wrong_count': review.wrongCount,
-      'streak': review.streak,
-
-      'archived': review.archived,
-
-      'updated_at': DateTime.now().toUtc().toIso8601String(),
-    };
+  count() {
+    return _vaultStore.count();
   }
 
   // ============================================================

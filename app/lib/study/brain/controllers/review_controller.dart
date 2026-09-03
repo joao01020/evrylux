@@ -47,10 +47,8 @@ class ReviewController
     extends
         ChangeNotifier {
   ReviewController({
-    ReviewRepository? repository,
-  }) : _repository =
-           repository ??
-           ReviewRepository();
+    required ReviewRepository repository,
+  }) : _repository = repository;
 
   final ReviewRepository _repository;
 
