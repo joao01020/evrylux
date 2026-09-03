@@ -1,11 +1,44 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../connectivity_service.dart';
 import '../sync_service.dart';
 
-class SyncStatusIndicator
-    extends
-        StatelessWidget {
+// ============================================================
+// SYNC STATUS INDICATOR
+// ============================================================
+//
+// Indicador global minimalista.
+//
+// NOVA UX:
+//
+// - nenhum texto visível;
+// - nenhum contador;
+// - apenas ícone;
+// - animação suave durante sync/verificação;
+// - mantém cores por estado.
+//
+// Estados:
+//
+// Online
+//   -> nuvem verde
+//
+// Sincronizando
+//   -> sync amarelo girando
+//
+// Verificando
+//   -> nuvem/sync cinza girando
+//
+// Offline
+//   -> nuvem desligada
+//
+// Erro
+//   -> ícone de erro vermelho
+//
+// ============================================================
+
+class SyncStatusIndicator extends StatefulWidget {
   const SyncStatusIndicator({
     super.key,
     required this.syncService,
@@ -23,19 +56,20 @@ class SyncStatusIndicator
 
   final bool compact;
 
+  @override
+  State<SyncStatusIndicator> createState() {
+    return _SyncStatusIndicatorState();
+  }
+}
+
+class _SyncStatusIndicatorState
+    extends State<SyncStatusIndicator>
+    with SingleTickerProviderStateMixin {
   // ============================================================
   // TAMANHO
   // ============================================================
-  //
-  // Todos os estados usam exatamente o mesmo tamanho.
-  //
-  // ============================================================
 
-  static const double _normalWidth = 205;
-
-  static const double _normalHeight = 32;
-
-  static const double _compactSize = 32;
+  static const double _size = 32;
 
   // ============================================================
   // CORES
@@ -47,10 +81,6 @@ class SyncStatusIndicator
 
   static const Color _greenLight = Color(
     0xFFBCF0B4,
-  );
-
-  static const Color _surface = Color(
-    0xFFFFFFFF,
   );
 
   static const Color _border = Color(
@@ -82,6 +112,112 @@ class SyncStatusIndicator
   );
 
   // ============================================================
+  // ANIMATION
+  // ============================================================
+
+  late final AnimationController _rotationController;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _rotationController = AnimationController(
+      vsync: this,
+      duration: const Duration(
+        milliseconds: 900,
+      ),
+    );
+
+    widget.syncService.addListener(
+      _handleStateChanged,
+    );
+
+    widget.connectivityService.addListener(
+      _handleStateChanged,
+    );
+
+    _syncAnimationState();
+  }
+
+  @override
+  void didUpdateWidget(
+    covariant SyncStatusIndicator oldWidget,
+  ) {
+    super.didUpdateWidget(
+      oldWidget,
+    );
+
+    if (oldWidget.syncService !=
+        widget.syncService) {
+      oldWidget.syncService.removeListener(
+        _handleStateChanged,
+      );
+
+      widget.syncService.addListener(
+        _handleStateChanged,
+      );
+    }
+
+    if (oldWidget.connectivityService !=
+        widget.connectivityService) {
+      oldWidget.connectivityService.removeListener(
+        _handleStateChanged,
+      );
+
+      widget.connectivityService.addListener(
+        _handleStateChanged,
+      );
+    }
+
+    _syncAnimationState();
+  }
+
+  @override
+  void dispose() {
+    widget.syncService.removeListener(
+      _handleStateChanged,
+    );
+
+    widget.connectivityService.removeListener(
+      _handleStateChanged,
+    );
+
+    _rotationController.dispose();
+
+    super.dispose();
+  }
+
+  void _handleStateChanged() {
+    if (!mounted) {
+      return;
+    }
+
+    _syncAnimationState();
+
+    setState(
+      () {},
+    );
+  }
+
+  void _syncAnimationState() {
+    final visual = _resolveVisual();
+
+    if (visual.animate) {
+      if (!_rotationController.isAnimating) {
+        _rotationController.repeat();
+      }
+
+      return;
+    }
+
+    if (_rotationController.isAnimating) {
+      _rotationController.stop();
+    }
+
+    _rotationController.value = 0;
+  }
+
+  // ============================================================
   // BUILD
   // ============================================================
 
@@ -89,142 +225,99 @@ class SyncStatusIndicator
   Widget build(
     BuildContext context,
   ) {
-    return AnimatedBuilder(
-      animation: Listenable.merge(
-        [
-          syncService,
-          connectivityService,
-        ],
-      ),
-      builder:
-          (
-            context,
-            _,
-          ) {
-            final visual = _resolveVisual();
+    final visual = _resolveVisual();
 
-            return Semantics(
-              label: visual.tooltip,
-              child: AnimatedContainer(
-                duration: const Duration(
-                  milliseconds: 180,
-                ),
-
-                // =================================================
-                // TAMANHO FIXO
-                // =================================================
-                width: compact
-                    ? _compactSize
-                    : _normalWidth,
-
-                height: compact
-                    ? _compactSize
-                    : _normalHeight,
-
-                padding: EdgeInsets.symmetric(
-                  horizontal: compact
-                      ? 7
-                      : 10,
-                ),
-
-                decoration: BoxDecoration(
-                  color: visual.background,
-                  borderRadius: BorderRadius.circular(
-                    999,
-                  ),
-                  border: Border.all(
-                    color: visual.border,
-                  ),
-                ),
-
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.max,
-                  children: [
-                    // =============================================
-                    // ÍCONE / LOADING
-                    // =============================================
-                    SizedBox(
-                      width: 15,
-                      height: 15,
-                      child: visual.showProgress
-                          ? CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: visual.foreground,
-                            )
-                          : Icon(
-                              visual.icon,
-                              size: 15,
-                              color: visual.foreground,
-                            ),
-                    ),
-
-                    // =============================================
-                    // TEXTO
-                    // =============================================
-                    if (!compact) ...[
-                      const SizedBox(
-                        width: 7,
-                      ),
-
-                      Expanded(
-                        child: Text(
-                          visual.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: visual.foreground,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-
-                    // =============================================
-                    // CONTADOR
-                    // =============================================
-                    if (!compact &&
-                        syncService.pendingCount >
-                            0) ...[
-                      const SizedBox(
-                        width: 6,
-                      ),
-
-                      Container(
-                        constraints: const BoxConstraints(
-                          minWidth: 20,
-                          minHeight: 20,
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _surface,
-                          borderRadius: BorderRadius.circular(
-                            999,
-                          ),
-                          border: Border.all(
-                            color: visual.border,
-                          ),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          '${syncService.pendingCount}',
-                          style: TextStyle(
-                            color: visual.foreground,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
+    return Semantics(
+      label: visual.semanticLabel,
+      child: AnimatedContainer(
+        duration: const Duration(
+          milliseconds: 220,
+        ),
+        curve: Curves.easeOutCubic,
+        width: _size,
+        height: _size,
+        decoration: BoxDecoration(
+          color: visual.background,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: visual.border,
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: visual.foreground.withValues(
+                alpha: 0.07,
               ),
-            );
-          },
+              blurRadius: 8,
+              offset: const Offset(
+                0,
+                2,
+              ),
+            ),
+          ],
+        ),
+        child: Center(
+          child: AnimatedSwitcher(
+            duration: const Duration(
+              milliseconds: 180,
+            ),
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeIn,
+            transitionBuilder: (
+              child,
+              animation,
+            ) {
+              return FadeTransition(
+                opacity: animation,
+                child: ScaleTransition(
+                  scale: Tween<double>(
+                    begin: 0.88,
+                    end: 1,
+                  ).animate(
+                    CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutBack,
+                    ),
+                  ),
+                  child: child,
+                ),
+              );
+            },
+            child: visual.animate
+                ? AnimatedBuilder(
+                    key: ValueKey<String>(
+                      visual.key,
+                    ),
+                    animation: _rotationController,
+                    builder: (
+                      context,
+                      child,
+                    ) {
+                      return Transform.rotate(
+                        angle:
+                            _rotationController.value *
+                            2 *
+                            math.pi,
+                        child: child,
+                      );
+                    },
+                    child: Icon(
+                      visual.icon,
+                      size: 17,
+                      color: visual.foreground,
+                    ),
+                  )
+                : Icon(
+                    key: ValueKey<String>(
+                      visual.key,
+                    ),
+                    visual.icon,
+                    size: 17,
+                    color: visual.foreground,
+                  ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -237,24 +330,11 @@ class SyncStatusIndicator
     // OFFLINE
     // ==========================================================
 
-    if (connectivityService.isOffline) {
-      final pending = syncService.pendingCount;
-
-      return _SyncVisual(
+    if (widget.connectivityService.isOffline) {
+      return const _SyncVisual(
+        key: 'offline',
         icon: Icons.cloud_off_rounded,
-        label:
-            pending >
-                0
-            ? 'Offline • salvo localmente'
-            : 'Offline',
-        tooltip:
-            pending >
-                0
-            ? '$pending alteração'
-                  '${pending == 1 ? '' : 'ões'} '
-                  'salva${pending == 1 ? '' : 's'} '
-                  'neste dispositivo.'
-            : 'Sem conexão com a internet.',
+        semanticLabel: 'Offline',
         foreground: _muted,
         background: _offlineSoft,
         border: _border,
@@ -265,17 +345,17 @@ class SyncStatusIndicator
     // VERIFICANDO
     // ==========================================================
 
-    if (connectivityService.isChecking ||
-        syncService.state ==
+    if (widget.connectivityService.isChecking ||
+        widget.syncService.state ==
             SyncServiceState.checking) {
       return const _SyncVisual(
+        key: 'checking',
         icon: Icons.cloud_sync_rounded,
-        label: 'Verificando...',
-        tooltip: 'Verificando conexão e sincronização.',
+        semanticLabel: 'Verificando conexão e sincronização',
         foreground: _muted,
         background: _offlineSoft,
         border: _border,
-        showProgress: true,
+        animate: true,
       );
     }
 
@@ -283,23 +363,17 @@ class SyncStatusIndicator
     // SINCRONIZANDO
     // ==========================================================
 
-    if (syncService.isSyncing ||
-        syncService.state ==
+    if (widget.syncService.isSyncing ||
+        widget.syncService.state ==
             SyncServiceState.syncing) {
-      final pending = syncService.pendingCount;
-
-      return _SyncVisual(
+      return const _SyncVisual(
+        key: 'syncing',
         icon: Icons.sync_rounded,
-        label:
-            pending >
-                0
-            ? 'Sincronizando'
-            : 'Sincronizando...',
-        tooltip: 'Enviando alterações locais para o servidor.',
+        semanticLabel: 'Sincronizando',
         foreground: _warning,
         background: _warningSoft,
         border: _warning,
-        showProgress: true,
+        animate: true,
       );
     }
 
@@ -307,15 +381,13 @@ class SyncStatusIndicator
     // ERRO
     // ==========================================================
 
-    if (syncService.hasError ||
-        syncService.state ==
+    if (widget.syncService.hasError ||
+        widget.syncService.state ==
             SyncServiceState.error) {
-      return _SyncVisual(
+      return const _SyncVisual(
+        key: 'error',
         icon: Icons.sync_problem_rounded,
-        label: 'Erro ao sincronizar',
-        tooltip:
-            syncService.lastError ??
-            'Ocorreu um erro durante a sincronização.',
+        semanticLabel: 'Erro de sincronização',
         foreground: _error,
         background: _errorSoft,
         border: _error,
@@ -323,35 +395,13 @@ class SyncStatusIndicator
     }
 
     // ==========================================================
-    // PENDENTE
-    // ==========================================================
-
-    if (syncService.pendingCount >
-        0) {
-      final pending = syncService.pendingCount;
-
-      return _SyncVisual(
-        icon: Icons.cloud_upload_outlined,
-        label:
-            pending ==
-                1
-            ? 'Pendente'
-            : 'Pendentes',
-        tooltip: 'Online. Existem alterações aguardando sincronização.',
-        foreground: _warning,
-        background: _warningSoft,
-        border: _warning,
-      );
-    }
-
-    // ==========================================================
-    // SINCRONIZADO
+    // ONLINE
     // ==========================================================
 
     return const _SyncVisual(
+      key: 'online',
       icon: Icons.cloud_done_rounded,
-      label: 'Online • sincronizado',
-      tooltip: 'Conectado e com todos os dados sincronizados.',
+      semanticLabel: 'Online',
       foreground: _green,
       background: _greenLight,
       border: _green,
@@ -365,20 +415,20 @@ class SyncStatusIndicator
 
 class _SyncVisual {
   const _SyncVisual({
+    required this.key,
     required this.icon,
-    required this.label,
-    required this.tooltip,
+    required this.semanticLabel,
     required this.foreground,
     required this.background,
     required this.border,
-    this.showProgress = false,
+    this.animate = false,
   });
+
+  final String key;
 
   final IconData icon;
 
-  final String label;
-
-  final String tooltip;
+  final String semanticLabel;
 
   final Color foreground;
 
@@ -386,5 +436,5 @@ class _SyncVisual {
 
   final Color border;
 
-  final bool showProgress;
+  final bool animate;
 }

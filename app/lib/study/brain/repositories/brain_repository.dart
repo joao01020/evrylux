@@ -82,12 +82,8 @@ class BrainRepository {
     BrainNoteVaultStore? noteVaultStore,
     BrainConceptVaultStore? conceptVaultStore,
     BrainSyncQueueService? brainSyncQueueService,
-  }) : _remote =
-           remote ??
-           SupabaseBrainService(),
-       _local =
-           local ??
-           const BrainStorage(),
+  }) : _remote = remote ?? SupabaseBrainService(),
+       _local = local ?? const BrainStorage(),
        _legacySyncQueue = syncQueue,
        _legacySyncService = syncService,
        _noteVaultStore = noteVaultStore,
@@ -177,13 +173,7 @@ class BrainRepository {
   //
   // ============================================================
 
-  Future<
-    Map<
-      String,
-      dynamic
-    >
-  >
-  saveNote({
+  Future<Map<String, dynamic>> saveNote({
     String? id,
     required String topic,
     required String title,
@@ -205,40 +195,27 @@ class BrainRepository {
 
     final rawTopic = topic.trim();
 
-    final cleanTopic = rawTopic.isEmpty
-        ? 'Sem tema'
-        : rawTopic;
+    final cleanTopic = rawTopic.isEmpty ? 'Sem tema' : rawTopic;
 
     final cleanTitle = title.trim();
     final cleanContent = content.trim();
 
     if (cleanTitle.isEmpty) {
-      throw const FormatException(
-        'Informe o título da anotação.',
-      );
+      throw const FormatException('Informe o título da anotação.');
     }
 
     if (cleanContent.isEmpty) {
-      throw const FormatException(
-        'Escreva algum conteúdo.',
-      );
+      throw const FormatException('Escreva algum conteúdo.');
     }
 
-    final existingLocalPath = _localPathFromId(
-      id,
-    );
+    final existingLocalPath = _localPathFromId(id);
 
     BrainFile? previousNote;
 
-    if (existingLocalPath !=
-        null) {
+    if (existingLocalPath != null) {
       try {
-        previousNote = await _local.openNote(
-          existingLocalPath,
-        );
-      } catch (
-        _
-      ) {
+        previousNote = await _local.openNote(existingLocalPath);
+      } catch (_) {
         previousNote = null;
       }
     }
@@ -247,17 +224,11 @@ class BrainRepository {
       topic: cleanTopic,
       title: cleanTitle,
       content: cleanContent,
-      concepts:
-          previousNote?.concepts ??
-          const <
-            BrainConcept
-          >[],
+      concepts: previousNote?.concepts ?? const <BrainConcept>[],
       existingPath: existingLocalPath,
     );
 
-    final saved = await _hydrateSourcesFromVault(
-      savedLocal,
-    );
+    final saved = await _hydrateSourcesFromVault(savedLocal);
 
     debugPrint(
       '[BRAIN REPOSITORY] '
@@ -266,10 +237,7 @@ class BrainRepository {
 
     final userId = currentUserId?.trim();
 
-    final legacyRemoteId =
-        userId ==
-                null ||
-            userId.isEmpty
+    final legacyRemoteId = userId == null || userId.isEmpty
         ? null
         : _resolveRemoteNoteId(
             userId: userId,
@@ -279,16 +247,13 @@ class BrainRepository {
 
     final noteStore = _noteVaultStore;
 
-    if (noteStore !=
-        null) {
+    if (noteStore != null) {
       final encryptedObject = await noteStore.saveNote(
         saved,
         legacyRemoteId: legacyRemoteId,
       );
 
-      await _brainSyncQueueService?.enqueueObject(
-        encryptedObject,
-      );
+      await _brainSyncQueueService?.enqueueObject(encryptedObject);
 
       debugPrint(
         '[BRAIN REPOSITORY] '
@@ -297,11 +262,7 @@ class BrainRepository {
       );
     }
 
-    return _noteToRow(
-      saved,
-      remoteId: legacyRemoteId,
-      userId: userId,
-    );
+    return _noteToRow(saved, remoteId: legacyRemoteId, userId: userId);
   }
 
   // ============================================================
@@ -314,49 +275,21 @@ class BrainRepository {
   //
   // ============================================================
 
-  Future<
-    List<
-      Map<
-        String,
-        dynamic
-      >
-    >
-  >
-  loadNotes() async {
+  Future<List<Map<String, dynamic>>> loadNotes() async {
     final localNotes = await _local.loadNotes();
 
     final userId = currentUserId?.trim();
 
-    final rows =
-        <
-          Map<
-            String,
-            dynamic
-          >
-        >[];
+    final rows = <Map<String, dynamic>>[];
 
     for (final localNote in localNotes) {
-      final note = await _hydrateSourcesFromVault(
-        localNote,
-      );
+      final note = await _hydrateSourcesFromVault(localNote);
 
-      final remoteId =
-          userId ==
-                  null ||
-              userId.isEmpty
+      final remoteId = userId == null || userId.isEmpty
           ? null
-          : _remoteNoteId(
-              userId: userId,
-              localPath: note.path,
-            );
+          : _remoteNoteId(userId: userId, localPath: note.path);
 
-      rows.add(
-        _noteToRow(
-          note,
-          remoteId: remoteId,
-          userId: userId,
-        ),
-      );
+      rows.add(_noteToRow(note, remoteId: remoteId, userId: userId));
     }
 
     return rows;
@@ -366,15 +299,7 @@ class BrainRepository {
   // GET NOTE
   // ============================================================
 
-  Future<
-    Map<
-      String,
-      dynamic
-    >?
-  >
-  getNote(
-    String id,
-  ) async {
+  Future<Map<String, dynamic>?> getNote(String id) async {
     final cleanId = id.trim();
 
     if (cleanId.isEmpty) {
@@ -385,41 +310,22 @@ class BrainRepository {
     // LOCAL PATH
     // ==========================================================
 
-    final directPath = _localPathFromId(
-      cleanId,
-    );
+    final directPath = _localPathFromId(cleanId);
 
-    if (directPath !=
-        null) {
+    if (directPath != null) {
       try {
-        final localNote = await _local.openNote(
-          directPath,
-        );
+        final localNote = await _local.openNote(directPath);
 
-        final note = await _hydrateSourcesFromVault(
-          localNote,
-        );
+        final note = await _hydrateSourcesFromVault(localNote);
 
         final userId = currentUserId?.trim();
 
-        final remoteId =
-            userId ==
-                    null ||
-                userId.isEmpty
+        final remoteId = userId == null || userId.isEmpty
             ? null
-            : _remoteNoteId(
-                userId: userId,
-                localPath: note.path,
-              );
+            : _remoteNoteId(userId: userId, localPath: note.path);
 
-        return _noteToRow(
-          note,
-          remoteId: remoteId,
-          userId: userId,
-        );
-      } catch (
-        _
-      ) {
+        return _noteToRow(note, remoteId: remoteId, userId: userId);
+      } catch (_) {
         return null;
       }
     }
@@ -434,28 +340,16 @@ class BrainRepository {
 
     final userId = currentUserId?.trim();
 
-    if (userId !=
-            null &&
-        userId.isNotEmpty) {
+    if (userId != null && userId.isNotEmpty) {
       final notes = await _local.loadNotes();
 
       for (final localNote in notes) {
-        final note = await _hydrateSourcesFromVault(
-          localNote,
-        );
+        final note = await _hydrateSourcesFromVault(localNote);
 
-        final remoteId = _remoteNoteId(
-          userId: userId,
-          localPath: note.path,
-        );
+        final remoteId = _remoteNoteId(userId: userId, localPath: note.path);
 
-        if (remoteId ==
-            cleanId) {
-          return _noteToRow(
-            note,
-            remoteId: remoteId,
-            userId: userId,
-          );
+        if (remoteId == cleanId) {
+          return _noteToRow(note, remoteId: remoteId, userId: userId);
         }
       }
     }
@@ -467,12 +361,7 @@ class BrainRepository {
   // DELETE NOTE — TOMBSTONE E2EE
   // ============================================================
 
-  Future<
-    void
-  >
-  deleteNote(
-    String id,
-  ) async {
+  Future<void> deleteNote(String id) async {
     final cleanId = id.trim();
 
     if (cleanId.isEmpty) {
@@ -485,32 +374,21 @@ class BrainRepository {
 
     BrainFile? target;
 
-    final directPath = _localPathFromId(
-      cleanId,
-    );
+    final directPath = _localPathFromId(cleanId);
 
-    if (directPath !=
-        null) {
+    if (directPath != null) {
       for (final note in localNotes) {
-        if (_samePath(
-          note.path,
-          directPath,
-        )) {
+        if (_samePath(note.path, directPath)) {
           target = note;
 
           break;
         }
       }
 
-      if (target ==
-          null) {
+      if (target == null) {
         try {
-          target = await _local.openNote(
-            directPath,
-          );
-        } catch (
-          _
-        ) {
+          target = await _local.openNote(directPath);
+        } catch (_) {
           target = null;
         }
       }
@@ -518,19 +396,11 @@ class BrainRepository {
 
     final userId = currentUserId?.trim();
 
-    if (target ==
-            null &&
-        userId !=
-            null &&
-        userId.isNotEmpty) {
+    if (target == null && userId != null && userId.isNotEmpty) {
       for (final note in localNotes) {
-        final legacyId = _remoteNoteId(
-          userId: userId,
-          localPath: note.path,
-        );
+        final legacyId = _remoteNoteId(userId: userId, localPath: note.path);
 
-        if (legacyId ==
-            cleanId) {
+        if (legacyId == cleanId) {
           target = note;
 
           break;
@@ -552,13 +422,9 @@ class BrainRepository {
     //
     // ==========================================================
 
-    if (target ==
-        null) {
-      if (directPath !=
-          null) {
-        final file = File(
-          directPath,
-        );
+    if (target == null) {
+      if (directPath != null) {
+        final file = File(directPath);
 
         if (await file.exists()) {
           await file.delete();
@@ -571,54 +437,38 @@ class BrainRepository {
           );
         }
 
-        final tombstone = await _noteVaultStore?.deleteNoteByPath(
-          directPath,
-        );
+        final tombstone = await _noteVaultStore?.deleteNoteByPath(directPath);
 
-        if (tombstone !=
-            null) {
-          await _brainSyncQueueService?.enqueueObject(
-            tombstone,
-          );
+        if (tombstone != null) {
+          await _brainSyncQueueService?.enqueueObject(tombstone);
         }
 
-        if (userId !=
-                null &&
-            userId.isNotEmpty) {
+        if (userId != null && userId.isNotEmpty) {
           final legacyRemoteId = _remoteNoteId(
             userId: userId,
             localPath: directPath,
           );
 
-          await _deleteLegacyRemoteNote(
-            legacyRemoteId,
-          );
+          await _deleteLegacyRemoteNote(legacyRemoteId);
         }
 
         return;
       }
 
-      if (_looksLikeUuid(
-        cleanId,
-      )) {
+      if (_looksLikeUuid(cleanId)) {
         final tombstone = await _noteVaultStore?.deleteNoteByLegacyRemoteId(
           cleanId,
         );
 
-        if (tombstone !=
-            null) {
-          await _brainSyncQueueService?.enqueueObject(
-            tombstone,
-          );
+        if (tombstone != null) {
+          await _brainSyncQueueService?.enqueueObject(tombstone);
         }
 
         // Resultado vindo diretamente de brain_notes:
         //
         // mesmo sem cópia local, a exclusão precisa remover a linha
         // legada para ela não reaparecer na próxima pesquisa.
-        await _deleteLegacyRemoteNote(
-          cleanId,
-        );
+        await _deleteLegacyRemoteNote(cleanId);
 
         return;
       }
@@ -632,50 +482,22 @@ class BrainRepository {
     // COLETAR CÓPIAS HISTÓRICAS
     // ==========================================================
 
-    final notesToDelete =
-        <
-          BrainFile
-        >[];
+    final notesToDelete = <BrainFile>[];
 
     for (final note in localNotes) {
-      final sameLocalPath = _samePath(
-        note.path,
-        target.path,
-      );
+      final sameLocalPath = _samePath(note.path, target.path);
 
-      final sameHistoricalCopy = _sameNoteContent(
-        note,
-        target,
-      );
+      final sameHistoricalCopy = _sameNoteContent(note, target);
 
-      if (sameLocalPath ||
-          sameHistoricalCopy) {
-        if (!notesToDelete.any(
-          (
-            item,
-          ) => _samePath(
-            item.path,
-            note.path,
-          ),
-        )) {
-          notesToDelete.add(
-            note,
-          );
+      if (sameLocalPath || sameHistoricalCopy) {
+        if (!notesToDelete.any((item) => _samePath(item.path, note.path))) {
+          notesToDelete.add(note);
         }
       }
     }
 
-    if (!notesToDelete.any(
-      (
-        item,
-      ) => _samePath(
-        item.path,
-        target!.path,
-      ),
-    )) {
-      notesToDelete.add(
-        target,
-      );
+    if (!notesToDelete.any((item) => _samePath(item.path, target!.path))) {
+      notesToDelete.add(target);
     }
 
     // ==========================================================
@@ -691,17 +513,11 @@ class BrainRepository {
 
     final legacyRemoteIds = <String>{};
 
-    if (_looksLikeUuid(
-      cleanId,
-    )) {
-      legacyRemoteIds.add(
-        cleanId,
-      );
+    if (_looksLikeUuid(cleanId)) {
+      legacyRemoteIds.add(cleanId);
     }
 
-    if (userId !=
-            null &&
-        userId.isNotEmpty) {
+    if (userId != null && userId.isNotEmpty) {
       for (final note in notesToDelete) {
         final path = note.path.trim();
 
@@ -709,27 +525,17 @@ class BrainRepository {
           continue;
         }
 
-        legacyRemoteIds.add(
-          _remoteNoteId(
-            userId: userId,
-            localPath: path,
-          ),
-        );
+        legacyRemoteIds.add(_remoteNoteId(userId: userId, localPath: path));
       }
     }
 
     // Tombstone conceitos pertencentes às cópias removidas.
-    final conceptIds =
-        <
-          String
-        >{};
+    final conceptIds = <String>{};
 
     for (final note in notesToDelete) {
       for (final concept in note.concepts) {
         if (concept.id.trim().isNotEmpty) {
-          conceptIds.add(
-            concept.id.trim(),
-          );
+          conceptIds.add(concept.id.trim());
         }
       }
     }
@@ -745,18 +551,14 @@ class BrainRepository {
         continue;
       }
 
-      final file = File(
-        path,
-      );
+      final file = File(path);
 
       debugPrint(
         '[BRAIN REPOSITORY] '
         'Excluindo arquivo local: $path',
       );
 
-      await _local.deleteNote(
-        note,
-      );
+      await _local.deleteNote(note);
 
       if (await file.exists()) {
         await file.delete();
@@ -769,15 +571,10 @@ class BrainRepository {
         );
       }
 
-      final noteTombstone = await _noteVaultStore?.deleteNoteByPath(
-        path,
-      );
+      final noteTombstone = await _noteVaultStore?.deleteNoteByPath(path);
 
-      if (noteTombstone !=
-          null) {
-        await _brainSyncQueueService?.enqueueObject(
-          noteTombstone,
-        );
+      if (noteTombstone != null) {
+        await _brainSyncQueueService?.enqueueObject(noteTombstone);
       }
 
       debugPrint(
@@ -795,11 +592,8 @@ class BrainRepository {
         conceptId,
       );
 
-      if (conceptTombstone !=
-          null) {
-        await _brainSyncQueueService?.enqueueObject(
-          conceptTombstone,
-        );
+      if (conceptTombstone != null) {
+        await _brainSyncQueueService?.enqueueObject(conceptTombstone);
       }
     }
 
@@ -822,9 +616,7 @@ class BrainRepository {
     // ==========================================================
 
     for (final legacyRemoteId in legacyRemoteIds) {
-      await _deleteLegacyRemoteNote(
-        legacyRemoteId,
-      );
+      await _deleteLegacyRemoteNote(legacyRemoteId);
     }
 
     debugPrint(
@@ -851,25 +643,16 @@ class BrainRepository {
   //
   // ============================================================
 
-  Future<
-    void
-  >
-  _deleteLegacyRemoteNote(
-    String remoteId,
-  ) async {
+  Future<void> _deleteLegacyRemoteNote(String remoteId) async {
     final cleanRemoteId = remoteId.trim();
 
-    if (cleanRemoteId.isEmpty ||
-        !_looksLikeUuid(
-          cleanRemoteId,
-        )) {
+    if (cleanRemoteId.isEmpty || !_looksLikeUuid(cleanRemoteId)) {
       return;
     }
 
     final queue = _legacySyncQueue;
 
-    if (queue !=
-        null) {
+    if (queue != null) {
       await queue.enqueue(
         entityType: noteEntityType,
         entityId: cleanRemoteId,
@@ -897,18 +680,14 @@ class BrainRepository {
     }
 
     try {
-      await _remote.deleteNote(
-        cleanRemoteId,
-      );
+      await _remote.deleteNote(cleanRemoteId);
 
       debugPrint(
         '[BRAIN REPOSITORY] '
         'brain_notes legado removido diretamente: '
         '$cleanRemoteId',
       );
-    } catch (
-      error
-    ) {
+    } catch (error) {
       // Não propagamos:
       //
       // a exclusão local + tombstone E2EE já foi concluída.
@@ -925,13 +704,7 @@ class BrainRepository {
   // SAVE CONCEPT — VAULT / E2EE
   // ============================================================
 
-  Future<
-    Map<
-      String,
-      dynamic
-    >
-  >
-  saveConcept({
+  Future<Map<String, dynamic>> saveConcept({
     required BrainConcept concept,
     String? noteId,
   }) async {
@@ -939,22 +712,13 @@ class BrainRepository {
 
     BrainFile? note;
 
-    if (cleanNoteId !=
-            null &&
-        cleanNoteId.isNotEmpty) {
-      final localPath = _localPathFromId(
-        cleanNoteId,
-      );
+    if (cleanNoteId != null && cleanNoteId.isNotEmpty) {
+      final localPath = _localPathFromId(cleanNoteId);
 
-      if (localPath !=
-          null) {
+      if (localPath != null) {
         try {
-          note = await _local.openNote(
-            localPath,
-          );
-        } catch (
-          _
-        ) {
+          note = await _local.openNote(localPath);
+        } catch (_) {
           note = null;
         }
       }
@@ -962,30 +726,17 @@ class BrainRepository {
 
     BrainFile? updatedNote;
 
-    if (note !=
-        null) {
-      final concepts =
-          List<
-            BrainConcept
-          >.from(
-            note.concepts,
-          );
+    if (note != null) {
+      final concepts = List<BrainConcept>.from(note.concepts);
 
       final existingIndex = concepts.indexWhere(
-        (
-          item,
-        ) =>
-            item.id ==
-            concept.id,
+        (item) => item.id == concept.id,
       );
 
-      if (existingIndex >=
-          0) {
+      if (existingIndex >= 0) {
         concepts[existingIndex] = concept;
       } else {
-        concepts.add(
-          concept,
-        );
+        concepts.add(concept);
       }
 
       final updatedLocalNote = await _local.saveNote(
@@ -996,59 +747,36 @@ class BrainRepository {
         existingPath: note.path,
       );
 
-      updatedNote = await _hydrateSourcesFromVault(
-        updatedLocalNote,
-      );
+      updatedNote = await _hydrateSourcesFromVault(updatedLocalNote);
 
       final userId = currentUserId?.trim();
 
-      final legacyRemoteId =
-          userId ==
-                  null ||
-              userId.isEmpty
+      final legacyRemoteId = userId == null || userId.isEmpty
           ? null
-          : _remoteNoteId(
-              userId: userId,
-              localPath: updatedNote.path,
-            );
+          : _remoteNoteId(userId: userId, localPath: updatedNote.path);
 
       final encryptedNote = await _noteVaultStore?.saveNote(
         updatedNote,
         legacyRemoteId: legacyRemoteId,
       );
 
-      if (encryptedNote !=
-          null) {
-        await _brainSyncQueueService?.enqueueObject(
-          encryptedNote,
-        );
+      if (encryptedNote != null) {
+        await _brainSyncQueueService?.enqueueObject(encryptedNote);
       }
     }
 
     final encryptedConcept = await _conceptVaultStore?.saveConcept(
       concept: concept,
-      sourceNotePath:
-          updatedNote?.path ??
-          note?.path ??
-          cleanNoteId,
+      sourceNotePath: updatedNote?.path ?? note?.path ?? cleanNoteId,
     );
 
-    if (encryptedConcept !=
-        null) {
-      await _brainSyncQueueService?.enqueueObject(
-        encryptedConcept,
-      );
+    if (encryptedConcept != null) {
+      await _brainSyncQueueService?.enqueueObject(encryptedConcept);
     }
 
-    return <
-      String,
-      dynamic
-    >{
+    return <String, dynamic>{
       'id': concept.id,
-      'note_id':
-          updatedNote?.path ??
-          note?.path ??
-          cleanNoteId,
+      'note_id': updatedNote?.path ?? note?.path ?? cleanNoteId,
       'title': concept.title,
       'description': concept.description,
       'type': concept.type.name,
@@ -1060,54 +788,31 @@ class BrainRepository {
   // LOAD CONCEPTS
   // ============================================================
 
-  Future<
-    List<
-      BrainConcept
-    >
-  >
-  loadConcepts() {
+  Future<List<BrainConcept>> loadConcepts() {
     final store = _conceptVaultStore;
 
-    if (store !=
-        null) {
+    if (store != null) {
       return store.loadConcepts();
     }
 
     return _local.loadAllConcepts();
   }
 
-  Future<
-    List<
-      BrainConcept
-    >
-  >
-  loadConceptsByType(
-    BrainConceptType type,
-  ) {
+  Future<List<BrainConcept>> loadConceptsByType(BrainConceptType type) {
     final store = _conceptVaultStore;
 
-    if (store !=
-        null) {
-      return store.loadConceptsByType(
-        type,
-      );
+    if (store != null) {
+      return store.loadConceptsByType(type);
     }
 
-    return _local.loadConceptsByType(
-      type,
-    );
+    return _local.loadConceptsByType(type);
   }
 
   // ============================================================
   // GET CONCEPT
   // ============================================================
 
-  Future<
-    BrainConcept?
-  >
-  getConcept(
-    String id,
-  ) async {
+  Future<BrainConcept?> getConcept(String id) async {
     final cleanId = id.trim();
 
     if (cleanId.isEmpty) {
@@ -1116,14 +821,10 @@ class BrainRepository {
 
     final store = _conceptVaultStore;
 
-    if (store !=
-        null) {
-      final fromVault = await store.getConcept(
-        cleanId,
-      );
+    if (store != null) {
+      final fromVault = await store.getConcept(cleanId);
 
-      if (fromVault !=
-          null) {
+      if (fromVault != null) {
         return fromVault;
       }
     }
@@ -1131,8 +832,7 @@ class BrainRepository {
     final concepts = await _local.loadAllConcepts();
 
     for (final concept in concepts) {
-      if (concept.id ==
-          cleanId) {
+      if (concept.id == cleanId) {
         return concept;
       }
     }
@@ -1170,12 +870,7 @@ class BrainRepository {
   //
   // ============================================================
 
-  Future<
-    void
-  >
-  deleteConceptAndSourceNote(
-    String id,
-  ) async {
+  Future<void> deleteConceptAndSourceNote(String id) async {
     final cleanId = id.trim();
 
     if (cleanId.isEmpty) {
@@ -1192,11 +887,7 @@ class BrainRepository {
 
     for (final note in notes) {
       final containsConcept = note.concepts.any(
-        (
-          concept,
-        ) =>
-            concept.id ==
-            cleanId,
+        (concept) => concept.id == cleanId,
       );
 
       if (!containsConcept) {
@@ -1218,11 +909,8 @@ class BrainRepository {
     //
     // ==========================================================
 
-    if (sourceNote ==
-        null) {
-      await deleteConcept(
-        cleanId,
-      );
+    if (sourceNote == null) {
+      await deleteConcept(cleanId);
 
       return;
     }
@@ -1235,17 +923,11 @@ class BrainRepository {
       );
     }
 
-    debugPrint(
-      '[BRAIN REPOSITORY] Exclusão em cascata iniciada.',
-    );
+    debugPrint('[BRAIN REPOSITORY] Exclusão em cascata iniciada.');
 
-    debugPrint(
-      '[BRAIN REPOSITORY] Conceito: $cleanId',
-    );
+    debugPrint('[BRAIN REPOSITORY] Conceito: $cleanId');
 
-    debugPrint(
-      '[BRAIN REPOSITORY] Nota de origem: $sourcePath',
-    );
+    debugPrint('[BRAIN REPOSITORY] Nota de origem: $sourcePath');
 
     // ==========================================================
     // 1. EXCLUIR TODAS AS CLASSIFICAÇÕES DA NOTA
@@ -1256,9 +938,7 @@ class BrainRepository {
     //
     // ==========================================================
 
-    await deleteConceptsByNoteId(
-      sourcePath,
-    );
+    await deleteConceptsByNoteId(sourcePath);
 
     // ==========================================================
     // 2. EXCLUIR A ANOTAÇÃO FÍSICA
@@ -1268,9 +948,7 @@ class BrainRepository {
     //
     // ==========================================================
 
-    await deleteNote(
-      sourcePath,
-    );
+    await deleteNote(sourcePath);
 
     // ==========================================================
     // 3. CONFIRMAÇÃO FINAL
@@ -1279,12 +957,7 @@ class BrainRepository {
     final remaining = await _local.loadNotes();
 
     final stillExists = remaining.any(
-      (
-        note,
-      ) => _samePath(
-        note.path,
-        sourcePath,
-      ),
+      (note) => _samePath(note.path, sourcePath),
     );
 
     if (stillExists) {
@@ -1293,21 +966,14 @@ class BrainRepository {
       );
     }
 
-    debugPrint(
-      '[BRAIN REPOSITORY] Exclusão em cascata concluída.',
-    );
+    debugPrint('[BRAIN REPOSITORY] Exclusão em cascata concluída.');
   }
 
   // ============================================================
   // DELETE CONCEPT — TOMBSTONE E2EE
   // ============================================================
 
-  Future<
-    void
-  >
-  deleteConcept(
-    String id,
-  ) async {
+  Future<void> deleteConcept(String id) async {
     final cleanId = id.trim();
 
     if (cleanId.isEmpty) {
@@ -1317,26 +983,14 @@ class BrainRepository {
     final notes = await _local.loadNotes();
 
     for (final note in notes) {
-      final contains = note.concepts.any(
-        (
-          concept,
-        ) =>
-            concept.id ==
-            cleanId,
-      );
+      final contains = note.concepts.any((concept) => concept.id == cleanId);
 
       if (!contains) {
         continue;
       }
 
       final updatedConcepts = note.concepts
-          .where(
-            (
-              concept,
-            ) =>
-                concept.id !=
-                cleanId,
-          )
+          .where((concept) => concept.id != cleanId)
           .toList();
 
       final updatedLocalNote = await _local.saveNote(
@@ -1347,44 +1001,28 @@ class BrainRepository {
         existingPath: note.path,
       );
 
-      final updatedNote = await _hydrateSourcesFromVault(
-        updatedLocalNote,
-      );
+      final updatedNote = await _hydrateSourcesFromVault(updatedLocalNote);
 
       final userId = currentUserId?.trim();
 
-      final legacyRemoteId =
-          userId ==
-                  null ||
-              userId.isEmpty
+      final legacyRemoteId = userId == null || userId.isEmpty
           ? null
-          : _remoteNoteId(
-              userId: userId,
-              localPath: updatedNote.path,
-            );
+          : _remoteNoteId(userId: userId, localPath: updatedNote.path);
 
       final encryptedNote = await _noteVaultStore?.saveNote(
         updatedNote,
         legacyRemoteId: legacyRemoteId,
       );
 
-      if (encryptedNote !=
-          null) {
-        await _brainSyncQueueService?.enqueueObject(
-          encryptedNote,
-        );
+      if (encryptedNote != null) {
+        await _brainSyncQueueService?.enqueueObject(encryptedNote);
       }
     }
 
-    final tombstone = await _conceptVaultStore?.deleteConcept(
-      cleanId,
-    );
+    final tombstone = await _conceptVaultStore?.deleteConcept(cleanId);
 
-    if (tombstone !=
-        null) {
-      await _brainSyncQueueService?.enqueueObject(
-        tombstone,
-      );
+    if (tombstone != null) {
+      await _brainSyncQueueService?.enqueueObject(tombstone);
     }
   }
 
@@ -1392,108 +1030,66 @@ class BrainRepository {
   // DELETE CONCEPTS BY NOTE
   // ============================================================
 
-  Future<
-    void
-  >
-  deleteConceptsByNoteId(
-    String noteId,
-  ) async {
+  Future<void> deleteConceptsByNoteId(String noteId) async {
     final cleanNoteId = noteId.trim();
 
     if (cleanNoteId.isEmpty) {
       return;
     }
 
-    final localPath = _localPathFromId(
-      cleanNoteId,
-    );
+    final localPath = _localPathFromId(cleanNoteId);
 
-    if (localPath ==
-        null) {
+    if (localPath == null) {
       return;
     }
 
     BrainFile? note;
 
     try {
-      note = await _local.openNote(
-        localPath,
-      );
-    } catch (
-      _
-    ) {
+      note = await _local.openNote(localPath);
+    } catch (_) {
       note = null;
     }
 
-    if (note ==
-        null) {
+    if (note == null) {
       return;
     }
 
     final conceptIds = note.concepts
-        .map(
-          (
-            concept,
-          ) => concept.id.trim(),
-        )
-        .where(
-          (
-            id,
-          ) => id.isNotEmpty,
-        )
-        .toList(
-          growable: false,
-        );
+        .map((concept) => concept.id.trim())
+        .where((id) => id.isNotEmpty)
+        .toList(growable: false);
 
     final updatedLocalNote = await _local.saveNote(
       topic: note.topic,
       title: note.title,
       content: note.content,
-      concepts:
-          const <
-            BrainConcept
-          >[],
+      concepts: const <BrainConcept>[],
       existingPath: note.path,
     );
 
-    final updatedNote = await _hydrateSourcesFromVault(
-      updatedLocalNote,
-    );
+    final updatedNote = await _hydrateSourcesFromVault(updatedLocalNote);
 
     final userId = currentUserId?.trim();
 
-    final legacyRemoteId =
-        userId ==
-                null ||
-            userId.isEmpty
+    final legacyRemoteId = userId == null || userId.isEmpty
         ? null
-        : _remoteNoteId(
-            userId: userId,
-            localPath: updatedNote.path,
-          );
+        : _remoteNoteId(userId: userId, localPath: updatedNote.path);
 
     final encryptedNote = await _noteVaultStore?.saveNote(
       updatedNote,
       legacyRemoteId: legacyRemoteId,
     );
 
-    if (encryptedNote !=
-        null) {
-      await _brainSyncQueueService?.enqueueObject(
-        encryptedNote,
-      );
+    if (encryptedNote != null) {
+      await _brainSyncQueueService?.enqueueObject(encryptedNote);
     }
 
     for (final conceptId in conceptIds) {
-      final tombstone = await _conceptVaultStore?.deleteConcept(
-        conceptId,
-      );
+      final tombstone = await _conceptVaultStore?.deleteConcept(conceptId);
 
-      if (tombstone !=
-          null) {
-        await _brainSyncQueueService?.enqueueObject(
-          tombstone,
-        );
+      if (tombstone != null) {
+        await _brainSyncQueueService?.enqueueObject(tombstone);
       }
     }
   }
@@ -1515,69 +1111,39 @@ class BrainRepository {
   //
   // ============================================================
 
-  Future<
-    List<
-      BrainSource
-    >
-  >
-  getSourcesByNote(
-    String noteId,
-  ) async {
-    final note = await _findNoteWithSources(
-      noteId,
-    );
+  Future<List<BrainSource>> getSourcesByNote(String noteId) async {
+    final note = await _findNoteWithSources(noteId);
 
-    if (note ==
-        null) {
-      return const <
-        BrainSource
-      >[];
+    if (note == null) {
+      return const <BrainSource>[];
     }
 
-    return List<
-      BrainSource
-    >.unmodifiable(
-      note.sources,
-    );
+    return List<BrainSource>.unmodifiable(note.sources);
   }
 
   // ============================================================
   // ADD SOURCE TO NOTE
   // ============================================================
 
-  Future<
-    BrainFile
-  >
-  addSourceToNote({
+  Future<BrainFile> addSourceToNote({
     required String noteId,
     required BrainSource source,
   }) async {
     if (!source.isValid) {
-      throw const FormatException(
-        'A fonte informada é inválida.',
-      );
+      throw const FormatException('A fonte informada é inválida.');
     }
 
-    final note = await _requireNoteWithSources(
-      noteId,
-    );
+    final note = await _requireNoteWithSources(noteId);
 
-    final updatedNote = note.addSource(
-      source,
-    );
+    final updatedNote = note.addSource(source);
 
     // Se addSource detectou duplicação, não criamos uma nova
     // versão criptografada desnecessariamente.
-    if (identical(
-      updatedNote,
-      note,
-    )) {
+    if (identical(updatedNote, note)) {
       return note;
     }
 
-    await _persistSourceUpdatedNote(
-      updatedNote,
-    );
+    await _persistSourceUpdatedNote(updatedNote);
 
     return updatedNote;
   }
@@ -1586,40 +1152,25 @@ class BrainRepository {
   // UPDATE SOURCE IN NOTE
   // ============================================================
 
-  Future<
-    BrainFile
-  >
-  updateSourceInNote({
+  Future<BrainFile> updateSourceInNote({
     required String noteId,
     required BrainSource source,
   }) async {
     if (!source.isValid) {
-      throw const FormatException(
-        'A fonte informada é inválida.',
-      );
+      throw const FormatException('A fonte informada é inválida.');
     }
 
-    final note = await _requireNoteWithSources(
-      noteId,
-    );
+    final note = await _requireNoteWithSources(noteId);
 
-    if (!note.hasSourceId(
-      source.id,
-    )) {
-      throw StateError(
-        'A fonte não existe nesta anotação.',
-      );
+    if (!note.hasSourceId(source.id)) {
+      throw StateError('A fonte não existe nesta anotação.');
     }
 
     final updatedSource = source.touch();
 
-    final updatedNote = note.updateSource(
-      updatedSource,
-    );
+    final updatedNote = note.updateSource(updatedSource);
 
-    await _persistSourceUpdatedNote(
-      updatedNote,
-    );
+    await _persistSourceUpdatedNote(updatedNote);
 
     return updatedNote;
   }
@@ -1628,10 +1179,7 @@ class BrainRepository {
   // REMOVE SOURCE FROM NOTE
   // ============================================================
 
-  Future<
-    BrainFile
-  >
-  removeSourceFromNote({
+  Future<BrainFile> removeSourceFromNote({
     required String noteId,
     required String sourceId,
   }) async {
@@ -1643,23 +1191,15 @@ class BrainRepository {
       );
     }
 
-    final note = await _requireNoteWithSources(
-      noteId,
-    );
+    final note = await _requireNoteWithSources(noteId);
 
-    if (!note.hasSourceId(
-      cleanSourceId,
-    )) {
+    if (!note.hasSourceId(cleanSourceId)) {
       return note;
     }
 
-    final updatedNote = note.removeSourceById(
-      cleanSourceId,
-    );
+    final updatedNote = note.removeSourceById(cleanSourceId);
 
-    await _persistSourceUpdatedNote(
-      updatedNote,
-    );
+    await _persistSourceUpdatedNote(updatedNote);
 
     return updatedNote;
   }
@@ -1668,15 +1208,8 @@ class BrainRepository {
   // CLEAR SOURCES FROM NOTE
   // ============================================================
 
-  Future<
-    BrainFile
-  >
-  clearSourcesFromNote(
-    String noteId,
-  ) async {
-    final note = await _requireNoteWithSources(
-      noteId,
-    );
+  Future<BrainFile> clearSourcesFromNote(String noteId) async {
+    final note = await _requireNoteWithSources(noteId);
 
     if (!note.hasSources) {
       return note;
@@ -1684,9 +1217,7 @@ class BrainRepository {
 
     final updatedNote = note.clearSources();
 
-    await _persistSourceUpdatedNote(
-      updatedNote,
-    );
+    await _persistSourceUpdatedNote(updatedNote);
 
     return updatedNote;
   }
@@ -1695,21 +1226,11 @@ class BrainRepository {
   // REQUIRE NOTE WITH SOURCES
   // ============================================================
 
-  Future<
-    BrainFile
-  >
-  _requireNoteWithSources(
-    String noteId,
-  ) async {
-    final note = await _findNoteWithSources(
-      noteId,
-    );
+  Future<BrainFile> _requireNoteWithSources(String noteId) async {
+    final note = await _findNoteWithSources(noteId);
 
-    if (note ==
-        null) {
-      throw StateError(
-        'Não foi possível localizar a anotação.',
-      );
+    if (note == null) {
+      throw StateError('Não foi possível localizar a anotação.');
     }
 
     return note;
@@ -1726,63 +1247,41 @@ class BrainRepository {
   //
   // ============================================================
 
-  Future<
-    BrainFile?
-  >
-  _findNoteWithSources(
-    String noteId,
-  ) async {
+  Future<BrainFile?> _findNoteWithSources(String noteId) async {
     final cleanId = noteId.trim();
 
     if (cleanId.isEmpty) {
       return null;
     }
 
-    final directPath = _localPathFromId(
-      cleanId,
-    );
+    final directPath = _localPathFromId(cleanId);
 
-    if (directPath !=
-        null) {
+    if (directPath != null) {
       try {
-        final localNote = await _local.openNote(
-          directPath,
-        );
+        final localNote = await _local.openNote(directPath);
 
-        return _hydrateSourcesFromVault(
-          localNote,
-        );
-      } catch (
-        _
-      ) {
+        return _hydrateSourcesFromVault(localNote);
+      } catch (_) {
         return null;
       }
     }
 
     final userId = currentUserId?.trim();
 
-    if (userId ==
-            null ||
-        userId.isEmpty) {
+    if (userId == null || userId.isEmpty) {
       return null;
     }
 
     final localNotes = await _local.loadNotes();
 
     for (final localNote in localNotes) {
-      final remoteId = _remoteNoteId(
-        userId: userId,
-        localPath: localNote.path,
-      );
+      final remoteId = _remoteNoteId(userId: userId, localPath: localNote.path);
 
-      if (remoteId !=
-          cleanId) {
+      if (remoteId != cleanId) {
         continue;
       }
 
-      return _hydrateSourcesFromVault(
-        localNote,
-      );
+      return _hydrateSourcesFromVault(localNote);
     }
 
     return null;
@@ -1802,41 +1301,25 @@ class BrainRepository {
   //
   // ============================================================
 
-  Future<
-    void
-  >
-  _persistSourceUpdatedNote(
-    BrainFile note,
-  ) async {
+  Future<void> _persistSourceUpdatedNote(BrainFile note) async {
     final store = _noteVaultStore;
 
-    if (store ==
-        null) {
-      throw StateError(
-        'BrainNoteVaultStore não está disponível.',
-      );
+    if (store == null) {
+      throw StateError('BrainNoteVaultStore não está disponível.');
     }
 
     final userId = currentUserId?.trim();
 
-    final legacyRemoteId =
-        userId ==
-                null ||
-            userId.isEmpty
+    final legacyRemoteId = userId == null || userId.isEmpty
         ? null
-        : _remoteNoteId(
-            userId: userId,
-            localPath: note.path,
-          );
+        : _remoteNoteId(userId: userId, localPath: note.path);
 
     final encryptedObject = await store.saveNote(
       note,
       legacyRemoteId: legacyRemoteId,
     );
 
-    await _brainSyncQueueService?.enqueueObject(
-      encryptedObject,
-    );
+    await _brainSyncQueueService?.enqueueObject(encryptedObject);
 
     debugPrint(
       '[BRAIN REPOSITORY] '
@@ -1849,48 +1332,20 @@ class BrainRepository {
   // SHORTCUTS
   // ============================================================
 
-  Future<
-    List<
-      BrainConcept
-    >
-  >
-  loadOnlyConcepts() {
-    return loadConceptsByType(
-      BrainConceptType.concept,
-    );
+  Future<List<BrainConcept>> loadOnlyConcepts() {
+    return loadConceptsByType(BrainConceptType.concept);
   }
 
-  Future<
-    List<
-      BrainConcept
-    >
-  >
-  loadQuestions() {
-    return loadConceptsByType(
-      BrainConceptType.question,
-    );
+  Future<List<BrainConcept>> loadQuestions() {
+    return loadConceptsByType(BrainConceptType.question);
   }
 
-  Future<
-    List<
-      BrainConcept
-    >
-  >
-  loadExamples() {
-    return loadConceptsByType(
-      BrainConceptType.example,
-    );
+  Future<List<BrainConcept>> loadExamples() {
+    return loadConceptsByType(BrainConceptType.example);
   }
 
-  Future<
-    List<
-      BrainConcept
-    >
-  >
-  loadWarnings() {
-    return loadConceptsByType(
-      BrainConceptType.warning,
-    );
+  Future<List<BrainConcept>> loadWarnings() {
+    return loadConceptsByType(BrainConceptType.warning);
   }
 
   // ============================================================
@@ -1910,15 +1365,7 @@ class BrainRepository {
   //
   // ============================================================
 
-  Future<
-    List<
-      Map<
-        String,
-        dynamic
-      >
-    >
-  >
-  loadRemoteNotes() {
+  Future<List<Map<String, dynamic>>> loadRemoteNotes() {
     return _remote.loadNotes();
   }
 
@@ -1944,16 +1391,10 @@ class BrainRepository {
   //
   // ============================================================
 
-  Future<
-    BrainFile
-  >
-  _hydrateSourcesFromVault(
-    BrainFile note,
-  ) async {
+  Future<BrainFile> _hydrateSourcesFromVault(BrainFile note) async {
     final store = _noteVaultStore;
 
-    if (store ==
-        null) {
+    if (store == null) {
       return note;
     }
 
@@ -1964,21 +1405,14 @@ class BrainRepository {
     }
 
     try {
-      final vaultNote = await store.getNoteByPath(
-        path,
-      );
+      final vaultNote = await store.getNoteByPath(path);
 
-      if (vaultNote ==
-          null) {
+      if (vaultNote == null) {
         return note;
       }
 
-      return note.copyWith(
-        sources: vaultNote.sources,
-      );
-    } catch (
-      error
-    ) {
+      return note.copyWith(sources: vaultNote.sources);
+    } catch (error) {
       debugPrint(
         '[BRAIN REPOSITORY] '
         'Não foi possível hidratar fontes do Vault: $error',
@@ -1992,19 +1426,12 @@ class BrainRepository {
   // NOTE -> CONTROLLER ROW
   // ============================================================
 
-  Map<
-    String,
-    dynamic
-  >
-  _noteToRow(
+  Map<String, dynamic> _noteToRow(
     BrainFile note, {
     String? remoteId,
     String? userId,
   }) {
-    return <
-      String,
-      dynamic
-    >{
+    return <String, dynamic>{
       // BrainController.path recebe o caminho local.
       'id': note.path,
 
@@ -2029,16 +1456,10 @@ class BrainRepository {
       //
       // ========================================================
       'sources': note.sources
-          .map(
-            (
-              source,
-            ) {
-              return source.toJson();
-            },
-          )
-          .toList(
-            growable: false,
-          ),
+          .map((source) {
+            return source.toJson();
+          })
+          .toList(growable: false),
 
       'created_at': note.createdAt.toUtc().toIso8601String(),
 
@@ -2050,20 +1471,12 @@ class BrainRepository {
   // SAME PATH
   // ============================================================
 
-  bool _samePath(
-    String first,
-    String second,
-  ) {
-    final firstPath = File(
-      first,
-    ).absolute.path;
+  bool _samePath(String first, String second) {
+    final firstPath = File(first).absolute.path;
 
-    final secondPath = File(
-      second,
-    ).absolute.path;
+    final secondPath = File(second).absolute.path;
 
-    return firstPath ==
-        secondPath;
+    return firstPath == secondPath;
   }
 
   // ============================================================
@@ -2081,36 +1494,24 @@ class BrainRepository {
   //
   // ============================================================
 
-  bool _sameNoteContent(
-    BrainFile first,
-    BrainFile second,
-  ) {
-    return first.topic.trim() ==
-            second.topic.trim() &&
-        first.title.trim() ==
-            second.title.trim() &&
-        first.content.trim() ==
-            second.content.trim();
+  bool _sameNoteContent(BrainFile first, BrainFile second) {
+    return first.topic.trim() == second.topic.trim() &&
+        first.title.trim() == second.title.trim() &&
+        first.content.trim() == second.content.trim();
   }
 
   // ============================================================
   // LOCAL PATH
   // ============================================================
 
-  String? _localPathFromId(
-    String? value,
-  ) {
+  String? _localPathFromId(String? value) {
     final clean = value?.trim();
 
-    if (clean ==
-            null ||
-        clean.isEmpty) {
+    if (clean == null || clean.isEmpty) {
       return null;
     }
 
-    if (!clean.toLowerCase().endsWith(
-      '.md',
-    )) {
+    if (!clean.toLowerCase().endsWith('.md')) {
       return null;
     }
 
@@ -2129,27 +1530,15 @@ class BrainRepository {
     final cleanOriginal = originalId?.trim();
 
     // Preserva UUID remoto antigo durante migração.
-    if (cleanOriginal !=
-            null &&
-        _looksLikeUuid(
-          cleanOriginal,
-        )) {
+    if (cleanOriginal != null && _looksLikeUuid(cleanOriginal)) {
       return cleanOriginal;
     }
 
-    return _remoteNoteId(
-      userId: userId,
-      localPath: localPath,
-    );
+    return _remoteNoteId(userId: userId, localPath: localPath);
   }
 
-  String _remoteNoteId({
-    required String userId,
-    required String localPath,
-  }) {
-    return _deterministicUuid(
-      '$userId|$localPath',
-    );
+  String _remoteNoteId({required String userId, required String localPath}) {
+    return _deterministicUuid('$userId|$localPath');
   }
 
   // ============================================================
@@ -2163,24 +1552,14 @@ class BrainRepository {
   //
   // ============================================================
 
-  String _deterministicUuid(
-    String seed,
-  ) {
-    final a = _fnv32(
-      'a|$seed',
-    );
+  String _deterministicUuid(String seed) {
+    final a = _fnv32('a|$seed');
 
-    final b = _fnv32(
-      'b|$seed',
-    );
+    final b = _fnv32('b|$seed');
 
-    final c = _fnv32(
-      'c|$seed',
-    );
+    final c = _fnv32('c|$seed');
 
-    final d = _fnv32(
-      'd|$seed',
-    );
+    final d = _fnv32('d|$seed');
 
     final hex =
         '${_hex32(a)}'
@@ -2203,67 +1582,37 @@ class BrainRepository {
         '${versioned.substring(20, 32)}';
   }
 
-  int _fnv32(
-    String value,
-  ) {
+  int _fnv32(String value) {
     var hash = 0x811C9DC5;
 
     for (final unit in value.codeUnits) {
       hash ^= unit;
 
-      hash =
-          (hash *
-              0x01000193) &
-          0xFFFFFFFF;
+      hash = (hash * 0x01000193) & 0xFFFFFFFF;
     }
 
     return hash;
   }
 
-  String _hex32(
-    int value,
-  ) {
-    return value
-        .toRadixString(
-          16,
-        )
-        .padLeft(
-          8,
-          '0',
-        );
+  String _hex32(int value) {
+    return value.toRadixString(16).padLeft(8, '0');
   }
 
-  String _variantNibble(
-    String original,
-  ) {
-    final value =
-        int.tryParse(
-          original,
-          radix: 16,
-        ) ??
-        0;
+  String _variantNibble(String original) {
+    final value = int.tryParse(original, radix: 16) ?? 0;
 
-    final variant =
-        (value &
-            0x3) |
-        0x8;
+    final variant = (value & 0x3) | 0x8;
 
-    return variant.toRadixString(
-      16,
-    );
+    return variant.toRadixString(16);
   }
 
-  bool _looksLikeUuid(
-    String value,
-  ) {
+  bool _looksLikeUuid(String value) {
     return RegExp(
       r'^[0-9a-fA-F]{8}-'
       r'[0-9a-fA-F]{4}-'
       r'[0-9a-fA-F]{4}-'
       r'[0-9a-fA-F]{4}-'
       r'[0-9a-fA-F]{12}$',
-    ).hasMatch(
-      value.trim(),
-    );
+    ).hasMatch(value.trim());
   }
 }
