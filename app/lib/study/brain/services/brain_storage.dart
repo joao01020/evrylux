@@ -330,12 +330,23 @@ class BrainStorage {
   }
 
   // ============================================================
-  // SAVE NOTE LOCALLY
+  // SAVE NOTE LOCALLY — FASE 09
+  // ============================================================
   //
   // Persistência local principal do módulo Cérebro.
   //
+  // A partir da Fase 09:
+  //
+  // - Tema NÃO é obrigatório;
+  // - novas anotações NÃO são organizadas em pastas por tema;
+  // - novos Markdown NÃO gravam "tema:" nem "**Tema:**";
+  // - arquivos antigos com Tema continuam sendo lidos normalmente;
+  // - o parâmetro topic permanece temporariamente na assinatura
+  //   apenas para compatibilidade com camadas ainda em migração.
+  //
   // O Supabase é alimentado posteriormente pela SyncQueue /
   // SyncService quando houver conexão.
+  //
   // ============================================================
 
   Future<
@@ -351,17 +362,29 @@ class BrainStorage {
     concepts,
     String? existingPath,
   }) async {
-    final cleanTopic = topic.trim();
+    // ========================================================
+    // FASE 09 — TOPIC LEGADO
+    // ========================================================
+    //
+    // Topic pode estar vazio.
+    //
+    // BrainFile ainda possui o campo por compatibilidade, então
+    // preservamos o valor antigo quando existir e usamos
+    // "Sem tema" somente em memória quando não existir.
+    //
+    // O Markdown novo NÃO persiste esse valor.
+    //
+    // ========================================================
+
+    final rawTopic = topic.trim();
+
+    final effectiveTopic = rawTopic.isEmpty
+        ? 'Sem tema'
+        : rawTopic;
 
     final cleanTitle = title.trim();
 
     final cleanContent = content.trim();
-
-    if (cleanTopic.isEmpty) {
-      throw const FormatException(
-        'Informe o tema da anotação.',
-      );
-    }
 
     if (cleanTitle.isEmpty) {
       throw const FormatException(
@@ -377,16 +400,6 @@ class BrainStorage {
 
     final root = await getBrainDirectory();
 
-    final topicDirectory = Directory(
-      '${root.path}/${_sanitizeName(cleanTopic)}',
-    );
-
-    if (!await topicDirectory.exists()) {
-      await topicDirectory.create(
-        recursive: true,
-      );
-    }
-
     final hasExistingPath =
         existingPath !=
             null &&
@@ -395,9 +408,23 @@ class BrainStorage {
           '.md',
         );
 
+    // ========================================================
+    // NOVOS ARQUIVOS SEM PASTA DE TEMA
+    // ========================================================
+    //
+    // O sufixo temporal evita colisão quando o usuário possuir
+    // duas capturas diferentes com o mesmo título.
+    //
+    // Edições continuam usando existingPath e portanto mantêm o
+    // mesmo arquivo.
+    //
+    // ========================================================
+
     final path = hasExistingPath
         ? existingPath.trim()
-        : '${topicDirectory.path}/${_sanitizeName(cleanTitle)}.md';
+        : '${root.path}/'
+            '${_sanitizeName(cleanTitle)}-'
+            '${DateTime.now().microsecondsSinceEpoch}.md';
 
     final file = File(
       path,
@@ -454,7 +481,6 @@ class BrainStorage {
         );
 
     final markdown = _createMarkdown(
-      topic: cleanTopic,
       title: cleanTitle,
       content: cleanContent,
       concepts: conceptsCopy,
@@ -477,7 +503,6 @@ class BrainStorage {
 
       await _syncConceptFiles(
         notePath: file.path,
-        topic: cleanTopic,
         noteTitle: cleanTitle,
         concepts: conceptsCopy,
       );
@@ -497,7 +522,8 @@ class BrainStorage {
       );
 
       return BrainFile(
-        topic: cleanTopic,
+        // Campo legado mantido somente no modelo atual.
+        topic: effectiveTopic,
         title: cleanTitle,
         path: file.path,
         content: cleanContent,
@@ -533,6 +559,8 @@ class BrainStorage {
     File
   >
   saveBackup({
+    // Mantido temporariamente por compatibilidade de API.
+    // O novo Markdown de backup não persiste Tema.
     required String topic,
     required String title,
     required String content,
@@ -541,6 +569,10 @@ class BrainStorage {
     >
     concepts,
   }) async {
+    // Topic é ignorado no novo formato, mas mantemos a assinatura
+    // durante a migração gradual da Fase 09.
+    topic.trim();
+
     final directory = await getBackupDirectory();
 
     final timestamp = DateTime.now().millisecondsSinceEpoch;
@@ -553,7 +585,6 @@ class BrainStorage {
     final now = DateTime.now();
 
     final markdown = _createMarkdown(
-      topic: topic.trim(),
       title: title.trim(),
       content: content.trim(),
       concepts: concepts,
@@ -579,7 +610,6 @@ class BrainStorage {
   >
   _syncConceptFiles({
     required String notePath,
-    required String topic,
     required String noteTitle,
     required List<
       BrainConcept
@@ -596,7 +626,6 @@ class BrainStorage {
       await _saveConceptFile(
         concept: concept,
         notePath: notePath,
-        topic: topic,
         noteTitle: noteTitle,
       );
     }
@@ -612,7 +641,6 @@ class BrainStorage {
   _saveConceptFile({
     required BrainConcept concept,
     required String notePath,
-    required String topic,
     required String noteTitle,
   }) async {
     final directory = await getConceptTypeDirectory(
@@ -635,7 +663,6 @@ class BrainStorage {
       _createConceptMarkdown(
         concept: concept,
         notePath: notePath,
-        topic: topic,
         noteTitle: noteTitle,
       ),
       encoding: utf8,
@@ -652,7 +679,6 @@ class BrainStorage {
   String _createConceptMarkdown({
     required BrainConcept concept,
     required String notePath,
-    required String topic,
     required String noteTitle,
   }) {
     final encodedSource = base64Url.encode(
@@ -667,7 +693,6 @@ tipo: ${concept.type.name}
 categoria: ${concept.label}
 emoji: ${concept.emoji}
 pasta: ${concept.folderName}
-tema: $topic
 anotacao: $noteTitle
 origem: $encodedSource
 atualizado_em: ${DateTime.now().toIso8601String()}
@@ -1370,7 +1395,6 @@ ${concept.description}
   // ============================================================
 
   String _createMarkdown({
-    required String topic,
     required String title,
     required String content,
     required List<
@@ -1394,8 +1418,17 @@ ${concept.description}
       concepts,
     );
 
+    // ========================================================
+    // FASE 09 — NOVO FORMATO SEM TEMA
+    // ========================================================
+    //
+    // Não removemos suporte de leitura do formato antigo.
+    //
+    // Apenas novas gravações deixam de persistir Tema.
+    //
+    // ========================================================
+
     return '''---
-tema: $topic
 titulo: $title
 criado_em: ${effectiveCreatedAt.toUtc().toIso8601String()}
 atualizado_em: ${effectiveUpdatedAt.toUtc().toIso8601String()}
@@ -1403,8 +1436,6 @@ conceitos: $encodedConcepts
 ---
 
 # $title
-
-**Tema:** $topic
 
 $content
 ''';
@@ -1436,6 +1467,21 @@ $content
           '\r',
           '\n',
         );
+
+    // ========================================================
+    // COMPATIBILIDADE COM ARQUIVOS ANTIGOS
+    // ========================================================
+    //
+    // Novos arquivos não possuem Tema.
+    //
+    // Ainda lemos:
+    //
+    // - metadata "tema:";
+    // - linha "**Tema:**";
+    //
+    // para que todo conteúdo já criado continue funcionando.
+    //
+    // ========================================================
 
     var topic = 'Sem tema';
 

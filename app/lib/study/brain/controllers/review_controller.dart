@@ -8,20 +8,13 @@ import '../repositories/review_repository.dart';
 // RESULTADO DA REVISÃO
 // ============================================================
 
-enum ReviewAnswer {
-  again,
-  hard,
-  good,
-  easy,
-}
+enum ReviewAnswer { again, hard, good, easy }
 
 // ============================================================
 // EXTENSÃO
 // ============================================================
 
-extension ReviewAnswerExtension
-    on
-        ReviewAnswer {
+extension ReviewAnswerExtension on ReviewAnswer {
   String get label {
     switch (this) {
       case ReviewAnswer.again:
@@ -43,12 +36,9 @@ extension ReviewAnswerExtension
 // CONTROLLER
 // ============================================================
 
-class ReviewController
-    extends
-        ChangeNotifier {
-  ReviewController({
-    required ReviewRepository repository,
-  }) : _repository = repository;
+class ReviewController extends ChangeNotifier {
+  ReviewController({required ReviewRepository repository})
+    : _repository = repository;
 
   final ReviewRepository _repository;
 
@@ -64,10 +54,7 @@ class ReviewController
 
   String? _successMessage;
 
-  List<
-    BrainReviewItem
-  >
-  _reviews = [];
+  List<BrainReviewItem> _reviews = [];
 
   // ============================================================
   // GETTERS
@@ -89,83 +76,48 @@ class ReviewController
     return _successMessage;
   }
 
-  List<
-    BrainReviewItem
-  >
-  get reviews {
-    return List.unmodifiable(
-      _reviews,
-    );
+  List<BrainReviewItem> get reviews {
+    return List.unmodifiable(_reviews);
   }
 
   // ============================================================
   // ATIVAS
   // ============================================================
 
-  List<
-    BrainReviewItem
-  >
-  get activeReviews {
-    return _reviews.where(
-      (
-        review,
-      ) {
-        return !review.archived;
-      },
-    ).toList();
+  List<BrainReviewItem> get activeReviews {
+    return _reviews.where((review) {
+      return !review.archived;
+    }).toList();
   }
 
   // ============================================================
   // ARQUIVADAS
   // ============================================================
 
-  List<
-    BrainReviewItem
-  >
-  get archivedReviews {
-    return _reviews.where(
-      (
-        review,
-      ) {
-        return review.archived;
-      },
-    ).toList();
+  List<BrainReviewItem> get archivedReviews {
+    return _reviews.where((review) {
+      return review.archived;
+    }).toList();
   }
 
   // ============================================================
   // REVISÕES DEVIDAS
   // ============================================================
 
-  List<
-    BrainReviewItem
-  >
-  get dueReviews {
+  List<BrainReviewItem> get dueReviews {
     final now = DateTime.now();
 
-    final result = _reviews.where(
-      (
-        review,
-      ) {
-        if (review.archived) {
-          return false;
-        }
+    final result = _reviews.where((review) {
+      if (review.archived) {
+        return false;
+      }
 
-        return !review.nextReviewAt.isAfter(
-          now,
-        );
-      },
-    ).toList();
+      return !review.nextReviewAt.isAfter(now);
+    }).toList();
 
-    result.sort(
-      (
-        first,
-        second,
-      ) {
-        return first.nextReviewAt.compareTo(
-          second.nextReviewAt,
-        );
-      },
-    );
+    result.sort((first, second) {
+      return first.nextReviewAt.compareTo(second.nextReviewAt);
+    });
 
     return result;
   }
@@ -174,36 +126,88 @@ class ReviewController
   // PRÓXIMAS
   // ============================================================
 
-  List<
-    BrainReviewItem
-  >
-  get upcomingReviews {
+  List<BrainReviewItem> get upcomingReviews {
     final now = DateTime.now();
 
-    final result = _reviews.where(
-      (
-        review,
-      ) {
-        if (review.archived) {
-          return false;
-        }
+    final result = _reviews.where((review) {
+      if (review.archived) {
+        return false;
+      }
 
-        return review.nextReviewAt.isAfter(
-          now,
-        );
-      },
-    ).toList();
+      return review.nextReviewAt.isAfter(now);
+    }).toList();
 
-    result.sort(
-      (
-        first,
-        second,
-      ) {
-        return first.nextReviewAt.compareTo(
-          second.nextReviewAt,
-        );
-      },
-    );
+    result.sort((first, second) {
+      return first.nextReviewAt.compareTo(second.nextReviewAt);
+    });
+
+    return result;
+  }
+
+  // ============================================================
+  // FASE 10 — AGRUPAMENTOS CONSOLIDADOS POR DATA
+  // ============================================================
+  //
+  // Estes getters são a fonte única para a UI distinguir:
+  //
+  // - revisões atrasadas;
+  // - revisões programadas para hoje;
+  // - revisões futuras.
+  //
+  // A tela não precisa mais duplicar essa regra.
+  //
+  // ============================================================
+
+  List<BrainReviewItem> get overdueReviews {
+    final today = _startOfDay(DateTime.now());
+
+    final result = _reviews.where((review) {
+      if (review.archived) {
+        return false;
+      }
+
+      return review.nextReviewAt.toLocal().isBefore(today);
+    }).toList();
+
+    result.sort((first, second) {
+      return first.nextReviewAt.compareTo(second.nextReviewAt);
+    });
+
+    return result;
+  }
+
+  List<BrainReviewItem> get todayReviews {
+    final now = DateTime.now();
+
+    final result = _reviews.where((review) {
+      if (review.archived) {
+        return false;
+      }
+
+      return _isSameDay(review.nextReviewAt, now);
+    }).toList();
+
+    result.sort((first, second) {
+      return first.nextReviewAt.compareTo(second.nextReviewAt);
+    });
+
+    return result;
+  }
+
+  List<BrainReviewItem> get futureReviews {
+    final tomorrow = _startOfDay(DateTime.now()).add(const Duration(days: 1));
+
+    final result = _reviews.where((review) {
+      if (review.archived) {
+        return false;
+      }
+
+      return !review.nextReviewAt.toLocal().isBefore(tomorrow);
+    }).toList();
+
+    result.sort((first, second) {
+      return first.nextReviewAt.compareTo(second.nextReviewAt);
+    });
 
     return result;
   }
@@ -211,6 +215,18 @@ class ReviewController
   // ============================================================
   // CONTADORES
   // ============================================================
+
+  int get overdueCount {
+    return overdueReviews.length;
+  }
+
+  int get todayCount {
+    return todayReviews.length;
+  }
+
+  int get futureCount {
+    return futureReviews.length;
+  }
 
   int get totalCount {
     return _reviews.length;
@@ -250,10 +266,7 @@ class ReviewController
   // INICIALIZAR
   // ============================================================
 
-  Future<
-    void
-  >
-  initialize() async {
+  Future<void> initialize() async {
     await loadReviews();
   }
 
@@ -261,13 +274,8 @@ class ReviewController
   // CARREGAR
   // ============================================================
 
-  Future<
-    void
-  >
-  loadReviews() async {
-    _setLoading(
-      true,
-    );
+  Future<void> loadReviews() async {
+    _setLoading(true);
 
     _clearError();
 
@@ -275,27 +283,16 @@ class ReviewController
       _reviews = await _repository.loadReviews();
 
       _sortReviews();
-    } catch (
-      error,
-      stackTrace
-    ) {
-      debugPrint(
-        'ReviewController: erro ao carregar revisões.',
-      );
+    } catch (error, stackTrace) {
+      debugPrint('ReviewController: erro ao carregar revisões.');
 
-      debugPrint(
-        'ReviewController: $error',
-      );
+      debugPrint('ReviewController: $error');
 
-      debugPrintStack(
-        stackTrace: stackTrace,
-      );
+      debugPrintStack(stackTrace: stackTrace);
 
       _errorMessage = 'Não foi possível carregar as revisões.';
     } finally {
-      _setLoading(
-        false,
-      );
+      _setLoading(false);
     }
   }
 
@@ -303,13 +300,8 @@ class ReviewController
   // ATUALIZAR A PARTIR DO SUPABASE
   // ============================================================
 
-  Future<
-    void
-  >
-  refreshFromRemote() async {
-    _setLoading(
-      true,
-    );
+  Future<void> refreshFromRemote() async {
+    _setLoading(true);
 
     _clearMessages();
 
@@ -319,27 +311,16 @@ class ReviewController
       _sortReviews();
 
       _successMessage = 'Revisões sincronizadas.';
-    } catch (
-      error,
-      stackTrace
-    ) {
-      debugPrint(
-        'ReviewController: erro ao atualizar revisões do Supabase.',
-      );
+    } catch (error, stackTrace) {
+      debugPrint('ReviewController: erro ao atualizar revisões do Supabase.');
 
-      debugPrint(
-        'ReviewController: $error',
-      );
+      debugPrint('ReviewController: $error');
 
-      debugPrintStack(
-        stackTrace: stackTrace,
-      );
+      debugPrintStack(stackTrace: stackTrace);
 
       _errorMessage = 'Não foi possível atualizar as revisões da nuvem.';
     } finally {
-      _setLoading(
-        false,
-      );
+      _setLoading(false);
     }
   }
 
@@ -347,18 +328,14 @@ class ReviewController
   // CRIAR REVISÃO A PARTIR DE UMA PERGUNTA
   // ============================================================
 
-  Future<
-    BrainReviewItem?
-  >
-  createFromConcept({
+  Future<BrainReviewItem?> createFromConcept({
     required BrainConcept concept,
     required String answer,
     required String sourceNotePath,
     String sourceNoteTitle = '',
     DateTime? firstReviewAt,
   }) async {
-    if (concept.type !=
-        BrainConceptType.question) {
+    if (concept.type != BrainConceptType.question) {
       _errorMessage = 'Somente perguntas podem entrar no sistema de revisão.';
 
       notifyListeners();
@@ -381,21 +358,17 @@ class ReviewController
     final cleanSourceNoteTitle = sourceNoteTitle.trim();
 
     if (cleanSourceNotePath.isEmpty) {
-      _errorMessage = 'Não foi possível criar a revisão porque a anotação de origem não possui caminho local.';
+      _errorMessage =
+          'Não foi possível criar a revisão porque a anotação de origem não possui caminho local.';
 
       notifyListeners();
 
       return null;
     }
 
-    final existing = _reviews.where(
-      (
-        review,
-      ) {
-        return review.conceptId ==
-            concept.id;
-      },
-    );
+    final existing = _reviews.where((review) {
+      return review.conceptId == concept.id;
+    });
 
     if (existing.isNotEmpty) {
       _errorMessage = 'Esta pergunta já está no sistema de revisão.';
@@ -422,9 +395,7 @@ class ReviewController
 
       createdAt: now,
 
-      nextReviewAt:
-          firstReviewAt ??
-          now,
+      nextReviewAt: firstReviewAt ?? now,
 
       reviewCount: 0,
 
@@ -441,9 +412,7 @@ class ReviewController
       lastReviewedAt: null,
     );
 
-    await addReview(
-      review,
-    );
+    await addReview(review);
 
     return review;
   }
@@ -452,65 +421,37 @@ class ReviewController
   // ADICIONAR
   // ============================================================
 
-  Future<
-    void
-  >
-  addReview(
-    BrainReviewItem review,
-  ) async {
-    _setSaving(
-      true,
-    );
+  Future<void> addReview(BrainReviewItem review) async {
+    _setSaving(true);
 
     _clearMessages();
 
     try {
-      final saved = await _repository.saveReview(
-        review,
-      );
+      final saved = await _repository.saveReview(review);
 
-      final index = _reviews.indexWhere(
-        (
-          item,
-        ) {
-          return item.id ==
-              saved.id;
-        },
-      );
+      final index = _reviews.indexWhere((item) {
+        return item.id == saved.id;
+      });
 
-      if (index >=
-          0) {
+      if (index >= 0) {
         _reviews[index] = saved;
       } else {
-        _reviews.add(
-          saved,
-        );
+        _reviews.add(saved);
       }
 
       _sortReviews();
 
       _successMessage = 'Pergunta adicionada às revisões.';
-    } catch (
-      error,
-      stackTrace
-    ) {
-      debugPrint(
-        'ReviewController: erro ao salvar revisão.',
-      );
+    } catch (error, stackTrace) {
+      debugPrint('ReviewController: erro ao salvar revisão.');
 
-      debugPrint(
-        'ReviewController: $error',
-      );
+      debugPrint('ReviewController: $error');
 
-      debugPrintStack(
-        stackTrace: stackTrace,
-      );
+      debugPrintStack(stackTrace: stackTrace);
 
       _errorMessage = 'Não foi possível salvar a revisão.';
     } finally {
-      _setSaving(
-        false,
-      );
+      _setSaving(false);
     }
   }
 
@@ -518,61 +459,35 @@ class ReviewController
   // ATUALIZAR
   // ============================================================
 
-  Future<
-    void
-  >
-  updateReview(
-    BrainReviewItem review,
-  ) async {
-    _setSaving(
-      true,
-    );
+  Future<void> updateReview(BrainReviewItem review) async {
+    _setSaving(true);
 
     _clearMessages();
 
     try {
-      final index = _reviews.indexWhere(
-        (
-          item,
-        ) {
-          return item.id ==
-              review.id;
-        },
-      );
+      final index = _reviews.indexWhere((item) {
+        return item.id == review.id;
+      });
 
-      if (index <
-          0) {
-        throw StateError(
-          'Revisão não encontrada.',
-        );
+      if (index < 0) {
+        throw StateError('Revisão não encontrada.');
       }
 
-      final saved = await _repository.saveReview(
-        review,
-      );
+      final saved = await _repository.saveReview(review);
 
       _reviews[index] = saved;
 
       _sortReviews();
 
       _successMessage = 'Revisão atualizada.';
-    } catch (
-      error,
-      stackTrace
-    ) {
-      debugPrint(
-        'ReviewController: erro ao atualizar revisão.',
-      );
+    } catch (error, stackTrace) {
+      debugPrint('ReviewController: erro ao atualizar revisão.');
 
-      debugPrintStack(
-        stackTrace: stackTrace,
-      );
+      debugPrintStack(stackTrace: stackTrace);
 
       _errorMessage = 'Não foi possível atualizar a revisão.';
     } finally {
-      _setSaving(
-        false,
-      );
+      _setSaving(false);
     }
   }
 
@@ -580,10 +495,7 @@ class ReviewController
   // RESPONDER
   // ============================================================
 
-  Future<
-    void
-  >
-  answerReview({
+  Future<void> answerReview({
     required BrainReviewItem review,
     required ReviewAnswer answer,
   }) async {
@@ -596,50 +508,31 @@ class ReviewController
     );
 
     final isCorrect =
-        answer ==
-            ReviewAnswer.good ||
-        answer ==
-            ReviewAnswer.easy;
+        answer == ReviewAnswer.good || answer == ReviewAnswer.easy;
 
-    final isWrong =
-        answer ==
-        ReviewAnswer.again;
+    final isWrong = answer == ReviewAnswer.again;
 
     final nextStreak = isCorrect
-        ? review.streak +
-              1
-        : answer ==
-              ReviewAnswer.again
+        ? review.streak + 1
+        : answer == ReviewAnswer.again
         ? 0
         : review.streak;
 
     final updated = review.copyWith(
       nextReviewAt: nextDate,
 
-      reviewCount:
-          review.reviewCount +
-          1,
+      reviewCount: review.reviewCount + 1,
 
-      correctCount:
-          review.correctCount +
-          (isCorrect
-              ? 1
-              : 0),
+      correctCount: review.correctCount + (isCorrect ? 1 : 0),
 
-      wrongCount:
-          review.wrongCount +
-          (isWrong
-              ? 1
-              : 0),
+      wrongCount: review.wrongCount + (isWrong ? 1 : 0),
 
       streak: nextStreak,
 
       lastReviewedAt: now,
     );
 
-    await updateReview(
-      updated,
-    );
+    await updateReview(updated);
   }
 
   // ============================================================
@@ -657,48 +550,28 @@ class ReviewController
       // ========================================================
 
       case ReviewAnswer.again:
-        return now.add(
-          const Duration(
-            minutes: 15,
-          ),
-        );
+        return now.add(const Duration(minutes: 15));
 
       // ========================================================
       // DIFÍCIL
       // ========================================================
 
       case ReviewAnswer.hard:
-        return now.add(
-          const Duration(
-            days: 1,
-          ),
-        );
+        return now.add(const Duration(days: 1));
 
       // ========================================================
       // ACERTOU
       // ========================================================
 
       case ReviewAnswer.good:
-        return now.add(
-          Duration(
-            days: _goodInterval(
-              review,
-            ),
-          ),
-        );
+        return now.add(Duration(days: _goodInterval(review)));
 
       // ========================================================
       // FÁCIL
       // ========================================================
 
       case ReviewAnswer.easy:
-        return now.add(
-          Duration(
-            days: _easyInterval(
-              review,
-            ),
-          ),
-        );
+        return now.add(Duration(days: _easyInterval(review)));
     }
   }
 
@@ -706,33 +579,26 @@ class ReviewController
   // INTERVALO "ACERTEI"
   // ============================================================
 
-  int _goodInterval(
-    BrainReviewItem review,
-  ) {
+  int _goodInterval(BrainReviewItem review) {
     final streak = review.streak;
 
-    if (streak <=
-        0) {
+    if (streak <= 0) {
       return 3;
     }
 
-    if (streak ==
-        1) {
+    if (streak == 1) {
       return 7;
     }
 
-    if (streak ==
-        2) {
+    if (streak == 2) {
       return 14;
     }
 
-    if (streak ==
-        3) {
+    if (streak == 3) {
       return 30;
     }
 
-    if (streak ==
-        4) {
+    if (streak == 4) {
       return 60;
     }
 
@@ -743,28 +609,22 @@ class ReviewController
   // INTERVALO "FÁCIL"
   // ============================================================
 
-  int _easyInterval(
-    BrainReviewItem review,
-  ) {
+  int _easyInterval(BrainReviewItem review) {
     final streak = review.streak;
 
-    if (streak <=
-        0) {
+    if (streak <= 0) {
       return 7;
     }
 
-    if (streak ==
-        1) {
+    if (streak == 1) {
       return 14;
     }
 
-    if (streak ==
-        2) {
+    if (streak == 2) {
       return 30;
     }
 
-    if (streak ==
-        3) {
+    if (streak == 3) {
       return 60;
     }
 
@@ -775,21 +635,10 @@ class ReviewController
   // ARQUIVAR
   // ============================================================
 
-  Future<
-    void
-  >
-  archiveReview(
-    BrainReviewItem review,
-  ) async {
-    final updated = review.copyWith(
-      archived: true,
+  Future<void> archiveReview(BrainReviewItem review) async {
+    final updated = review.copyWith(archived: true, archivedAt: DateTime.now());
 
-      archivedAt: DateTime.now(),
-    );
-
-    await updateReview(
-      updated,
-    );
+    await updateReview(updated);
 
     _successMessage = 'Pergunta arquivada.';
 
@@ -800,12 +649,7 @@ class ReviewController
   // RESTAURAR
   // ============================================================
 
-  Future<
-    void
-  >
-  restoreReview(
-    BrainReviewItem review,
-  ) async {
+  Future<void> restoreReview(BrainReviewItem review) async {
     final updated = review.copyWith(
       archived: false,
 
@@ -814,9 +658,7 @@ class ReviewController
       nextReviewAt: DateTime.now(),
     );
 
-    await updateReview(
-      updated,
-    );
+    await updateReview(updated);
 
     _successMessage = 'Pergunta restaurada.';
 
@@ -827,24 +669,13 @@ class ReviewController
   // ADIAR
   // ============================================================
 
-  Future<
-    void
-  >
-  postponeReview(
+  Future<void> postponeReview(
     BrainReviewItem review, {
-    Duration duration = const Duration(
-      days: 1,
-    ),
+    Duration duration = const Duration(days: 1),
   }) async {
-    final updated = review.copyWith(
-      nextReviewAt: DateTime.now().add(
-        duration,
-      ),
-    );
+    final updated = review.copyWith(nextReviewAt: DateTime.now().add(duration));
 
-    await updateReview(
-      updated,
-    );
+    await updateReview(updated);
 
     _successMessage = 'Revisão adiada.';
 
@@ -855,72 +686,39 @@ class ReviewController
   // DEFINIR DATA MANUALMENTE
   // ============================================================
 
-  Future<
-    void
-  >
-  setNextReviewDate(
-    BrainReviewItem review,
-    DateTime date,
-  ) async {
-    final updated = review.copyWith(
-      nextReviewAt: date,
-    );
+  Future<void> setNextReviewDate(BrainReviewItem review, DateTime date) async {
+    final updated = review.copyWith(nextReviewAt: date);
 
-    await updateReview(
-      updated,
-    );
+    await updateReview(updated);
   }
 
   // ============================================================
   // EXCLUIR
   // ============================================================
 
-  Future<
-    void
-  >
-  deleteReview(
-    BrainReviewItem review,
-  ) async {
-    _setSaving(
-      true,
-    );
+  Future<void> deleteReview(BrainReviewItem review) async {
+    _setSaving(true);
 
     _clearMessages();
 
     try {
-      await _repository.deleteReview(
-        review.id,
-      );
+      await _repository.deleteReview(review.id);
 
-      _reviews.removeWhere(
-        (
-          item,
-        ) {
-          return item.id ==
-              review.id;
-        },
-      );
+      _reviews.removeWhere((item) {
+        return item.id == review.id;
+      });
 
       _sortReviews();
 
       _successMessage = 'Revisão excluída.';
-    } catch (
-      error,
-      stackTrace
-    ) {
-      debugPrint(
-        'ReviewController: erro ao excluir revisão.',
-      );
+    } catch (error, stackTrace) {
+      debugPrint('ReviewController: erro ao excluir revisão.');
 
-      debugPrintStack(
-        stackTrace: stackTrace,
-      );
+      debugPrintStack(stackTrace: stackTrace);
 
       _errorMessage = 'Não foi possível excluir a revisão.';
     } finally {
-      _setSaving(
-        false,
-      );
+      _setSaving(false);
     }
   }
 
@@ -928,76 +726,47 @@ class ReviewController
   // EXCLUIR PELO CONCEITO
   // ============================================================
 
-  Future<
-    void
-  >
-  deleteReviewByConceptId(
-    String conceptId,
-  ) async {
+  Future<void> deleteReviewByConceptId(String conceptId) async {
     final cleanConceptId = conceptId.trim();
 
     if (cleanConceptId.isEmpty) {
       return;
     }
 
-    _setSaving(
-      true,
-    );
+    _setSaving(true);
 
     _clearMessages();
 
     try {
-      final matches = _reviews.where(
-        (
-          review,
-        ) {
-          return review.conceptId ==
-              cleanConceptId;
-        },
-      ).toList();
+      final matches = _reviews.where((review) {
+        return review.conceptId == cleanConceptId;
+      }).toList();
 
       if (matches.isEmpty) {
         _successMessage = 'Nenhuma revisão vinculada ao conceito.';
         return;
       }
 
-      await _repository.deleteReviewByConceptId(
-        cleanConceptId,
-      );
+      await _repository.deleteReviewByConceptId(cleanConceptId);
 
-      _reviews.removeWhere(
-        (
-          review,
-        ) {
-          return review.conceptId ==
-              cleanConceptId;
-        },
-      );
+      _reviews.removeWhere((review) {
+        return review.conceptId == cleanConceptId;
+      });
 
       _sortReviews();
 
       _successMessage = 'Revisão do conceito excluída.';
-    } catch (
-      error,
-      stackTrace
-    ) {
-      debugPrint(
-        'ReviewController: erro ao excluir revisão pelo conceito.',
-      );
+    } catch (error, stackTrace) {
+      debugPrint('ReviewController: erro ao excluir revisão pelo conceito.');
 
-      debugPrint(
-        'ReviewController: $error',
-      );
+      debugPrint('ReviewController: $error');
 
-      debugPrintStack(
-        stackTrace: stackTrace,
-      );
+      debugPrintStack(stackTrace: stackTrace);
 
-      _errorMessage = 'Não foi possível excluir a revisão vinculada ao conceito.';
+      _errorMessage =
+          'Não foi possível excluir a revisão vinculada ao conceito.';
     } finally {
-      _setSaving(
-        false,
-      );
+      _setSaving(false);
     }
   }
 
@@ -1005,12 +774,9 @@ class ReviewController
   // ENCONTRAR PELO ID
   // ============================================================
 
-  BrainReviewItem? findById(
-    String id,
-  ) {
+  BrainReviewItem? findById(String id) {
     for (final review in _reviews) {
-      if (review.id ==
-          id) {
+      if (review.id == id) {
         return review;
       }
     }
@@ -1022,12 +788,9 @@ class ReviewController
   // ENCONTRAR PELO CONCEPT ID
   // ============================================================
 
-  BrainReviewItem? findByConceptId(
-    String conceptId,
-  ) {
+  BrainReviewItem? findByConceptId(String conceptId) {
     for (final review in _reviews) {
-      if (review.conceptId ==
-          conceptId) {
+      if (review.conceptId == conceptId) {
         return review;
       }
     }
@@ -1039,9 +802,7 @@ class ReviewController
   // ENCONTRAR PELO CAMINHO DA ANOTAÇÃO DE ORIGEM
   // ============================================================
 
-  BrainReviewItem? findBySourceNotePath(
-    String sourceNotePath,
-  ) {
+  BrainReviewItem? findBySourceNotePath(String sourceNotePath) {
     final cleanPath = sourceNotePath.trim();
 
     if (cleanPath.isEmpty) {
@@ -1049,8 +810,7 @@ class ReviewController
     }
 
     for (final review in _reviews) {
-      if (review.sourceNotePath.trim() ==
-          cleanPath) {
+      if (review.sourceNotePath.trim() == cleanPath) {
         return review;
       }
     }
@@ -1067,77 +827,68 @@ class ReviewController
   //
   // ============================================================
 
-  Future<
-    void
-  >
-  deleteReviewsBySourceNotePath(
-    String sourceNotePath,
-  ) async {
+  Future<void> deleteReviewsBySourceNotePath(String sourceNotePath) async {
     final cleanPath = sourceNotePath.trim();
 
     if (cleanPath.isEmpty) {
       return;
     }
 
-    _setSaving(
-      true,
-    );
+    _setSaving(true);
 
     _clearMessages();
 
     try {
-      final matches = _reviews.where(
-        (
-          review,
-        ) {
-          return review.sourceNotePath.trim() ==
-              cleanPath;
-        },
-      ).toList();
+      final matches = _reviews.where((review) {
+        return review.sourceNotePath.trim() == cleanPath;
+      }).toList();
 
       if (matches.isEmpty) {
         _successMessage = 'Nenhuma revisão vinculada à anotação.';
         return;
       }
 
-      await _repository.deleteReviewsBySourceNotePath(
-        cleanPath,
-      );
+      await _repository.deleteReviewsBySourceNotePath(cleanPath);
 
-      _reviews.removeWhere(
-        (
-          review,
-        ) {
-          return review.sourceNotePath.trim() ==
-              cleanPath;
-        },
-      );
+      _reviews.removeWhere((review) {
+        return review.sourceNotePath.trim() == cleanPath;
+      });
 
       _sortReviews();
 
       _successMessage = 'Revisões vinculadas à anotação excluídas.';
-    } catch (
-      error,
-      stackTrace
-    ) {
+    } catch (error, stackTrace) {
       debugPrint(
         'ReviewController: erro ao excluir revisões da anotação de origem.',
       );
 
-      debugPrint(
-        'ReviewController: $error',
-      );
+      debugPrint('ReviewController: $error');
 
-      debugPrintStack(
-        stackTrace: stackTrace,
-      );
+      debugPrintStack(stackTrace: stackTrace);
 
-      _errorMessage = 'Não foi possível excluir as revisões vinculadas à anotação.';
+      _errorMessage =
+          'Não foi possível excluir as revisões vinculadas à anotação.';
     } finally {
-      _setSaving(
-        false,
-      );
+      _setSaving(false);
     }
+  }
+
+  // ============================================================
+  // HELPERS DE DATA
+  // ============================================================
+
+  DateTime _startOfDay(DateTime value) {
+    final local = value.toLocal();
+
+    return DateTime(local.year, local.month, local.day);
+  }
+
+  bool _isSameDay(DateTime first, DateTime second) {
+    final a = first.toLocal();
+
+    final b = second.toLocal();
+
+    return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
   // ============================================================
@@ -1145,35 +896,24 @@ class ReviewController
   // ============================================================
 
   void _sortReviews() {
-    _reviews.sort(
-      (
-        first,
-        second,
-      ) {
-        if (first.archived &&
-            !second.archived) {
-          return 1;
-        }
+    _reviews.sort((first, second) {
+      if (first.archived && !second.archived) {
+        return 1;
+      }
 
-        if (!first.archived &&
-            second.archived) {
-          return -1;
-        }
+      if (!first.archived && second.archived) {
+        return -1;
+      }
 
-        return first.nextReviewAt.compareTo(
-          second.nextReviewAt,
-        );
-      },
-    );
+      return first.nextReviewAt.compareTo(second.nextReviewAt);
+    });
   }
 
   // ============================================================
   // LOADING
   // ============================================================
 
-  void _setLoading(
-    bool value,
-  ) {
+  void _setLoading(bool value) {
     _isLoading = value;
 
     notifyListeners();
@@ -1183,9 +923,7 @@ class ReviewController
   // SAVING
   // ============================================================
 
-  void _setSaving(
-    bool value,
-  ) {
+  void _setSaving(bool value) {
     _isSaving = value;
 
     notifyListeners();

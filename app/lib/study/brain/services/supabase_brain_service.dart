@@ -16,8 +16,16 @@ import '../models/brain_concept.dart';
 // Supabase
 //
 // Este service NÃO é mais a fonte principal para salvar na UI.
-// Ele funciona como destino remoto da sincronização e também
+// Ele funciona como destino remoto da sincronização legada e também
 // como fonte para hidratação/recuperação remota quando necessário.
+//
+// FASE 09:
+//
+// - Tema não é mais requisito de captura;
+// - o campo topic permanece temporariamente por compatibilidade
+//   com a tabela brain_notes e com dados antigos;
+// - quando vazio, usamos "Sem tema" apenas como valor legado;
+// - a UI não deve solicitar Tema ao usuário.
 //
 // ============================================================
 
@@ -74,8 +82,20 @@ class SupabaseBrainService {
   }
 
   // ============================================================
-  // SALVAR NOTA
+  // SALVAR NOTA — FASE 09
   // ============================================================
+  //
+  // Tema não é mais obrigatório.
+  //
+  // O parâmetro topic permanece temporariamente na API para manter
+  // compatibilidade com:
+  //
+  // - chamadas antigas;
+  // - tabela brain_notes;
+  // - registros já existentes.
+  //
+  // Se vier vazio, armazenamos "Sem tema" somente como valor legado.
+  //
   //
   // Este service é o ALVO REMOTO da sincronização.
   //
@@ -108,17 +128,27 @@ class SupabaseBrainService {
   }) async {
     final userId = _requireUserId();
 
-    final cleanTopic = topic.trim();
+    // ========================================================
+    // FASE 09 — TOPIC LEGADO
+    // ========================================================
+    //
+    // Topic vazio é válido.
+    //
+    // Como a tabela brain_notes ainda possui a coluna topic,
+    // convertemos vazio para "Sem tema" apenas na borda legada
+    // do Supabase.
+    //
+    // ========================================================
+
+    final rawTopic = topic.trim();
+
+    final cleanTopic = rawTopic.isEmpty
+        ? 'Sem tema'
+        : rawTopic;
 
     final cleanTitle = title.trim();
 
     final cleanContent = content.trim();
-
-    if (cleanTopic.isEmpty) {
-      throw const FormatException(
-        'O tema da anotação não pode estar vazio.',
-      );
-    }
 
     if (cleanTitle.isEmpty) {
       throw const FormatException(
@@ -158,7 +188,10 @@ class SupabaseBrainService {
             .insert(
               {
                 'user_id': userId,
+
+                // Campo legado mantido durante a Fase 09.
                 'topic': cleanTopic,
+
                 'title': cleanTitle,
                 'content': cleanContent,
                 'created_at':
@@ -246,7 +279,10 @@ class SupabaseBrainService {
             {
               'id': normalizedId,
               'user_id': userId,
+
+              // Campo legado mantido durante a Fase 09.
               'topic': cleanTopic,
+
               'title': cleanTitle,
               'content': cleanContent,
               'created_at': effectiveCreatedAt.toIso8601String(),
@@ -286,6 +322,12 @@ class SupabaseBrainService {
   // ============================================================
   // CARREGAR NOTAS
   // ============================================================
+  //
+  // Registros antigos podem conter um topic real.
+  //
+  // Registros novos podem conter "Sem tema" apenas por compatibilidade
+  // com o schema legado de brain_notes.
+  //
 
   Future<
     List<

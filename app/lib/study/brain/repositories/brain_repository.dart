@@ -2,18 +2,17 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
-import '../../../core/sync/sync_item.dart';
 import '../../../core/sync/sync_queue.dart';
 import '../../../core/sync/sync_service.dart';
 
 import '../models/brain_concept.dart';
 import '../models/brain_file.dart';
+import '../models/brain_source.dart';
 import '../services/brain_storage.dart';
 import '../services/supabase_brain_service.dart';
 import '../sync/services/brain_sync_queue_service.dart';
 import '../vault/stores/brain_concept_vault_store.dart';
 import '../vault/stores/brain_note_vault_store.dart';
-
 // ============================================================
 // BRAIN REPOSITORY
 // ============================================================
@@ -41,7 +40,7 @@ import '../vault/stores/brain_note_vault_store.dart';
 //
 // A internet NÃO é requisito para:
 //
-// - criar nota;
+// - criar nota sem Tema;
 // - editar nota;
 // - excluir nota;
 // - consultar notas;
@@ -49,6 +48,17 @@ import '../vault/stores/brain_note_vault_store.dart';
 // - alimentar o calendário.
 //
 // O Supabase passa a ser sincronização remota.
+//
+// FASE 13 — FONTES DO CONHECIMENTO:
+//
+// - sources vivem no BrainFile;
+// - sources são persistidas no Vault criptografado;
+// - BrainStorage Markdown NÃO recebe source/reference/author/note;
+// - ao editar conteúdo/conceitos, sources são preservadas;
+// - loadNotes/getNote hidratam sources a partir do Vault local;
+// - adicionar/editar/remover fontes acontece somente no Vault;
+// - alterações de sources entram na BrainSyncQueueService como
+//   BrainVaultObject criptografado.
 //
 // ============================================================
 
@@ -106,8 +116,20 @@ class BrainRepository {
   }
 
   // ============================================================
-  // SAVE NOTE — VAULT / E2EE
+  // SAVE NOTE — VAULT / E2EE — FASE 09
   // ============================================================
+  //
+  // Tema não é mais requisito de captura.
+  //
+  // O parâmetro topic permanece temporariamente na assinatura por
+  // compatibilidade binária/estrutural com o restante do projeto.
+  //
+  // Quando vazio, usamos "Sem tema" SOMENTE no mirror legado e no
+  // BrainFile atual, pois BrainStorage ainda será migrado no próximo
+  // bloco da Fase 09.
+  //
+  // A UI não deve pedir Tema ao usuário.
+  //
   //
   // Fluxo atual:
   //
@@ -137,15 +159,28 @@ class BrainRepository {
     required String title,
     required String content,
   }) async {
-    final cleanTopic = topic.trim();
+    // ==========================================================
+    // FASE 09 — TOPIC LEGADO
+    // ==========================================================
+    //
+    // Topic vazio é válido.
+    //
+    // "Sem tema" existe somente como ponte para:
+    //
+    // - BrainStorage Markdown legado;
+    // - BrainFile, que ainda possui o campo topic;
+    // - leitura/migração de dados antigos.
+    //
+    // ==========================================================
+
+    final rawTopic = topic.trim();
+
+    final cleanTopic = rawTopic.isEmpty
+        ? 'Sem tema'
+        : rawTopic;
+
     final cleanTitle = title.trim();
     final cleanContent = content.trim();
-
-    if (cleanTopic.isEmpty) {
-      throw const FormatException(
-        'Informe o tema da anotação.',
-      );
-    }
 
     if (cleanTitle.isEmpty) {
       throw const FormatException(
@@ -178,7 +213,7 @@ class BrainRepository {
       }
     }
 
-    final saved = await _local.saveNote(
+    final savedLocal = await _local.saveNote(
       topic: cleanTopic,
       title: cleanTitle,
       content: cleanContent,
@@ -188,6 +223,10 @@ class BrainRepository {
             BrainConcept
           >[],
       existingPath: existingLocalPath,
+    );
+
+    final saved = await _hydrateSourcesFromVault(
+      savedLocal,
     );
 
     debugPrint(
@@ -254,35 +293,43 @@ class BrainRepository {
     >
   >
   loadNotes() async {
-    final notes = await _local.loadNotes();
+    final localNotes = await _local.loadNotes();
 
     final userId = currentUserId?.trim();
 
-    return notes
-        .map(
-          (
-            note,
-          ) {
-            final remoteId =
-                userId ==
-                        null ||
-                    userId.isEmpty
-                ? null
-                : _remoteNoteId(
-                    userId: userId,
-                    localPath: note.path,
-                  );
+    final rows =
+        <
+          Map<
+            String,
+            dynamic
+          >
+        >[];
 
-            return _noteToRow(
-              note,
-              remoteId: remoteId,
+    for (final localNote in localNotes) {
+      final note = await _hydrateSourcesFromVault(
+        localNote,
+      );
+
+      final remoteId =
+          userId ==
+                  null ||
+              userId.isEmpty
+          ? null
+          : _remoteNoteId(
               userId: userId,
+              localPath: note.path,
             );
-          },
-        )
-        .toList(
-          growable: false,
-        );
+
+      rows.add(
+        _noteToRow(
+          note,
+          remoteId: remoteId,
+          userId: userId,
+        ),
+      );
+    }
+
+    return rows;
   }
 
   // ============================================================
@@ -315,8 +362,12 @@ class BrainRepository {
     if (directPath !=
         null) {
       try {
-        final note = await _local.openNote(
+        final localNote = await _local.openNote(
           directPath,
+        );
+
+        final note = await _hydrateSourcesFromVault(
+          localNote,
         );
 
         final userId = currentUserId?.trim();
@@ -358,7 +409,11 @@ class BrainRepository {
         userId.isNotEmpty) {
       final notes = await _local.loadNotes();
 
-      for (final note in notes) {
+      for (final localNote in notes) {
+        final note = await _hydrateSourcesFromVault(
+          localNote,
+        );
+
         final remoteId = _remoteNoteId(
           userId: userId,
           localPath: note.path,
@@ -702,12 +757,16 @@ class BrainRepository {
         );
       }
 
-      updatedNote = await _local.saveNote(
+      final updatedLocalNote = await _local.saveNote(
         topic: note.topic,
         title: note.title,
         content: note.content,
         concepts: concepts,
         existingPath: note.path,
+      );
+
+      updatedNote = await _hydrateSourcesFromVault(
+        updatedLocalNote,
       );
 
       final userId = currentUserId?.trim();
@@ -1049,12 +1108,16 @@ class BrainRepository {
           )
           .toList();
 
-      final updatedNote = await _local.saveNote(
+      final updatedLocalNote = await _local.saveNote(
         topic: note.topic,
         title: note.title,
         content: note.content,
         concepts: updatedConcepts,
         existingPath: note.path,
+      );
+
+      final updatedNote = await _hydrateSourcesFromVault(
+        updatedLocalNote,
       );
 
       final userId = currentUserId?.trim();
@@ -1151,7 +1214,7 @@ class BrainRepository {
           growable: false,
         );
 
-    final updatedNote = await _local.saveNote(
+    final updatedLocalNote = await _local.saveNote(
       topic: note.topic,
       title: note.title,
       content: note.content,
@@ -1160,6 +1223,10 @@ class BrainRepository {
             BrainConcept
           >[],
       existingPath: note.path,
+    );
+
+    final updatedNote = await _hydrateSourcesFromVault(
+      updatedLocalNote,
     );
 
     final userId = currentUserId?.trim();
@@ -1198,6 +1265,353 @@ class BrainRepository {
         );
       }
     }
+  }
+
+  // ============================================================
+  // GET SOURCES BY NOTE
+  // ============================================================
+  //
+  // FASE 13 — FONTES DO CONHECIMENTO
+  //
+  // Retorna as fontes da nota a partir do Vault criptografado.
+  //
+  // BrainStorage Markdown continua sem persistir:
+  //
+  // - reference;
+  // - author;
+  // - note;
+  // - source metadata.
+  //
+  // ============================================================
+
+  Future<
+    List<
+      BrainSource
+    >
+  >
+  getSourcesByNote(
+    String noteId,
+  ) async {
+    final note = await _findNoteWithSources(
+      noteId,
+    );
+
+    if (note ==
+        null) {
+      return const <
+        BrainSource
+      >[];
+    }
+
+    return List<
+      BrainSource
+    >.unmodifiable(
+      note.sources,
+    );
+  }
+
+  // ============================================================
+  // ADD SOURCE TO NOTE
+  // ============================================================
+
+  Future<
+    BrainFile
+  >
+  addSourceToNote({
+    required String noteId,
+    required BrainSource source,
+  }) async {
+    if (!source.isValid) {
+      throw const FormatException(
+        'A fonte informada é inválida.',
+      );
+    }
+
+    final note = await _requireNoteWithSources(
+      noteId,
+    );
+
+    final updatedNote = note.addSource(
+      source,
+    );
+
+    // Se addSource detectou duplicação, não criamos uma nova
+    // versão criptografada desnecessariamente.
+    if (identical(
+      updatedNote,
+      note,
+    )) {
+      return note;
+    }
+
+    await _persistSourceUpdatedNote(
+      updatedNote,
+    );
+
+    return updatedNote;
+  }
+
+  // ============================================================
+  // UPDATE SOURCE IN NOTE
+  // ============================================================
+
+  Future<
+    BrainFile
+  >
+  updateSourceInNote({
+    required String noteId,
+    required BrainSource source,
+  }) async {
+    if (!source.isValid) {
+      throw const FormatException(
+        'A fonte informada é inválida.',
+      );
+    }
+
+    final note = await _requireNoteWithSources(
+      noteId,
+    );
+
+    if (!note.hasSourceId(
+      source.id,
+    )) {
+      throw StateError(
+        'A fonte não existe nesta anotação.',
+      );
+    }
+
+    final updatedSource = source.touch();
+
+    final updatedNote = note.updateSource(
+      updatedSource,
+    );
+
+    await _persistSourceUpdatedNote(
+      updatedNote,
+    );
+
+    return updatedNote;
+  }
+
+  // ============================================================
+  // REMOVE SOURCE FROM NOTE
+  // ============================================================
+
+  Future<
+    BrainFile
+  >
+  removeSourceFromNote({
+    required String noteId,
+    required String sourceId,
+  }) async {
+    final cleanSourceId = sourceId.trim();
+
+    if (cleanSourceId.isEmpty) {
+      throw const FormatException(
+        'A fonte não possui um identificador válido.',
+      );
+    }
+
+    final note = await _requireNoteWithSources(
+      noteId,
+    );
+
+    if (!note.hasSourceId(
+      cleanSourceId,
+    )) {
+      return note;
+    }
+
+    final updatedNote = note.removeSourceById(
+      cleanSourceId,
+    );
+
+    await _persistSourceUpdatedNote(
+      updatedNote,
+    );
+
+    return updatedNote;
+  }
+
+  // ============================================================
+  // CLEAR SOURCES FROM NOTE
+  // ============================================================
+
+  Future<
+    BrainFile
+  >
+  clearSourcesFromNote(
+    String noteId,
+  ) async {
+    final note = await _requireNoteWithSources(
+      noteId,
+    );
+
+    if (!note.hasSources) {
+      return note;
+    }
+
+    final updatedNote = note.clearSources();
+
+    await _persistSourceUpdatedNote(
+      updatedNote,
+    );
+
+    return updatedNote;
+  }
+
+  // ============================================================
+  // REQUIRE NOTE WITH SOURCES
+  // ============================================================
+
+  Future<
+    BrainFile
+  >
+  _requireNoteWithSources(
+    String noteId,
+  ) async {
+    final note = await _findNoteWithSources(
+      noteId,
+    );
+
+    if (note ==
+        null) {
+      throw StateError(
+        'Não foi possível localizar a anotação.',
+      );
+    }
+
+    return note;
+  }
+
+  // ============================================================
+  // FIND NOTE WITH SOURCES
+  // ============================================================
+  //
+  // Aceita:
+  //
+  // - path Markdown local;
+  // - UUID remoto legado.
+  //
+  // ============================================================
+
+  Future<
+    BrainFile?
+  >
+  _findNoteWithSources(
+    String noteId,
+  ) async {
+    final cleanId = noteId.trim();
+
+    if (cleanId.isEmpty) {
+      return null;
+    }
+
+    final directPath = _localPathFromId(
+      cleanId,
+    );
+
+    if (directPath !=
+        null) {
+      try {
+        final localNote = await _local.openNote(
+          directPath,
+        );
+
+        return _hydrateSourcesFromVault(
+          localNote,
+        );
+      } catch (
+        _
+      ) {
+        return null;
+      }
+    }
+
+    final userId = currentUserId?.trim();
+
+    if (userId ==
+            null ||
+        userId.isEmpty) {
+      return null;
+    }
+
+    final localNotes = await _local.loadNotes();
+
+    for (final localNote in localNotes) {
+      final remoteId = _remoteNoteId(
+        userId: userId,
+        localPath: localNote.path,
+      );
+
+      if (remoteId !=
+          cleanId) {
+        continue;
+      }
+
+      return _hydrateSourcesFromVault(
+        localNote,
+      );
+    }
+
+    return null;
+  }
+
+  // ============================================================
+  // PERSIST SOURCE UPDATED NOTE
+  // ============================================================
+  //
+  // Fonte é persistida apenas no Vault.
+  //
+  // Não chamamos BrainStorage.saveNote() aqui porque isso faria
+  // a source atravessar o mirror Markdown legado.
+  //
+  // O BrainFile criptografado completo é salvo no Vault e o
+  // BrainVaultObject resultante entra na BrainSyncQueueService.
+  //
+  // ============================================================
+
+  Future<
+    void
+  >
+  _persistSourceUpdatedNote(
+    BrainFile note,
+  ) async {
+    final store = _noteVaultStore;
+
+    if (store ==
+        null) {
+      throw StateError(
+        'BrainNoteVaultStore não está disponível.',
+      );
+    }
+
+    final userId = currentUserId?.trim();
+
+    final legacyRemoteId =
+        userId ==
+                null ||
+            userId.isEmpty
+        ? null
+        : _remoteNoteId(
+            userId: userId,
+            localPath: note.path,
+          );
+
+    final encryptedObject = await store.saveNote(
+      note,
+      legacyRemoteId: legacyRemoteId,
+    );
+
+    await _brainSyncQueueService?.enqueueObject(
+      encryptedObject,
+    );
+
+    debugPrint(
+      '[BRAIN REPOSITORY] '
+      'Fontes da nota persistidas no Vault: '
+      '${encryptedObject.header.objectId}',
+    );
   }
 
   // ============================================================
@@ -1278,6 +1692,72 @@ class BrainRepository {
   }
 
   // ============================================================
+  // HYDRATE SOURCES FROM VAULT
+  // ============================================================
+  //
+  // FASE 13 — FONTES DO CONHECIMENTO
+  //
+  // BrainStorage continua sendo apenas o mirror Markdown legado.
+  //
+  // Para não escrever referência/autor/observação em plaintext,
+  // sources não são persistidas nesse mirror.
+  //
+  // Ao carregar ou regravar uma nota, buscamos as sources no
+  // BrainNoteVaultStore e as recolocamos no BrainFile antes de:
+  //
+  // - devolver a nota ao controller;
+  // - atualizar o Vault;
+  // - enfileirar o objeto E2EE.
+  //
+  // Se o Vault ainda não possuir a nota, a lista local é mantida.
+  //
+  // ============================================================
+
+  Future<
+    BrainFile
+  >
+  _hydrateSourcesFromVault(
+    BrainFile note,
+  ) async {
+    final store = _noteVaultStore;
+
+    if (store ==
+        null) {
+      return note;
+    }
+
+    final path = note.path.trim();
+
+    if (path.isEmpty) {
+      return note;
+    }
+
+    try {
+      final vaultNote = await store.getNoteByPath(
+        path,
+      );
+
+      if (vaultNote ==
+          null) {
+        return note;
+      }
+
+      return note.copyWith(
+        sources: vaultNote.sources,
+      );
+    } catch (
+      error
+    ) {
+      debugPrint(
+        '[BRAIN REPOSITORY] '
+        'Não foi possível hidratar fontes do Vault: $error',
+      );
+
+      return note;
+    }
+  }
+
+  // ============================================================
   // NOTE -> CONTROLLER ROW
   // ============================================================
 
@@ -1301,11 +1781,33 @@ class BrainRepository {
 
       'user_id': userId,
 
+      // Campo legado mantido durante a Fase 09.
       'topic': note.topic,
 
       'title': note.title,
 
       'content': note.content,
+
+      // ========================================================
+      // FASE 13 — FONTES DO CONHECIMENTO
+      // ========================================================
+      //
+      // As fontes vêm do Vault local criptografado.
+      //
+      // Não são persistidas pelo BrainStorage Markdown.
+      //
+      // ========================================================
+      'sources': note.sources
+          .map(
+            (
+              source,
+            ) {
+              return source.toJson();
+            },
+          )
+          .toList(
+            growable: false,
+          ),
 
       'created_at': note.createdAt.toUtc().toIso8601String(),
 
@@ -1339,6 +1841,9 @@ class BrainRepository {
   //
   // Usado apenas para remover duplicatas históricas geradas
   // durante a migração para offline-first.
+  //
+  // Topic ainda participa desta comparação somente para não mudar
+  // silenciosamente a regra de limpeza de arquivos antigos.
   //
   // Não usa createdAt/updatedAt porque cópias antigas podem ter
   // timestamps diferentes mesmo contendo a mesma anotação.

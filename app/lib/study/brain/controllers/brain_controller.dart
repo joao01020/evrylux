@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../models/brain_concept.dart';
 import '../models/brain_file.dart';
+import '../models/brain_source.dart';
 import '../repositories/brain_repository.dart';
 
 // ============================================================
@@ -25,23 +26,30 @@ import '../repositories/brain_repository.dart';
 //
 // ============================================================
 
-class BrainController
-    extends
-        ChangeNotifier {
+class BrainController extends ChangeNotifier {
   // ============================================================
   // REPOSITORY
   // ============================================================
 
   final BrainRepository _repository;
 
-  BrainController({
-    BrainRepository? repository,
-  }) : _repository =
-           repository ??
-           BrainRepository();
+  BrainController({BrainRepository? repository})
+    : _repository = repository ?? BrainRepository();
 
   // ============================================================
   // CONTROLLERS DOS CAMPOS
+  // ============================================================
+  //
+  // FASE 09:
+  //
+  // topicController permanece TEMPORARIAMENTE apenas para:
+  //
+  // - abrir anotações antigas que ainda possuem topic;
+  // - compatibilidade com telas/serviços legados;
+  // - migração gradual do BrainStorage.
+  //
+  // Novas capturas não dependem mais de Tema.
+  //
   // ============================================================
 
   final TextEditingController topicController = TextEditingController();
@@ -56,21 +64,15 @@ class BrainController
   // ESTADO
   // ============================================================
 
-  List<
-    BrainFile
-  >
-  _notes =
-      <
-        BrainFile
-      >[];
+  List<BrainFile> _notes = <BrainFile>[];
 
-  List<
-    BrainConcept
-  >
-  _concepts =
-      <
-        BrainConcept
-      >[];
+  List<BrainConcept> _concepts = <BrainConcept>[];
+
+  // ============================================================
+  // FASE 13 — FONTES DO CONHECIMENTO
+  // ============================================================
+
+  List<BrainSource> _sources = <BrainSource>[];
 
   BrainFile? _selectedNote;
 
@@ -90,26 +92,16 @@ class BrainController
   // GETTERS
   // ============================================================
 
-  List<
-    BrainFile
-  >
-  get notes {
-    return List<
-      BrainFile
-    >.unmodifiable(
-      _notes,
-    );
+  List<BrainFile> get notes {
+    return List<BrainFile>.unmodifiable(_notes);
   }
 
-  List<
-    BrainConcept
-  >
-  get concepts {
-    return List<
-      BrainConcept
-    >.unmodifiable(
-      _concepts,
-    );
+  List<BrainConcept> get concepts {
+    return List<BrainConcept>.unmodifiable(_concepts);
+  }
+
+  List<BrainSource> get sources {
+    return List<BrainSource>.unmodifiable(_sources);
   }
 
   BrainFile? get selectedNote {
@@ -137,8 +129,7 @@ class BrainController
   }
 
   bool get hasSelectedNote {
-    return _selectedNote !=
-        null;
+    return _selectedNote != null;
   }
 
   bool get hasNotes {
@@ -147,6 +138,14 @@ class BrainController
 
   bool get hasConcepts {
     return _concepts.isNotEmpty;
+  }
+
+  bool get hasSources {
+    return _sources.isNotEmpty;
+  }
+
+  int get sourcesCount {
+    return _sources.length;
   }
 
   bool get isAuthenticated {
@@ -161,17 +160,12 @@ class BrainController
   // INITIALIZE
   // ============================================================
 
-  Future<
-    void
-  >
-  initialize() async {
+  Future<void> initialize() async {
     if (_isLoading) {
       return;
     }
 
-    _setLoading(
-      true,
-    );
+    _setLoading(true);
 
     _clearMessages();
 
@@ -179,27 +173,16 @@ class BrainController
       await _loadNotesInternal();
 
       _isInitialized = true;
-    } catch (
-      error,
-      stackTrace
-    ) {
-      debugPrint(
-        'BrainController: erro ao inicializar.',
-      );
+    } catch (error, stackTrace) {
+      debugPrint('BrainController: erro ao inicializar.');
 
-      debugPrint(
-        'BrainController: $error',
-      );
+      debugPrint('BrainController: $error');
 
-      debugPrintStack(
-        stackTrace: stackTrace,
-      );
+      debugPrintStack(stackTrace: stackTrace);
 
       _errorMessage = 'Não foi possível carregar o Cérebro.';
     } finally {
-      _setLoading(
-        false,
-      );
+      _setLoading(false);
     }
   }
 
@@ -207,61 +190,36 @@ class BrainController
   // LOAD NOTES
   // ============================================================
 
-  Future<
-    void
-  >
-  loadNotes() async {
+  Future<void> loadNotes() async {
     if (_isLoading) {
       return;
     }
 
-    _setLoading(
-      true,
-    );
+    _setLoading(true);
 
     _clearMessages();
 
     try {
       await _loadNotesInternal();
-    } catch (
-      error,
-      stackTrace
-    ) {
-      debugPrint(
-        'BrainController: erro ao carregar anotações.',
-      );
+    } catch (error, stackTrace) {
+      debugPrint('BrainController: erro ao carregar anotações.');
 
-      debugPrint(
-        'BrainController: $error',
-      );
+      debugPrint('BrainController: $error');
 
-      debugPrintStack(
-        stackTrace: stackTrace,
-      );
+      debugPrintStack(stackTrace: stackTrace);
 
       _errorMessage = 'Não foi possível carregar suas anotações.';
     } finally {
-      _setLoading(
-        false,
-      );
+      _setLoading(false);
     }
   }
 
-  Future<
-    void
-  >
-  _loadNotesInternal() async {
+  Future<void> _loadNotesInternal() async {
     final rows = await _repository.loadNotes();
 
-    _notes = rows.map(
-      (
-        row,
-      ) {
-        return _brainFileFromDatabase(
-          row,
-        );
-      },
-    ).toList();
+    _notes = rows.map((row) {
+      return _brainFileFromDatabase(row);
+    }).toList();
   }
 
   // ============================================================
@@ -277,67 +235,44 @@ class BrainController
 
     contentController.clear();
 
-    _concepts =
-        <
-          BrainConcept
-        >[];
+    _concepts = <BrainConcept>[];
+
+    _sources = <BrainSource>[];
 
     _clearMessages();
 
     _safeNotifyListeners();
 
-    Future<
-      void
-    >.delayed(
-      Duration.zero,
-      () {
-        if (_isDisposed) {
-          return;
-        }
+    Future<void>.delayed(Duration.zero, () {
+      if (_isDisposed) {
+        return;
+      }
 
-        if (!contentFocusNode.canRequestFocus) {
-          return;
-        }
+      if (!contentFocusNode.canRequestFocus) {
+        return;
+      }
 
-        contentFocusNode.requestFocus();
-      },
-    );
+      contentFocusNode.requestFocus();
+    });
   }
 
   // ============================================================
   // OPEN NOTE
   // ============================================================
 
-  Future<
-    bool
-  >
-  openNote(
-    BrainFile note,
-  ) async {
+  Future<bool> openNote(BrainFile note) async {
     _clearMessages();
 
     try {
       final noteId = note.path.trim();
 
-      Map<
-        String,
-        dynamic
-      >?
-      row;
+      Map<String, dynamic>? row;
 
       if (noteId.isNotEmpty) {
-        row = await _repository.getNote(
-          noteId,
-        );
+        row = await _repository.getNote(noteId);
       }
 
-      final loadedNote =
-          row ==
-              null
-          ? note
-          : _brainFileFromDatabase(
-              row,
-            );
+      final loadedNote = row == null ? note : _brainFileFromDatabase(row);
 
       _selectedNote = loadedNote;
 
@@ -347,31 +282,19 @@ class BrainController
 
       contentController.text = loadedNote.content;
 
-      _concepts =
-          List<
-            BrainConcept
-          >.from(
-            loadedNote.concepts,
-          );
+      _concepts = List<BrainConcept>.from(loadedNote.concepts);
+
+      _sources = List<BrainSource>.from(loadedNote.sources);
 
       _safeNotifyListeners();
 
       return true;
-    } catch (
-      error,
-      stackTrace
-    ) {
-      debugPrint(
-        'BrainController: erro ao abrir anotação.',
-      );
+    } catch (error, stackTrace) {
+      debugPrint('BrainController: erro ao abrir anotação.');
 
-      debugPrint(
-        'BrainController: $error',
-      );
+      debugPrint('BrainController: $error');
 
-      debugPrintStack(
-        stackTrace: stackTrace,
-      );
+      debugPrintStack(stackTrace: stackTrace);
 
       _errorMessage = 'Não foi possível abrir a anotação.';
 
@@ -386,15 +309,9 @@ class BrainController
   // ============================================================
 
   String? validateNote() {
-    final topic = topicController.text.trim();
-
     final title = titleController.text.trim();
 
     final content = contentController.text.trim();
-
-    if (topic.isEmpty) {
-      return 'Informe um tema, por exemplo: Programação C++.';
-    }
 
     if (title.isEmpty) {
       return 'Informe o título da anotação.';
@@ -411,10 +328,7 @@ class BrainController
   // SAVE NOTE
   // ============================================================
 
-  Future<
-    bool
-  >
-  saveNote({
+  Future<bool> saveNote({
     String successMessage = 'Conhecimento salvo neste dispositivo ✅',
   }) async {
     if (_isSaving) {
@@ -425,8 +339,7 @@ class BrainController
 
     final validationMessage = validateNote();
 
-    if (validationMessage !=
-        null) {
+    if (validationMessage != null) {
       _errorMessage = validationMessage;
 
       _safeNotifyListeners();
@@ -434,15 +347,24 @@ class BrainController
       return false;
     }
 
+    // ========================================================
+    // FASE 09 — TOPIC É APENAS LEGADO
+    // ========================================================
+    //
+    // Pode estar vazio.
+    //
+    // BrainRepository faz a normalização temporária necessária
+    // para o BrainStorage legado sem exigir Tema da UI.
+    //
+    // ========================================================
+
     final topic = topicController.text.trim();
 
     final title = titleController.text.trim();
 
     final content = contentController.text.trim();
 
-    _setSaving(
-      true,
-    );
+    _setSaving(true);
 
     try {
       final currentNoteId = _selectedNote?.path.trim();
@@ -452,10 +374,7 @@ class BrainController
       // ========================================================
 
       final savedRow = await _repository.saveNote(
-        id:
-            currentNoteId !=
-                    null &&
-                currentNoteId.isNotEmpty
+        id: currentNoteId != null && currentNoteId.isNotEmpty
             ? currentNoteId
             : null,
         topic: topic,
@@ -463,9 +382,7 @@ class BrainController
         content: content,
       );
 
-      final noteId =
-          savedRow['id']?.toString().trim() ??
-          '';
+      final noteId = savedRow['id']?.toString().trim() ?? '';
 
       if (noteId.isEmpty) {
         throw StateError(
@@ -478,10 +395,7 @@ class BrainController
       // ========================================================
 
       for (final concept in _concepts) {
-        await _repository.saveConcept(
-          concept: concept,
-          noteId: noteId,
-        );
+        await _repository.saveConcept(concept: concept, noteId: noteId);
       }
 
       // ========================================================
@@ -497,8 +411,8 @@ class BrainController
       // SyncQueue
       //
       // Salvar novamente aqui criava uma SEGUNDA responsabilidade
-      // de persistência e podia deixar arquivos órfãos quando tema
-      // ou título eram alterados.
+      // de persistência e podia deixar arquivos órfãos quando
+      // metadados ou título eram alterados.
       //
       // O calendário lê o mesmo arquivo criado pelo repository.
       //
@@ -520,25 +434,16 @@ class BrainController
 
         content: content,
 
-        concepts:
-            List<
-              BrainConcept
-            >.from(
-              _concepts,
-            ),
+        concepts: List<BrainConcept>.from(_concepts),
+
+        sources: List<BrainSource>.from(_sources),
 
         createdAt:
-            _parseDate(
-              savedRow['created_at'],
-            ) ??
+            _parseDate(savedRow['created_at']) ??
             _selectedNote?.createdAt ??
             DateTime.now(),
 
-        updatedAt:
-            _parseDate(
-              savedRow['updated_at'],
-            ) ??
-            DateTime.now(),
+        updatedAt: _parseDate(savedRow['updated_at']) ?? DateTime.now(),
       );
 
       await _loadNotesInternal();
@@ -546,35 +451,22 @@ class BrainController
       _successMessage = successMessage;
 
       return true;
-    } on FormatException catch (
-      error
-    ) {
+    } on FormatException catch (error) {
       _errorMessage = error.message;
 
       return false;
-    } catch (
-      error,
-      stackTrace
-    ) {
-      debugPrint(
-        'BrainController: erro ao salvar anotação.',
-      );
+    } catch (error, stackTrace) {
+      debugPrint('BrainController: erro ao salvar anotação.');
 
-      debugPrint(
-        'BrainController: $error',
-      );
+      debugPrint('BrainController: $error');
 
-      debugPrintStack(
-        stackTrace: stackTrace,
-      );
+      debugPrintStack(stackTrace: stackTrace);
 
       _errorMessage = 'Não foi possível salvar a anotação neste dispositivo.';
 
       return false;
     } finally {
-      _setSaving(
-        false,
-      );
+      _setSaving(false);
     }
   }
 
@@ -604,29 +496,20 @@ class BrainController
   //
   // ============================================================
 
-  Future<
-    bool
-  >
-  deleteNote(
-    BrainFile note,
-  ) async {
+  Future<bool> deleteNote(BrainFile note) async {
     if (_isSaving) {
       return false;
     }
 
     _clearMessages();
 
-    _setSaving(
-      true,
-    );
+    _setSaving(true);
 
     try {
       final notePath = note.path.trim();
 
       if (notePath.isEmpty) {
-        throw StateError(
-          'A anotação não possui um caminho local válido.',
-        );
+        throw StateError('A anotação não possui um caminho local válido.');
       }
 
       // ========================================================
@@ -638,9 +521,7 @@ class BrainController
       //
       // ========================================================
 
-      await _repository.deleteConceptsByNoteId(
-        notePath,
-      );
+      await _repository.deleteConceptsByNoteId(notePath);
 
       // ========================================================
       // DELETE NOTE
@@ -651,9 +532,7 @@ class BrainController
       //
       // ========================================================
 
-      await _repository.deleteNote(
-        notePath,
-      );
+      await _repository.deleteNote(notePath);
 
       // ========================================================
       // RECARREGAR ESTADO REAL DO DISCO
@@ -665,27 +544,19 @@ class BrainController
       // VERIFICAÇÃO EXTRA DO CONTROLLER
       // ========================================================
 
-      final stillExists = _notes.any(
-        (
-          item,
-        ) {
-          return item.path.trim() ==
-              notePath;
-        },
-      );
+      final stillExists = _notes.any((item) {
+        return item.path.trim() == notePath;
+      });
 
       if (stillExists) {
-        throw StateError(
-          'A anotação ainda existe localmente após a exclusão.',
-        );
+        throw StateError('A anotação ainda existe localmente após a exclusão.');
       }
 
       // ========================================================
       // LIMPAR SELEÇÃO
       // ========================================================
 
-      if (_selectedNote?.path.trim() ==
-          notePath) {
+      if (_selectedNote?.path.trim() == notePath) {
         _clearSelectedNote();
       }
 
@@ -694,21 +565,12 @@ class BrainController
       _safeNotifyListeners();
 
       return true;
-    } catch (
-      error,
-      stackTrace
-    ) {
-      debugPrint(
-        'BrainController: erro ao excluir anotação.',
-      );
+    } catch (error, stackTrace) {
+      debugPrint('BrainController: erro ao excluir anotação.');
 
-      debugPrint(
-        'BrainController: $error',
-      );
+      debugPrint('BrainController: $error');
 
-      debugPrintStack(
-        stackTrace: stackTrace,
-      );
+      debugPrintStack(stackTrace: stackTrace);
 
       _errorMessage = 'Não foi possível excluir a anotação localmente.';
 
@@ -716,9 +578,7 @@ class BrainController
 
       return false;
     } finally {
-      _setSaving(
-        false,
-      );
+      _setSaving(false);
     }
   }
 
@@ -726,12 +586,7 @@ class BrainController
   // ADD CONCEPT
   // ============================================================
 
-  Future<
-    bool
-  >
-  addConcept(
-    BrainConcept concept,
-  ) async {
+  Future<bool> addConcept(BrainConcept concept) async {
     if (_isSaving) {
       return false;
     }
@@ -742,23 +597,15 @@ class BrainController
     // DUPLICATE BY ID
     // ========================================================
 
-    final exists = _concepts.any(
-      (
-        item,
-      ) {
-        return item.id ==
-            concept.id;
-      },
-    );
+    final exists = _concepts.any((item) {
+      return item.id == concept.id;
+    });
 
     if (exists) {
       return true;
     }
 
-    _concepts = [
-      ..._concepts,
-      concept,
-    ];
+    _concepts = [..._concepts, concept];
 
     _successMessage = '${concept.label} preparado para salvar.';
 
@@ -771,10 +618,7 @@ class BrainController
   // UPDATE CONCEPT
   // ============================================================
 
-  Future<
-    bool
-  >
-  updateConcept({
+  Future<bool> updateConcept({
     required int index,
     required BrainConcept concept,
   }) async {
@@ -782,21 +626,13 @@ class BrainController
       return false;
     }
 
-    if (index <
-            0 ||
-        index >=
-            _concepts.length) {
+    if (index < 0 || index >= _concepts.length) {
       return false;
     }
 
     _clearMessages();
 
-    final updated =
-        List<
-          BrainConcept
-        >.from(
-          _concepts,
-        );
+    final updated = List<BrainConcept>.from(_concepts);
 
     updated[index] = concept;
 
@@ -806,29 +642,15 @@ class BrainController
 
     final noteId = _selectedNote?.path.trim();
 
-    if (noteId !=
-            null &&
-        noteId.isNotEmpty) {
+    if (noteId != null && noteId.isNotEmpty) {
       try {
-        await _repository.saveConcept(
-          concept: concept,
-          noteId: noteId,
-        );
-      } catch (
-        error,
-        stackTrace
-      ) {
-        debugPrint(
-          'BrainController: erro ao atualizar conhecimento.',
-        );
+        await _repository.saveConcept(concept: concept, noteId: noteId);
+      } catch (error, stackTrace) {
+        debugPrint('BrainController: erro ao atualizar conhecimento.');
 
-        debugPrint(
-          'BrainController: $error',
-        );
+        debugPrint('BrainController: $error');
 
-        debugPrintStack(
-          stackTrace: stackTrace,
-        );
+        debugPrintStack(stackTrace: stackTrace);
 
         _errorMessage = 'Não foi possível atualizar o conhecimento.';
 
@@ -849,20 +671,12 @@ class BrainController
   // REMOVE CONCEPT
   // ============================================================
 
-  Future<
-    bool
-  >
-  removeConcept(
-    int index,
-  ) async {
+  Future<bool> removeConcept(int index) async {
     if (_isSaving) {
       return false;
     }
 
-    if (index <
-            0 ||
-        index >=
-            _concepts.length) {
+    if (index < 0 || index >= _concepts.length) {
       return false;
     }
 
@@ -870,28 +684,17 @@ class BrainController
 
     final concept = _concepts[index];
 
-    final updated =
-        List<
-          BrainConcept
-        >.from(
-          _concepts,
-        );
+    final updated = List<BrainConcept>.from(_concepts);
 
-    updated.removeAt(
-      index,
-    );
+    updated.removeAt(index);
 
     _concepts = updated;
 
     _safeNotifyListeners();
 
     try {
-      await _repository.deleteConcept(
-        concept.id,
-      );
-    } catch (
-      error
-    ) {
+      await _repository.deleteConcept(concept.id);
+    } catch (error) {
       debugPrint(
         'BrainController: conhecimento ainda não estava salvo remotamente: $error',
       );
@@ -908,12 +711,7 @@ class BrainController
   // REMOVE CONCEPT BY ID
   // ============================================================
 
-  Future<
-    bool
-  >
-  removeConceptById(
-    String conceptId,
-  ) async {
+  Future<bool> removeConceptById(String conceptId) async {
     if (_isSaving) {
       return false;
     }
@@ -921,39 +719,23 @@ class BrainController
     _clearMessages();
 
     try {
-      await _repository.deleteConcept(
-        conceptId,
-      );
+      await _repository.deleteConcept(conceptId);
 
-      _concepts.removeWhere(
-        (
-          item,
-        ) {
-          return item.id ==
-              conceptId;
-        },
-      );
+      _concepts.removeWhere((item) {
+        return item.id == conceptId;
+      });
 
       _successMessage = 'Conhecimento removido.';
 
       _safeNotifyListeners();
 
       return true;
-    } catch (
-      error,
-      stackTrace
-    ) {
-      debugPrint(
-        'BrainController: erro ao remover conhecimento.',
-      );
+    } catch (error, stackTrace) {
+      debugPrint('BrainController: erro ao remover conhecimento.');
 
-      debugPrint(
-        'BrainController: $error',
-      );
+      debugPrint('BrainController: $error');
 
-      debugPrintStack(
-        stackTrace: stackTrace,
-      );
+      debugPrintStack(stackTrace: stackTrace);
 
       _errorMessage = 'Não foi possível remover o conhecimento.';
 
@@ -967,10 +749,7 @@ class BrainController
   // CLEAR CONCEPTS
   // ============================================================
 
-  Future<
-    bool
-  >
-  clearConcepts() async {
+  Future<bool> clearConcepts() async {
     if (_isSaving) {
       return false;
     }
@@ -981,28 +760,16 @@ class BrainController
 
     _clearMessages();
 
-    final previous =
-        List<
-          BrainConcept
-        >.from(
-          _concepts,
-        );
+    final previous = List<BrainConcept>.from(_concepts);
 
-    _concepts =
-        <
-          BrainConcept
-        >[];
+    _concepts = <BrainConcept>[];
 
     _safeNotifyListeners();
 
     for (final concept in previous) {
       try {
-        await _repository.deleteConcept(
-          concept.id,
-        );
-      } catch (
-        error
-      ) {
+        await _repository.deleteConcept(concept.id);
+      } catch (error) {
         debugPrint(
           'BrainController: conceito não removido remotamente: $error',
         );
@@ -1017,15 +784,309 @@ class BrainController
   }
 
   // ============================================================
+  // LOAD SOURCES
+  // ============================================================
+  //
+  // FASE 13 — FONTES DO CONHECIMENTO
+  //
+  // Fontes são persistidas no Vault criptografado.
+  //
+  // ============================================================
+
+  Future<List<BrainSource>> loadSourcesForSelectedNote() async {
+    final noteId = _selectedNote?.path.trim();
+
+    if (noteId == null || noteId.isEmpty) {
+      _sources = <BrainSource>[];
+
+      _safeNotifyListeners();
+
+      return const <BrainSource>[];
+    }
+
+    try {
+      final loaded = await _repository.getSourcesByNote(noteId);
+
+      _sources = List<BrainSource>.from(loaded);
+
+      _syncSelectedNoteSources();
+
+      _safeNotifyListeners();
+
+      return List<BrainSource>.unmodifiable(_sources);
+    } catch (error, stackTrace) {
+      debugPrint('BrainController: erro ao carregar fontes.');
+
+      debugPrint('BrainController: $error');
+
+      debugPrintStack(stackTrace: stackTrace);
+
+      _errorMessage = 'Não foi possível carregar as fontes da anotação.';
+
+      _safeNotifyListeners();
+
+      return const <BrainSource>[];
+    }
+  }
+
+  // ============================================================
+  // ADD SOURCE
+  // ============================================================
+
+  Future<bool> addSource(BrainSource source) async {
+    if (_isSaving) {
+      return false;
+    }
+
+    _clearMessages();
+
+    final noteId = _selectedNote?.path.trim();
+
+    if (noteId == null || noteId.isEmpty) {
+      _errorMessage = 'Salve a anotação antes de adicionar uma fonte.';
+
+      _safeNotifyListeners();
+
+      return false;
+    }
+
+    _setSaving(true);
+
+    try {
+      final updatedNote = await _repository.addSourceToNote(
+        noteId: noteId,
+        source: source,
+      );
+
+      _sources = List<BrainSource>.from(updatedNote.sources);
+
+      _selectedNote = updatedNote;
+
+      await _loadNotesInternal();
+
+      _successMessage = 'Fonte adicionada.';
+
+      _safeNotifyListeners();
+
+      return true;
+    } on FormatException catch (error) {
+      _errorMessage = error.message;
+
+      _safeNotifyListeners();
+
+      return false;
+    } catch (error, stackTrace) {
+      debugPrint('BrainController: erro ao adicionar fonte.');
+
+      debugPrint('BrainController: $error');
+
+      debugPrintStack(stackTrace: stackTrace);
+
+      _errorMessage = 'Não foi possível adicionar a fonte.';
+
+      _safeNotifyListeners();
+
+      return false;
+    } finally {
+      _setSaving(false);
+    }
+  }
+
+  // ============================================================
+  // UPDATE SOURCE
+  // ============================================================
+
+  Future<bool> updateSource(BrainSource source) async {
+    if (_isSaving) {
+      return false;
+    }
+
+    _clearMessages();
+
+    final noteId = _selectedNote?.path.trim();
+
+    if (noteId == null || noteId.isEmpty) {
+      _errorMessage = 'A anotação não possui um identificador válido.';
+
+      _safeNotifyListeners();
+
+      return false;
+    }
+
+    _setSaving(true);
+
+    try {
+      final updatedNote = await _repository.updateSourceInNote(
+        noteId: noteId,
+        source: source,
+      );
+
+      _sources = List<BrainSource>.from(updatedNote.sources);
+
+      _selectedNote = updatedNote;
+
+      await _loadNotesInternal();
+
+      _successMessage = 'Fonte atualizada.';
+
+      _safeNotifyListeners();
+
+      return true;
+    } on FormatException catch (error) {
+      _errorMessage = error.message;
+
+      _safeNotifyListeners();
+
+      return false;
+    } catch (error, stackTrace) {
+      debugPrint('BrainController: erro ao atualizar fonte.');
+
+      debugPrint('BrainController: $error');
+
+      debugPrintStack(stackTrace: stackTrace);
+
+      _errorMessage = 'Não foi possível atualizar a fonte.';
+
+      _safeNotifyListeners();
+
+      return false;
+    } finally {
+      _setSaving(false);
+    }
+  }
+
+  // ============================================================
+  // REMOVE SOURCE
+  // ============================================================
+
+  Future<bool> removeSource(String sourceId) async {
+    if (_isSaving) {
+      return false;
+    }
+
+    _clearMessages();
+
+    final noteId = _selectedNote?.path.trim();
+
+    if (noteId == null || noteId.isEmpty) {
+      _errorMessage = 'A anotação não possui um identificador válido.';
+
+      _safeNotifyListeners();
+
+      return false;
+    }
+
+    _setSaving(true);
+
+    try {
+      final updatedNote = await _repository.removeSourceFromNote(
+        noteId: noteId,
+        sourceId: sourceId,
+      );
+
+      _sources = List<BrainSource>.from(updatedNote.sources);
+
+      _selectedNote = updatedNote;
+
+      await _loadNotesInternal();
+
+      _successMessage = 'Fonte removida.';
+
+      _safeNotifyListeners();
+
+      return true;
+    } catch (error, stackTrace) {
+      debugPrint('BrainController: erro ao remover fonte.');
+
+      debugPrint('BrainController: $error');
+
+      debugPrintStack(stackTrace: stackTrace);
+
+      _errorMessage = 'Não foi possível remover a fonte.';
+
+      _safeNotifyListeners();
+
+      return false;
+    } finally {
+      _setSaving(false);
+    }
+  }
+
+  // ============================================================
+  // CLEAR SOURCES
+  // ============================================================
+
+  Future<bool> clearSources() async {
+    if (_isSaving) {
+      return false;
+    }
+
+    final noteId = _selectedNote?.path.trim();
+
+    if (noteId == null || noteId.isEmpty) {
+      return false;
+    }
+
+    if (_sources.isEmpty) {
+      return true;
+    }
+
+    _clearMessages();
+
+    _setSaving(true);
+
+    try {
+      final updatedNote = await _repository.clearSourcesFromNote(noteId);
+
+      _sources = List<BrainSource>.from(updatedNote.sources);
+
+      _selectedNote = updatedNote;
+
+      await _loadNotesInternal();
+
+      _successMessage = 'Fontes removidas.';
+
+      _safeNotifyListeners();
+
+      return true;
+    } catch (error, stackTrace) {
+      debugPrint('BrainController: erro ao remover fontes.');
+
+      debugPrint('BrainController: $error');
+
+      debugPrintStack(stackTrace: stackTrace);
+
+      _errorMessage = 'Não foi possível remover as fontes.';
+
+      _safeNotifyListeners();
+
+      return false;
+    } finally {
+      _setSaving(false);
+    }
+  }
+
+  // ============================================================
+  // SYNC SELECTED NOTE SOURCES
+  // ============================================================
+
+  void _syncSelectedNoteSources() {
+    final selected = _selectedNote;
+
+    if (selected == null) {
+      return;
+    }
+
+    _selectedNote = selected.copyWith(
+      sources: List<BrainSource>.from(_sources),
+    );
+  }
+
+  // ============================================================
   // LOAD ALL KNOWLEDGE
   // ============================================================
 
-  Future<
-    List<
-      BrainConcept
-    >
-  >
-  loadAllConcepts() {
+  Future<List<BrainConcept>> loadAllConcepts() {
     return _repository.loadConcepts();
   }
 
@@ -1033,29 +1094,15 @@ class BrainController
   // LOAD BY TYPE
   // ============================================================
 
-  Future<
-    List<
-      BrainConcept
-    >
-  >
-  loadConceptsByType(
-    BrainConceptType type,
-  ) {
-    return _repository.loadConceptsByType(
-      type,
-    );
+  Future<List<BrainConcept>> loadConceptsByType(BrainConceptType type) {
+    return _repository.loadConceptsByType(type);
   }
 
   // ============================================================
   // CONCEPTS
   // ============================================================
 
-  Future<
-    List<
-      BrainConcept
-    >
-  >
-  loadOnlyConcepts() {
+  Future<List<BrainConcept>> loadOnlyConcepts() {
     return _repository.loadOnlyConcepts();
   }
 
@@ -1063,12 +1110,7 @@ class BrainController
   // QUESTIONS
   // ============================================================
 
-  Future<
-    List<
-      BrainConcept
-    >
-  >
-  loadQuestions() {
+  Future<List<BrainConcept>> loadQuestions() {
     return _repository.loadQuestions();
   }
 
@@ -1076,12 +1118,7 @@ class BrainController
   // EXAMPLES
   // ============================================================
 
-  Future<
-    List<
-      BrainConcept
-    >
-  >
-  loadExamples() {
+  Future<List<BrainConcept>> loadExamples() {
     return _repository.loadExamples();
   }
 
@@ -1089,12 +1126,7 @@ class BrainController
   // WARNINGS
   // ============================================================
 
-  Future<
-    List<
-      BrainConcept
-    >
-  >
-  loadWarnings() {
+  Future<List<BrainConcept>> loadWarnings() {
     return _repository.loadWarnings();
   }
 
@@ -1119,31 +1151,30 @@ class BrainController
 
     contentController.clear();
 
-    _concepts =
-        <
-          BrainConcept
-        >[];
+    _concepts = <BrainConcept>[];
+
+    _sources = <BrainSource>[];
   }
 
   // ============================================================
   // DATABASE → BRAIN FILE
   // ============================================================
 
-  BrainFile _brainFileFromDatabase(
-    Map<
-      String,
-      dynamic
-    >
-    row,
-  ) {
+  BrainFile _brainFileFromDatabase(Map<String, dynamic> row) {
     return BrainFile(
-      topic:
-          row['topic']?.toString().trim() ??
-          '',
+      // Topic é legado na Fase 09.
+      //
+      // Anotações antigas preservam o valor existente.
+      // Registros novos/sem topic recebem um valor neutro somente
+      // para manter BrainFile compatível enquanto o modelo ainda
+      // possui esse campo.
+      topic: () {
+        final value = row['topic']?.toString().trim() ?? '';
 
-      title:
-          row['title']?.toString().trim() ??
-          '',
+        return value.isEmpty ? 'Sem tema' : value;
+      }(),
+
+      title: row['title']?.toString().trim() ?? '',
 
       // ========================================================
       // O BrainFile ainda possui "path" por compatibilidade
@@ -1151,45 +1182,65 @@ class BrainController
       //
       // Agora guardamos aqui o ID da linha no Supabase.
       // ========================================================
-      path:
-          row['id']?.toString().trim() ??
-          '',
+      path: row['id']?.toString().trim() ?? '',
 
-      content:
-          row['content']?.toString() ??
-          '',
+      content: row['content']?.toString() ?? '',
 
-      concepts:
-          const <
-            BrainConcept
-          >[],
+      concepts: const <BrainConcept>[],
+
+      sources: _parseSources(row['sources']),
 
       createdAt:
-          _parseDate(
-            row['created_at'],
-          ) ??
-          _parseDate(
-            row['updated_at'],
-          ) ??
+          _parseDate(row['created_at']) ??
+          _parseDate(row['updated_at']) ??
           DateTime.now(),
 
-      updatedAt:
-          _parseDate(
-            row['updated_at'],
-          ) ??
-          DateTime.now(),
+      updatedAt: _parseDate(row['updated_at']) ?? DateTime.now(),
     );
+  }
+
+  // ============================================================
+  // PARSE SOURCES
+  // ============================================================
+
+  List<BrainSource> _parseSources(dynamic raw) {
+    if (raw == null) {
+      return const <BrainSource>[];
+    }
+
+    if (raw is! Iterable) {
+      return const <BrainSource>[];
+    }
+
+    final result = <BrainSource>[];
+
+    for (final item in raw) {
+      if (item is! Map) {
+        continue;
+      }
+
+      try {
+        final source = BrainSource.fromJson(Map<String, dynamic>.from(item));
+
+        if (!source.isValid) {
+          continue;
+        }
+
+        result.add(source);
+      } catch (_) {
+        // Ignora apenas a fonte inválida.
+      }
+    }
+
+    return List<BrainSource>.unmodifiable(result);
   }
 
   // ============================================================
   // DATE
   // ============================================================
 
-  DateTime? _parseDate(
-    dynamic value,
-  ) {
-    if (value ==
-        null) {
+  DateTime? _parseDate(dynamic value) {
+    if (value == null) {
       return null;
     }
 
@@ -1199,9 +1250,7 @@ class BrainController
       return null;
     }
 
-    return DateTime.tryParse(
-      text,
-    )?.toLocal();
+    return DateTime.tryParse(text)?.toLocal();
   }
 
   // ============================================================
@@ -1224,9 +1273,7 @@ class BrainController
   // LOADING
   // ============================================================
 
-  void _setLoading(
-    bool value,
-  ) {
+  void _setLoading(bool value) {
     _isLoading = value;
 
     _safeNotifyListeners();
@@ -1236,9 +1283,7 @@ class BrainController
   // SAVING
   // ============================================================
 
-  void _setSaving(
-    bool value,
-  ) {
+  void _setSaving(bool value) {
     _isSaving = value;
 
     _safeNotifyListeners();

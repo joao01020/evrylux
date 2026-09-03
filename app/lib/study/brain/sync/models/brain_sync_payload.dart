@@ -15,6 +15,13 @@ import '../../vault/services/brain_vault_serializer.dart';
 //
 // O campo encryptedObject contém a serialização física do .evobj.
 //
+// FASE 13 — FONTES DO CONHECIMENTO:
+//
+// - source/reference/author/note nunca entram em plaintext;
+// - sources só podem existir dentro do BrainVaultObject criptografado;
+// - validate() falha antes de gravar a SyncQueue caso uma chave de
+//   domínio de BrainSource apareça fora do ciphertext.
+//
 // ============================================================
 
 class BrainSyncPayload {
@@ -268,17 +275,45 @@ class BrainSyncPayload {
 
   static void _assertNoPlaintextDomainKeys(dynamic value) {
     const forbiddenKeys = <String>{
+      // ========================================================
+      // CONTEÚDO PRINCIPAL
+      // ========================================================
+
       'question',
       'answer',
       'content',
       'title',
       'description',
       'topic',
+
+      // ========================================================
+      // VÍNCULOS / MODELOS DE DOMÍNIO
+      // ========================================================
+
       'source_note_path',
       'source_note_title',
       'concept_id',
       'model',
       'data',
+
+      // ========================================================
+      // FASE 13 — FONTES DO CONHECIMENTO
+      // ========================================================
+      //
+      // Nenhum dado lógico de BrainSource pode aparecer em
+      // plaintext dentro do envelope enviado à SyncQueue.
+      //
+      // Esses campos só podem existir dentro do ciphertext do
+      // BrainVaultObject.
+      //
+      // ========================================================
+
+      'source',
+      'sources',
+      'reference',
+      'author',
+      'note',
+      'published_at',
     };
 
     if (value is Map) {

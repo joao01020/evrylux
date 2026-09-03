@@ -9,13 +9,18 @@ import '../widgets/buttons/brain_save_button.dart';
 //
 // Responsabilidade:
 //
-// - editar tema;
 // - editar título;
 // - editar conteúdo;
 // - salvar;
 // - solicitar exclusão REAL da anotação selecionada.
 //
-// IMPORTANTE:
+// FASE 09 — CAPTURA SEM TEMA
+//
+// O campo Tema foi removido da interface.
+//
+// [topicController] permanece opcional somente para compatibilidade
+// temporária com chamadas antigas que ainda possam passar esse
+// controller. Ele NÃO é exibido e NÃO participa da captura.
 //
 // Este widget NÃO apaga arquivos diretamente.
 // Ele chama [onDelete] e deixa o BrainController / Repository
@@ -25,13 +30,11 @@ import '../widgets/buttons/brain_save_button.dart';
 //
 // ============================================================
 
-class BrainEditorSection
-    extends
-        StatelessWidget {
+class BrainEditorSection extends StatelessWidget {
   const BrainEditorSection({
     super.key,
     required this.selectedNote,
-    required this.topicController,
+    this.topicController,
     required this.titleController,
     required this.contentController,
     required this.contentFocusNode,
@@ -49,8 +52,15 @@ class BrainEditorSection
   // ============================================================
   // CONTROLLERS
   // ============================================================
+  //
+  // LEGADO FASE 09:
+  //
+  // Mantido temporariamente para não quebrar chamadas antigas.
+  // Não é renderizado.
+  //
+  // ============================================================
 
-  final TextEditingController topicController;
+  final TextEditingController? topicController;
 
   final TextEditingController titleController;
 
@@ -70,13 +80,9 @@ class BrainEditorSection
 
   final VoidCallback onSave;
 
-  final Future<
-    void
-  >
-  Function(
+  final Future<void> Function(
     BrainFile note,
-  )
-  onDelete;
+  ) onDelete;
 
   // ============================================================
   // BUILD
@@ -92,11 +98,11 @@ class BrainEditorSection
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // ======================================================
-        // TITLE
+        // HEADER
         // ======================================================
+
         Text(
-          note ==
-                  null
+          note == null
               ? 'Nova anotação'
               : 'Editando anotação',
           style: Theme.of(
@@ -109,7 +115,9 @@ class BrainEditorSection
         ),
 
         Text(
-          'Organize seu conhecimento por tema e salve em Markdown.',
+          note == null
+              ? 'Registre o conhecimento diretamente, sem precisar escolher um tema.'
+              : 'Atualize o título ou o conteúdo desta anotação.',
           style: Theme.of(
             context,
           ).textTheme.bodyMedium,
@@ -120,44 +128,25 @@ class BrainEditorSection
         ),
 
         // ======================================================
-        // TOPIC
-        // ======================================================
-        TextField(
-          controller: topicController,
-          enabled: !isSaving,
-          textInputAction: TextInputAction.next,
-          decoration: const InputDecoration(
-            labelText: 'Tema',
-            hintText: 'Ex.: Idiomas, História, Saúde, Trabalho...',
-            prefixIcon: Icon(
-              Icons.folder_outlined,
-              size: 20,
-            ),
-            isDense: true,
-            contentPadding: EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 12,
-            ),
-            border: OutlineInputBorder(),
-          ),
-        ),
-
-        const SizedBox(
-          height: 12,
-        ),
-
-        // ======================================================
         // TITLE
         // ======================================================
+
         TextField(
           controller: titleController,
           enabled: !isSaving,
           textInputAction: TextInputAction.next,
+          onSubmitted: (
+            _,
+          ) {
+            if (contentFocusNode.canRequestFocus) {
+              contentFocusNode.requestFocus();
+            }
+          },
           decoration: const InputDecoration(
             labelText: 'Título',
-            hintText: 'Escreva o titulo do assunto',
+            hintText: 'Escreva um título para este conhecimento',
             prefixIcon: Icon(
-              Icons.title,
+              Icons.title_rounded,
               size: 20,
             ),
             isDense: true,
@@ -176,6 +165,7 @@ class BrainEditorSection
         // ======================================================
         // CONTENT
         // ======================================================
+
         TextField(
           controller: contentController,
           focusNode: contentFocusNode,
@@ -184,12 +174,13 @@ class BrainEditorSection
           textInputAction: TextInputAction.newline,
 
           // Começa pequena e cresce conforme o conteúdo.
-          minLines: 1,
+          minLines: 3,
           maxLines: null,
 
           decoration: const InputDecoration(
-            labelText: 'Anotação em Markdown',
-            hintText: 'Escreva o conteúdo do resumo, aprendizado ou ideia principal.',
+            labelText: 'Conteúdo',
+            hintText:
+                'Escreva o resumo, aprendizado, ideia ou informação que deseja guardar.',
             alignLabelWithHint: true,
             isDense: true,
             contentPadding: EdgeInsets.symmetric(
@@ -201,12 +192,71 @@ class BrainEditorSection
         ),
 
         const SizedBox(
+          height: 12,
+        ),
+
+        // ======================================================
+        // PHASE 09 INFO
+        // ======================================================
+
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(
+            12,
+          ),
+          decoration: BoxDecoration(
+            color: Theme.of(
+              context,
+            ).colorScheme.primary.withValues(
+                  alpha: 0.055,
+                ),
+            borderRadius: BorderRadius.circular(
+              12,
+            ),
+            border: Border.all(
+              color: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(
+                    alpha: 0.14,
+                  ),
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.auto_awesome_outlined,
+                size: 18,
+                color: Theme.of(
+                  context,
+                ).colorScheme.primary,
+              ),
+
+              const SizedBox(
+                width: 8,
+              ),
+
+              Expanded(
+                child: Text(
+                  'Você não precisa escolher um tema. '
+                  'O conhecimento pode ser salvo diretamente.',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(
           height: 14,
         ),
 
         // ======================================================
         // SAVE
         // ======================================================
+
         BrainSaveButton(
           isSaving: isSaving,
           onPressed: onSave,
@@ -215,8 +265,8 @@ class BrainEditorSection
         // ======================================================
         // DELETE
         // ======================================================
-        if (note !=
-            null) ...[
+
+        if (note != null) ...[
           const SizedBox(
             height: 8,
           ),
@@ -250,69 +300,61 @@ class BrainEditorSection
   // CONFIRM DELETE
   // ============================================================
 
-  Future<
-    void
-  >
-  _confirmDelete(
+  Future<void> _confirmDelete(
     BuildContext context,
     BrainFile note,
   ) async {
-    final confirmed =
-        await showDialog<
-          bool
-        >(
-          context: context,
-          barrierDismissible: true,
-          builder:
-              (
-                dialogContext,
-              ) {
-                return AlertDialog(
-                  title: const Text(
-                    'Excluir anotação?',
-                  ),
-                  content: Text(
-                    '"${note.title.trim().isEmpty ? 'Sem título' : note.title.trim()}" '
-                    'será removida deste dispositivo e a exclusão será '
-                    'sincronizada com a nuvem.',
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(
-                          dialogContext,
-                        ).pop(
-                          false,
-                        );
-                      },
-                      child: const Text(
-                        'Cancelar',
-                      ),
-                    ),
-
-                    FilledButton.icon(
-                      onPressed: () {
-                        Navigator.of(
-                          dialogContext,
-                        ).pop(
-                          true,
-                        );
-                      },
-                      icon: const Icon(
-                        Icons.delete_outline_rounded,
-                        size: 18,
-                      ),
-                      label: const Text(
-                        'Excluir',
-                      ),
-                    ),
-                  ],
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (
+        dialogContext,
+      ) {
+        return AlertDialog(
+          title: const Text(
+            'Excluir anotação?',
+          ),
+          content: Text(
+            '"${note.title.trim().isEmpty ? 'Sem título' : note.title.trim()}" '
+            'será removida deste dispositivo e a exclusão será '
+            'sincronizada com a nuvem.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(
+                  dialogContext,
+                ).pop(
+                  false,
                 );
               },
-        );
+              child: const Text(
+                'Cancelar',
+              ),
+            ),
 
-    if (confirmed !=
-        true) {
+            FilledButton.icon(
+              onPressed: () {
+                Navigator.of(
+                  dialogContext,
+                ).pop(
+                  true,
+                );
+              },
+              icon: const Icon(
+                Icons.delete_outline_rounded,
+                size: 18,
+              ),
+              label: const Text(
+                'Excluir',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) {
       return;
     }
 

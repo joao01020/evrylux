@@ -6,6 +6,7 @@ import '../../controllers/brain_controller.dart';
 import '../../models/brain_concept.dart';
 import '../../models/brain_file.dart';
 import '../../sections/brain_editor_section.dart';
+import '../../source/widgets/brain_sources_section.dart';
 
 // ============================================================
 // BRAIN NOTE SCREEN
@@ -28,32 +29,34 @@ import '../../sections/brain_editor_section.dart';
 // Esta página NÃO cria BrainController próprio.
 // Também NÃO faz dispose() no controller global.
 //
+// FASE 09 — CAPTURA SEM TEMA:
+//
+// - Tema não é mais exibido no viewer;
+// - Tema não é mais enviado ao editor visual;
+// - anotações antigas continuam compatíveis internamente por meio
+//   do BrainFile / BrainController / BrainStorage legado.
+//
+// FASE 13 — FONTES DO CONHECIMENTO:
+//
+// - fontes aparecem na visualização da anotação;
+// - adicionar/editar/remover usa BrainSourcesSection;
+// - persistência continua no Vault criptografado;
+// - BrainStorage Markdown não recebe metadados sensíveis da fonte.
+//
 // ============================================================
 
-class BrainNoteScreen
-    extends
-        StatefulWidget {
-  const BrainNoteScreen({
-    super.key,
-    required this.note,
-  });
+class BrainNoteScreen extends StatefulWidget {
+  const BrainNoteScreen({super.key, required this.note});
 
   final BrainFile note;
 
   @override
-  State<
-    BrainNoteScreen
-  >
-  createState() {
+  State<BrainNoteScreen> createState() {
     return _BrainNoteScreenState();
   }
 }
 
-class _BrainNoteScreenState
-    extends
-        State<
-          BrainNoteScreen
-        > {
+class _BrainNoteScreenState extends State<BrainNoteScreen> {
   late final BrainController _controller;
 
   bool _isOpening = true;
@@ -74,9 +77,7 @@ class _BrainNoteScreenState
 
     _controller = dependencies.brainController;
 
-    _controller.addListener(
-      _onControllerChanged,
-    );
+    _controller.addListener(_onControllerChanged);
 
     _openNote();
   }
@@ -87,9 +88,7 @@ class _BrainNoteScreenState
 
   @override
   void dispose() {
-    _controller.removeListener(
-      _onControllerChanged,
-    );
+    _controller.removeListener(_onControllerChanged);
 
     // Controller global:
     // não fazer _controller.dispose() aqui.
@@ -106,54 +105,40 @@ class _BrainNoteScreenState
       return;
     }
 
-    setState(
-      () {},
-    );
+    setState(() {});
   }
 
   // ============================================================
   // OPEN
   // ============================================================
 
-  Future<
-    void
-  >
-  _openNote() async {
-    setState(
-      () {
-        _isOpening = true;
-        _openError = null;
-      },
-    );
+  Future<void> _openNote() async {
+    setState(() {
+      _isOpening = true;
+      _openError = null;
+    });
 
-    final opened = await _controller.openNote(
-      widget.note,
-    );
+    final opened = await _controller.openNote(widget.note);
 
     if (!mounted) {
       return;
     }
 
     if (!opened) {
-      setState(
-        () {
-          _isOpening = false;
-          _openError =
-              _controller.errorMessage ??
-              'Não foi possível abrir a anotação.';
-        },
-      );
+      setState(() {
+        _isOpening = false;
+        _openError =
+            _controller.errorMessage ?? 'Não foi possível abrir a anotação.';
+      });
 
       _controller.clearMessages();
 
       return;
     }
 
-    setState(
-      () {
-        _isOpening = false;
-      },
-    );
+    setState(() {
+      _isOpening = false;
+    });
   }
 
   // ============================================================
@@ -161,8 +146,7 @@ class _BrainNoteScreenState
   // ============================================================
 
   BrainFile get _currentNote {
-    return _controller.selectedNote ??
-        widget.note;
+    return _controller.selectedNote ?? widget.note;
   }
 
   // ============================================================
@@ -170,16 +154,13 @@ class _BrainNoteScreenState
   // ============================================================
 
   void _startEditing() {
-    if (_controller.isSaving ||
-        _isDeleting) {
+    if (_controller.isSaving || _isDeleting) {
       return;
     }
 
-    setState(
-      () {
-        _isEditing = true;
-      },
-    );
+    setState(() {
+      _isEditing = true;
+    });
   }
 
   void _cancelEditing() {
@@ -187,37 +168,28 @@ class _BrainNoteScreenState
       return;
     }
 
-    setState(
-      () {
-        _isEditing = false;
-      },
-    );
+    setState(() {
+      _isEditing = false;
+    });
   }
 
   // ============================================================
   // SAVE
   // ============================================================
 
-  Future<
-    void
-  >
-  _save() async {
+  Future<void> _save() async {
     final title = _controller.titleController.text.trim();
 
     final content = _controller.contentController.text.trim();
 
     if (title.isEmpty) {
-      _showMessage(
-        'Digite um título antes de salvar.',
-      );
+      _showMessage('Digite um título antes de salvar.');
 
       return;
     }
 
     if (content.isEmpty) {
-      _showMessage(
-        'Digite o conteúdo antes de salvar.',
-      );
+      _showMessage('Digite o conteúdo antes de salvar.');
 
       return;
     }
@@ -234,11 +206,9 @@ class _BrainNoteScreenState
       return;
     }
 
-    setState(
-      () {
-        _isEditing = false;
-      },
-    );
+    setState(() {
+      _isEditing = false;
+    });
 
     _showControllerMessage();
   }
@@ -247,98 +217,60 @@ class _BrainNoteScreenState
   // DELETE
   // ============================================================
 
-  Future<
-    void
-  >
-  _delete(
-    BrainFile note,
-  ) async {
-    if (_isDeleting ||
-        _controller.isSaving) {
+  Future<void> _delete(BrainFile note) async {
+    if (_isDeleting || _controller.isSaving) {
       return;
     }
 
-    final confirmed =
-        await showDialog<
-          bool
-        >(
-          context: context,
-          builder:
-              (
-                dialogContext,
-              ) {
-                return AlertDialog(
-                  title: const Text(
-                    'Excluir anotação?',
-                  ),
-                  content: Text(
-                    'Deseja excluir permanentemente "${note.title}"?',
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(
-                          dialogContext,
-                          false,
-                        );
-                      },
-                      child: const Text(
-                        'Cancelar',
-                      ),
-                    ),
-                    FilledButton(
-                      onPressed: () {
-                        Navigator.pop(
-                          dialogContext,
-                          true,
-                        );
-                      },
-                      child: const Text(
-                        'Excluir',
-                      ),
-                    ),
-                  ],
-                );
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Excluir anotação?'),
+          content: Text('Deseja excluir permanentemente "${note.title}"?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, false);
               },
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, true);
+              },
+              child: const Text('Excluir'),
+            ),
+          ],
         );
-
-    if (!mounted ||
-        confirmed !=
-            true) {
-      return;
-    }
-
-    setState(
-      () {
-        _isDeleting = true;
       },
     );
 
-    final deleted = await _controller.deleteNote(
-      note,
-    );
+    if (!mounted || confirmed != true) {
+      return;
+    }
+
+    setState(() {
+      _isDeleting = true;
+    });
+
+    final deleted = await _controller.deleteNote(note);
 
     if (!mounted) {
       return;
     }
 
     if (!deleted) {
-      setState(
-        () {
-          _isDeleting = false;
-        },
-      );
+      setState(() {
+        _isDeleting = false;
+      });
 
       _showControllerMessage();
 
       return;
     }
 
-    Navigator.of(
-      context,
-    ).pop(
-      true,
-    );
+    Navigator.of(context).pop(true);
   }
 
   // ============================================================
@@ -350,61 +282,38 @@ class _BrainNoteScreenState
 
     final success = _controller.successMessage;
 
-    if (error !=
-        null) {
-      _showMessage(
-        error,
-      );
+    if (error != null) {
+      _showMessage(error);
 
       _controller.clearMessages();
 
       return;
     }
 
-    if (success !=
-        null) {
-      _showMessage(
-        success,
-      );
+    if (success != null) {
+      _showMessage(success);
 
       _controller.clearMessages();
     }
   }
 
-  void _showMessage(
-    String message,
-  ) {
-    final messenger = ScaffoldMessenger.of(
-      context,
-    );
+  void _showMessage(String message) {
+    final messenger = ScaffoldMessenger.of(context);
 
     messenger.hideCurrentSnackBar();
 
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-        ),
-      ),
-    );
+    messenger.showSnackBar(SnackBar(content: Text(message)));
   }
 
   // ============================================================
   // DATE
   // ============================================================
 
-  String _formatDate(
-    DateTime date,
-  ) {
+  String _formatDate(DateTime date) {
     final local = date.toLocal();
 
-    String two(
-      int value,
-    ) {
-      return value.toString().padLeft(
-        2,
-        '0',
-      );
+    String two(int value) {
+      return value.toString().padLeft(2, '0');
     }
 
     return '${two(local.day)}/'
@@ -419,69 +328,41 @@ class _BrainNoteScreenState
   // ============================================================
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          _isEditing
-              ? 'Editar anotação'
-              : 'Anotação',
-        ),
+        title: Text(_isEditing ? 'Editar anotação' : 'Anotação'),
         actions: [
-          if (!_isOpening &&
-              _openError ==
-                  null &&
-              !_isEditing)
+          if (!_isOpening && _openError == null && !_isEditing)
             IconButton(
               tooltip: 'Editar',
-              onPressed:
-                  _controller.isSaving ||
-                      _isDeleting
+              onPressed: _controller.isSaving || _isDeleting
                   ? null
                   : _startEditing,
-              icon: const Icon(
-                Icons.edit_outlined,
-              ),
+              icon: const Icon(Icons.edit_outlined),
             ),
 
           if (_isEditing)
             TextButton(
-              onPressed: _controller.isSaving
-                  ? null
-                  : _cancelEditing,
-              child: const Text(
-                'Cancelar',
-              ),
+              onPressed: _controller.isSaving ? null : _cancelEditing,
+              child: const Text('Cancelar'),
             ),
 
-          if (!_isEditing &&
-              !_isOpening &&
-              _openError ==
-                  null)
+          if (!_isEditing && !_isOpening && _openError == null)
             IconButton(
               tooltip: 'Excluir',
               onPressed: _isDeleting
                   ? null
                   : () {
-                      _delete(
-                        _currentNote,
-                      );
+                      _delete(_currentNote);
                     },
-              icon: const Icon(
-                Icons.delete_outline_rounded,
-              ),
+              icon: const Icon(Icons.delete_outline_rounded),
             ),
 
-          const SizedBox(
-            width: 8,
-          ),
+          const SizedBox(width: 8),
         ],
       ),
-      body: _buildBody(
-        context,
-      ),
+      body: _buildBody(context),
     );
   }
 
@@ -489,17 +370,12 @@ class _BrainNoteScreenState
   // BODY
   // ============================================================
 
-  Widget _buildBody(
-    BuildContext context,
-  ) {
+  Widget _buildBody(BuildContext context) {
     if (_isOpening) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
-    if (_openError !=
-        null) {
+    if (_openError != null) {
       return _buildError();
     }
 
@@ -507,86 +383,35 @@ class _BrainNoteScreenState
       return _buildEditor();
     }
 
-    return _buildViewer(
-      context,
-    );
+    return _buildViewer(context);
   }
 
   // ============================================================
   // VIEWER
   // ============================================================
 
-  Widget _buildViewer(
-    BuildContext context,
-  ) {
+  Widget _buildViewer(BuildContext context) {
     final note = _currentNote;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(
-        24,
-        24,
-        24,
-        40,
-      ),
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: 900,
-          ),
+          constraints: const BoxConstraints(maxWidth: 900),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ==================================================
-              // TOPIC
-              // ==================================================
-              if (note.topic.trim().isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 7,
-                  ),
-                  decoration: BoxDecoration(
-                    color:
-                        Theme.of(
-                          context,
-                        ).colorScheme.primary.withValues(
-                          alpha: 0.10,
-                        ),
-                    borderRadius: BorderRadius.circular(
-                      999,
-                    ),
-                  ),
-                  child: Text(
-                    note.topic,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.primary,
-                    ),
-                  ),
-                ),
-
-              const SizedBox(
-                height: 18,
-              ),
-
               // ==================================================
               // TITLE
               // ==================================================
               SelectableText(
                 note.title,
-                style:
-                    Theme.of(
-                      context,
-                    ).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
               ),
 
-              const SizedBox(
-                height: 12,
-              ),
+              const SizedBox(height: 12),
 
               // ==================================================
               // DATES
@@ -608,68 +433,54 @@ class _BrainNoteScreenState
                 ],
               ),
 
-              const SizedBox(
-                height: 24,
-              ),
+              const SizedBox(height: 24),
 
               Divider(
-                color:
-                    Theme.of(
-                      context,
-                    ).dividerColor.withValues(
-                      alpha: 0.55,
-                    ),
+                color: Theme.of(context).dividerColor.withValues(alpha: 0.55),
               ),
 
-              const SizedBox(
-                height: 24,
-              ),
+              const SizedBox(height: 24),
 
               // ==================================================
               // CONTENT
               // ==================================================
               SelectableText(
                 note.content,
-                style:
-                    Theme.of(
-                      context,
-                    ).textTheme.bodyLarge?.copyWith(
-                      fontSize: 16,
-                      height: 1.65,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyLarge?.copyWith(fontSize: 16, height: 1.65),
               ),
 
+              // ==================================================
+              // FONTES DO CONHECIMENTO
+              // ==================================================
+              const SizedBox(height: 30),
+
+              Divider(
+                color: Theme.of(context).dividerColor.withValues(alpha: 0.55),
+              ),
+
+              const SizedBox(height: 18),
+
+              BrainSourcesSection(controller: _controller),
+
               if (note.concepts.isNotEmpty) ...[
-                const SizedBox(
-                  height: 30,
-                ),
+                const SizedBox(height: 30),
 
                 Divider(
-                  color:
-                      Theme.of(
-                        context,
-                      ).dividerColor.withValues(
-                        alpha: 0.55,
-                      ),
+                  color: Theme.of(context).dividerColor.withValues(alpha: 0.55),
                 ),
 
-                const SizedBox(
-                  height: 18,
-                ),
+                const SizedBox(height: 18),
 
                 Text(
                   'Classificações',
-                  style:
-                      Theme.of(
-                        context,
-                      ).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
 
-                const SizedBox(
-                  height: 12,
-                ),
+                const SizedBox(height: 12),
 
                 Wrap(
                   spacing: 8,
@@ -678,19 +489,11 @@ class _BrainNoteScreenState
                     for (final concept in note.concepts)
                       Chip(
                         avatar: Icon(
-                          _conceptIcon(
-                            concept.type,
-                          ),
+                          _conceptIcon(concept.type),
                           size: 16,
-                          color: _conceptColor(
-                            concept.type,
-                          ),
+                          color: _conceptColor(concept.type),
                         ),
-                        label: Text(
-                          _conceptLabel(
-                            concept.type,
-                          ),
-                        ),
+                        label: Text(_conceptLabel(concept.type)),
                       ),
                   ],
                 ),
@@ -708,17 +511,12 @@ class _BrainNoteScreenState
 
   Widget _buildEditor() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(
-        24,
-      ),
+      padding: const EdgeInsets.all(24),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: 900,
-          ),
+          constraints: const BoxConstraints(maxWidth: 900),
           child: BrainEditorSection(
             selectedNote: _controller.selectedNote,
-            topicController: _controller.topicController,
             titleController: _controller.titleController,
             contentController: _controller.contentController,
             contentFocusNode: _controller.contentFocusNode,
@@ -742,9 +540,7 @@ class _BrainNoteScreenState
   //
   // ============================================================
 
-  IconData _conceptIcon(
-    BrainConceptType type,
-  ) {
+  IconData _conceptIcon(BrainConceptType type) {
     switch (type) {
       case BrainConceptType.concept:
         return Icons.lightbulb_outline_rounded;
@@ -760,35 +556,23 @@ class _BrainNoteScreenState
     }
   }
 
-  Color _conceptColor(
-    BrainConceptType type,
-  ) {
+  Color _conceptColor(BrainConceptType type) {
     switch (type) {
       case BrainConceptType.concept:
-        return const Color(
-          0xFF3B6939,
-        );
+        return const Color(0xFF3B6939);
 
       case BrainConceptType.question:
-        return const Color(
-          0xFF3859FF,
-        );
+        return const Color(0xFF3859FF);
 
       case BrainConceptType.example:
-        return const Color(
-          0xFF6D4AFF,
-        );
+        return const Color(0xFF6D4AFF);
 
       case BrainConceptType.warning:
-        return const Color(
-          0xFFB26A00,
-        );
+        return const Color(0xFFB26A00);
     }
   }
 
-  String _conceptLabel(
-    BrainConceptType type,
-  ) {
+  String _conceptLabel(BrainConceptType type) {
     switch (type) {
       case BrainConceptType.concept:
         return 'Conceito';
@@ -819,19 +603,10 @@ class _BrainNoteScreenState
         Icon(
           icon,
           size: 15,
-          color: Theme.of(
-            context,
-          ).colorScheme.onSurfaceVariant,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
-        const SizedBox(
-          width: 5,
-        ),
-        Text(
-          text,
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall,
-        ),
+        const SizedBox(width: 5),
+        Text(text, style: Theme.of(context).textTheme.bodySmall),
       ],
     );
   }
@@ -843,35 +618,21 @@ class _BrainNoteScreenState
   Widget _buildError() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(
-          24,
-        ),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.error_outline_rounded,
-              size: 48,
-            ),
-            const SizedBox(
-              height: 12,
-            ),
+            const Icon(Icons.error_outline_rounded, size: 48),
+            const SizedBox(height: 12),
             Text(
-              _openError ??
-                  'Não foi possível abrir a anotação.',
+              _openError ?? 'Não foi possível abrir a anotação.',
               textAlign: TextAlign.center,
             ),
-            const SizedBox(
-              height: 16,
-            ),
+            const SizedBox(height: 16),
             FilledButton.icon(
               onPressed: _openNote,
-              icon: const Icon(
-                Icons.refresh_rounded,
-              ),
-              label: const Text(
-                'Tentar novamente',
-              ),
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Tentar novamente'),
             ),
           ],
         ),
