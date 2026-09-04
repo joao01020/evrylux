@@ -30,15 +30,6 @@ import 'legal/terms_of_use_page.dart';
 // Preferências são salvas no user_metadata do Supabase.
 // Senha é alterada pelo Supabase Auth.
 //
-// Sessões e dispositivos usam:
-//
-// AccountDeviceIdentityService
-// AccountDeviceRepository
-//
-// definidos em:
-//
-// app/dependencies/app_dependencies.dart
-//
 // ============================================================
 
 part 'settings/actions/preferences_actions.dart';
@@ -142,17 +133,6 @@ class _ProfileSettingsPageState
   // ============================================================
   // ACCOUNT DEVICES / SESSIONS
   // ============================================================
-  //
-  // Esses valores NÃO são mais mockados.
-  //
-  // O contador é carregado através de:
-  //
-  // AccountDeviceRepository
-  //
-  // e representa os dispositivos/sessões ativos registrados
-  // no Supabase.
-  //
-  // ============================================================
 
   bool _loadingAccountDevices = false;
 
@@ -210,10 +190,6 @@ class _ProfileSettingsPageState
         BrainDeviceRecord
       >[];
 
-  // ============================================================
-  // GLOBAL MESSAGE
-  // ============================================================
-
   String? _message;
 
   bool _messageIsError = false;
@@ -230,30 +206,13 @@ class _ProfileSettingsPageState
 
     _profileRepository = ProfileRepository();
 
-    // ==========================================================
-    // PREFERENCES
-    // ==========================================================
-
     unawaited(
       _loadPreferences(),
     );
 
-    // ==========================================================
-    // ACCOUNT DEVICES
-    // ==========================================================
-    //
-    // Registra/atualiza o dispositivo atual e carrega a
-    // quantidade real de dispositivos ativos.
-    //
-    // ==========================================================
-
     unawaited(
       _loadAccountDevicesSummary(),
     );
-
-    // ==========================================================
-    // BRAIN
-    // ==========================================================
 
     _loadBrainSettings();
   }
@@ -271,17 +230,6 @@ class _ProfileSettingsPageState
   // ============================================================
   // STATE UPDATE GATE
   // ============================================================
-  //
-  // Os arquivos `part` usam extensions para separar
-  // responsabilidades.
-  //
-  // Extensions não devem acessar diretamente o método protegido
-  // State.setState().
-  //
-  // Este é o único ponto de entrada para mutações de UI feitas
-  // pelas partes refatoradas.
-  //
-  // ============================================================
 
   void _updateProfileState(
     VoidCallback callback,
@@ -298,34 +246,14 @@ class _ProfileSettingsPageState
   // ============================================================
   // LOAD ACCOUNT DEVICES SUMMARY
   // ============================================================
-  //
-  // Carrega os dados REAIS de sessões/dispositivos.
-  //
-  // Fluxo:
-  //
-  // 1. verifica usuário autenticado;
-  // 2. recupera/cria o device_id desta instalação;
-  // 3. registra/atualiza o dispositivo no Supabase;
-  // 4. consulta dispositivos ativos;
-  // 5. atualiza o contador da interface.
-  //
-  // ============================================================
 
   Future<
     void
   >
   _loadAccountDevicesSummary() async {
-    // ==========================================================
-    // EVITA REENTRÂNCIA
-    // ==========================================================
-
     if (_loadingAccountDevices) {
       return;
     }
-
-    // ==========================================================
-    // USUÁRIO
-    // ==========================================================
 
     final user = _user;
 
@@ -333,25 +261,18 @@ class _ProfileSettingsPageState
         null) {
       _updateProfileState(
         () {
-          _activeAccountDeviceCount = 0;
-
-          _accountDevicesError = null;
-
           _loadingAccountDevices = false;
+          _activeAccountDeviceCount = 0;
+          _accountDevicesError = null;
         },
       );
 
       return;
     }
 
-    // ==========================================================
-    // LOADING
-    // ==========================================================
-
     _updateProfileState(
       () {
         _loadingAccountDevices = true;
-
         _accountDevicesError = null;
       },
     );
@@ -364,12 +285,7 @@ class _ProfileSettingsPageState
       final deviceId = await accountDeviceIdentityService.getOrCreateDeviceId();
 
       // ========================================================
-      // REGISTRA / ATUALIZA DISPOSITIVO ATUAL
-      // ========================================================
-      //
-      // Fazemos isso também aqui porque a tela de Segurança pode
-      // ser aberta antes do primeiro heartbeat global.
-      //
+      // REGISTRA / ATUALIZA A SESSÃO ATUAL
       // ========================================================
 
       await accountDeviceRepository.registerDevice(
@@ -380,18 +296,17 @@ class _ProfileSettingsPageState
       );
 
       // ========================================================
-      // LISTA DISPOSITIVOS ATIVOS
+      // BUSCA DISPOSITIVOS ATIVOS
       // ========================================================
 
-      final devices = await accountDeviceRepository.listActiveDevices();
+      final List<
+        AccountDevice
+      >
+      devices = await accountDeviceRepository.listActiveDevices();
 
       if (!mounted) {
         return;
       }
-
-      // ========================================================
-      // ATUALIZA CONTADOR REAL
-      // ========================================================
 
       _updateProfileState(
         () {

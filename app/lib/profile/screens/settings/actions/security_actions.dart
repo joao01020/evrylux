@@ -357,14 +357,11 @@ extension _ProfileSettingsSecurityActions
     await _loadAccountDevicesSummary();
   }
 
-  // DELETE DATA — FRONTEND CONFIRMATION
+  // DELETE DATA — REAL DELETION
   // ============================================================
   //
-  // Nesta etapa, a ação é SOMENTE de frontend.
-  //
-  // O backend seguro será conectado depois. Nenhuma exclusão real
-  // é executada por estes métodos enquanto a camada de servidor
-  // ainda não estiver implementada.
+  // A exclusão remota é feita pela Edge Function account-cleanup.
+  // Somente após sucesso remoto os dados locais são removidos.
   //
   // ============================================================
 
@@ -431,8 +428,7 @@ extension _ProfileSettingsSecurityActions
                               children: [
                                 const Text(
                                   'Sua conta continuará existindo, mas os dados '
-                                  'associados ao EVRYLUX serão removidos quando '
-                                  'esta função estiver conectada ao backend.',
+                                  'associados ao EVRYLUX serão removidos permanentemente.',
                                   style: TextStyle(
                                     color: _ProfileSettingsPageState._text,
                                     fontSize: 13,
@@ -596,14 +592,68 @@ extension _ProfileSettingsSecurityActions
       return;
     }
 
-    _updateProfileState(
-      () {
-        _message =
-            'Frontend de exclusão de dados concluído. '
-            'A exclusão real será ativada quando conectarmos o backend seguro.';
-        _messageIsError = false;
-      },
+    _showDeletionProgressDialog(
+      title: 'Excluindo dados...',
     );
+
+    try {
+      await accountDeletionService.deleteAllData(
+        vaultId: _brainVaultId,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.of(
+        context,
+        rootNavigator: true,
+      ).pop();
+
+      _updateProfileState(
+        () {
+          _activeAccountDeviceCount = 0;
+          _accountDevicesError = null;
+          _brainVaultId = null;
+          _brainKeyVersion = null;
+          _brainMasterKeyAvailable = false;
+          _brainDevices = const <BrainDeviceRecord>[];
+          _currentBrainDeviceId = null;
+          _message = 'Seus dados foram excluídos com sucesso.';
+          _messageIsError = false;
+        },
+      );
+
+      unawaited(
+        _loadPreferences(),
+      );
+
+      unawaited(
+        _loadAccountDevicesSummary(),
+      );
+
+      _loadBrainSettings();
+    } catch (error) {
+      debugPrint(
+        '[PROFILE SETTINGS] Erro excluindo dados: $error',
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.of(
+        context,
+        rootNavigator: true,
+      ).pop();
+
+      _updateProfileState(
+        () {
+          _message = 'Não foi possível excluir seus dados.';
+          _messageIsError = true;
+        },
+      );
+    }
   }
 
   // ============================================================
@@ -673,8 +723,8 @@ extension _ProfileSettingsSecurityActions
                               children: [
                                 const Text(
                                   'Esta é a ação mais destrutiva da conta. '
-                                  'Quando o backend estiver conectado, a conta '
-                                  'e os dados associados serão removidos permanentemente.',
+                                  'A conta e os dados associados serão removidos '
+                                  'permanentemente.',
                                   style: TextStyle(
                                     color: _ProfileSettingsPageState._text,
                                     fontSize: 13,
@@ -836,13 +886,107 @@ extension _ProfileSettingsSecurityActions
       return;
     }
 
-    _updateProfileState(
-      () {
-        _message =
-            'Frontend de exclusão da conta concluído. '
-            'A exclusão real será ativada quando conectarmos o backend seguro.';
-        _messageIsError = false;
-      },
+    _showDeletionProgressDialog(
+      title: 'Excluindo conta...',
+    );
+
+    try {
+      await accountDeletionService.deleteAccount(
+        vaultId: _brainVaultId,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.of(
+        context,
+        rootNavigator: true,
+      ).pop();
+
+      Navigator.of(
+        context,
+      ).popUntil(
+        (route) => route.isFirst,
+      );
+    } catch (error) {
+      debugPrint(
+        '[PROFILE SETTINGS] Erro excluindo conta: $error',
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.of(
+        context,
+        rootNavigator: true,
+      ).pop();
+
+      _updateProfileState(
+        () {
+          _message = 'Não foi possível excluir sua conta.';
+          _messageIsError = true;
+        },
+      );
+    }
+  }
+
+  // ============================================================
+  // DELETION PROGRESS
+  // ============================================================
+
+  void _showDeletionProgressDialog({
+    required String title,
+  }) {
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          return PopScope(
+            canPop: false,
+            child: AlertDialog(
+              backgroundColor: _ProfileSettingsPageState._surface,
+              surfaceTintColor: Colors.transparent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(
+                  20,
+                ),
+                side: const BorderSide(
+                  color: _ProfileSettingsPageState._border,
+                ),
+              ),
+              content: SizedBox(
+                width: 320,
+                child: Row(
+                  children: [
+                    const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.4,
+                      ),
+                    ),
+                    const SizedBox(
+                      width: 14,
+                    ),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          color: _ProfileSettingsPageState._text,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
