@@ -95,6 +95,10 @@ import '../../evolution/my_journey/controllers/journey_controller.dart';
 
 import '../../study/controllers/study_controller.dart';
 
+import '../../profile/security/devices/repositories/account_device_repository.dart';
+import '../../profile/security/devices/services/account_device_identity_service.dart';
+import '../../profile/security/devices/services/account_device_presence_service.dart';
+
 import '../../routine/controllers/routine_controller.dart';
 import '../../routine/controllers/comments/board_comment_controller.dart';
 import '../../routine/data/datasources/comments/board_comment_remote_data_source.dart';
@@ -114,6 +118,7 @@ import '../../study/brain/services/brain_storage.dart';
 import '../../study/brain/services/review_storage.dart';
 import '../../study/brain/services/supabase_brain_service.dart';
 import '../../study/brain/services/supabase_review_service.dart';
+import '../../study/brain/backup/services/brain_backup_service.dart';
 
 import '../../study/brain/migration/services/brain_migration_factory.dart';
 import '../../study/brain/migration/services/brain_review_startup_migration_service.dart';
@@ -463,6 +468,16 @@ final brainVaultService = BrainVaultService(
 );
 
 // ======================================================
+// BRAIN BACKUP — .evbrain
+// ======================================================
+
+final brainBackupService = BrainBackupService(
+  vaultService: brainVaultService,
+  vaultStorage: brainVaultStorage,
+  keyService: brainKeyService,
+);
+
+// ======================================================
 // NOTE / CONCEPT VAULT STORES
 // ======================================================
 
@@ -557,6 +572,28 @@ final brainE2eeSyncCoordinator = BrainE2eeSyncCoordinator(
   //
   // ==========================================================
   canUseCloudOperations: _canUseBrainCloudWithAuthorizedDevice,
+);
+
+// ======================================================
+// ACCOUNT DEVICES / SESSIONS
+// ======================================================
+//
+// Esta identidade é separada do Brain/E2EE.
+// Ela representa a instalação do EVRYLUX para fins de sessão,
+// presença e gerenciamento de dispositivos da conta.
+//
+// ======================================================
+
+final accountDeviceIdentityService = AccountDeviceIdentityService();
+
+final accountDeviceRepository = AccountDeviceRepository(
+  client: supabaseClient,
+);
+
+final accountDevicePresenceService = AccountDevicePresenceService(
+  client: supabaseClient,
+  repository: accountDeviceRepository,
+  identityService: accountDeviceIdentityService,
 );
 
 // ======================================================

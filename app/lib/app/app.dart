@@ -232,11 +232,17 @@ class _GhostAppState
             _startReminderService(),
           );
 
+          unawaited(
+            _startAccountDevicePresence(),
+          );
+
           // Quando o usuário entra, pedimos uma nova tentativa
           // de sincronização. Isso é importante caso o app tenha
           // iniciado antes da sessão ser restaurada.
           syncService.requestSync();
         } else if (mounted) {
+          accountDevicePresenceService.stop();
+
           setState(
             () {
               _profile = null;
@@ -261,9 +267,77 @@ class _GhostAppState
           unawaited(
             _startReminderService(),
           );
+
+          unawaited(
+            _startAccountDevicePresence(),
+          );
         }
       },
     );
+  }
+
+  // ============================================================
+  // ACCOUNT DEVICE PRESENCE
+  // ============================================================
+  //
+  // Registra esta instalação como dispositivo real da conta e
+  // mantém last_seen_at atualizado no Supabase.
+  //
+  // Se outro dispositivo revogar esta instalação, o próximo
+  // heartbeat encerra somente a sessão local deste dispositivo.
+  //
+  // ============================================================
+
+  Future<
+    void
+  >
+  _startAccountDevicePresence() async {
+    final user = supabaseClient.auth.currentUser;
+
+    if (user == null) {
+      accountDevicePresenceService.stop();
+
+      return;
+    }
+
+    try {
+      await accountDevicePresenceService.start(
+        onRevoked: () async {
+          if (!mounted) {
+            return;
+          }
+
+          _scaffoldMessengerKey.currentState?.showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Este dispositivo foi desconectado da sua conta.',
+              ),
+            ),
+          );
+
+          try {
+            await supabaseClient.auth.signOut(
+              scope: SignOutScope.local,
+            );
+          } catch (
+            error
+          ) {
+            debugPrint(
+              '[ACCOUNT DEVICE] Erro ao encerrar sessão revogada: $error',
+            );
+          }
+        },
+      );
+    } catch (
+      error
+    ) {
+      // O gerenciamento de dispositivos é uma camada de segurança
+      // remota. Falha de rede ou migration ainda não aplicada não
+      // pode impedir o restante do app de abrir.
+      debugPrint(
+        '[ACCOUNT DEVICE] Presença indisponível: $error',
+      );
+    }
   }
 
   // ============================================================
@@ -910,6 +984,16 @@ class _GhostAppState
     );
 
     try {
+      try {
+        await accountDeviceRepository.disconnectCurrentDevice();
+      } catch (
+        error
+      ) {
+        debugPrint(
+          '[ACCOUNT DEVICE] Não foi possível marcar a sessão como encerrada: $error',
+        );
+      }
+
       await supabaseClient.auth.signOut();
     } catch (
       error
@@ -976,6 +1060,8 @@ class _GhostAppState
   @override
   void dispose() {
     _authSubscription?.cancel();
+
+    accountDevicePresenceService.stop();
 
     reminderService.dispose();
 
