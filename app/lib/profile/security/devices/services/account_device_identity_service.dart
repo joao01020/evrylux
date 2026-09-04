@@ -42,6 +42,15 @@ class AccountDeviceIdentityService {
     return created;
   }
 
+  Future<
+    void
+  >
+  clear() {
+    return _storage.delete(
+      key: _deviceIdKey,
+    );
+  }
+
   String get deviceName {
     final host = Platform.localHostname.trim();
 
