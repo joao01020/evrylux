@@ -6,10 +6,12 @@ import 'package:flutter/material.dart';
 //
 // Termos de Uso do EVRYLUX.
 //
-// Observação:
-// Este texto funciona como uma base completa para o aplicativo.
-// Antes de publicar comercialmente, é recomendável revisar o
-// conteúdo com um profissional jurídico.
+// Estruturado em padrão semelhante ao utilizado por aplicativos
+// modernos: conta, licença, conteúdo, recursos sensíveis,
+// disponibilidade, serviços externos, exclusão e responsabilidade.
+//
+// Antes da publicação comercial em larga escala, recomenda-se
+// revisão jurídica e inclusão do canal oficial de contato.
 //
 // ============================================================
 
@@ -20,7 +22,7 @@ class TermsOfUsePage
     super.key,
   });
 
-  static const String _lastUpdated = '31 de agosto de 2026';
+  static const String _lastUpdated = '4 de setembro de 2026';
 
   @override
   Widget build(
@@ -28,122 +30,168 @@ class TermsOfUsePage
   ) {
     return const _LegalDocumentPage(
       title: 'Termos de Uso',
-      subtitle: 'Regras e condições para utilização do EVRYLUX.',
+      subtitle: 'Regras, responsabilidades e condições para utilização do EVRYLUX.',
       icon: Icons.description_outlined,
       lastUpdated: _lastUpdated,
       sections: [
         _LegalSection(
           title: '1. Aceitação dos Termos',
           paragraphs: [
-            'Ao acessar ou utilizar o EVRYLUX, você concorda com estes Termos de Uso e com a Política de Privacidade aplicável.',
-            'Caso não concorde com alguma condição, você deve interromper o uso do aplicativo.',
+            'Ao acessar, criar uma conta ou utilizar o EVRYLUX, você concorda com estes Termos de Uso e com a Política de Privacidade aplicável.',
+            'Caso não concorde com alguma condição, você deve interromper o uso do aplicativo e, quando aplicável, excluir sua conta pelos controles disponíveis.',
           ],
         ),
         _LegalSection(
-          title: '2. Finalidade do aplicativo',
+          title: '2. Sobre o EVRYLUX',
           paragraphs: [
-            'O EVRYLUX é uma plataforma de organização e evolução pessoal que pode oferecer recursos relacionados a estudos, treino, rotina, finanças, progresso, lembretes e outras áreas de acompanhamento individual.',
-            'As funcionalidades podem ser adicionadas, modificadas, limitadas ou removidas ao longo do desenvolvimento do produto.',
+            'O EVRYLUX é uma plataforma de organização e evolução pessoal que pode reunir recursos relacionados a estudos, rotina, treino, finanças, progresso, lembretes, conhecimento pessoal e outras áreas de acompanhamento individual.',
+            'As funcionalidades podem ser adicionadas, alteradas, aprimoradas, limitadas ou removidas ao longo da evolução do produto.',
           ],
         ),
         _LegalSection(
-          title: '3. Cadastro e conta',
+          title: '3. Cadastro, conta e segurança',
           paragraphs: [
-            'Algumas funcionalidades exigem criação de conta e autenticação.',
-            'Você deve fornecer informações verdadeiras e manter seus dados de acesso protegidos. A conta é pessoal e não deve ser compartilhada de forma que comprometa sua segurança.',
+            'Algumas funcionalidades exigem criação de conta e autenticação. Você deve fornecer informações verdadeiras e manter seus dados de acesso protegidos.',
+            'A conta é pessoal. Você é responsável por proteger sua senha, dispositivo e sessões autenticadas, bem como por não aprovar dispositivos ou solicitações de recuperação que não reconheça.',
+            'O EVRYLUX pode solicitar confirmação adicional de identidade antes de ações sensíveis, incluindo alteração de senha, exclusão de dados ou exclusão da conta.',
           ],
         ),
         _LegalSection(
-          title: '4. Uso permitido',
+          title: '4. Licença de uso',
           paragraphs: [
-            'Você concorda em utilizar o EVRYLUX apenas para finalidades lícitas e de acordo com estes Termos.',
-            'É proibido tentar obter acesso não autorizado a contas, sistemas, bancos de dados, infraestrutura ou funcionalidades internas do aplicativo.',
-            'Também é proibido usar o serviço para fraude, abuso, violação de direitos de terceiros, distribuição de conteúdo ilegal ou qualquer atividade que comprometa a disponibilidade ou segurança da plataforma.',
+            'Enquanto estes Termos forem respeitados, o EVRYLUX concede ao usuário uma licença pessoal, limitada, revogável, não exclusiva e não transferível para utilizar o aplicativo para suas finalidades previstas.',
+            'Essa licença não concede direito de copiar, vender, sublicenciar, distribuir, explorar comercialmente, realizar engenharia reversa indevida ou utilizar elementos proprietários do EVRYLUX fora dos limites permitidos pela legislação.',
           ],
         ),
         _LegalSection(
-          title: '5. Conteúdo inserido pelo usuário',
+          title: '5. Uso permitido e condutas proibidas',
           paragraphs: [
-            'Você mantém a responsabilidade pelas informações, textos, registros e demais conteúdos que inserir no EVRYLUX.',
-            'Ao utilizar recursos de sincronização, você autoriza o processamento técnico desses dados na medida necessária para fornecer o serviço.',
+            'Você concorda em utilizar o EVRYLUX apenas para finalidades lícitas e compatíveis com estes Termos.',
+            'É proibido tentar obter acesso não autorizado a contas, sistemas, bancos de dados, infraestrutura, chaves, sessões, dispositivos ou funcionalidades internas do aplicativo.',
+            'Também é proibido utilizar o serviço para fraude, abuso, exploração de vulnerabilidades contra terceiros, violação de direitos, distribuição de conteúdo ilegal, sobrecarga intencional, automação abusiva ou qualquer atividade que comprometa a segurança ou disponibilidade da plataforma.',
           ],
         ),
         _LegalSection(
-          title: '6. Funcionamento offline e sincronização',
+          title: '6. Conteúdo e dados inseridos pelo usuário',
           paragraphs: [
-            'Determinadas funcionalidades podem operar de forma offline e sincronizar alterações posteriormente.',
-            'Conflitos de sincronização, falhas de conexão, remoção do aplicativo ou limpeza de dados locais podem afetar informações que ainda não tenham sido sincronizadas.',
-            'Recomendamos manter o aplicativo atualizado e verificar o status de sincronização quando os dados forem importantes.',
+            'Você mantém a responsabilidade pelo conteúdo que inserir no EVRYLUX, incluindo textos, registros, arquivos, anotações, informações financeiras, dados de rotina, estudos, treino e demais informações pessoais.',
+            'Ao utilizar recursos de sincronização, armazenamento remoto ou backup, você autoriza o processamento técnico desses dados na medida necessária para fornecer a funcionalidade solicitada.',
+            'Você declara possuir os direitos necessários sobre qualquer conteúdo que inserir ou compartilhar por meio do aplicativo.',
           ],
         ),
         _LegalSection(
-          title: '7. Recursos de treino, saúde e bem-estar',
+          title: '7. Funcionamento local, offline e sincronização',
           paragraphs: [
-            'Informações relacionadas a treino, hábitos, evolução física ou bem-estar possuem finalidade organizacional e informativa.',
-            'O EVRYLUX não fornece diagnóstico médico e não substitui orientação de médicos, nutricionistas, fisioterapeutas ou outros profissionais qualificados.',
-            'Procure orientação profissional antes de iniciar atividades físicas ou alterar hábitos quando houver necessidade.',
+            'Determinadas funcionalidades podem operar de forma local-first e continuar funcionando temporariamente sem conexão com a internet.',
+            'Alterações realizadas offline podem ser sincronizadas posteriormente. Conflitos, falhas de conexão, remoção do aplicativo, limpeza de dados locais ou perda do dispositivo podem afetar informações ainda não sincronizadas.',
+            'É responsabilidade do usuário verificar o status de sincronização e manter cópias de segurança quando os dados forem importantes.',
           ],
         ),
         _LegalSection(
-          title: '8. Recursos financeiros',
+          title: '8. Cérebro, criptografia e backups',
           paragraphs: [
-            'Ferramentas de finanças são destinadas à organização pessoal e acompanhamento de informações fornecidas pelo usuário.',
-            'O EVRYLUX não presta consultoria financeira, contábil, tributária ou de investimentos e não garante resultados financeiros.',
+            'Recursos do Cérebro podem utilizar criptografia ponta a ponta e mecanismos de autorização de dispositivos para proteger conteúdo sensível.',
+            'O usuário é responsável por aprovar apenas dispositivos reconhecidos e por armazenar backups .evbrain em local seguro. A perda de chaves, dispositivos autorizados e backups pode impedir a recuperação de determinados dados protegidos.',
+            'Backups exportados e armazenados fora do aplicativo permanecem sob responsabilidade do usuário e não são removidos automaticamente quando a conta ou os dados do EVRYLUX são excluídos.',
           ],
         ),
         _LegalSection(
-          title: '9. Disponibilidade e alterações',
+          title: '9. Sessões e dispositivos',
           paragraphs: [
-            'Buscamos manter o aplicativo disponível e funcional, mas não garantimos funcionamento ininterrupto, ausência de falhas ou compatibilidade permanente com todos os dispositivos e sistemas.',
-            'Atualizações podem alterar recursos, interface, requisitos técnicos e formas de armazenamento.',
+            'O EVRYLUX pode registrar sessões e dispositivos associados à conta para fins de segurança e gerenciamento de acesso.',
+            'Quando disponível, o usuário poderá visualizar dispositivos conectados e encerrar sessões que não reconheça. O funcionamento desse recurso pode depender da conectividade e do ciclo de validade da sessão de autenticação.',
           ],
         ),
         _LegalSection(
-          title: '10. Serviços de terceiros',
+          title: '10. Recursos de treino, saúde e bem-estar',
           paragraphs: [
-            'O funcionamento do EVRYLUX pode depender de serviços de terceiros, como autenticação, banco de dados, notificações, hospedagem e infraestrutura.',
-            'Falhas, indisponibilidades ou mudanças nesses serviços podem afetar temporariamente determinadas funcionalidades.',
+            'Informações relacionadas a treino, hábitos, evolução física, rotina ou bem-estar possuem finalidade organizacional e informativa.',
+            'O EVRYLUX não fornece diagnóstico médico e não substitui orientação de médicos, nutricionistas, fisioterapeutas, psicólogos ou outros profissionais qualificados.',
+            'Procure orientação profissional antes de iniciar atividades físicas, modificar hábitos ou tomar decisões relacionadas à saúde quando necessário.',
           ],
         ),
         _LegalSection(
-          title: '11. Propriedade intelectual',
+          title: '11. Recursos financeiros',
           paragraphs: [
-            'O nome EVRYLUX, identidade visual, interface, código, textos próprios, estrutura e demais elementos do aplicativo são protegidos pelas leis aplicáveis, salvo componentes de terceiros sujeitos às respectivas licenças.',
-            'Estes Termos não transferem ao usuário qualquer direito de propriedade sobre o aplicativo.',
+            'Ferramentas financeiras destinam-se à organização pessoal e ao acompanhamento de informações fornecidas pelo próprio usuário.',
+            'O EVRYLUX não presta consultoria financeira, contábil, tributária, jurídica ou de investimentos, não executa operações financeiras em nome do usuário e não garante resultados financeiros.',
           ],
         ),
         _LegalSection(
-          title: '12. Limitação de responsabilidade',
+          title: '12. Disponibilidade do serviço',
           paragraphs: [
-            'O EVRYLUX é oferecido como ferramenta de organização pessoal. O usuário permanece responsável por suas decisões, registros, escolhas, metas e ações.',
-            'Na medida permitida pela legislação aplicável, o desenvolvedor não será responsável por perdas indiretas decorrentes de decisões tomadas exclusivamente com base em informações inseridas ou apresentadas pelo aplicativo.',
+            'Buscamos manter o EVRYLUX disponível, seguro e funcional, mas não garantimos funcionamento ininterrupto, ausência de falhas, compatibilidade permanente com todos os dispositivos ou disponibilidade contínua de todos os recursos.',
+            'Manutenções, falhas de infraestrutura, atualizações de sistema, indisponibilidade de terceiros ou eventos fora do controle razoável do serviço podem afetar temporariamente o funcionamento.',
           ],
         ),
         _LegalSection(
-          title: '13. Suspensão ou encerramento',
+          title: '13. Atualizações e alterações do produto',
           paragraphs: [
-            'O acesso poderá ser limitado ou suspenso em situações de abuso, fraude, risco de segurança, violação destes Termos ou necessidade técnica.',
-            'O usuário poderá deixar de utilizar o aplicativo a qualquer momento.',
+            'O EVRYLUX pode receber atualizações destinadas a segurança, correções, compatibilidade, desempenho ou novos recursos.',
+            'Algumas atualizações podem alterar a interface, requisitos técnicos, formatos de dados, recursos disponíveis ou regras de sincronização.',
           ],
         ),
         _LegalSection(
-          title: '14. Alterações destes Termos',
+          title: '14. Serviços de terceiros',
           paragraphs: [
-            'Estes Termos podem ser atualizados para refletir alterações no produto, na legislação ou nos serviços utilizados.',
-            'A versão atualizada passará a valer a partir da data informada no próprio documento.',
+            'O funcionamento do EVRYLUX pode depender de prestadores externos para autenticação, banco de dados, armazenamento, hospedagem, notificações e infraestrutura técnica.',
+            'Esses serviços são regidos por seus próprios termos, políticas e níveis de disponibilidade. Mudanças ou interrupções nesses serviços podem afetar funcionalidades do EVRYLUX.',
           ],
         ),
         _LegalSection(
-          title: '15. Legislação aplicável',
+          title: '15. Propriedade intelectual',
           paragraphs: [
-            'Estes Termos serão interpretados de acordo com a legislação aplicável ao usuário e ao responsável pelo serviço, respeitando normas obrigatórias de proteção ao consumidor e de proteção de dados.',
+            'O nome EVRYLUX, identidade visual, interface, código, estrutura, textos próprios, elementos gráficos e demais componentes proprietários são protegidos pelas leis aplicáveis, salvo componentes de terceiros sujeitos às respectivas licenças.',
+            'Estes Termos não transferem ao usuário qualquer direito de propriedade intelectual sobre o EVRYLUX.',
           ],
         ),
         _LegalSection(
-          title: '16. Contato',
+          title: '16. Exclusão de dados e encerramento da conta',
           paragraphs: [
-            'Dúvidas sobre estes Termos podem ser encaminhadas ao canal oficial de suporte do EVRYLUX.',
-            'Antes da publicação pública do aplicativo, inclua aqui o e-mail ou endereço oficial de contato.',
+            'O usuário poderá excluir dados associados ao EVRYLUX ou encerrar permanentemente a conta pelos controles disponibilizados no aplicativo, quando aplicável.',
+            'A exclusão dos dados pode preservar a conta de autenticação, enquanto a exclusão da conta encerra o acesso e remove os dados associados de acordo com o fluxo aplicável.',
+            'Cópias externas criadas pelo próprio usuário, como arquivos .evbrain, não são apagadas automaticamente.',
+          ],
+        ),
+        _LegalSection(
+          title: '17. Suspensão ou restrição de acesso',
+          paragraphs: [
+            'O acesso ao EVRYLUX poderá ser limitado, suspenso ou encerrado em caso de fraude, abuso, risco de segurança, uso ilegal, violação destes Termos, determinação legal ou necessidade técnica relevante.',
+            'Quando razoavelmente possível e permitido, poderão ser adotadas medidas proporcionais ao risco identificado.',
+          ],
+        ),
+        _LegalSection(
+          title: '18. Responsabilidade do usuário',
+          paragraphs: [
+            'O usuário permanece responsável por suas decisões, metas, registros, escolhas, conteúdo inserido, cópias de segurança e uso das informações apresentadas pelo aplicativo.',
+            'Você também é responsável por manter seus dispositivos protegidos e por revisar sessões, permissões e autorizações sempre que suspeitar de acesso indevido.',
+          ],
+        ),
+        _LegalSection(
+          title: '19. Limitação de responsabilidade',
+          paragraphs: [
+            'Na medida permitida pela legislação aplicável, o EVRYLUX não será responsável por perdas indiretas, lucros cessantes, decisões pessoais, perda de dados ainda não sincronizados ou danos decorrentes de uso inadequado, indisponibilidade externa ou informações inseridas pelo próprio usuário.',
+            'Nada nestes Termos exclui ou limita direitos que não possam ser legalmente afastados, incluindo direitos obrigatórios de consumidores e titulares de dados.',
+          ],
+        ),
+        _LegalSection(
+          title: '20. Alterações destes Termos',
+          paragraphs: [
+            'Estes Termos podem ser atualizados para refletir mudanças no produto, na legislação, na segurança ou nos serviços utilizados.',
+            'A versão atualizada passará a valer a partir da data indicada no documento. Quando alterações relevantes exigirem nova ciência ou aceite, o usuário poderá ser informado pelo aplicativo ou por outro canal adequado.',
+          ],
+        ),
+        _LegalSection(
+          title: '21. Legislação aplicável',
+          paragraphs: [
+            'Estes Termos serão interpretados de acordo com a legislação aplicável ao usuário e ao responsável pelo serviço, respeitando normas obrigatórias de proteção ao consumidor, proteção de dados e demais direitos que não possam ser afastados contratualmente.',
+          ],
+        ),
+        _LegalSection(
+          title: '22. Contato',
+          paragraphs: [
+            'Dúvidas relacionadas a estes Termos podem ser encaminhadas ao canal oficial de suporte do EVRYLUX.',
+            'Antes da publicação pública do aplicativo, o responsável pelo serviço deve incluir nesta seção um canal oficial e verificável de contato.',
           ],
         ),
       ],
@@ -224,7 +272,7 @@ class _LegalDocumentPage
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(
-              maxWidth: 900,
+              maxWidth: 920,
             ),
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(
@@ -251,6 +299,7 @@ class _LegalDocumentPage
                       ),
                     ),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
                           width: 54,
@@ -290,7 +339,7 @@ class _LegalDocumentPage
                                 style: const TextStyle(
                                   color: _muted,
                                   fontSize: 12,
-                                  height: 1.4,
+                                  height: 1.45,
                                 ),
                               ),
                               const SizedBox(
@@ -353,7 +402,7 @@ class _LegalDocumentPage
                               style: const TextStyle(
                                 color: _muted,
                                 fontSize: 12,
-                                height: 1.55,
+                                height: 1.6,
                               ),
                             ),
                             const SizedBox(
@@ -392,6 +441,7 @@ class _LegalSection {
   });
 
   final String title;
+
   final List<
     String
   >

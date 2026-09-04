@@ -15,6 +15,8 @@ extension _ProfileSettingsSecurityActions
       return;
     }
 
+    final currentPasswordController = TextEditingController();
+
     final newPasswordController = TextEditingController();
 
     final confirmPasswordController = TextEditingController();
@@ -66,6 +68,23 @@ extension _ProfileSettingsSecurityActions
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
+                                TextField(
+                                  controller: currentPasswordController,
+                                  autofocus: true,
+                                  obscureText: obscurePassword,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Senha atual',
+                                    prefixIcon: Icon(
+                                      Icons.lock_outline_rounded,
+                                    ),
+                                    border: OutlineInputBorder(),
+                                  ),
+                                ),
+
+                                const SizedBox(
+                                  height: 12,
+                                ),
+
                                 TextField(
                                   controller: newPasswordController,
                                   obscureText: obscurePassword,
@@ -126,9 +145,26 @@ extension _ProfileSettingsSecurityActions
 
                             FilledButton(
                               onPressed: () {
+                                final currentPassword =
+                                    currentPasswordController.text;
+
                                 final password = newPasswordController.text;
 
                                 final confirm = confirmPasswordController.text;
+
+                                if (currentPassword.isEmpty) {
+                                  ScaffoldMessenger.of(
+                                    dialogContext,
+                                  ).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Digite sua senha atual.',
+                                      ),
+                                    ),
+                                  );
+
+                                  return;
+                                }
 
                                 if (password.length <
                                     8) {
@@ -179,6 +215,8 @@ extension _ProfileSettingsSecurityActions
 
     if (confirmed !=
         true) {
+      currentPasswordController.dispose();
+
       newPasswordController.dispose();
 
       confirmPasswordController.dispose();
@@ -186,7 +224,11 @@ extension _ProfileSettingsSecurityActions
       return;
     }
 
+    final currentPassword = currentPasswordController.text;
+
     final password = newPasswordController.text;
+
+    currentPasswordController.dispose();
 
     newPasswordController.dispose();
 
@@ -203,6 +245,7 @@ extension _ProfileSettingsSecurityActions
       await Supabase.instance.client.auth.updateUser(
         UserAttributes(
           password: password,
+          currentPassword: currentPassword,
         ),
       );
 
@@ -242,6 +285,208 @@ extension _ProfileSettingsSecurityActions
         );
       }
     }
+  }
+
+  // ============================================================
+  // CONFIRM CURRENT PASSWORD
+  // ============================================================
+  //
+  // Confirma a identidade antes de ações destrutivas.
+  // A senha não é armazenada pelo EVRYLUX.
+  //
+  // ============================================================
+
+  Future<bool> _confirmCurrentPassword({
+    required String title,
+    required String message,
+  }) async {
+    final passwordController = TextEditingController();
+
+    var obscurePassword = true;
+    var checking = false;
+    String? errorMessage;
+
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            Future<void> verify() async {
+              if (checking) {
+                return;
+              }
+
+              final password = passwordController.text;
+              final email = _user?.email;
+
+              if (password.isEmpty) {
+                setDialogState(() {
+                  errorMessage = 'Digite sua senha atual.';
+                });
+                return;
+              }
+
+              if (email == null || email.trim().isEmpty) {
+                setDialogState(() {
+                  errorMessage =
+                      'Não foi possível identificar o e-mail da conta.';
+                });
+                return;
+              }
+
+              setDialogState(() {
+                checking = true;
+                errorMessage = null;
+              });
+
+              try {
+                await Supabase.instance.client.auth.signInWithPassword(
+                  email: email,
+                  password: password,
+                );
+
+                if (!dialogContext.mounted) {
+                  return;
+                }
+
+                Navigator.of(dialogContext).pop(true);
+              } on AuthException {
+                if (!dialogContext.mounted) {
+                  return;
+                }
+
+                setDialogState(() {
+                  checking = false;
+                  errorMessage = 'Senha incorreta.';
+                });
+              } catch (error) {
+                debugPrint(
+                  '[PROFILE SETTINGS] Erro validando senha atual: $error',
+                );
+
+                if (!dialogContext.mounted) {
+                  return;
+                }
+
+                setDialogState(() {
+                  checking = false;
+                  errorMessage =
+                      'Não foi possível validar sua senha agora.';
+                });
+              }
+            }
+
+            return AlertDialog(
+              backgroundColor: _ProfileSettingsPageState._surface,
+              surfaceTintColor: Colors.transparent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: const BorderSide(
+                  color: _ProfileSettingsPageState._border,
+                ),
+              ),
+              title: Row(
+                children: [
+                  const Icon(
+                    Icons.verified_user_outlined,
+                    color: _ProfileSettingsPageState._primaryDark,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(title),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: 420,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      message,
+                      style: const TextStyle(
+                        color: _ProfileSettingsPageState._muted,
+                        fontSize: 12,
+                        height: 1.45,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: passwordController,
+                      autofocus: true,
+                      obscureText: obscurePassword,
+                      onSubmitted: (_) {
+                        unawaited(verify());
+                      },
+                      decoration: InputDecoration(
+                        labelText: 'Senha atual',
+                        prefixIcon: const Icon(
+                          Icons.lock_outline_rounded,
+                        ),
+                        suffixIcon: IconButton(
+                          onPressed: checking
+                              ? null
+                              : () {
+                                  setDialogState(() {
+                                    obscurePassword = !obscurePassword;
+                                  });
+                                },
+                          icon: Icon(
+                            obscurePassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                        ),
+                        errorText: errorMessage,
+                        border: const OutlineInputBorder(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: checking
+                      ? null
+                      : () {
+                          Navigator.of(dialogContext).pop(false);
+                        },
+                  child: const Text('Cancelar'),
+                ),
+                FilledButton.icon(
+                  onPressed: checking
+                      ? null
+                      : () {
+                          unawaited(verify());
+                        },
+                  icon: checking
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.verified_user_outlined,
+                          size: 18,
+                        ),
+                  label: Text(
+                    checking ? 'Verificando...' : 'Confirmar',
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    passwordController.dispose();
+
+    return result == true;
   }
 
   // ============================================================
@@ -592,6 +837,18 @@ extension _ProfileSettingsSecurityActions
       return;
     }
 
+    final passwordConfirmed =
+        await _confirmCurrentPassword(
+          title: 'Confirmar exclusão dos dados',
+          message:
+              'Digite sua senha atual para autorizar a exclusão permanente dos seus dados.',
+        );
+
+    if (!passwordConfirmed ||
+        !mounted) {
+      return;
+    }
+
     _showDeletionProgressDialog(
       title: 'Excluindo dados...',
     );
@@ -882,6 +1139,18 @@ extension _ProfileSettingsSecurityActions
 
     if (confirmed !=
             true ||
+        !mounted) {
+      return;
+    }
+
+    final passwordConfirmed =
+        await _confirmCurrentPassword(
+          title: 'Confirmar exclusão da conta',
+          message:
+              'Digite sua senha atual para autorizar a exclusão permanente da sua conta.',
+        );
+
+    if (!passwordConfirmed ||
         !mounted) {
       return;
     }

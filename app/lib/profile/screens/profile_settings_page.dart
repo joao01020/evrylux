@@ -41,16 +41,9 @@ part 'settings/sections/brain_section.dart';
 part 'settings/sections/about_section.dart';
 part 'settings/widgets/profile_settings_widgets.dart';
 
-enum ProfileSettingsSection {
-  preferences,
-  security,
-  brain,
-  about,
-}
+enum ProfileSettingsSection { preferences, security, brain, about }
 
-class ProfileSettingsPage
-    extends
-        StatefulWidget {
+class ProfileSettingsPage extends StatefulWidget {
   const ProfileSettingsPage({
     super.key,
     this.initialSection = ProfileSettingsSection.preferences,
@@ -59,56 +52,31 @@ class ProfileSettingsPage
   final ProfileSettingsSection initialSection;
 
   @override
-  State<
-    ProfileSettingsPage
-  >
-  createState() => _ProfileSettingsPageState();
+  State<ProfileSettingsPage> createState() => _ProfileSettingsPageState();
 }
 
-class _ProfileSettingsPageState
-    extends
-        State<
-          ProfileSettingsPage
-        > {
+class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   // ============================================================
   // COLORS
   // ============================================================
 
-  static const Color _background = Color(
-    0xFFF7FBF1,
-  );
+  static const Color _background = Color(0xFFF7FBF1);
 
-  static const Color _surface = Color(
-    0xFFFFFFFF,
-  );
+  static const Color _surface = Color(0xFFFFFFFF);
 
-  static const Color _surfaceSoft = Color(
-    0xFFF3F8EE,
-  );
+  static const Color _surfaceSoft = Color(0xFFF3F8EE);
 
-  static const Color _border = Color(
-    0xFFC7DFC9,
-  );
+  static const Color _border = Color(0xFFC7DFC9);
 
-  static const Color _primary = Color(
-    0xFFBCF0B4,
-  );
+  static const Color _primary = Color(0xFFBCF0B4);
 
-  static const Color _primaryDark = Color(
-    0xFF3B6939,
-  );
+  static const Color _primaryDark = Color(0xFF3B6939);
 
-  static const Color _text = Color(
-    0xFF172019,
-  );
+  static const Color _text = Color(0xFF172019);
 
-  static const Color _muted = Color(
-    0xFF68746B,
-  );
+  static const Color _muted = Color(0xFF68746B);
 
-  static const Color _danger = Color(
-    0xFFB3261E,
-  );
+  static const Color _danger = Color(0xFFB3261E);
 
   // ============================================================
   // STATE
@@ -182,13 +150,7 @@ class _ProfileSettingsPageState
 
   bool _completingBrainRecovery = false;
 
-  List<
-    BrainDeviceRecord
-  >
-  _brainDevices =
-      const <
-        BrainDeviceRecord
-      >[];
+  List<BrainDeviceRecord> _brainDevices = const <BrainDeviceRecord>[];
 
   String? _message;
 
@@ -206,13 +168,9 @@ class _ProfileSettingsPageState
 
     _profileRepository = ProfileRepository();
 
-    unawaited(
-      _loadPreferences(),
-    );
+    unawaited(_loadPreferences());
 
-    unawaited(
-      _loadAccountDevicesSummary(),
-    );
+    unawaited(_loadAccountDevicesSummary());
 
     _loadBrainSettings();
   }
@@ -223,108 +181,142 @@ class _ProfileSettingsPageState
 
   User? get _user => Supabase.instance.client.auth.currentUser;
 
-  String get _email =>
-      _user?.email ??
-      'E-mail não disponível';
+  String get _email => _user?.email ?? 'E-mail não disponível';
 
   // ============================================================
   // STATE UPDATE GATE
   // ============================================================
+  //
+  // Os arquivos `part` usam extensions para separar
+  // responsabilidades.
+  //
+  // Extensions não devem acessar diretamente State.setState().
+  //
+  // Este método é o ponto de entrada para mutações de UI feitas
+  // pelas partes refatoradas.
+  //
+  // ============================================================
 
-  void _updateProfileState(
-    VoidCallback callback,
-  ) {
+  void _updateProfileState(VoidCallback callback) {
     if (!mounted) {
       return;
     }
 
-    setState(
-      callback,
-    );
+    setState(callback);
   }
 
   // ============================================================
   // LOAD ACCOUNT DEVICES SUMMARY
   // ============================================================
+  //
+  // Carrega os dispositivos reais associados à conta.
+  //
+  // Fluxo:
+  //
+  // 1. verifica autenticação;
+  // 2. obtém/cria o device_id local;
+  // 3. registra a sessão atual;
+  // 4. consulta os dispositivos ativos;
+  // 5. atualiza o contador da interface.
+  //
+  // ============================================================
 
-  Future<
-    void
-  >
-  _loadAccountDevicesSummary() async {
+  Future<void> _loadAccountDevicesSummary() async {
+    // ==========================================================
+    // EVITA DUAS CARGAS AO MESMO TEMPO
+    // ==========================================================
+
     if (_loadingAccountDevices) {
       return;
     }
 
+    // ==========================================================
+    // AUTH
+    // ==========================================================
+
     final user = _user;
 
-    if (user ==
-        null) {
-      _updateProfileState(
-        () {
-          _loadingAccountDevices = false;
-          _activeAccountDeviceCount = 0;
-          _accountDevicesError = null;
-        },
-      );
+    final session = Supabase.instance.client.auth.currentSession;
+
+    if (user == null || session == null) {
+      _updateProfileState(() {
+        _loadingAccountDevices = false;
+
+        _activeAccountDeviceCount = 0;
+
+        _accountDevicesError = null;
+      });
 
       return;
     }
 
-    _updateProfileState(
-      () {
-        _loadingAccountDevices = true;
-        _accountDevicesError = null;
-      },
-    );
+    // ==========================================================
+    // LOADING
+    // ==========================================================
+
+    _updateProfileState(() {
+      _loadingAccountDevices = true;
+
+      _accountDevicesError = null;
+    });
 
     try {
       // ========================================================
-      // DEVICE ID LOCAL
+      // DEVICE ID
       // ========================================================
 
       final deviceId = await accountDeviceIdentityService.getOrCreateDeviceId();
 
       // ========================================================
-      // REGISTRA / ATUALIZA A SESSÃO ATUAL
+      // REGISTER CURRENT SESSION
+      // ========================================================
+      //
+      // O repository usa o session_id real presente no JWT
+      // atual do Supabase.
+      //
       // ========================================================
 
-      await accountDeviceRepository.registerDevice(
+      final registered = await accountDeviceRepository.registerDevice(
         deviceId: deviceId,
         deviceName: accountDeviceIdentityService.deviceName,
         platform: accountDeviceIdentityService.platformLabel,
         appVersion: AppInfo.version,
       );
 
+      if (!registered) {
+        throw StateError(
+          'A sessão atual foi recusada pelo registro de dispositivos.',
+        );
+      }
+
       // ========================================================
-      // BUSCA DISPOSITIVOS ATIVOS
+      // ACTIVE DEVICES
       // ========================================================
 
-      final List<
-        AccountDevice
-      >
-      devices = await accountDeviceRepository.listActiveDevices();
+      final List<AccountDevice> devices = await accountDeviceRepository
+          .listActiveDevices();
 
       if (!mounted) {
         return;
       }
 
-      _updateProfileState(
-        () {
-          _activeAccountDeviceCount = devices.length;
+      // ========================================================
+      // UPDATE REAL COUNT
+      // ========================================================
 
-          _accountDevicesError = null;
-        },
-      );
-    } catch (
-      error,
-      stackTrace
-    ) {
+      _updateProfileState(() {
+        _activeAccountDeviceCount = devices.length;
+
+        _accountDevicesError = null;
+      });
+    } catch (error, stackTrace) {
       debugPrint(
         '[PROFILE SETTINGS] '
         'Erro carregando dispositivos da conta: $error',
       );
 
       debugPrint(
+        '[PROFILE SETTINGS] '
         '$stackTrace',
       );
 
@@ -332,18 +324,17 @@ class _ProfileSettingsPageState
         return;
       }
 
-      _updateProfileState(
-        () {
-          _accountDevicesError = 'Não foi possível carregar os dispositivos agora.';
-        },
-      );
+      _updateProfileState(() {
+        _activeAccountDeviceCount = 0;
+
+        _accountDevicesError =
+            'Não foi possível carregar os dispositivos agora.';
+      });
     } finally {
       if (mounted) {
-        _updateProfileState(
-          () {
-            _loadingAccountDevices = false;
-          },
-        );
+        _updateProfileState(() {
+          _loadingAccountDevices = false;
+        });
       }
     }
   }
@@ -353,12 +344,8 @@ class _ProfileSettingsPageState
   // ============================================================
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    return _buildProfileSettingsShell(
-      context,
-    );
+  Widget build(BuildContext context) {
+    return _buildProfileSettingsShell(context);
   }
 
   // ============================================================
