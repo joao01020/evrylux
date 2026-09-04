@@ -24,6 +24,18 @@ class TrainingController
   late final TrainingUiController uiController;
   late final TrainingStatsController statsController;
 
+  // =========================================================
+  // CACHE / INITIALIZATION
+  // =========================================================
+  //
+  // TrainingController é global em app_dependencies.dart.
+  // Depois da primeira leitura local, mantemos o estado em memória
+  // para que reabrir Training não volte a bloquear a interface.
+  //
+  // =========================================================
+
+  bool _initialized = false;
+
   static const List<
     String
   >
@@ -111,6 +123,10 @@ class TrainingController
 
   bool get isLoading => state.isLoading;
 
+  bool get isInitialized => _initialized;
+
+  bool get isInitialLoading => state.isLoading && !_initialized;
+
   bool get isSaving => state.isSaving;
 
   String? get errorMessage => state.errorMessage;
@@ -190,12 +206,34 @@ class TrainingController
   Future<
     void
   >
-  load() async {
+  load({
+    bool force = false,
+  }) async {
+    // =======================================================
+    // MEMORY CACHE
+    // =======================================================
+    //
+    // Se o controller global já foi carregado, a tela pode usar
+    // imediatamente o estado em memória.
+    //
+    // `force` é usado somente quando uma operação externa ao
+    // controller alterou o StorageService e precisamos reler o
+    // cache local.
+    //
+    // =======================================================
+
+    if (_initialized && !force) {
+      _refreshDerivedData();
+      return;
+    }
+
     final loaded = await loadController.load();
 
     if (!loaded) {
       return;
     }
+
+    _initialized = true;
 
     _refreshDerivedData();
   }

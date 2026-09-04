@@ -1,10 +1,15 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../data/cache/finance_cache_store.dart';
 import 'investment_history.dart';
 
 class FinanceHistoryStorage {
-  const FinanceHistoryStorage();
+  const FinanceHistoryStorage({
+    this.cacheStore = const FinanceCacheStore(),
+  });
+
+  final FinanceCacheStore cacheStore;
 
   // ============================================================
   // TABLE
@@ -72,6 +77,11 @@ class FinanceHistoryStorage {
           );
 
       if (history.isEmpty) {
+        await cacheStore.saveHistory(
+          user.id,
+          const <Map<String, dynamic>>[],
+        );
+
         debugPrint(
           '[FINANCE HISTORY] Histórico vazio.',
         );
@@ -114,6 +124,11 @@ class FinanceHistoryStorage {
           .insert(
             rows,
           );
+
+      await cacheStore.saveHistory(
+        user.id,
+        history.map((item) => item.toJson()).toList(),
+      );
 
       debugPrint(
         '[FINANCE HISTORY] '
@@ -159,12 +174,49 @@ class FinanceHistoryStorage {
   // LOAD
   // ============================================================
 
-  Future<
-    List<
-      InvestmentHistory
-    >
-  >
-  load() async {
+  Future<List<InvestmentHistory>> load() async {
+    final local = await loadLocal();
+
+    if (local.isNotEmpty) {
+      return local;
+    }
+
+    return refreshFromRemote();
+  }
+
+  // ============================================================
+  // LOAD LOCAL
+  // ============================================================
+
+  Future<List<InvestmentHistory>> loadLocal() async {
+    final user = _requireUser();
+
+    final rows = await cacheStore.loadHistory(
+      user.id,
+    );
+
+    final history = <InvestmentHistory>[];
+
+    for (final row in rows) {
+      try {
+        history.add(
+          InvestmentHistory.fromJson(row),
+        );
+      } catch (_) {
+        // Registro de cache inválido é ignorado sem bloquear a tela.
+      }
+    }
+
+    _sortByDateDescending(history);
+
+    return history;
+  }
+
+  // ============================================================
+  // REFRESH FROM REMOTE
+  // ============================================================
+
+  Future<List<InvestmentHistory>> refreshFromRemote() async {
     final user = _requireUser();
 
     try {
@@ -189,43 +241,25 @@ class FinanceHistoryStorage {
             ascending: false,
           );
 
-      final history =
-          <
-            InvestmentHistory
-          >[];
+      final history = <InvestmentHistory>[];
 
       for (final item in data) {
         history.add(
           InvestmentHistory(
-            value: _parseDouble(
-              item['value'],
-            ),
-
-            date: _parseDate(
-              item['contribution_date'],
-            ),
-
-            rhythm:
-                item['rhythm']?.toString() ??
-                'Personalizado',
-
-            objectiveProgress: _parseDouble(
-              item['objective_progress'],
-            ),
-
-            timeProgress: _parseDouble(
-              item['time_progress'],
-            ),
+            value: _parseDouble(item['value']),
+            date: _parseDate(item['contribution_date']),
+            rhythm: item['rhythm']?.toString() ?? 'Personalizado',
+            objectiveProgress: _parseDouble(item['objective_progress']),
+            timeProgress: _parseDouble(item['time_progress']),
           ),
         );
       }
 
-      // ========================================================
-      // GARANTIR ORDEM
-      // ========================================================
+      _sortByDateDescending(history);
 
-      _sortByDateDescending(
-        history,
+      await cacheStore.saveHistory(
+        user.id,
+        history.map((item) => item.toJson()).toList(),
       );
 
       debugPrint(
@@ -234,32 +268,17 @@ class FinanceHistoryStorage {
       );
 
       return history;
-    } on PostgrestException catch (
-      error
-    ) {
-      debugPrint(
-        '[FINANCE HISTORY] '
-        'Erro Supabase ao carregar.',
-      );
+    } catch (error) {
+      final local = await loadLocal();
 
-      debugPrint(
-        '[FINANCE HISTORY] '
-        'Code: ${error.code}',
-      );
+      if (local.isNotEmpty) {
+        debugPrint(
+          '[FINANCE HISTORY] '
+          'Remoto indisponível. Usando cache local.',
+        );
 
-      debugPrint(
-        '[FINANCE HISTORY] '
-        'Message: ${error.message}',
-      );
-
-      rethrow;
-    } catch (
-      error
-    ) {
-      debugPrint(
-        '[FINANCE HISTORY] '
-        'Erro ao carregar: $error',
-      );
+        return local;
+      }
 
       rethrow;
     }
@@ -299,7 +318,7 @@ class FinanceHistoryStorage {
           },
         );
 
-    return load();
+    return refreshFromRemote();
   }
 
   // ============================================================
@@ -350,7 +369,7 @@ class FinanceHistoryStorage {
           contribution.safeValue,
         );
 
-    return load();
+    return refreshFromRemote();
   }
 
   // ============================================================
@@ -468,6 +487,10 @@ class FinanceHistoryStorage {
           'user_id',
           user.id,
         );
+
+    await cacheStore.clearHistory(
+      user.id,
+    );
 
     debugPrint(
       '[FINANCE HISTORY] '

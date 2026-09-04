@@ -156,6 +156,31 @@ class BrainVaultService {
   }
 
   // ============================================================
+  // LOAD LOCAL MANIFEST
+  // ============================================================
+  //
+  // Lê somente a identidade local do Vault.
+  //
+  // Diferente de openVault(), este método NÃO exige que a
+  // Master Key já esteja presente. Isso é necessário durante
+  // Recovery Device: o manifest pode existir antes da importação
+  // da chave, ou ainda não existir no novo computador.
+  //
+  // ============================================================
+
+  Future<BrainVaultManifest?> loadLocalManifest() async {
+    await _storage.initialize();
+
+    final manifest = await _storage.loadManifest();
+
+    if (manifest != null) {
+      manifest.validate();
+    }
+
+    return manifest;
+  }
+
+  // ============================================================
   // OPEN VAULT
   // ============================================================
 

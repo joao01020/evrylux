@@ -168,6 +168,21 @@ class _BodyMapDialogState
         widget.controller ??
         BodyMapController();
 
+    // ==========================================================
+    // MEMORY CACHE
+    // ==========================================================
+    //
+    // Quando o controller global já possui o plano corporal,
+    // mostramos esse estado imediatamente. A leitura do SQLite
+    // continua acontecendo abaixo, mas sem trocar o modal por um
+    // spinner.
+    //
+    // ==========================================================
+
+    if (_controller.hasSchedules) {
+      _loading = false;
+    }
+
     _service =
         widget.service ??
         bodyMapService;

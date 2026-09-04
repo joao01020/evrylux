@@ -8,9 +8,11 @@ import '../models/brain_device_key_envelope.dart';
 import 'brain_device_local_secrets.dart';
 
 class BrainDeviceCryptoService {
-  BrainDeviceCryptoService({X25519? keyAgreement, Cipher? cipher})
-    : _keyAgreement = keyAgreement ?? X25519(),
-      _cipher = cipher ?? Xchacha20.poly1305Aead();
+  BrainDeviceCryptoService({
+    X25519? keyAgreement,
+    Cipher? cipher,
+  }) : _keyAgreement = keyAgreement ?? X25519(),
+       _cipher = cipher ?? Xchacha20.poly1305Aead();
 
   final X25519 _keyAgreement;
   final Cipher _cipher;
@@ -20,6 +22,7 @@ class BrainDeviceCryptoService {
     required String deviceName,
   }) async {
     final cleanName = deviceName.trim();
+
     if (cleanName.isEmpty) {
       throw ArgumentError('deviceName não pode ser vazio.');
     }
@@ -42,9 +45,12 @@ class BrainDeviceCryptoService {
 
   Future<String> fingerprintPublicKey(List<int> bytes) async {
     final hash = await Sha256().hash(bytes);
+
     return hash.bytes
         .take(10)
-        .map((value) => value.toRadixString(16).padLeft(2, '0'))
+        .map(
+          (value) => value.toRadixString(16).padLeft(2, '0'),
+        )
         .join(':')
         .toUpperCase();
   }
@@ -53,6 +59,9 @@ class BrainDeviceCryptoService {
     required BrainDeviceLocalSecrets sender,
     required String targetDeviceId,
     required String targetPublicKeyBase64,
+    required String targetKeyFingerprint,
+    required String recoveryRequestId,
+    required DateTime recoveryExpiresAt,
     required String vaultId,
     required int keyVersion,
     required List<int> masterKeyBytes,
@@ -61,7 +70,18 @@ class BrainDeviceCryptoService {
       throw ArgumentError('Master Key/keyVersion inválidos.');
     }
 
+    final cleanRequestId = recoveryRequestId.trim();
+    final cleanFingerprint = targetKeyFingerprint.trim().toUpperCase();
+    final expiresAt = recoveryExpiresAt.toUtc();
+
+    if (cleanRequestId.isEmpty ||
+        cleanFingerprint.isEmpty ||
+        !expiresAt.isAfter(DateTime.now().toUtc())) {
+      throw StateError('Recovery request inválido ou expirado.');
+    }
+
     final nonce = _randomBytes(24);
+
     final shared = await _keyAgreement.sharedSecretKey(
       keyPair: _restoreKeyPair(sender),
       remotePublicKey: SimplePublicKey(
@@ -70,23 +90,32 @@ class BrainDeviceCryptoService {
       ),
     );
 
-    final wrappingKey = await Hkdf(hmac: Hmac.sha256(), outputLength: 32)
-        .deriveKey(
-          secretKey: shared,
-          nonce: nonce,
-          info: utf8.encode(
-            _kdfInfo(
-              vaultId: vaultId,
-              senderDeviceId: sender.deviceId,
-              targetDeviceId: targetDeviceId,
-              keyVersion: keyVersion,
-            ),
-          ),
-        );
+    final wrappingKey = await Hkdf(
+      hmac: Hmac.sha256(),
+      outputLength: 32,
+    ).deriveKey(
+      secretKey: shared,
+      nonce: nonce,
+      info: utf8.encode(
+        _kdfInfo(
+          vaultId: vaultId,
+          senderDeviceId: sender.deviceId,
+          targetDeviceId: targetDeviceId,
+          targetKeyFingerprint: cleanFingerprint,
+          recoveryRequestId: cleanRequestId,
+          recoveryExpiresAt: expiresAt,
+          keyVersion: keyVersion,
+        ),
+      ),
+    );
 
     final clear = utf8.encode(
       jsonEncode({
         'vault_id': vaultId,
+        'target_device_id': targetDeviceId,
+        'target_key_fingerprint': cleanFingerprint,
+        'recovery_request_id': cleanRequestId,
+        'recovery_expires_at': expiresAt.toIso8601String(),
         'key_version': keyVersion,
         'master_key_b64': base64UrlEncode(masterKeyBytes),
       }),
@@ -101,6 +130,9 @@ class BrainDeviceCryptoService {
           vaultId: vaultId,
           senderDeviceId: sender.deviceId,
           targetDeviceId: targetDeviceId,
+          targetKeyFingerprint: cleanFingerprint,
+          recoveryRequestId: cleanRequestId,
+          recoveryExpiresAt: expiresAt,
           keyVersion: keyVersion,
         ),
       ),
@@ -112,11 +144,14 @@ class BrainDeviceCryptoService {
       senderDeviceId: sender.deviceId,
       targetDeviceId: targetDeviceId,
       senderPublicKeyBase64: sender.publicKeyBase64,
+      targetKeyFingerprint: cleanFingerprint,
+      recoveryRequestId: cleanRequestId,
       nonceBase64: base64UrlEncode(nonce),
       cipherTextBase64: base64UrlEncode(box.cipherText),
       macBase64: base64UrlEncode(box.mac.bytes),
       keyVersion: keyVersion,
       createdAt: DateTime.now().toUtc(),
+      expiresAt: expiresAt,
     );
   }
 
@@ -128,7 +163,20 @@ class BrainDeviceCryptoService {
       throw StateError('Envelope não pertence a este dispositivo.');
     }
 
+    if (envelope.isExpired) {
+      throw StateError('Envelope de recuperação expirado.');
+    }
+
+    final localFingerprint = await fingerprintPublicKey(
+      base64Url.decode(target.publicKeyBase64),
+    );
+
+    if (localFingerprint != envelope.targetKeyFingerprint.toUpperCase()) {
+      throw StateError('Fingerprint local não corresponde ao envelope.');
+    }
+
     final nonce = base64Url.decode(envelope.nonceBase64);
+
     final shared = await _keyAgreement.sharedSecretKey(
       keyPair: _restoreKeyPair(target),
       remotePublicKey: SimplePublicKey(
@@ -137,25 +185,32 @@ class BrainDeviceCryptoService {
       ),
     );
 
-    final wrappingKey = await Hkdf(hmac: Hmac.sha256(), outputLength: 32)
-        .deriveKey(
-          secretKey: shared,
-          nonce: nonce,
-          info: utf8.encode(
-            _kdfInfo(
-              vaultId: envelope.vaultId,
-              senderDeviceId: envelope.senderDeviceId,
-              targetDeviceId: envelope.targetDeviceId,
-              keyVersion: envelope.keyVersion,
-            ),
-          ),
-        );
+    final wrappingKey = await Hkdf(
+      hmac: Hmac.sha256(),
+      outputLength: 32,
+    ).deriveKey(
+      secretKey: shared,
+      nonce: nonce,
+      info: utf8.encode(
+        _kdfInfo(
+          vaultId: envelope.vaultId,
+          senderDeviceId: envelope.senderDeviceId,
+          targetDeviceId: envelope.targetDeviceId,
+          targetKeyFingerprint: envelope.targetKeyFingerprint,
+          recoveryRequestId: envelope.recoveryRequestId,
+          recoveryExpiresAt: envelope.expiresAt,
+          keyVersion: envelope.keyVersion,
+        ),
+      ),
+    );
 
     final clear = await _cipher.decrypt(
       SecretBox(
         base64Url.decode(envelope.cipherTextBase64),
         nonce: nonce,
-        mac: Mac(base64Url.decode(envelope.macBase64)),
+        mac: Mac(
+          base64Url.decode(envelope.macBase64),
+        ),
       ),
       secretKey: wrappingKey,
       aad: utf8.encode(
@@ -163,30 +218,53 @@ class BrainDeviceCryptoService {
           vaultId: envelope.vaultId,
           senderDeviceId: envelope.senderDeviceId,
           targetDeviceId: envelope.targetDeviceId,
+          targetKeyFingerprint: envelope.targetKeyFingerprint,
+          recoveryRequestId: envelope.recoveryRequestId,
+          recoveryExpiresAt: envelope.expiresAt,
           keyVersion: envelope.keyVersion,
         ),
       ),
     );
 
-    final decoded = jsonDecode(utf8.decode(clear));
+    final decoded = jsonDecode(
+      utf8.decode(clear),
+    );
+
     if (decoded is! Map) {
       throw const FormatException('Envelope inválido.');
     }
+
     final map = Map<String, dynamic>.from(decoded);
+
+    final clearExpiresAt = DateTime.tryParse(
+      map['recovery_expires_at']?.toString() ?? '',
+    )?.toUtc();
+
     if (map['vault_id']?.toString() != envelope.vaultId ||
+        map['target_device_id']?.toString() != envelope.targetDeviceId ||
+        map['target_key_fingerprint']?.toString().toUpperCase() !=
+            envelope.targetKeyFingerprint.toUpperCase() ||
+        map['recovery_request_id']?.toString() != envelope.recoveryRequestId ||
+        clearExpiresAt != envelope.expiresAt.toUtc() ||
         int.tryParse(map['key_version']?.toString() ?? '') !=
             envelope.keyVersion) {
       throw const FormatException('Binding do envelope inválido.');
     }
 
-    final key = base64Url.decode(map['master_key_b64']?.toString() ?? '');
+    final key = base64Url.decode(
+      map['master_key_b64']?.toString() ?? '',
+    );
+
     if (key.length != 32) {
       throw const FormatException('Master Key importada inválida.');
     }
+
     return List<int>.unmodifiable(key);
   }
 
-  SimpleKeyPairData _restoreKeyPair(BrainDeviceLocalSecrets secrets) {
+  SimpleKeyPairData _restoreKeyPair(
+    BrainDeviceLocalSecrets secrets,
+  ) {
     return SimpleKeyPairData(
       base64Url.decode(secrets.privateKeyBase64),
       publicKey: SimplePublicKey(
@@ -201,20 +279,50 @@ class BrainDeviceCryptoService {
     required String vaultId,
     required String senderDeviceId,
     required String targetDeviceId,
+    required String targetKeyFingerprint,
+    required String recoveryRequestId,
+    required DateTime recoveryExpiresAt,
     required int keyVersion,
-  }) =>
-      'EVRYLUX_BRAIN_DEVICE_WRAP_V1|$vaultId|$senderDeviceId|$targetDeviceId|$keyVersion';
+  }) {
+    return [
+      'EVRYLUX_BRAIN_DEVICE_WRAP_V2',
+      vaultId,
+      senderDeviceId,
+      targetDeviceId,
+      targetKeyFingerprint.toUpperCase(),
+      recoveryRequestId,
+      recoveryExpiresAt.toUtc().toIso8601String(),
+      keyVersion.toString(),
+    ].join('|');
+  }
 
   String _aad({
     required String vaultId,
     required String senderDeviceId,
     required String targetDeviceId,
+    required String targetKeyFingerprint,
+    required String recoveryRequestId,
+    required DateTime recoveryExpiresAt,
     required int keyVersion,
-  }) =>
-      'EVRYLUX_BRAIN_DEVICE_ENVELOPE_V1|$vaultId|$senderDeviceId|$targetDeviceId|$keyVersion';
+  }) {
+    return [
+      'EVRYLUX_BRAIN_DEVICE_ENVELOPE_V2',
+      vaultId,
+      senderDeviceId,
+      targetDeviceId,
+      targetKeyFingerprint.toUpperCase(),
+      recoveryRequestId,
+      recoveryExpiresAt.toUtc().toIso8601String(),
+      keyVersion.toString(),
+    ].join('|');
+  }
 
   Uint8List _randomBytes(int length) => Uint8List.fromList(
-    List<int>.generate(length, (_) => _random.nextInt(256), growable: false),
+    List<int>.generate(
+      length,
+      (_) => _random.nextInt(256),
+      growable: false,
+    ),
   );
 
   String _token(int byteLength) =>

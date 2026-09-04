@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import '../../../app/dependencies/app_dependencies.dart' as dependencies;
@@ -76,22 +74,6 @@ class _BrainScreenState extends State<BrainScreen> {
   bool _showAllSearchResults = false;
 
   // ============================================================
-  // PESQUISA REMOTA / SUPABASE
-  // ============================================================
-
-  Timer? _searchDebounce;
-
-  int _searchRequestVersion = 0;
-
-  bool _isSearchingRemote = false;
-
-  String? _remoteSearchError;
-
-  List<BrainFile> _remoteNotes = [];
-
-  final Set<String> _remoteNoteIds = <String>{};
-
-  // ============================================================
   // INIT
   // ============================================================
 
@@ -140,8 +122,6 @@ class _BrainScreenState extends State<BrainScreen> {
   void dispose() {
     _controller.removeListener(_onControllerChanged);
 
-    _searchDebounce?.cancel();
-
     _searchController.dispose();
 
     // ========================================================
@@ -178,7 +158,9 @@ class _BrainScreenState extends State<BrainScreen> {
   // ============================================================
 
   Future<void> _initialize() async {
-    await _controller.initialize();
+    if (!_controller.isInitialized) {
+      await _controller.initialize();
+    }
 
     if (!mounted) {
       return;
@@ -709,9 +691,8 @@ class _BrainScreenState extends State<BrainScreen> {
   //
   // A BrainScreen apenas:
   //
-  // - coleta fontes local + remota;
-  // - deduplica;
-  // - envia para BrainSearchEngine;
+  // - consulta o conteúdo local já carregado;
+  //   // - envia para BrainSearchEngine;
   // - renderiza BrainSearchResponse.
   //
   // O parser interpreta a linguagem natural.
@@ -727,200 +708,34 @@ class _BrainScreenState extends State<BrainScreen> {
       return BrainSearchResponse.fromResults(const <BrainFile>[]);
     }
 
-    // ========================================================
-    // LOCAL + SUPABASE
-    // ========================================================
-    //
-    // Local continua sendo a primeira fonte.
-    //
-    // A mesma anotação não aparece duas vezes quando existe
-    // localmente e também na nuvem.
-    //
-    // ========================================================
-
-    final merged = <String, BrainFile>{};
-
-    for (final note in _controller.notes) {
-      merged[_searchEngine.contentKey(note)] = note;
-    }
-
-    for (final note in _remoteNotes) {
-      final key = _searchEngine.contentKey(note);
-
-      merged.putIfAbsent(key, () {
-        return note;
-      });
-    }
-
     return _searchEngine.search(
-      notes: merged.values,
+      notes: _controller.notes,
       query: parsedQuery,
       topLimit: 3,
     );
   }
 
   // ============================================================
-  // PESQUISAR NO SUPABASE
+  // PESQUISA LOCAL / VAULT-FIRST
   // ============================================================
   //
-  // A pesquisa local responde imediatamente.
+  // A pesquisa não consulta o Supabase automaticamente.
   //
-  // Após um pequeno debounce carregamos as notas remotas e também
-  // aplicamos BrainSearchParser + BrainSearchEngine localmente.
+  // O parser e o engine trabalham somente sobre as notas que o
+  // BrainController já carregou do armazenamento local/Vault.
   //
-  // A linguagem natural nunca depende do Supabase para ser
-  // interpretada.
-  //
-  // Se estiver offline, os resultados locais continuam funcionando.
+  // A nuvem permanece fora do caminho crítico e continua sendo
+  // usada apenas pela sincronização E2EE.
   //
   // ============================================================
 
   void _scheduleRemoteSearch(String rawQuery) {
-    _searchDebounce?.cancel();
-
-    final parsedQuery = _searchParser.parse(rawQuery);
-
-    if (parsedQuery.isEmpty) {
-      _searchRequestVersion++;
-
-      if (mounted) {
-        setState(() {
-          _remoteNotes = [];
-
-          _remoteNoteIds.clear();
-
-          _isSearchingRemote = false;
-
-          _remoteSearchError = null;
-        });
-      }
-
+    // Mantido para preservar os callers existentes da interface.
+    // A alteração de _searchQuery já dispara o rebuild e a busca
+    // local. Nenhuma chamada de rede acontece aqui.
+    if (rawQuery.trim().isEmpty) {
       return;
     }
-
-    final requestVersion = ++_searchRequestVersion;
-
-    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
-      _loadRemoteSearch(rawQuery: rawQuery, requestVersion: requestVersion);
-    });
-  }
-
-  Future<void> _loadRemoteSearch({
-    required String rawQuery,
-    required int requestVersion,
-  }) async {
-    if (!mounted || requestVersion != _searchRequestVersion) {
-      return;
-    }
-
-    setState(() {
-      _isSearchingRemote = true;
-
-      _remoteSearchError = null;
-    });
-
-    try {
-      final rows = await dependencies.supabaseBrainService.loadNotes();
-
-      if (!mounted || requestVersion != _searchRequestVersion) {
-        return;
-      }
-
-      final allRemoteNotes = <BrainFile>[];
-
-      for (final row in rows) {
-        final note = _brainFileFromRemoteRow(row);
-
-        if (note == null) {
-          continue;
-        }
-
-        allRemoteNotes.add(note);
-      }
-
-      final parsedQuery = _searchParser.parse(rawQuery);
-
-      final notes = _searchEngine.searchFiles(
-        notes: allRemoteNotes,
-        query: parsedQuery,
-      );
-
-      final ids = <String>{};
-
-      for (final note in notes) {
-        if (note.path.trim().isNotEmpty) {
-          ids.add(note.path.trim());
-        }
-      }
-
-      setState(() {
-        _remoteNotes = notes;
-
-        _remoteNoteIds
-          ..clear()
-          ..addAll(ids);
-
-        _isSearchingRemote = false;
-
-        _remoteSearchError = null;
-      });
-    } catch (_) {
-      if (!mounted || requestVersion != _searchRequestVersion) {
-        return;
-      }
-
-      setState(() {
-        _isSearchingRemote = false;
-
-        _remoteSearchError = 'Sem acesso à nuvem. Mostrando resultados locais.';
-      });
-    }
-  }
-
-  // ============================================================
-  // REMOTE ROW -> BRAIN FILE
-  // ============================================================
-
-  BrainFile? _brainFileFromRemoteRow(Map<String, dynamic> row) {
-    final id = row['id']?.toString().trim() ?? '';
-
-    final topic = row['topic']?.toString().trim() ?? '';
-
-    final title = row['title']?.toString().trim() ?? '';
-
-    final content = row['content']?.toString() ?? '';
-
-    if (id.isEmpty || title.isEmpty || content.trim().isEmpty) {
-      return null;
-    }
-
-    final updatedAt = _parseRemoteDate(row['updated_at']) ?? DateTime.now();
-
-    final createdAt = _parseRemoteDate(row['created_at']) ?? updatedAt;
-
-    return BrainFile(
-      topic: topic.isEmpty ? 'Sem tema' : topic,
-      title: title,
-      path: id,
-      content: content,
-      concepts: const <BrainConcept>[],
-      createdAt: createdAt,
-      updatedAt: updatedAt,
-    );
-  }
-
-  DateTime? _parseRemoteDate(dynamic value) {
-    if (value == null) {
-      return null;
-    }
-
-    final text = value.toString().trim();
-
-    if (text.isEmpty) {
-      return null;
-    }
-
-    return DateTime.tryParse(text)?.toLocal();
   }
 
   // ============================================================
@@ -957,7 +772,7 @@ class _BrainScreenState extends State<BrainScreen> {
   // ABRIR RESULTADO EM PÁGINA
   // ============================================================
   //
-  // Qualquer anotação existente, local ou vinda do Supabase,
+  // Qualquer anotação existente localmente,
   // é aberta exclusivamente pela BrainNoteScreen.
   //
   // NÃO reutilizar o modal de criação aqui.
@@ -965,53 +780,11 @@ class _BrainScreenState extends State<BrainScreen> {
   // ============================================================
 
   Future<void> _openSearchResult(BrainFile note) async {
-    var noteToOpen = note;
-
-    // ========================================================
-    // RESULTADO REMOTO
-    // ========================================================
-    //
-    // Se a anotação existe somente no Supabase, criamos primeiro
-    // a cópia local. Depois abrimos uma PÁGINA exclusiva para o
-    // arquivo, em vez de reutilizar o modal de criação.
-    //
-    // ========================================================
-
-    final isRemoteOnly =
-        _remoteNoteIds.contains(note.path.trim()) &&
-        !_controller.notes.any((local) {
-          return _searchEngine.contentKey(local) ==
-              _searchEngine.contentKey(note);
-        });
-
-    if (isRemoteOnly) {
-      try {
-        final localCopy = await dependencies.brainStorage.saveNote(
-          topic: note.topic,
-          title: note.title,
-          content: note.content,
-          concepts: const <BrainConcept>[],
-        );
-
-        await _controller.loadNotes();
-
-        noteToOpen = localCopy;
-      } catch (_) {
-        if (!mounted) {
-          return;
-        }
-
-        _showMessage(
-          'A anotação foi encontrada no Supabase, mas não foi possível criar a cópia local.',
-        );
-
-        return;
-      }
-    }
-
     if (!mounted) {
       return;
     }
+
+    final noteToOpen = note;
 
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
@@ -1034,7 +807,7 @@ class _BrainScreenState extends State<BrainScreen> {
     //
     // ========================================================
 
-    if (changed == true || isRemoteOnly) {
+    if (changed == true) {
       await _controller.loadNotes();
     }
 
@@ -1133,22 +906,10 @@ class _BrainScreenState extends State<BrainScreen> {
                   : IconButton(
                       tooltip: 'Limpar pesquisa',
                       onPressed: () {
-                        _searchDebounce?.cancel();
-
-                        _searchRequestVersion++;
-
                         _searchController.clear();
 
                         setState(() {
                           _searchQuery = '';
-
-                          _remoteNotes = [];
-
-                          _remoteNoteIds.clear();
-
-                          _isSearchingRemote = false;
-
-                          _remoteSearchError = null;
 
                           _showAllSearchResults = false;
                         });
@@ -1239,20 +1000,8 @@ class _BrainScreenState extends State<BrainScreen> {
                   ),
                 ),
 
-                if (_isSearchingRemote)
-                  const Padding(
-                    padding: EdgeInsets.only(right: 8),
-                    child: SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  ),
-
                 Text(
-                  _isSearchingRemote
-                      ? 'Consultando nuvem...'
-                      : _remoteSearchError ?? 'Local + Supabase',
+                  'Somente local',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],

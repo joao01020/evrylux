@@ -583,7 +583,9 @@ class _TrainingScreenState
         updated: updated,
       );
 
-      await trainingController.load();
+      await trainingController.load(
+        force: true,
+      );
 
       if (!mounted) {
         return true;
@@ -618,7 +620,9 @@ class _TrainingScreenState
         training,
       );
 
-      await trainingController.load();
+      await trainingController.load(
+        force: true,
+      );
 
       if (!mounted) {
         return true;
@@ -935,7 +939,7 @@ class _TrainingScreenState
               // ==================================================
               // BODY
               // ==================================================
-              body: controller.isLoading
+              body: controller.isInitialLoading
                   ? const Center(
                       child: CircularProgressIndicator(),
                     )

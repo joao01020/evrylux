@@ -114,6 +114,8 @@ class FinanceScreenController {
 
   bool isLoading = true;
 
+  bool isRefreshing = false;
+
   // ==========================================================
   // CONSTRUCTOR
   // ==========================================================
@@ -284,104 +286,154 @@ class FinanceScreenController {
   // ==========================================================
   // LOAD
   // ==========================================================
+  //
+  // Compatibilidade para callers antigos.
+  //
+  // ==========================================================
 
-  Future<
-    void
-  >
-  load() async {
+  Future<void> load() async {
+    await loadCached();
+    await refreshFromRemote();
+  }
+
+  // ==========================================================
+  // LOAD CACHED
+  // ==========================================================
+  //
+  // Primeiro frame do Finance:
+  //
+  // - FinanceModel -> SQLite;
+  // - cripto -> LocalStorage;
+  // - histórico -> SQLite cache;
+  // - objetivo -> SQLite cache;
+  // - cotações -> SQLite cache.
+  //
+  // Nenhuma rede é necessária neste caminho.
+  //
+  // ==========================================================
+
+  Future<void> loadCached() async {
     isLoading = true;
 
     try {
-      // ======================================================
-      // FINANCE MODEL
-      // ======================================================
-      //
-      // Carregamos primeiro o model principal.
-      //
-      // ======================================================
+      await financeController.loadLocalData();
 
-      await financeController.loadData();
-
-      // ======================================================
-      // DADOS COMPLEMENTARES
-      // ======================================================
-
-      final results =
-          await Future.wait<
-            dynamic
-          >(
-            [
-              _cryptoBalanceService.loadBalances(),
-
-              _persistenceService.loadHistory(),
-
-              _objectiveService.load(),
-            ],
-          );
-
-      // ======================================================
-      // CRYPTO BALANCES
-      // ======================================================
-
-      balances =
-          results[0]
-              as CryptoBalances;
-
-      // ======================================================
-      // HISTORY
-      // ======================================================
-
-      final storedHistory =
-          results[1]
-              as List<
-                InvestmentHistory
-              >;
-
-      history
-        ..clear()
-        ..addAll(
-          storedHistory,
-        );
-
-      history.sort(
-        (
-          first,
-          second,
-        ) {
-          return first.date.compareTo(
-            second.date,
-          );
-        },
+      final results = await Future.wait<dynamic>(
+        <Future<dynamic>>[
+          _cryptoBalanceService.loadBalances(),
+          _persistenceService.loadCachedHistory(),
+          _objectiveService.loadLocal(),
+          cryptoPriceService.getCachedPricesBrl(),
+        ],
       );
 
-      // ======================================================
-      // OBJECTIVE
-      // ======================================================
+      balances = results[0] as CryptoBalances;
 
-      final objective =
-          results[2]
-              as FinanceObjective?;
+      _applyHistory(
+        results[1] as List<InvestmentHistory>,
+      );
 
-      if (objective !=
-          null) {
-        objectiveName = objective.name;
+      _applyObjective(
+        results[2] as FinanceObjective?,
+      );
 
-        model.investmentGoal = objective.targetValue;
+      final cachedPrices = Map<String, double>.from(
+        results[3] as Map<String, double>,
+      );
+
+      if (cachedPrices.isNotEmpty) {
+        cryptoPricesBrl = cachedPrices;
+
+        cryptoController.setPrices(
+          cryptoPricesBrl,
+          notify: false,
+        );
+
+        await cryptoController.loadPortfolio();
+
+        cryptoPricesLoaded = true;
+        cryptoPriceError = null;
       }
-
-      // ======================================================
-      // CRYPTO PRICES
-      // ======================================================
-      //
-      // Não deixamos a tela inteira falhar se a API de preço
-      // estiver indisponível.
-      //
-      // ======================================================
-
-      await _loadCryptoPrices();
     } finally {
       isLoading = false;
     }
+  }
+
+  // ==========================================================
+  // REFRESH FROM REMOTE
+  // ==========================================================
+  //
+  // Executado depois que a UI cacheada já está visível.
+  //
+  // ==========================================================
+
+  Future<void> refreshFromRemote() async {
+    if (isRefreshing) {
+      return;
+    }
+
+    isRefreshing = true;
+
+    try {
+      await financeController.refreshRemoteData();
+
+      final results = await Future.wait<dynamic>(
+        <Future<dynamic>>[
+          _persistenceService.refreshHistory(),
+          _objectiveService.refreshFromRemote(),
+        ],
+      );
+
+      _applyHistory(
+        results[0] as List<InvestmentHistory>,
+      );
+
+      _applyObjective(
+        results[1] as FinanceObjective?,
+      );
+
+      await _refreshCryptoPricesFromRemote();
+    } finally {
+      isRefreshing = false;
+    }
+  }
+
+  // ==========================================================
+  // APPLY HISTORY
+  // ==========================================================
+
+  void _applyHistory(
+    List<InvestmentHistory> storedHistory,
+  ) {
+    history
+      ..clear()
+      ..addAll(storedHistory);
+
+    history.sort(
+      (
+        first,
+        second,
+      ) {
+        return first.date.compareTo(
+          second.date,
+        );
+      },
+    );
+  }
+
+  // ==========================================================
+  // APPLY OBJECTIVE
+  // ==========================================================
+
+  void _applyObjective(
+    FinanceObjective? objective,
+  ) {
+    if (objective == null) {
+      return;
+    }
+
+    objectiveName = objective.name;
+    model.investmentGoal = objective.targetValue;
   }
 
   // ==========================================================
@@ -395,7 +447,7 @@ class FinanceScreenController {
     cryptoPriceError = null;
 
     try {
-      final prices = await cryptoPriceService.getPricesBrl();
+      final prices = await cryptoPriceService.refreshPricesBrl();
 
       cryptoPricesBrl =
           Map<
@@ -438,6 +490,10 @@ class FinanceScreenController {
         stackTrace,
       );
     }
+  }
+
+  Future<void> _refreshCryptoPricesFromRemote() async {
+    await _loadCryptoPrices();
   }
 
   // ==========================================================

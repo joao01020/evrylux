@@ -53,10 +53,23 @@ class StudyController
   >
   studies = [];
 
+  bool _isInitialized = false;
+
+  bool get isInitialized {
+    return _isInitialized;
+  }
+
   Future<
     void
   >
-  loadStudies() async {
+  loadStudies({
+    bool force = false,
+  }) async {
+    if (_isInitialized &&
+        !force) {
+      return;
+    }
+
     studies = await service.getStudies();
 
     totalStudyMinutes = 0;
@@ -87,6 +100,8 @@ class StudyController
         },
       );
     }
+
+    _isInitialized = true;
 
     notifyListeners();
   }
@@ -126,6 +141,8 @@ class StudyController
       minutes,
     );
 
-    await loadStudies();
+    await loadStudies(
+      force: true,
+    );
   }
 }

@@ -96,13 +96,17 @@ class _FinanceScreenState
     void
   >
   _initializeScreen() async {
-    await _loadScreen();
+    await _loadCachedScreen();
 
     if (!mounted) {
       return;
     }
 
     _startCryptoRefreshTimer();
+
+    unawaited(
+      _refreshRemoteScreen(),
+    );
   }
 
   // ============================================================
@@ -119,32 +123,50 @@ class _FinanceScreenState
   }
 
   // ============================================================
-  // LOAD
+  // LOAD CACHED
   // ============================================================
 
-  Future<
-    void
-  >
-  _loadScreen() async {
+  Future<void> _loadCachedScreen() async {
     try {
-      await _controller.load();
+      await _controller.loadCached();
     } catch (
       error,
       stackTrace
     ) {
       debugPrint(
-        '[FINANCE][LOAD] $error',
+        '[FINANCE][CACHE LOAD] $error',
       );
 
       debugPrint(
         '$stackTrace',
       );
+    }
 
-      if (mounted) {
-        _actions.showMessage(
-          'Não foi possível carregar todos os dados financeiros.',
-        );
-      }
+    _refresh();
+  }
+
+  // ============================================================
+  // REFRESH REMOTE
+  // ============================================================
+  //
+  // Não bloqueia a tela.
+  //
+  // ============================================================
+
+  Future<void> _refreshRemoteScreen() async {
+    try {
+      await _controller.refreshFromRemote();
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        '[FINANCE][BACKGROUND REFRESH] $error',
+      );
+
+      debugPrint(
+        '$stackTrace',
+      );
     }
 
     _refresh();

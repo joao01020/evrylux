@@ -1,26 +1,21 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/database/daos/profile_cache_dao.dart';
+import '../models/profile_preferences.dart';
 import '../models/user_profile.dart';
 
 class ProfileRepository {
   ProfileRepository({
     SupabaseClient? client,
-  }) : _client =
-           client ??
-           Supabase.instance.client;
-
-  // ============================================================
-  // SUPABASE
-  // ============================================================
+    ProfileCacheDao? cacheDao,
+  })  : _client = client ?? Supabase.instance.client,
+        _cacheDao = cacheDao ?? ProfileCacheDao();
 
   final SupabaseClient _client;
+  final ProfileCacheDao _cacheDao;
 
   static const String _tableName = 'profiles';
-
-  // ============================================================
-  // CURRENT USER
-  // ============================================================
 
   User? get currentUser {
     return _client.auth.currentUser;
@@ -30,164 +25,146 @@ class ProfileRepository {
     return currentUser?.id;
   }
 
-  // ============================================================
-  // GET CURRENT PROFILE
-  // ============================================================
-
-  Future<
-    UserProfile?
-  >
-  getCurrentProfile() async {
+  Future<UserProfile?> getCachedCurrentProfile() async {
     final user = currentUser;
 
-    if (user ==
-        null) {
+    if (user == null) {
       return null;
     }
 
-    return getProfile(
-      user.id,
-    );
+    return _cacheDao.loadProfile(user.id);
   }
 
-  // ============================================================
-  // GET PROFILE
-  // ============================================================
+  Future<String?> getCachedCurrentEmail() async {
+    final user = currentUser;
 
-  Future<
-    UserProfile?
-  >
-  getProfile(
+    if (user == null) {
+      return null;
+    }
+
+    return _cacheDao.loadEmail(user.id);
+  }
+
+  Future<UserProfile?> getCurrentProfile() async {
+    final user = currentUser;
+
+    if (user == null) {
+      return null;
+    }
+
+    final cached = await _cacheDao.loadProfile(user.id);
+
+    if (cached != null) {
+      return cached;
+    }
+
+    return refreshCurrentProfile();
+  }
+
+  Future<UserProfile?> refreshCurrentProfile() async {
+    final user = currentUser;
+
+    if (user == null) {
+      return null;
+    }
+
+    final profile = await _fetchRemoteProfile(user.id);
+
+    if (profile != null) {
+      await _cacheDao.saveProfile(
+        profile,
+        email: user.email,
+      );
+    }
+
+    return profile;
+  }
+
+  Future<UserProfile?> getProfile(
     String userId,
   ) async {
     final normalizedUserId = userId.trim();
 
     if (normalizedUserId.isEmpty) {
-      throw ArgumentError(
-        'userId não pode estar vazio.',
+      throw ArgumentError('userId não pode estar vazio.');
+    }
+
+    final currentId = currentUserId;
+
+    if (currentId == normalizedUserId) {
+      final cached = await _cacheDao.loadProfile(normalizedUserId);
+
+      if (cached != null) {
+        return cached;
+      }
+    }
+
+    final profile = await _fetchRemoteProfile(normalizedUserId);
+
+    if (profile != null && currentId == normalizedUserId) {
+      await _cacheDao.saveProfile(
+        profile,
+        email: currentUser?.email,
       );
     }
 
+    return profile;
+  }
+
+  Future<UserProfile?> _fetchRemoteProfile(
+    String userId,
+  ) async {
     try {
-      debugPrint(
-        '[PROFILE] Buscando perfil: $normalizedUserId',
-      );
+      debugPrint('[PROFILE] Atualizando perfil remoto: $userId');
 
       final data = await _client
-          .from(
-            _tableName,
-          )
-          .select(
-            'id, full_name, created_at, updated_at',
-          )
-          .eq(
-            'id',
-            normalizedUserId,
-          )
+          .from(_tableName)
+          .select('id, full_name, created_at, updated_at')
+          .eq('id', userId)
           .maybeSingle();
 
-      if (data ==
-          null) {
-        debugPrint(
-          '[PROFILE] Perfil ainda não existe.',
-        );
-
+      if (data == null) {
+        debugPrint('[PROFILE] Perfil ainda não existe.');
         return null;
       }
 
-      final profile = UserProfile.fromMap(
-        data,
-      );
+      final profile = UserProfile.fromMap(data);
 
-      debugPrint(
-        '[PROFILE] Perfil encontrado: ${profile.fullName}',
-      );
+      debugPrint('[PROFILE] Perfil remoto atualizado: ${profile.fullName}');
 
       return profile;
-    } on PostgrestException catch (
-      error
-    ) {
-      debugPrint(
-        '[PROFILE] Erro Supabase ao buscar perfil.',
-      );
-
-      debugPrint(
-        '[PROFILE] Code: ${error.code}',
-      );
-
-      debugPrint(
-        '[PROFILE] Message: ${error.message}',
-      );
-
+    } on PostgrestException catch (error) {
+      debugPrint('[PROFILE] Erro Supabase ao buscar perfil.');
+      debugPrint('[PROFILE] Code: ${error.code}');
+      debugPrint('[PROFILE] Message: ${error.message}');
       rethrow;
-    } catch (
-      error
-    ) {
-      debugPrint(
-        '[PROFILE] Erro ao buscar perfil: $error',
-      );
-
+    } catch (error) {
+      debugPrint('[PROFILE] Erro ao buscar perfil: $error');
       rethrow;
     }
   }
 
-  // ============================================================
-  // PROFILE EXISTS
-  // ============================================================
-
-  Future<
-    bool
-  >
-  profileExists(
+  Future<bool> profileExists(
     String userId,
   ) async {
-    final profile = await getProfile(
-      userId,
-    );
-
-    return profile !=
-        null;
+    final profile = await getProfile(userId);
+    return profile != null;
   }
 
-  // ============================================================
-  // PROFILE IS COMPLETE
-  // ============================================================
-
-  Future<
-    bool
-  >
-  isProfileComplete(
+  Future<bool> isProfileComplete(
     String userId,
   ) async {
-    final profile = await getProfile(
-      userId,
-    );
-
-    if (profile ==
-        null) {
-      return false;
-    }
-
-    return profile.hasName;
+    final profile = await getProfile(userId);
+    return profile?.hasName == true;
   }
 
-  // ============================================================
-  // SAVE CURRENT USER NAME
-  // ============================================================
-
-  Future<
-    UserProfile
-  >
-  saveCurrentUserFullName(
+  Future<UserProfile> saveCurrentUserFullName(
     String fullName,
   ) async {
     final user = currentUser;
 
-    if (user ==
-        null) {
-      throw StateError(
-        'Não existe usuário autenticado.',
-      );
+    if (user == null) {
+      throw StateError('Não existe usuário autenticado.');
     }
 
     return saveFullName(
@@ -196,145 +173,58 @@ class ProfileRepository {
     );
   }
 
-  // ============================================================
-  // SAVE FULL NAME
-  // ============================================================
-
-  Future<
-    UserProfile
-  >
-  saveFullName({
+  Future<UserProfile> saveFullName({
     required String userId,
     required String fullName,
   }) async {
     final normalizedUserId = userId.trim();
-
-    final normalizedName = _normalizeName(
-      fullName,
-    );
+    final normalizedName = _normalizeName(fullName);
 
     if (normalizedUserId.isEmpty) {
-      throw ArgumentError(
-        'userId não pode estar vazio.',
-      );
+      throw ArgumentError('userId não pode estar vazio.');
     }
 
-    _validateName(
-      normalizedName,
-    );
-
-    // ==========================================================
-    // SECURITY
-    // ==========================================================
-    //
-    // Evita que a aplicação tente salvar um perfil para outro
-    // usuário. O RLS do Supabase também deve proteger isso.
-    //
-    // ==========================================================
-
-    final authenticatedUser = currentUser;
-
-    if (authenticatedUser ==
-        null) {
-      throw StateError(
-        'Não existe usuário autenticado.',
-      );
-    }
-
-    if (authenticatedUser.id !=
-        normalizedUserId) {
-      throw StateError(
-        'O usuário autenticado não corresponde ao perfil.',
-      );
-    }
+    _validateName(normalizedName);
+    _validateCurrentUser(normalizedUserId);
 
     try {
-      debugPrint(
-        '[PROFILE] Salvando nome...',
-      );
-
-      debugPrint(
-        '[PROFILE] User ID: $normalizedUserId',
-      );
-
-      debugPrint(
-        '[PROFILE] Nome: $normalizedName',
-      );
-
       final data = await _client
-          .from(
-            _tableName,
-          )
+          .from(_tableName)
           .upsert(
-            {
+            <String, dynamic>{
               'id': normalizedUserId,
               'full_name': normalizedName,
               'updated_at': DateTime.now().toUtc().toIso8601String(),
             },
             onConflict: 'id',
           )
-          .select(
-            'id, full_name, created_at, updated_at',
-          )
+          .select('id, full_name, created_at, updated_at')
           .single();
 
-      final profile = UserProfile.fromMap(
-        data,
-      );
+      final profile = UserProfile.fromMap(data);
 
-      debugPrint(
-        '[PROFILE] Perfil salvo com sucesso.',
+      await _cacheDao.saveProfile(
+        profile,
+        email: currentUser?.email,
       );
 
       return profile;
-    } on PostgrestException catch (
-      error
-    ) {
-      debugPrint(
-        '[PROFILE] Erro Supabase ao salvar perfil.',
-      );
-
-      debugPrint(
-        '[PROFILE] Code: ${error.code}',
-      );
-
-      debugPrint(
-        '[PROFILE] Message: ${error.message}',
-      );
-
-      debugPrint(
-        '[PROFILE] Details: ${error.details}',
-      );
-
-      rethrow;
-    } catch (
-      error
-    ) {
-      debugPrint(
-        '[PROFILE] Erro ao salvar perfil: $error',
-      );
-
+    } on PostgrestException catch (error) {
+      debugPrint('[PROFILE] Erro Supabase ao salvar perfil.');
+      debugPrint('[PROFILE] Code: ${error.code}');
+      debugPrint('[PROFILE] Message: ${error.message}');
+      debugPrint('[PROFILE] Details: ${error.details}');
       rethrow;
     }
   }
 
-  // ============================================================
-  // UPDATE CURRENT USER NAME
-  // ============================================================
-
-  Future<
-    UserProfile
-  >
-  updateCurrentUserFullName(
+  Future<UserProfile> updateCurrentUserFullName(
     String fullName,
   ) async {
     final user = currentUser;
 
-    if (user ==
-        null) {
-      throw StateError(
-        'Não existe usuário autenticado.',
-      );
+    if (user == null) {
+      throw StateError('Não existe usuário autenticado.');
     }
 
     return updateFullName(
@@ -343,198 +233,208 @@ class ProfileRepository {
     );
   }
 
-  // ============================================================
-  // UPDATE FULL NAME
-  // ============================================================
-
-  Future<
-    UserProfile
-  >
-  updateFullName({
+  Future<UserProfile> updateFullName({
     required String userId,
     required String fullName,
   }) async {
     final normalizedUserId = userId.trim();
-
-    final normalizedName = _normalizeName(
-      fullName,
-    );
+    final normalizedName = _normalizeName(fullName);
 
     if (normalizedUserId.isEmpty) {
-      throw ArgumentError(
-        'userId não pode estar vazio.',
-      );
+      throw ArgumentError('userId não pode estar vazio.');
     }
 
-    _validateName(
-      normalizedName,
-    );
-
-    final authenticatedUser = currentUser;
-
-    if (authenticatedUser ==
-        null) {
-      throw StateError(
-        'Não existe usuário autenticado.',
-      );
-    }
-
-    if (authenticatedUser.id !=
-        normalizedUserId) {
-      throw StateError(
-        'O usuário autenticado não corresponde ao perfil.',
-      );
-    }
+    _validateName(normalizedName);
+    _validateCurrentUser(normalizedUserId);
 
     try {
       final data = await _client
-          .from(
-            _tableName,
-          )
+          .from(_tableName)
           .update(
-            {
+            <String, dynamic>{
               'full_name': normalizedName,
               'updated_at': DateTime.now().toUtc().toIso8601String(),
             },
           )
-          .eq(
-            'id',
-            normalizedUserId,
-          )
-          .select(
-            'id, full_name, created_at, updated_at',
-          )
+          .eq('id', normalizedUserId)
+          .select('id, full_name, created_at, updated_at')
           .single();
 
-      return UserProfile.fromMap(
-        data,
-      );
-    } on PostgrestException catch (
-      error
-    ) {
-      debugPrint(
-        '[PROFILE] Erro Supabase ao atualizar perfil.',
+      final profile = UserProfile.fromMap(data);
+
+      await _cacheDao.saveProfile(
+        profile,
+        email: currentUser?.email,
       );
 
-      debugPrint(
-        '[PROFILE] Code: ${error.code}',
-      );
-
-      debugPrint(
-        '[PROFILE] Message: ${error.message}',
-      );
-
+      return profile;
+    } on PostgrestException catch (error) {
+      debugPrint('[PROFILE] Erro Supabase ao atualizar perfil.');
+      debugPrint('[PROFILE] Code: ${error.code}');
+      debugPrint('[PROFILE] Message: ${error.message}');
       rethrow;
     }
   }
 
-  // ============================================================
-  // DELETE PROFILE
-  // ============================================================
-
-  Future<
-    void
-  >
-  deleteProfile(
+  Future<void> deleteProfile(
     String userId,
   ) async {
     final normalizedUserId = userId.trim();
 
     if (normalizedUserId.isEmpty) {
-      throw ArgumentError(
-        'userId não pode estar vazio.',
-      );
+      throw ArgumentError('userId não pode estar vazio.');
     }
 
-    final authenticatedUser = currentUser;
-
-    if (authenticatedUser ==
-        null) {
-      throw StateError(
-        'Não existe usuário autenticado.',
-      );
-    }
-
-    if (authenticatedUser.id !=
-        normalizedUserId) {
-      throw StateError(
-        'Não é possível excluir o perfil de outro usuário.',
-      );
-    }
+    _validateCurrentUser(normalizedUserId);
 
     try {
-      await _client
-          .from(
-            _tableName,
-          )
-          .delete()
-          .eq(
-            'id',
-            normalizedUserId,
-          );
+      await _client.from(_tableName).delete().eq('id', normalizedUserId);
+      await _cacheDao.deleteUser(normalizedUserId);
 
-      debugPrint(
-        '[PROFILE] Perfil removido.',
-      );
-    } on PostgrestException catch (
-      error
-    ) {
-      debugPrint(
-        '[PROFILE] Erro Supabase ao excluir perfil.',
-      );
-
-      debugPrint(
-        '[PROFILE] Code: ${error.code}',
-      );
-
-      debugPrint(
-        '[PROFILE] Message: ${error.message}',
-      );
-
+      debugPrint('[PROFILE] Perfil removido.');
+    } on PostgrestException catch (error) {
+      debugPrint('[PROFILE] Erro Supabase ao excluir perfil.');
+      debugPrint('[PROFILE] Code: ${error.code}');
+      debugPrint('[PROFILE] Message: ${error.message}');
       rethrow;
     }
   }
 
-  // ============================================================
-  // NORMALIZE NAME
-  // ============================================================
+  Future<ProfilePreferences> loadCurrentPreferences() async {
+    final user = currentUser;
+
+    if (user == null) {
+      return ProfilePreferences.defaults();
+    }
+
+    final cached = await _cacheDao.loadPreferences(user.id);
+
+    if (cached != null) {
+      return cached;
+    }
+
+    final preferences = ProfilePreferences.fromMetadata(
+      user.userMetadata ?? const <String, dynamic>{},
+    );
+
+    await _cacheDao.savePreferences(
+      userId: user.id,
+      preferences: preferences,
+      dirty: false,
+      email: user.email,
+    );
+
+    return preferences;
+  }
+
+  Future<bool> saveCurrentPreferences(
+    ProfilePreferences preferences,
+  ) async {
+    final user = currentUser;
+
+    if (user == null) {
+      throw StateError('Não existe usuário autenticado.');
+    }
+
+    await _cacheDao.savePreferences(
+      userId: user.id,
+      preferences: preferences,
+      dirty: true,
+      email: user.email,
+    );
+
+    return _pushPreferences(
+      userId: user.id,
+      preferences: preferences,
+    );
+  }
+
+  Future<bool> syncPendingCurrentPreferences() async {
+    final user = currentUser;
+
+    if (user == null) {
+      return false;
+    }
+
+    final dirty = await _cacheDao.hasDirtyPreferences(user.id);
+
+    if (!dirty) {
+      return true;
+    }
+
+    final preferences = await _cacheDao.loadPreferences(user.id);
+
+    if (preferences == null) {
+      return true;
+    }
+
+    return _pushPreferences(
+      userId: user.id,
+      preferences: preferences,
+    );
+  }
+
+  Future<bool> _pushPreferences({
+    required String userId,
+    required ProfilePreferences preferences,
+  }) async {
+    try {
+      final currentMetadata = Map<String, dynamic>.from(
+        currentUser?.userMetadata ?? const <String, dynamic>{},
+      );
+
+      final metadata = preferences.applyToMetadata(currentMetadata);
+
+      await _client.auth.updateUser(
+        UserAttributes(data: metadata),
+      );
+
+      await _cacheDao.markPreferencesSynced(userId);
+
+      return true;
+    } catch (error) {
+      debugPrint(
+        '[PROFILE] Preferências mantidas localmente; '
+        'sincronização pendente: $error',
+      );
+
+      return false;
+    }
+  }
+
+  void _validateCurrentUser(
+    String userId,
+  ) {
+    final authenticatedUser = currentUser;
+
+    if (authenticatedUser == null) {
+      throw StateError('Não existe usuário autenticado.');
+    }
+
+    if (authenticatedUser.id != userId) {
+      throw StateError('O usuário autenticado não corresponde ao perfil.');
+    }
+  }
 
   String _normalizeName(
     String value,
   ) {
-    return value.trim().replaceAll(
-      RegExp(
-        r'\s+',
-      ),
-      ' ',
-    );
+    return value.trim().replaceAll(RegExp(r'\s+'), ' ');
   }
-
-  // ============================================================
-  // VALIDATE NAME
-  // ============================================================
 
   void _validateName(
     String value,
   ) {
     if (value.isEmpty) {
-      throw ArgumentError(
-        'Digite seu nome.',
-      );
+      throw ArgumentError('Digite seu nome.');
     }
 
-    if (value.length <
-        2) {
-      throw ArgumentError(
-        'O nome precisa ter pelo menos 2 caracteres.',
-      );
+    if (value.length < 2) {
+      throw ArgumentError('O nome precisa ter pelo menos 2 caracteres.');
     }
 
-    if (value.length >
-        100) {
-      throw ArgumentError(
-        'O nome pode ter no máximo 100 caracteres.',
-      );
+    if (value.length > 100) {
+      throw ArgumentError('O nome pode ter no máximo 100 caracteres.');
     }
   }
 }

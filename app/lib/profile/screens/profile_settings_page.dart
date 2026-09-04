@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -5,6 +7,8 @@ import '../../core/constants/app_info.dart';
 
 import '../../app/dependencies/app_dependencies.dart';
 import '../../study/brain/devices/models/brain_device_record.dart';
+import '../data/profile_repository.dart';
+import '../models/profile_preferences.dart';
 import 'legal/privacy_policy_page.dart';
 import 'legal/terms_of_use_page.dart';
 
@@ -24,9 +28,16 @@ import 'legal/terms_of_use_page.dart';
 //
 // ============================================================
 
-enum ProfileSettingsSection { preferences, security, brain, about }
+enum ProfileSettingsSection {
+  preferences,
+  security,
+  brain,
+  about,
+}
 
-class ProfileSettingsPage extends StatefulWidget {
+class ProfileSettingsPage
+    extends
+        StatefulWidget {
   const ProfileSettingsPage({
     super.key,
     this.initialSection = ProfileSettingsSection.preferences,
@@ -35,37 +46,64 @@ class ProfileSettingsPage extends StatefulWidget {
   final ProfileSettingsSection initialSection;
 
   @override
-  State<ProfileSettingsPage> createState() => _ProfileSettingsPageState();
+  State<
+    ProfileSettingsPage
+  >
+  createState() => _ProfileSettingsPageState();
 }
 
-class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
+class _ProfileSettingsPageState
+    extends
+        State<
+          ProfileSettingsPage
+        > {
   // ============================================================
   // COLORS
   // ============================================================
 
-  static const Color _background = Color(0xFFF7FBF1);
+  static const Color _background = Color(
+    0xFFF7FBF1,
+  );
 
-  static const Color _surface = Color(0xFFFFFFFF);
+  static const Color _surface = Color(
+    0xFFFFFFFF,
+  );
 
-  static const Color _surfaceSoft = Color(0xFFF3F8EE);
+  static const Color _surfaceSoft = Color(
+    0xFFF3F8EE,
+  );
 
-  static const Color _border = Color(0xFFC7DFC9);
+  static const Color _border = Color(
+    0xFFC7DFC9,
+  );
 
-  static const Color _primary = Color(0xFFBCF0B4);
+  static const Color _primary = Color(
+    0xFFBCF0B4,
+  );
 
-  static const Color _primaryDark = Color(0xFF3B6939);
+  static const Color _primaryDark = Color(
+    0xFF3B6939,
+  );
 
-  static const Color _text = Color(0xFF172019);
+  static const Color _text = Color(
+    0xFF172019,
+  );
 
-  static const Color _muted = Color(0xFF68746B);
+  static const Color _muted = Color(
+    0xFF68746B,
+  );
 
-  static const Color _danger = Color(0xFFB3261E);
+  static const Color _danger = Color(
+    0xFFB3261E,
+  );
 
   // ============================================================
   // STATE
   // ============================================================
 
   late ProfileSettingsSection _section;
+
+  late final ProfileRepository _profileRepository;
 
   bool _compactMode = false;
 
@@ -74,6 +112,8 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   bool _confirmBeforeDelete = true;
 
   bool _savingPreferences = false;
+
+  Timer? _preferencesSaveTimer;
 
   bool _changingPassword = false;
 
@@ -105,7 +145,19 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
 
   String? _revokingBrainDeviceId;
 
-  List<BrainDeviceRecord> _brainDevices = const <BrainDeviceRecord>[];
+  String? _approvingBrainDeviceId;
+
+  bool _requestingBrainRecovery = false;
+
+  bool _completingBrainRecovery = false;
+
+  List<
+    BrainDeviceRecord
+  >
+  _brainDevices =
+      const <
+        BrainDeviceRecord
+      >[];
 
   String? _message;
 
@@ -121,7 +173,11 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
 
     _section = widget.initialSection;
 
-    _loadPreferences();
+    _profileRepository = ProfileRepository();
+
+    unawaited(
+      _loadPreferences(),
+    );
 
     _loadBrainSettings();
   }
@@ -132,77 +188,143 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
 
   User? get _user => Supabase.instance.client.auth.currentUser;
 
-  String get _email => _user?.email ?? 'E-mail não disponível';
+  String get _email =>
+      _user?.email ??
+      'E-mail não disponível';
 
   // ============================================================
   // LOAD PREFERENCES
   // ============================================================
 
-  void _loadPreferences() {
-    final metadata = _user?.userMetadata ?? const <String, dynamic>{};
+  Future<
+    void
+  >
+  _loadPreferences() async {
+    try {
+      final preferences = await _profileRepository.loadCurrentPreferences();
 
-    _compactMode = metadata['ui_compact_mode'] == true;
+      if (!mounted) {
+        return;
+      }
 
-    _reduceMotion = metadata['ui_reduce_motion'] == true;
+      setState(
+        () {
+          _compactMode = preferences.compactMode;
+          _reduceMotion = preferences.reduceMotion;
+          _confirmBeforeDelete = preferences.confirmBeforeDelete;
+        },
+      );
 
-    final confirm = metadata['confirm_before_delete'];
+      unawaited(
+        _syncPendingPreferences(),
+      );
+    } catch (
+      error
+    ) {
+      debugPrint(
+        '[PROFILE SETTINGS] Erro lendo preferências locais: $error',
+      );
+    }
+  }
 
-    _confirmBeforeDelete = confirm is bool ? confirm : true;
+  Future<
+    void
+  >
+  _syncPendingPreferences() async {
+    try {
+      await _profileRepository.syncPendingCurrentPreferences();
+    } catch (
+      error
+    ) {
+      debugPrint(
+        '[PROFILE SETTINGS] '
+        'Não foi possível sincronizar preferências pendentes: $error',
+      );
+    }
+  }
+
+  void _schedulePreferencesSave() {
+    _preferencesSaveTimer?.cancel();
+
+    _preferencesSaveTimer = Timer(
+      const Duration(
+        milliseconds: 250,
+      ),
+      () {
+        unawaited(
+          _savePreferences(),
+        );
+      },
+    );
   }
 
   // ============================================================
   // SAVE PREFERENCES
   // ============================================================
 
-  Future<void> _savePreferences() async {
+  Future<
+    void
+  >
+  _savePreferences() async {
     if (_savingPreferences) {
       return;
     }
 
-    setState(() {
-      _savingPreferences = true;
-      _message = null;
-    });
+    setState(
+      () {
+        _savingPreferences = true;
+        _message = null;
+      },
+    );
 
     try {
-      final current = Map<String, dynamic>.from(
-        _user?.userMetadata ?? const <String, dynamic>{},
+      final preferences = ProfilePreferences(
+        compactMode: _compactMode,
+        reduceMotion: _reduceMotion,
+        confirmBeforeDelete: _confirmBeforeDelete,
       );
 
-      current['ui_compact_mode'] = _compactMode;
-
-      current['ui_reduce_motion'] = _reduceMotion;
-
-      current['confirm_before_delete'] = _confirmBeforeDelete;
-
-      await Supabase.instance.client.auth.updateUser(
-        UserAttributes(data: current),
+      final synced = await _profileRepository.saveCurrentPreferences(
+        preferences,
       );
 
       if (!mounted) {
         return;
       }
 
-      setState(() {
-        _message = 'Preferências salvas com sucesso.';
-        _messageIsError = false;
-      });
-    } catch (error) {
-      debugPrint('[PROFILE SETTINGS] Erro salvando preferências: $error');
+      setState(
+        () {
+          _message = synced
+              ? 'Preferências salvas e sincronizadas.'
+              : 'Preferências salvas neste dispositivo. '
+                    'A sincronização será tentada quando houver conexão.';
+          _messageIsError = false;
+        },
+      );
+    } catch (
+      error
+    ) {
+      debugPrint(
+        '[PROFILE SETTINGS] Erro salvando preferências: $error',
+      );
 
       if (!mounted) {
         return;
       }
 
-      setState(() {
-        _message = 'Não foi possível salvar as preferências.';
-        _messageIsError = true;
-      });
+      setState(
+        () {
+          _message = 'Não foi possível salvar as preferências.';
+          _messageIsError = true;
+        },
+      );
     } finally {
       if (mounted) {
-        setState(() {
-          _savingPreferences = false;
-        });
+        setState(
+          () {
+            _savingPreferences = false;
+          },
+        );
       }
     }
   }
@@ -211,7 +333,10 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   // CHANGE PASSWORD
   // ============================================================
 
-  Future<void> _changePassword() async {
+  Future<
+    void
+  >
+  _changePassword() async {
     if (_changingPassword) {
       return;
     }
@@ -222,114 +347,164 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
 
     var obscurePassword = true;
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              backgroundColor: _surface,
-              surfaceTintColor: Colors.transparent,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-                side: const BorderSide(color: _border),
-              ),
-              title: const Row(
-                children: [
-                  Icon(Icons.lock_reset_rounded, color: _primaryDark),
-                  SizedBox(width: 10),
-                  Text('Alterar senha'),
-                ],
-              ),
-              content: SizedBox(
-                width: 360,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: newPasswordController,
-                      obscureText: obscurePassword,
-                      decoration: InputDecoration(
-                        labelText: 'Nova senha',
-                        prefixIcon: const Icon(Icons.lock_outline_rounded),
-                        suffixIcon: IconButton(
-                          onPressed: () {
-                            setDialogState(() {
-                              obscurePassword = !obscurePassword;
-                            });
-                          },
-                          icon: Icon(
-                            obscurePassword
-                                ? Icons.visibility_outlined
-                                : Icons.visibility_off_outlined,
+    final confirmed =
+        await showDialog<
+          bool
+        >(
+          context: context,
+          builder:
+              (
+                dialogContext,
+              ) {
+                return StatefulBuilder(
+                  builder:
+                      (
+                        context,
+                        setDialogState,
+                      ) {
+                        return AlertDialog(
+                          backgroundColor: _surface,
+                          surfaceTintColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              20,
+                            ),
+                            side: const BorderSide(
+                              color: _border,
+                            ),
                           ),
-                        ),
-                        border: const OutlineInputBorder(),
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    TextField(
-                      controller: confirmPasswordController,
-                      obscureText: obscurePassword,
-                      decoration: const InputDecoration(
-                        labelText: 'Confirmar nova senha',
-                        prefixIcon: Icon(Icons.verified_user_outlined),
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(dialogContext).pop(false);
-                  },
-                  child: const Text('Cancelar'),
-                ),
-
-                FilledButton(
-                  onPressed: () {
-                    final password = newPasswordController.text;
-
-                    final confirm = confirmPasswordController.text;
-
-                    if (password.length < 8) {
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'A senha deve ter pelo menos 8 caracteres.',
+                          title: const Row(
+                            children: [
+                              Icon(
+                                Icons.lock_reset_rounded,
+                                color: _primaryDark,
+                              ),
+                              SizedBox(
+                                width: 10,
+                              ),
+                              Text(
+                                'Alterar senha',
+                              ),
+                            ],
                           ),
-                        ),
-                      );
+                          content: SizedBox(
+                            width: 360,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                TextField(
+                                  controller: newPasswordController,
+                                  obscureText: obscurePassword,
+                                  decoration: InputDecoration(
+                                    labelText: 'Nova senha',
+                                    prefixIcon: const Icon(
+                                      Icons.lock_outline_rounded,
+                                    ),
+                                    suffixIcon: IconButton(
+                                      onPressed: () {
+                                        setDialogState(
+                                          () {
+                                            obscurePassword = !obscurePassword;
+                                          },
+                                        );
+                                      },
+                                      icon: Icon(
+                                        obscurePassword
+                                            ? Icons.visibility_outlined
+                                            : Icons.visibility_off_outlined,
+                                      ),
+                                    ),
+                                    border: const OutlineInputBorder(),
+                                  ),
+                                ),
 
-                      return;
-                    }
+                                const SizedBox(
+                                  height: 12,
+                                ),
 
-                    if (password != confirm) {
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        const SnackBar(
-                          content: Text('As senhas não coincidem.'),
-                        ),
-                      );
+                                TextField(
+                                  controller: confirmPasswordController,
+                                  obscureText: obscurePassword,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Confirmar nova senha',
+                                    prefixIcon: Icon(
+                                      Icons.verified_user_outlined,
+                                    ),
+                                    border: OutlineInputBorder(),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () {
+                                Navigator.of(
+                                  dialogContext,
+                                ).pop(
+                                  false,
+                                );
+                              },
+                              child: const Text(
+                                'Cancelar',
+                              ),
+                            ),
 
-                      return;
-                    }
+                            FilledButton(
+                              onPressed: () {
+                                final password = newPasswordController.text;
 
-                    Navigator.of(dialogContext).pop(true);
-                  },
-                  child: const Text('Atualizar senha'),
-                ),
-              ],
-            );
-          },
+                                final confirm = confirmPasswordController.text;
+
+                                if (password.length <
+                                    8) {
+                                  ScaffoldMessenger.of(
+                                    dialogContext,
+                                  ).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'A senha deve ter pelo menos 8 caracteres.',
+                                      ),
+                                    ),
+                                  );
+
+                                  return;
+                                }
+
+                                if (password !=
+                                    confirm) {
+                                  ScaffoldMessenger.of(
+                                    dialogContext,
+                                  ).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'As senhas não coincidem.',
+                                      ),
+                                    ),
+                                  );
+
+                                  return;
+                                }
+
+                                Navigator.of(
+                                  dialogContext,
+                                ).pop(
+                                  true,
+                                );
+                              },
+                              child: const Text(
+                                'Atualizar senha',
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                );
+              },
         );
-      },
-    );
 
-    if (confirmed != true) {
+    if (confirmed !=
+        true) {
       newPasswordController.dispose();
 
       confirmPasswordController.dispose();
@@ -343,40 +518,54 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
 
     confirmPasswordController.dispose();
 
-    setState(() {
-      _changingPassword = true;
-      _message = null;
-    });
+    setState(
+      () {
+        _changingPassword = true;
+        _message = null;
+      },
+    );
 
     try {
       await Supabase.instance.client.auth.updateUser(
-        UserAttributes(password: password),
+        UserAttributes(
+          password: password,
+        ),
       );
 
       if (!mounted) {
         return;
       }
 
-      setState(() {
-        _message = 'Senha atualizada com sucesso.';
-        _messageIsError = false;
-      });
-    } catch (error) {
-      debugPrint('[PROFILE SETTINGS] Erro alterando senha: $error');
+      setState(
+        () {
+          _message = 'Senha atualizada com sucesso.';
+          _messageIsError = false;
+        },
+      );
+    } catch (
+      error
+    ) {
+      debugPrint(
+        '[PROFILE SETTINGS] Erro alterando senha: $error',
+      );
 
       if (!mounted) {
         return;
       }
 
-      setState(() {
-        _message = 'Não foi possível alterar a senha.';
-        _messageIsError = true;
-      });
+      setState(
+        () {
+          _message = 'Não foi possível alterar a senha.';
+          _messageIsError = true;
+        },
+      );
     } finally {
       if (mounted) {
-        setState(() {
-          _changingPassword = false;
-        });
+        setState(
+          () {
+            _changingPassword = false;
+          },
+        );
       }
     }
   }
@@ -385,14 +574,19 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   // LOAD BRAIN SETTINGS
   // ============================================================
 
-  Future<void> _loadBrainSettings() async {
+  Future<
+    void
+  >
+  _loadBrainSettings() async {
     if (_loadingBrainSettings) {
       return;
     }
 
-    setState(() {
-      _loadingBrainSettings = true;
-    });
+    setState(
+      () {
+        _loadingBrainSettings = true;
+      },
+    );
 
     try {
       if (!brainDataModeController.isInitialized) {
@@ -409,18 +603,22 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         return;
       }
 
-      setState(() {
-        _brainCloudMode = brainDataModeController.isCloudMode;
+      setState(
+        () {
+          _brainCloudMode = brainDataModeController.isCloudMode;
 
-        _brainVaultId = manifest.vaultId;
+          _brainVaultId = manifest.vaultId;
 
-        _brainKeyVersion = manifest.keyVersion;
+          _brainKeyVersion = manifest.keyVersion;
 
-        _brainMasterKeyAvailable = hasMasterKey;
-      });
+          _brainMasterKeyAvailable = hasMasterKey;
+        },
+      );
 
       await _loadBrainDevices();
-    } catch (error) {
+    } catch (
+      error
+    ) {
       debugPrint(
         '[PROFILE SETTINGS] '
         'Erro carregando configurações do Cérebro: $error',
@@ -430,16 +628,19 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         return;
       }
 
-      setState(() {
-        _message =
-            'Não foi possível carregar todas as configurações do Cérebro.';
-        _messageIsError = true;
-      });
+      setState(
+        () {
+          _message = 'Não foi possível carregar todas as configurações do Cérebro.';
+          _messageIsError = true;
+        },
+      );
     } finally {
       if (mounted) {
-        setState(() {
-          _loadingBrainSettings = false;
-        });
+        setState(
+          () {
+            _loadingBrainSettings = false;
+          },
+        );
       }
     }
   }
@@ -448,20 +649,30 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   // SWITCH BRAIN DATA MODE
   // ============================================================
 
-  Future<void> _setBrainCloudMode(bool cloud) async {
+  Future<
+    void
+  >
+  _setBrainCloudMode(
+    bool cloud,
+  ) async {
     if (_switchingBrainMode) {
       return;
     }
 
-    setState(() {
-      _switchingBrainMode = true;
-      _message = null;
-    });
+    setState(
+      () {
+        _switchingBrainMode = true;
+        _message = null;
+      },
+    );
 
     try {
       if (cloud) {
-        if (_user == null) {
-          throw StateError('Entre na sua conta antes de ativar o modo Cloud.');
+        if (_user ==
+            null) {
+          throw StateError(
+            'Entre na sua conta antes de ativar o modo Cloud.',
+          );
         }
 
         await brainDataModeController.useCloudMode();
@@ -473,20 +684,24 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         return;
       }
 
-      setState(() {
-        _brainCloudMode = brainDataModeController.isCloudMode;
+      setState(
+        () {
+          _brainCloudMode = brainDataModeController.isCloudMode;
 
-        _message = cloud
-            ? 'Modo Cloud ativado. O Cérebro continua local-first e sincroniza somente objetos criptografados.'
-            : 'Modo Local ativado. O Cérebro não realizará sincronização em nuvem.';
+          _message = cloud
+              ? 'Modo Cloud ativado. O Cérebro continua local-first e sincroniza somente objetos criptografados.'
+              : 'Modo Local ativado. O Cérebro não realizará sincronização em nuvem.';
 
-        _messageIsError = false;
-      });
+          _messageIsError = false;
+        },
+      );
 
       if (cloud) {
         syncService.requestSync();
       }
-    } catch (error) {
+    } catch (
+      error
+    ) {
       debugPrint(
         '[PROFILE SETTINGS] '
         'Erro alterando modo do Cérebro: $error',
@@ -496,15 +711,19 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         return;
       }
 
-      setState(() {
-        _message = 'Não foi possível alterar o modo de dados do Cérebro.';
-        _messageIsError = true;
-      });
+      setState(
+        () {
+          _message = 'Não foi possível alterar o modo de dados do Cérebro.';
+          _messageIsError = true;
+        },
+      );
     } finally {
       if (mounted) {
-        setState(() {
-          _switchingBrainMode = false;
-        });
+        setState(
+          () {
+            _switchingBrainMode = false;
+          },
+        );
       }
     }
   }
@@ -521,14 +740,18 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   //
   // ============================================================
 
-  void _showBrainBackupPending({required bool importBackup}) {
-    setState(() {
-      _message = importBackup
-          ? 'Importação .evbrain: infraestrutura pronta; falta conectar o seletor de arquivo nesta tela.'
-          : 'Exportação .evbrain: infraestrutura pronta; falta conectar o seletor de destino nesta tela.';
+  void _showBrainBackupPending({
+    required bool importBackup,
+  }) {
+    setState(
+      () {
+        _message = importBackup
+            ? 'Importação .evbrain: infraestrutura pronta; falta conectar o seletor de arquivo nesta tela.'
+            : 'Exportação .evbrain: infraestrutura pronta; falta conectar o seletor de destino nesta tela.';
 
-      _messageIsError = false;
-    });
+        _messageIsError = false;
+      },
+    );
   }
 
   // ============================================================
@@ -547,15 +770,20 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   //
   // ============================================================
 
-  Future<void> _loadBrainDevices() async {
+  Future<
+    void
+  >
+  _loadBrainDevices() async {
     if (_loadingBrainDevices) {
       return;
     }
 
-    setState(() {
-      _loadingBrainDevices = true;
-      _brainDevicesError = null;
-    });
+    setState(
+      () {
+        _loadingBrainDevices = true;
+        _brainDevicesError = null;
+      },
+    );
 
     try {
       final manifest = await brainVaultService.openVault();
@@ -570,14 +798,23 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         return;
       }
 
-      setState(() {
-        _currentBrainDeviceId = local?.deviceId;
+      setState(
+        () {
+          _currentBrainDeviceId = local?.deviceId;
 
-        _brainDevices = List<BrainDeviceRecord>.unmodifiable(devices);
+          _brainDevices =
+              List<
+                BrainDeviceRecord
+              >.unmodifiable(
+                devices,
+              );
 
-        _brainDevicesError = null;
-      });
-    } catch (error) {
+          _brainDevicesError = null;
+        },
+      );
+    } catch (
+      error
+    ) {
       debugPrint(
         '[PROFILE SETTINGS] '
         'Erro carregando dispositivos do Cérebro: $error',
@@ -587,15 +824,18 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         return;
       }
 
-      setState(() {
-        _brainDevicesError =
-            'Não foi possível carregar os dispositivos do Cérebro.';
-      });
+      setState(
+        () {
+          _brainDevicesError = 'Não foi possível carregar os dispositivos do Cérebro.';
+        },
+      );
     } finally {
       if (mounted) {
-        setState(() {
-          _loadingBrainDevices = false;
-        });
+        setState(
+          () {
+            _loadingBrainDevices = false;
+          },
+        );
       }
     }
   }
@@ -604,18 +844,28 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   // CONFIRM REVOKE DEVICE
   // ============================================================
 
-  Future<void> _confirmRevokeBrainDevice(BrainDeviceRecord device) async {
-    if (_revokingBrainDeviceId != null) {
+  Future<
+    void
+  >
+  _confirmRevokeBrainDevice(
+    BrainDeviceRecord device,
+  ) async {
+    if (_revokingBrainDeviceId !=
+        null) {
       return;
     }
 
-    final isCurrentDevice = device.deviceId == _currentBrainDeviceId;
+    final isCurrentDevice =
+        device.deviceId ==
+        _currentBrainDeviceId;
 
     if (isCurrentDevice) {
-      setState(() {
-        _message = 'Este dispositivo não pode ser revogado por esta tela.';
-        _messageIsError = true;
-      });
+      setState(
+        () {
+          _message = 'Este dispositivo não pode ser revogado por esta tela.';
+          _messageIsError = true;
+        },
+      );
 
       return;
     }
@@ -624,78 +874,128 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       return;
     }
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: _surface,
-          surfaceTintColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: const BorderSide(color: _border),
-          ),
-          title: const Row(
-            children: [
-              Icon(Icons.phonelink_erase_rounded, color: _danger),
-              SizedBox(width: 10),
-              Expanded(child: Text('Revogar acesso')),
-            ],
-          ),
-          content: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 440),
-            child: Text(
-              'Revogar o acesso de "${device.deviceName}"?\n\n'
-              'Este dispositivo não poderá mais sincronizar '
-              'novos dados do Cérebro pela nuvem.\n\n'
-              'Dados e chaves que já existam localmente nesse '
-              'computador não podem ser apagados remotamente.',
-              style: const TextStyle(color: _muted, height: 1.5),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop(false);
+    final confirmed =
+        await showDialog<
+          bool
+        >(
+          context: context,
+          builder:
+              (
+                dialogContext,
+              ) {
+                return AlertDialog(
+                  backgroundColor: _surface,
+                  surfaceTintColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(
+                      20,
+                    ),
+                    side: const BorderSide(
+                      color: _border,
+                    ),
+                  ),
+                  title: const Row(
+                    children: [
+                      Icon(
+                        Icons.phonelink_erase_rounded,
+                        color: _danger,
+                      ),
+                      SizedBox(
+                        width: 10,
+                      ),
+                      Expanded(
+                        child: Text(
+                          'Revogar acesso',
+                        ),
+                      ),
+                    ],
+                  ),
+                  content: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxWidth: 440,
+                    ),
+                    child: Text(
+                      'Revogar o acesso de "${device.deviceName}"?\n\n'
+                      'Este dispositivo não poderá mais sincronizar '
+                      'novos dados do Cérebro pela nuvem.\n\n'
+                      'Dados e chaves que já existam localmente nesse '
+                      'computador não podem ser apagados remotamente.',
+                      style: const TextStyle(
+                        color: _muted,
+                        height: 1.5,
+                      ),
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(
+                          dialogContext,
+                        ).pop(
+                          false,
+                        );
+                      },
+                      child: const Text(
+                        'Cancelar',
+                      ),
+                    ),
+                    FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _danger,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () {
+                        Navigator.of(
+                          dialogContext,
+                        ).pop(
+                          true,
+                        );
+                      },
+                      icon: const Icon(
+                        Icons.block_rounded,
+                        size: 18,
+                      ),
+                      label: const Text(
+                        'Revogar acesso',
+                      ),
+                    ),
+                  ],
+                );
               },
-              child: const Text('Cancelar'),
-            ),
-            FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: _danger,
-                foregroundColor: Colors.white,
-              ),
-              onPressed: () {
-                Navigator.of(dialogContext).pop(true);
-              },
-              icon: const Icon(Icons.block_rounded, size: 18),
-              label: const Text('Revogar acesso'),
-            ),
-          ],
         );
-      },
-    );
 
-    if (confirmed != true) {
+    if (confirmed !=
+        true) {
       return;
     }
 
-    await _revokeBrainDevice(device);
+    await _revokeBrainDevice(
+      device,
+    );
   }
 
   // ============================================================
   // REVOKE DEVICE
   // ============================================================
 
-  Future<void> _revokeBrainDevice(BrainDeviceRecord device) async {
-    if (_revokingBrainDeviceId != null) {
+  Future<
+    void
+  >
+  _revokeBrainDevice(
+    BrainDeviceRecord device,
+  ) async {
+    if (_revokingBrainDeviceId !=
+        null) {
       return;
     }
 
-    setState(() {
-      _revokingBrainDeviceId = device.deviceId;
+    setState(
+      () {
+        _revokingBrainDeviceId = device.deviceId;
 
-      _message = null;
-    });
+        _message = null;
+      },
+    );
 
     try {
       final manifest = await brainVaultService.openVault();
@@ -709,13 +1009,17 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         return;
       }
 
-      setState(() {
-        _message = 'Acesso de "${device.deviceName}" revogado com sucesso.';
-        _messageIsError = false;
-      });
+      setState(
+        () {
+          _message = 'Acesso de "${device.deviceName}" revogado com sucesso.';
+          _messageIsError = false;
+        },
+      );
 
       await _loadBrainDevices();
-    } catch (error) {
+    } catch (
+      error
+    ) {
       debugPrint(
         '[PROFILE SETTINGS] '
         'Erro revogando dispositivo: $error',
@@ -725,17 +1029,677 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         return;
       }
 
-      setState(() {
-        _message =
-            'Não foi possível revogar o acesso de '
-            '"${device.deviceName}".';
-        _messageIsError = true;
-      });
+      setState(
+        () {
+          _message =
+              'Não foi possível revogar o acesso de '
+              '"${device.deviceName}".';
+          _messageIsError = true;
+        },
+      );
     } finally {
       if (mounted) {
-        setState(() {
-          _revokingBrainDeviceId = null;
-        });
+        setState(
+          () {
+            _revokingBrainDeviceId = null;
+          },
+        );
+      }
+    }
+  }
+
+  // ============================================================
+  // APPROVE PENDING DEVICE
+  // ============================================================
+  //
+  // A aprovação exige que o usuário digite o fingerprint exibido
+  // fisicamente no novo dispositivo.
+  //
+  // Não basta clicar em "Aprovar": a comparação é feita novamente
+  // pelo BrainDeviceAuthorizationService antes do wrapping da
+  // Master Key.
+  //
+  // ============================================================
+
+  Future<
+    void
+  >
+  _confirmApproveBrainDevice(
+    BrainDeviceRecord device,
+  ) async {
+    if (_approvingBrainDeviceId !=
+            null ||
+        !device.isPending) {
+      return;
+    }
+
+    final fingerprintController = TextEditingController();
+
+    final confirmedFingerprint =
+        await showDialog<
+          String
+        >(
+          context: context,
+          builder:
+              (
+                dialogContext,
+              ) {
+                return AlertDialog(
+                  backgroundColor: _surface,
+                  surfaceTintColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(
+                      20,
+                    ),
+                    side: const BorderSide(
+                      color: _border,
+                    ),
+                  ),
+                  title: const Row(
+                    children: [
+                      Icon(
+                        Icons.verified_user_outlined,
+                        color: _primaryDark,
+                      ),
+                      SizedBox(
+                        width: 10,
+                      ),
+                      Expanded(
+                        child: Text(
+                          'Aprovar dispositivo',
+                        ),
+                      ),
+                    ],
+                  ),
+                  content: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxWidth: 480,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          device.deviceName,
+                          style: const TextStyle(
+                            color: _text,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+
+                        const SizedBox(
+                          height: 8,
+                        ),
+
+                        const Text(
+                          'No NOVO dispositivo, abra Recovery Device e compare '
+                          'o fingerprint mostrado lá. Digite-o abaixo exatamente '
+                          'como aparece antes de aprovar.',
+                          style: TextStyle(
+                            color: _muted,
+                            fontSize: 12,
+                            height: 1.45,
+                          ),
+                        ),
+
+                        const SizedBox(
+                          height: 14,
+                        ),
+
+                        TextField(
+                          controller: fingerprintController,
+                          autofocus: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Fingerprint do novo dispositivo',
+                            hintText: 'AA:BB:CC:DD:EE:FF:...',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(
+                              Icons.fingerprint_rounded,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(
+                          dialogContext,
+                        ).pop();
+                      },
+                      child: const Text(
+                        'Cancelar',
+                      ),
+                    ),
+
+                    FilledButton.icon(
+                      onPressed: () {
+                        final value = fingerprintController.text.trim();
+
+                        if (value.isEmpty) {
+                          return;
+                        }
+
+                        Navigator.of(
+                          dialogContext,
+                        ).pop(
+                          value,
+                        );
+                      },
+                      icon: const Icon(
+                        Icons.check_rounded,
+                        size: 18,
+                      ),
+                      label: const Text(
+                        'Aprovar',
+                      ),
+                    ),
+                  ],
+                );
+              },
+        );
+
+    fingerprintController.dispose();
+
+    if (confirmedFingerprint ==
+            null ||
+        confirmedFingerprint.trim().isEmpty) {
+      return;
+    }
+
+    await _approveBrainDevice(
+      device: device,
+      expectedFingerprint: confirmedFingerprint,
+    );
+  }
+
+  Future<
+    void
+  >
+  _approveBrainDevice({
+    required BrainDeviceRecord device,
+    required String expectedFingerprint,
+  }) async {
+    if (_approvingBrainDeviceId !=
+        null) {
+      return;
+    }
+
+    setState(
+      () {
+        _approvingBrainDeviceId = device.deviceId;
+        _message = null;
+      },
+    );
+
+    try {
+      final manifest = await brainVaultService.openVault();
+
+      await brainDeviceAuthorizationService.approveDevice(
+        vaultId: manifest.vaultId,
+        targetDeviceId: device.deviceId,
+        expectedTargetFingerprint: expectedFingerprint,
+        keyVersion: manifest.keyVersion,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(
+        () {
+          _message =
+              'Dispositivo "${device.deviceName}" aprovado. '
+              'O novo computador já pode concluir a recuperação.';
+          _messageIsError = false;
+        },
+      );
+
+      await _loadBrainDevices();
+    } catch (
+      error
+    ) {
+      debugPrint(
+        '[PROFILE SETTINGS] '
+        'Erro aprovando dispositivo: $error',
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(
+        () {
+          _message =
+              'Não foi possível aprovar o dispositivo. '
+              'Confira o fingerprint informado. ($error)';
+          _messageIsError = true;
+        },
+      );
+    } finally {
+      if (mounted) {
+        setState(
+          () {
+            _approvingBrainDeviceId = null;
+          },
+        );
+      }
+    }
+  }
+
+  // ============================================================
+  // REQUEST BRAIN RECOVERY
+  // ============================================================
+
+  Future<
+    void
+  >
+  _requestBrainRecovery() async {
+    if (_requestingBrainRecovery ||
+        _completingBrainRecovery) {
+      return;
+    }
+
+    final vaultController = TextEditingController(
+      text:
+          _brainVaultId ??
+          '',
+    );
+
+    final vaultId =
+        await showDialog<
+          String
+        >(
+          context: context,
+          builder:
+              (
+                dialogContext,
+              ) {
+                return AlertDialog(
+                  backgroundColor: _surface,
+                  surfaceTintColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(
+                      20,
+                    ),
+                    side: const BorderSide(
+                      color: _border,
+                    ),
+                  ),
+                  title: const Row(
+                    children: [
+                      Icon(
+                        Icons.add_to_home_screen_rounded,
+                        color: _primaryDark,
+                      ),
+                      SizedBox(
+                        width: 10,
+                      ),
+                      Expanded(
+                        child: Text(
+                          'Solicitar recuperação',
+                        ),
+                      ),
+                    ],
+                  ),
+                  content: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxWidth: 480,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'No dispositivo que ainda possui acesso ao Cérebro, '
+                          'copie o Vault ID exibido em Perfil > Cérebro > Vault '
+                          'e informe-o aqui.',
+                          style: TextStyle(
+                            color: _muted,
+                            fontSize: 12,
+                            height: 1.45,
+                          ),
+                        ),
+
+                        const SizedBox(
+                          height: 14,
+                        ),
+
+                        TextField(
+                          controller: vaultController,
+                          autofocus: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Vault ID',
+                            hintText: 'vault_...',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(
+                              Icons.inventory_2_outlined,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(
+                          dialogContext,
+                        ).pop();
+                      },
+                      child: const Text(
+                        'Cancelar',
+                      ),
+                    ),
+
+                    FilledButton.icon(
+                      onPressed: () {
+                        final value = vaultController.text.trim();
+
+                        if (value.isEmpty) {
+                          return;
+                        }
+
+                        Navigator.of(
+                          dialogContext,
+                        ).pop(
+                          value,
+                        );
+                      },
+                      icon: const Icon(
+                        Icons.send_rounded,
+                        size: 18,
+                      ),
+                      label: const Text(
+                        'Solicitar',
+                      ),
+                    ),
+                  ],
+                );
+              },
+        );
+
+    vaultController.dispose();
+
+    if (vaultId ==
+            null ||
+        vaultId.trim().isEmpty) {
+      return;
+    }
+
+    setState(
+      () {
+        _requestingBrainRecovery = true;
+        _message = null;
+      },
+    );
+
+    try {
+      final record = await brainRecoveryDeviceService.requestRecovery(
+        vaultId: vaultId,
+        deviceName: brainDeviceName(),
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(
+        () {
+          _currentBrainDeviceId = record.deviceId;
+          _message =
+              'Solicitação criada. No dispositivo autorizado, procure '
+              '"${record.deviceName}" e aprove somente depois de conferir '
+              'este fingerprint: ${record.keyFingerprint}';
+          _messageIsError = false;
+        },
+      );
+    } catch (
+      error
+    ) {
+      debugPrint(
+        '[PROFILE SETTINGS] '
+        'Erro solicitando Recovery Device: $error',
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(
+        () {
+          _message = 'Não foi possível solicitar a recuperação. $error';
+          _messageIsError = true;
+        },
+      );
+    } finally {
+      if (mounted) {
+        setState(
+          () {
+            _requestingBrainRecovery = false;
+          },
+        );
+      }
+    }
+  }
+
+  // ============================================================
+  // COMPLETE BRAIN RECOVERY
+  // ============================================================
+
+  Future<
+    void
+  >
+  _completeBrainRecovery() async {
+    if (_requestingBrainRecovery ||
+        _completingBrainRecovery) {
+      return;
+    }
+
+    final vaultController = TextEditingController(
+      text:
+          _brainVaultId ??
+          '',
+    );
+
+    final vaultId =
+        await showDialog<
+          String
+        >(
+          context: context,
+          builder:
+              (
+                dialogContext,
+              ) {
+                return AlertDialog(
+                  backgroundColor: _surface,
+                  surfaceTintColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(
+                      20,
+                    ),
+                    side: const BorderSide(
+                      color: _border,
+                    ),
+                  ),
+                  title: const Row(
+                    children: [
+                      Icon(
+                        Icons.settings_backup_restore_rounded,
+                        color: _primaryDark,
+                      ),
+                      SizedBox(
+                        width: 10,
+                      ),
+                      Expanded(
+                        child: Text(
+                          'Concluir recuperação',
+                        ),
+                      ),
+                    ],
+                  ),
+                  content: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxWidth: 480,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Use o mesmo Vault ID da solicitação. '
+                          'Esta etapa somente funcionará depois que um dispositivo '
+                          'já autorizado aprovar este computador.',
+                          style: TextStyle(
+                            color: _muted,
+                            fontSize: 12,
+                            height: 1.45,
+                          ),
+                        ),
+
+                        const SizedBox(
+                          height: 14,
+                        ),
+
+                        TextField(
+                          controller: vaultController,
+                          autofocus: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Vault ID',
+                            hintText: 'vault_...',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(
+                              Icons.inventory_2_outlined,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(
+                          dialogContext,
+                        ).pop();
+                      },
+                      child: const Text(
+                        'Cancelar',
+                      ),
+                    ),
+
+                    FilledButton.icon(
+                      onPressed: () {
+                        final value = vaultController.text.trim();
+
+                        if (value.isEmpty) {
+                          return;
+                        }
+
+                        Navigator.of(
+                          dialogContext,
+                        ).pop(
+                          value,
+                        );
+                      },
+                      icon: const Icon(
+                        Icons.lock_open_rounded,
+                        size: 18,
+                      ),
+                      label: const Text(
+                        'Concluir',
+                      ),
+                    ),
+                  ],
+                );
+              },
+        );
+
+    vaultController.dispose();
+
+    if (vaultId ==
+            null ||
+        vaultId.trim().isEmpty) {
+      return;
+    }
+
+    setState(
+      () {
+        _completingBrainRecovery = true;
+        _message = null;
+      },
+    );
+
+    try {
+      final completed = await brainRecoveryDeviceService.completeRecovery(
+        vaultId: vaultId,
+      );
+
+      if (!completed) {
+        if (!mounted) {
+          return;
+        }
+
+        setState(
+          () {
+            _message =
+                'A aprovação ainda não chegou. '
+                'Aprove este dispositivo no computador antigo e tente novamente.';
+            _messageIsError = true;
+          },
+        );
+
+        return;
+      }
+
+      await brainDataModeController.useCloudMode();
+
+      // Agora o gate já possui:
+      // Vault + Master Key + identidade + autorização.
+      //
+      // O pull continua E2EE e restaura somente ciphertext válido.
+      await brainE2eeSyncCoordinator.pullNow();
+
+      await _loadBrainSettings();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(
+        () {
+          _message =
+              'Recovery Device concluído. '
+              'A Master Key foi importada localmente e o Vault foi restaurado.';
+          _messageIsError = false;
+        },
+      );
+    } catch (
+      error
+    ) {
+      debugPrint(
+        '[PROFILE SETTINGS] '
+        'Erro concluindo Recovery Device: $error',
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(
+        () {
+          _message = 'Não foi possível concluir a recuperação. $error';
+          _messageIsError = true;
+        },
+      );
+    } finally {
+      if (mounted) {
+        setState(
+          () {
+            _completingBrainRecovery = false;
+          },
+        );
       }
     }
   }
@@ -744,7 +1708,9 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   // BRAIN DEVICE STATUS
   // ============================================================
 
-  String _brainDeviceStatusLabel(BrainDeviceRecord device) {
+  String _brainDeviceStatusLabel(
+    BrainDeviceRecord device,
+  ) {
     if (device.isAuthorized) {
       return 'Autorizado';
     }
@@ -756,13 +1722,17 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     return 'Revogado';
   }
 
-  Color _brainDeviceStatusColor(BrainDeviceRecord device) {
+  Color _brainDeviceStatusColor(
+    BrainDeviceRecord device,
+  ) {
     if (device.isAuthorized) {
       return _primaryDark;
     }
 
     if (device.isPending) {
-      return const Color(0xFF9A6700);
+      return const Color(
+        0xFF9A6700,
+      );
     }
 
     return _danger;
@@ -772,22 +1742,37 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   // DATE LABEL
   // ============================================================
 
-  String _formatBrainDeviceDate(DateTime? value) {
-    if (value == null) {
+  String _formatBrainDeviceDate(
+    DateTime? value,
+  ) {
+    if (value ==
+        null) {
       return 'sem registro';
     }
 
     final local = value.toLocal();
 
-    final day = local.day.toString().padLeft(2, '0');
+    final day = local.day.toString().padLeft(
+      2,
+      '0',
+    );
 
-    final month = local.month.toString().padLeft(2, '0');
+    final month = local.month.toString().padLeft(
+      2,
+      '0',
+    );
 
     final year = local.year.toString();
 
-    final hour = local.hour.toString().padLeft(2, '0');
+    final hour = local.hour.toString().padLeft(
+      2,
+      '0',
+    );
 
-    final minute = local.minute.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(
+      2,
+      '0',
+    );
 
     return '$day/$month/$year às $hour:$minute';
   }
@@ -797,17 +1782,24 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   // ============================================================
 
   Widget _buildBrainDevicesSection() {
-    if (_loadingBrainDevices && _brainDevices.isEmpty) {
+    if (_loadingBrainDevices &&
+        _brainDevices.isEmpty) {
       return const Padding(
-        padding: EdgeInsets.all(18),
+        padding: EdgeInsets.all(
+          18,
+        ),
         child: Row(
           children: [
             SizedBox(
               width: 18,
               height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+              ),
             ),
-            SizedBox(width: 12),
+            SizedBox(
+              width: 12,
+            ),
             Expanded(
               child: Text(
                 'Carregando dispositivos autorizados...',
@@ -823,15 +1815,23 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       );
     }
 
-    if (_brainDevicesError != null) {
+    if (_brainDevicesError !=
+        null) {
       return Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(
+          14,
+        ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline_rounded, color: _danger),
+            const Icon(
+              Icons.error_outline_rounded,
+              color: _danger,
+            ),
 
-            const SizedBox(width: 10),
+            const SizedBox(
+              width: 10,
+            ),
 
             Expanded(
               child: Text(
@@ -844,12 +1844,19 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
               ),
             ),
 
-            const SizedBox(width: 10),
+            const SizedBox(
+              width: 10,
+            ),
 
             TextButton.icon(
               onPressed: _loadBrainDevices,
-              icon: const Icon(Icons.refresh_rounded, size: 17),
-              label: const Text('Tentar novamente'),
+              icon: const Icon(
+                Icons.refresh_rounded,
+                size: 17,
+              ),
+              label: const Text(
+                'Tentar novamente',
+              ),
             ),
           ],
         ),
@@ -858,7 +1865,9 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
 
     if (_brainDevices.isEmpty) {
       return Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(
+          16,
+        ),
         child: Row(
           children: [
             const Expanded(
@@ -875,7 +1884,9 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
             IconButton(
               tooltip: 'Atualizar',
               onPressed: _loadBrainDevices,
-              icon: const Icon(Icons.refresh_rounded),
+              icon: const Icon(
+                Icons.refresh_rounded,
+              ),
             ),
           ],
         ),
@@ -885,7 +1896,12 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(14, 12, 8, 10),
+          padding: const EdgeInsets.fromLTRB(
+            14,
+            12,
+            8,
+            10,
+          ),
           child: Row(
             children: [
               const Expanded(
@@ -899,10 +1915,15 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                    SizedBox(height: 2),
+                    SizedBox(
+                      height: 2,
+                    ),
                     Text(
                       'Controle quais computadores podem sincronizar seus dados criptografados.',
-                      style: TextStyle(color: _muted, fontSize: 11),
+                      style: TextStyle(
+                        color: _muted,
+                        fontSize: 11,
+                      ),
                     ),
                   ],
                 ),
@@ -910,26 +1931,47 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
 
               IconButton(
                 tooltip: 'Atualizar dispositivos',
-                onPressed: _loadingBrainDevices ? null : _loadBrainDevices,
+                onPressed: _loadingBrainDevices
+                    ? null
+                    : _loadBrainDevices,
                 icon: _loadingBrainDevices
                     ? const SizedBox(
                         width: 17,
                         height: 17,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                        ),
                       )
-                    : const Icon(Icons.refresh_rounded),
+                    : const Icon(
+                        Icons.refresh_rounded,
+                      ),
               ),
             ],
           ),
         ),
 
-        const Divider(height: 1, color: _border),
+        const Divider(
+          height: 1,
+          color: _border,
+        ),
 
-        for (var index = 0; index < _brainDevices.length; index++) ...[
-          _buildBrainDeviceRow(_brainDevices[index]),
+        for (
+          var index = 0;
+          index <
+              _brainDevices.length;
+          index++
+        ) ...[
+          _buildBrainDeviceRow(
+            _brainDevices[index],
+          ),
 
-          if (index < _brainDevices.length - 1)
-            const Divider(height: 1, color: _border),
+          if (index <
+              _brainDevices.length -
+                  1)
+            const Divider(
+              height: 1,
+              color: _border,
+            ),
         ],
       ],
     );
@@ -939,20 +1981,49 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   // BRAIN DEVICE ROW
   // ============================================================
 
-  Widget _buildBrainDeviceRow(BrainDeviceRecord device) {
-    final isCurrent = device.deviceId == _currentBrainDeviceId;
+  Widget _buildBrainDeviceRow(
+    BrainDeviceRecord device,
+  ) {
+    final isCurrent =
+        device.deviceId ==
+        _currentBrainDeviceId;
 
-    final revoking = _revokingBrainDeviceId == device.deviceId;
+    final revoking =
+        _revokingBrainDeviceId ==
+        device.deviceId;
 
-    final statusColor = _brainDeviceStatusColor(device);
+    final approving =
+        _approvingBrainDeviceId ==
+        device.deviceId;
+
+    final statusColor = _brainDeviceStatusColor(
+      device,
+    );
+
+    final noDeviceActionRunning =
+        _revokingBrainDeviceId ==
+            null &&
+        _approvingBrainDeviceId ==
+            null;
+
+    final canApprove =
+        !isCurrent &&
+        device.isPending &&
+        noDeviceActionRunning;
 
     final canRevoke =
-        !isCurrent && device.isAuthorized && _revokingBrainDeviceId == null;
+        !isCurrent &&
+        device.isAuthorized &&
+        noDeviceActionRunning;
 
-    final lastSeen = _formatBrainDeviceDate(device.lastSeenAt);
+    final lastSeen = _formatBrainDeviceDate(
+      device.lastSeenAt,
+    );
 
     return Padding(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(
+        14,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -960,22 +2031,34 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: isCurrent ? _primary : _surface,
-              borderRadius: BorderRadius.circular(12),
+              color: isCurrent
+                  ? _primary
+                  : _surface,
+              borderRadius: BorderRadius.circular(
+                12,
+              ),
               border: Border.all(
                 color: isCurrent
-                    ? _primaryDark.withValues(alpha: 0.25)
+                    ? _primaryDark.withValues(
+                        alpha: 0.25,
+                      )
                     : _border,
               ),
             ),
             child: Icon(
-              isCurrent ? Icons.computer_rounded : Icons.devices_other_rounded,
+              isCurrent
+                  ? Icons.computer_rounded
+                  : Icons.devices_other_rounded,
               size: 20,
-              color: isCurrent ? _primaryDark : _muted,
+              color: isCurrent
+                  ? _primaryDark
+                  : _muted,
             ),
           ),
 
-          const SizedBox(width: 12),
+          const SizedBox(
+            width: 12,
+          ),
 
           Expanded(
             child: Column(
@@ -1002,7 +2085,9 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                         ),
                         decoration: BoxDecoration(
                           color: _primary,
-                          borderRadius: BorderRadius.circular(999),
+                          borderRadius: BorderRadius.circular(
+                            999,
+                          ),
                         ),
                         child: const Text(
                           'Este dispositivo',
@@ -1020,14 +2105,22 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                         vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: 0.10),
-                        borderRadius: BorderRadius.circular(999),
+                        color: statusColor.withValues(
+                          alpha: 0.10,
+                        ),
+                        borderRadius: BorderRadius.circular(
+                          999,
+                        ),
                         border: Border.all(
-                          color: statusColor.withValues(alpha: 0.22),
+                          color: statusColor.withValues(
+                            alpha: 0.22,
+                          ),
                         ),
                       ),
                       child: Text(
-                        _brainDeviceStatusLabel(device),
+                        _brainDeviceStatusLabel(
+                          device,
+                        ),
                         style: TextStyle(
                           color: statusColor,
                           fontSize: 10,
@@ -1038,7 +2131,9 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                   ],
                 ),
 
-                const SizedBox(height: 5),
+                const SizedBox(
+                  height: 5,
+                ),
 
                 Text(
                   'Fingerprint: ${device.keyFingerprint}',
@@ -1051,41 +2146,87 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                   ),
                 ),
 
-                const SizedBox(height: 3),
+                const SizedBox(
+                  height: 3,
+                ),
 
                 Text(
                   'Último acesso: $lastSeen',
-                  style: const TextStyle(color: _muted, fontSize: 10),
+                  style: const TextStyle(
+                    color: _muted,
+                    fontSize: 10,
+                  ),
                 ),
               ],
             ),
           ),
 
-          const SizedBox(width: 12),
+          const SizedBox(
+            width: 12,
+          ),
 
-          if (revoking)
+          if (revoking ||
+              approving)
             const SizedBox(
               width: 18,
               height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+              ),
+            )
+          else if (canApprove)
+            FilledButton.tonalIcon(
+              onPressed: () {
+                _confirmApproveBrainDevice(
+                  device,
+                );
+              },
+              icon: const Icon(
+                Icons.verified_user_outlined,
+                size: 16,
+              ),
+              label: const Text(
+                'Aprovar',
+              ),
             )
           else if (canRevoke)
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
                 foregroundColor: _danger,
-                side: BorderSide(color: _danger.withValues(alpha: 0.35)),
+                side: BorderSide(
+                  color: _danger.withValues(
+                    alpha: 0.35,
+                  ),
+                ),
               ),
               onPressed: () {
-                _confirmRevokeBrainDevice(device);
+                _confirmRevokeBrainDevice(
+                  device,
+                );
               },
-              icon: const Icon(Icons.block_rounded, size: 16),
-              label: const Text('Revogar acesso'),
+              icon: const Icon(
+                Icons.block_rounded,
+                size: 16,
+              ),
+              label: const Text(
+                'Revogar acesso',
+              ),
             )
           else if (device.isRevoked)
-            const Icon(Icons.block_rounded, color: _danger, size: 20),
+            const Icon(
+              Icons.block_rounded,
+              color: _danger,
+              size: 20,
+            ),
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _preferencesSaveTimer?.cancel();
+    super.dispose();
   }
 
   // ============================================================
@@ -1093,28 +2234,43 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   // ============================================================
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Scaffold(
       backgroundColor: _background,
       appBar: AppBar(
         backgroundColor: _background,
         surfaceTintColor: Colors.transparent,
-        title: const Text('Perfil e configurações'),
+        title: const Text(
+          'Perfil e configurações',
+        ),
       ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 980),
+            constraints: const BoxConstraints(
+              maxWidth: 980,
+            ),
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(
+                24,
+              ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(width: 220, child: _buildNavigation()),
+                  SizedBox(
+                    width: 220,
+                    child: _buildNavigation(),
+                  ),
 
-                  const SizedBox(width: 20),
+                  const SizedBox(
+                    width: 20,
+                  ),
 
-                  Expanded(child: _buildContent()),
+                  Expanded(
+                    child: _buildContent(),
+                  ),
                 ],
               ),
             ),
@@ -1130,63 +2286,91 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
 
   Widget _buildNavigation() {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(
+        12,
+      ),
       decoration: BoxDecoration(
         color: _surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _border),
+        borderRadius: BorderRadius.circular(
+          18,
+        ),
+        border: Border.all(
+          color: _border,
+        ),
       ),
       child: Column(
         children: [
           _SettingsNavItem(
             icon: Icons.tune_rounded,
             label: 'Preferências',
-            selected: _section == ProfileSettingsSection.preferences,
+            selected:
+                _section ==
+                ProfileSettingsSection.preferences,
             onTap: () {
-              setState(() {
-                _section = ProfileSettingsSection.preferences;
-              });
+              setState(
+                () {
+                  _section = ProfileSettingsSection.preferences;
+                },
+              );
             },
           ),
 
-          const SizedBox(height: 8),
+          const SizedBox(
+            height: 8,
+          ),
 
           _SettingsNavItem(
             icon: Icons.shield_outlined,
             label: 'Segurança',
-            selected: _section == ProfileSettingsSection.security,
+            selected:
+                _section ==
+                ProfileSettingsSection.security,
             onTap: () {
-              setState(() {
-                _section = ProfileSettingsSection.security;
-              });
+              setState(
+                () {
+                  _section = ProfileSettingsSection.security;
+                },
+              );
             },
           ),
 
-          const SizedBox(height: 8),
+          const SizedBox(
+            height: 8,
+          ),
 
           _SettingsNavItem(
             icon: Icons.psychology_alt_outlined,
             label: 'Cérebro',
-            selected: _section == ProfileSettingsSection.brain,
+            selected:
+                _section ==
+                ProfileSettingsSection.brain,
             onTap: () {
-              setState(() {
-                _section = ProfileSettingsSection.brain;
-              });
+              setState(
+                () {
+                  _section = ProfileSettingsSection.brain;
+                },
+              );
 
               _loadBrainSettings();
             },
           ),
 
-          const SizedBox(height: 8),
+          const SizedBox(
+            height: 8,
+          ),
 
           _SettingsNavItem(
             icon: Icons.info_outline_rounded,
             label: 'Sobre',
-            selected: _section == ProfileSettingsSection.about,
+            selected:
+                _section ==
+                ProfileSettingsSection.about,
             onTap: () {
-              setState(() {
-                _section = ProfileSettingsSection.about;
-              });
+              setState(
+                () {
+                  _section = ProfileSettingsSection.about;
+                },
+              );
             },
           ),
         ],
@@ -1203,22 +2387,34 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       thumbVisibility: true,
       child: SingleChildScrollView(
         primary: true,
-        padding: const EdgeInsets.only(right: 8, bottom: 24),
+        padding: const EdgeInsets.only(
+          right: 8,
+          bottom: 24,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (_message != null) ...[
+            if (_message !=
+                null) ...[
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(
+                  12,
+                ),
                 decoration: BoxDecoration(
                   color: _messageIsError
-                      ? const Color(0xFFFFECE9)
+                      ? const Color(
+                          0xFFFFECE9,
+                        )
                       : _surfaceSoft,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(
+                    12,
+                  ),
                   border: Border.all(
                     color: _messageIsError
-                        ? _danger.withValues(alpha: 0.30)
+                        ? _danger.withValues(
+                            alpha: 0.30,
+                          )
                         : _border,
                   ),
                 ),
@@ -1228,16 +2424,22 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                       _messageIsError
                           ? Icons.error_outline_rounded
                           : Icons.check_circle_outline_rounded,
-                      color: _messageIsError ? _danger : _primaryDark,
+                      color: _messageIsError
+                          ? _danger
+                          : _primaryDark,
                     ),
 
-                    const SizedBox(width: 8),
+                    const SizedBox(
+                      width: 8,
+                    ),
 
                     Expanded(
                       child: Text(
                         _message!,
                         style: TextStyle(
-                          color: _messageIsError ? _danger : _text,
+                          color: _messageIsError
+                              ? _danger
+                              : _text,
                         ),
                       ),
                     ),
@@ -1245,17 +2447,26 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                 ),
               ),
 
-              const SizedBox(height: 14),
+              const SizedBox(
+                height: 14,
+              ),
             ],
 
-            if (_section == ProfileSettingsSection.preferences)
+            if (_section ==
+                ProfileSettingsSection.preferences)
               _buildPreferences(),
 
-            if (_section == ProfileSettingsSection.security) _buildSecurity(),
+            if (_section ==
+                ProfileSettingsSection.security)
+              _buildSecurity(),
 
-            if (_section == ProfileSettingsSection.brain) _buildBrainSettings(),
+            if (_section ==
+                ProfileSettingsSection.brain)
+              _buildBrainSettings(),
 
-            if (_section == ProfileSettingsSection.about) _buildAbout(),
+            if (_section ==
+                ProfileSettingsSection.about)
+              _buildAbout(),
           ],
         ),
       ),
@@ -1277,39 +2488,66 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
           title: 'Modo compacto',
           subtitle: 'Reduz espaços e deixa as telas mais densas.',
           value: _compactMode,
-          onChanged: (value) {
-            setState(() {
-              _compactMode = value;
-            });
-          },
+          onChanged:
+              (
+                value,
+              ) {
+                setState(
+                  () {
+                    _compactMode = value;
+                  },
+                );
+
+                _schedulePreferencesSave();
+              },
         ),
 
-        const Divider(height: 1, color: _border),
+        const Divider(
+          height: 1,
+          color: _border,
+        ),
 
         _PreferenceSwitch(
           icon: Icons.animation_outlined,
           title: 'Reduzir animações',
           subtitle: 'Diminui transições e movimentos visuais.',
           value: _reduceMotion,
-          onChanged: (value) {
-            setState(() {
-              _reduceMotion = value;
-            });
-          },
+          onChanged:
+              (
+                value,
+              ) {
+                setState(
+                  () {
+                    _reduceMotion = value;
+                  },
+                );
+
+                _schedulePreferencesSave();
+              },
         ),
 
-        const Divider(height: 1, color: _border),
+        const Divider(
+          height: 1,
+          color: _border,
+        ),
 
         _PreferenceSwitch(
           icon: Icons.delete_sweep_outlined,
           title: 'Confirmar antes de apagar',
           subtitle: 'Pede confirmação antes de excluir registros.',
           value: _confirmBeforeDelete,
-          onChanged: (value) {
-            setState(() {
-              _confirmBeforeDelete = value;
-            });
-          },
+          onChanged:
+              (
+                value,
+              ) {
+                setState(
+                  () {
+                    _confirmBeforeDelete = value;
+                  },
+                );
+
+                _schedulePreferencesSave();
+              },
         ),
       ],
     );
@@ -1331,31 +2569,46 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
           subtitle: _email,
         ),
 
-        const Divider(height: 1, color: _border),
+        const Divider(
+          height: 1,
+          color: _border,
+        ),
 
         _SecurityRow(
           icon: Icons.lock_outline_rounded,
           title: 'Senha',
           subtitle: 'Altere sua senha de acesso.',
           trailing: FilledButton.tonalIcon(
-            onPressed: _changingPassword ? null : _changePassword,
+            onPressed: _changingPassword
+                ? null
+                : _changePassword,
             icon: _changingPassword
                 ? const SizedBox(
                     width: 15,
                     height: 15,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
                   )
-                : const Icon(Icons.edit_outlined, size: 17),
-            label: const Text('Alterar'),
+                : const Icon(
+                    Icons.edit_outlined,
+                    size: 17,
+                  ),
+            label: const Text(
+              'Alterar',
+            ),
           ),
         ),
 
-        const Divider(height: 1, color: _border),
+        const Divider(
+          height: 1,
+          color: _border,
+        ),
 
         const _SecurityRow(
           icon: Icons.verified_user_outlined,
           title: 'Sessão',
-          subtitle: 'Sua sessão atual está protegida pelo Supabase Auth.',
+          subtitle: 'Sua sessão atual está protegida.',
         ),
       ],
     );
@@ -1369,28 +2622,42 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     return _SettingsPanel(
       icon: Icons.psychology_alt_outlined,
       title: 'Cérebro',
-      subtitle:
-          'Controle onde seus conhecimentos ficam, como são sincronizados e como são protegidos.',
+      subtitle: 'Controle onde seus conhecimentos ficam, como são sincronizados e como são protegidos.',
       children: [
         _buildBrainDataModeSection(),
 
-        const Divider(height: 1, color: _border),
+        const Divider(
+          height: 1,
+          color: _border,
+        ),
 
         _buildBrainVaultSection(),
 
-        const Divider(height: 1, color: _border),
+        const Divider(
+          height: 1,
+          color: _border,
+        ),
 
         _buildBrainDevicesSection(),
 
-        const Divider(height: 1, color: _border),
+        const Divider(
+          height: 1,
+          color: _border,
+        ),
 
         _buildBrainBackupSection(),
 
-        const Divider(height: 1, color: _border),
+        const Divider(
+          height: 1,
+          color: _border,
+        ),
 
         _buildBrainSecuritySection(),
 
-        const Divider(height: 1, color: _border),
+        const Divider(
+          height: 1,
+          color: _border,
+        ),
 
         _buildBrainRecoverySection(),
       ],
@@ -1403,15 +2670,23 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
 
   Widget _buildBrainDataModeSection() {
     return Padding(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(
+        14,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Row(
             children: [
-              Icon(Icons.sync_alt_rounded, size: 20, color: _primaryDark),
+              Icon(
+                Icons.sync_alt_rounded,
+                size: 20,
+                color: _primaryDark,
+              ),
 
-              SizedBox(width: 10),
+              SizedBox(
+                width: 10,
+              ),
 
               Expanded(
                 child: Column(
@@ -1424,10 +2699,15 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                    SizedBox(height: 2),
+                    SizedBox(
+                      height: 2,
+                    ),
                     Text(
                       'Escolha se o Cérebro fica somente neste dispositivo ou também sincroniza pela nuvem.',
-                      style: TextStyle(color: _muted, fontSize: 11),
+                      style: TextStyle(
+                        color: _muted,
+                        fontSize: 11,
+                      ),
                     ),
                   ],
                 ),
@@ -1435,7 +2715,9 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
             ],
           ),
 
-          const SizedBox(height: 14),
+          const SizedBox(
+            height: 14,
+          ),
 
           Row(
             children: [
@@ -1443,28 +2725,32 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                 child: _BrainModeOption(
                   icon: Icons.laptop_rounded,
                   title: 'Local',
-                  subtitle:
-                      'Seus dados permanecem neste dispositivo. Nenhum sync do Cérebro é realizado.',
+                  subtitle: 'Seus dados permanecem neste dispositivo. Nenhum sync do Cérebro é realizado.',
                   selected: !_brainCloudMode,
                   enabled: !_switchingBrainMode,
                   onTap: () {
-                    _setBrainCloudMode(false);
+                    _setBrainCloudMode(
+                      false,
+                    );
                   },
                 ),
               ),
 
-              const SizedBox(width: 10),
+              const SizedBox(
+                width: 10,
+              ),
 
               Expanded(
                 child: _BrainModeOption(
                   icon: Icons.cloud_done_outlined,
                   title: 'Cloud',
-                  subtitle:
-                      'Local-first + sincronização E2EE somente entre dispositivos autorizados.',
+                  subtitle: 'Local-first + sincronização E2EE somente entre dispositivos autorizados.',
                   selected: _brainCloudMode,
                   enabled: !_switchingBrainMode,
                   onTap: () {
-                    _setBrainCloudMode(true);
+                    _setBrainCloudMode(
+                      true,
+                    );
                   },
                 ),
               ),
@@ -1472,9 +2758,13 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
           ),
 
           if (_switchingBrainMode) ...[
-            const SizedBox(height: 12),
+            const SizedBox(
+              height: 12,
+            ),
 
-            const LinearProgressIndicator(minHeight: 2),
+            const LinearProgressIndicator(
+              minHeight: 2,
+            ),
           ],
         ],
       ),
@@ -1486,12 +2776,18 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   // ============================================================
 
   Widget _buildBrainVaultSection() {
-    final vaultId = _brainVaultId ?? 'Carregando...';
+    final vaultId =
+        _brainVaultId ??
+        'Carregando...';
 
-    final keyVersion = _brainKeyVersion?.toString() ?? '-';
+    final keyVersion =
+        _brainKeyVersion?.toString() ??
+        '-';
 
     return Padding(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(
+        14,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1503,7 +2799,9 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                 color: _primaryDark,
               ),
 
-              const SizedBox(width: 10),
+              const SizedBox(
+                width: 10,
+              ),
 
               const Expanded(
                 child: Column(
@@ -1516,10 +2814,15 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                    SizedBox(height: 2),
+                    SizedBox(
+                      height: 2,
+                    ),
                     Text(
                       'Identidade e estado criptográfico do seu Cérebro local.',
-                      style: TextStyle(color: _muted, fontSize: 11),
+                      style: TextStyle(
+                        color: _muted,
+                        fontSize: 11,
+                      ),
                     ),
                   ],
                 ),
@@ -1527,27 +2830,45 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
 
               IconButton(
                 tooltip: 'Atualizar',
-                onPressed: _loadingBrainSettings ? null : _loadBrainSettings,
+                onPressed: _loadingBrainSettings
+                    ? null
+                    : _loadBrainSettings,
                 icon: _loadingBrainSettings
                     ? const SizedBox(
                         width: 17,
                         height: 17,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                        ),
                       )
-                    : const Icon(Icons.refresh_rounded),
+                    : const Icon(
+                        Icons.refresh_rounded,
+                      ),
               ),
             ],
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(
+            height: 12,
+          ),
 
-          _BrainInfoRow(label: 'Vault ID', value: vaultId),
+          _BrainInfoRow(
+            label: 'Vault ID',
+            value: vaultId,
+          ),
 
-          const SizedBox(height: 8),
+          const SizedBox(
+            height: 8,
+          ),
 
-          _BrainInfoRow(label: 'Versão da chave', value: keyVersion),
+          _BrainInfoRow(
+            label: 'Versão da chave',
+            value: keyVersion,
+          ),
 
-          const SizedBox(height: 8),
+          const SizedBox(
+            height: 8,
+          ),
 
           _BrainInfoRow(
             label: 'Master Key',
@@ -1557,11 +2878,15 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
             good: _brainMasterKeyAvailable,
           ),
 
-          const SizedBox(height: 8),
+          const SizedBox(
+            height: 8,
+          ),
 
           _BrainInfoRow(
             label: 'Sincronização',
-            value: _brainCloudMode ? 'Cloud E2EE' : 'Somente local',
+            value: _brainCloudMode
+                ? 'Cloud E2EE'
+                : 'Somente local',
             good: true,
           ),
         ],
@@ -1573,50 +2898,239 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   // BRAIN BACKUP
   // ============================================================
 
+  // ============================================================
+  // BRAIN BACKUP INFO DIALOG
+  // ============================================================
+
+  Future<
+    void
+  >
+  _showBrainBackupInfo() async {
+    await showDialog<
+      void
+    >(
+      context: context,
+      builder:
+          (
+            dialogContext,
+          ) {
+            return AlertDialog(
+              backgroundColor: _surface,
+              surfaceTintColor: Colors.transparent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(
+                  20,
+                ),
+                side: const BorderSide(
+                  color: _border,
+                ),
+              ),
+              title: const Row(
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    color: _primaryDark,
+                  ),
+                  SizedBox(
+                    width: 10,
+                  ),
+                  Expanded(
+                    child: Text(
+                      'Como funciona o Backup .evbrain',
+                    ),
+                  ),
+                ],
+              ),
+              content: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: 520,
+                ),
+                child: const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'O arquivo .evbrain é um backup portátil do seu Vault. '
+                      'Ele permite manter uma cópia dos dados do Cérebro sem '
+                      'colocar a Master Key em plaintext dentro do arquivo.',
+                      style: TextStyle(
+                        color: _text,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        height: 1.45,
+                      ),
+                    ),
+                    SizedBox(
+                      height: 14,
+                    ),
+                    _BackupInfoStep(
+                      number: '1',
+                      title: 'Exportar',
+                      text:
+                          'Cria um arquivo .evbrain portátil com os dados '
+                          'do Vault preparados para backup.',
+                    ),
+                    SizedBox(
+                      height: 10,
+                    ),
+                    _BackupInfoStep(
+                      number: '2',
+                      title: 'Master Key protegida',
+                      text:
+                          'A Master Key não é colocada em plaintext dentro '
+                          'do arquivo de backup.',
+                    ),
+                    SizedBox(
+                      height: 10,
+                    ),
+                    _BackupInfoStep(
+                      number: '3',
+                      title: 'Importar',
+                      text:
+                          'Permite restaurar um backup .evbrain compatível '
+                          'para o Cérebro local.',
+                    ),
+                    SizedBox(
+                      height: 10,
+                    ),
+                    _BackupInfoStep(
+                      number: '4',
+                      title: 'Backup e Recovery são diferentes',
+                      text:
+                          'O backup preserva os dados do Vault. O Recovery Device '
+                          'é o fluxo usado para recuperar o acesso criptográfico '
+                          'em outro dispositivo.',
+                    ),
+                    SizedBox(
+                      height: 16,
+                    ),
+                    _BackupSecurityWarning(),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(
+                      dialogContext,
+                    ).pop();
+                  },
+                  child: const Text(
+                    'Entendi',
+                  ),
+                ),
+              ],
+            );
+          },
+    );
+  }
+
   Widget _buildBrainBackupSection() {
     return Padding(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(
+        14,
+      ),
       child: Row(
         children: [
-          const Icon(Icons.backup_outlined, size: 20, color: _primaryDark),
+          const Icon(
+            Icons.backup_outlined,
+            size: 20,
+            color: _primaryDark,
+          ),
 
-          const SizedBox(width: 10),
+          const SizedBox(
+            width: 10,
+          ),
 
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Backup .evbrain',
-                  style: TextStyle(color: _text, fontWeight: FontWeight.w900),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Backup .evbrain',
+                      style: TextStyle(
+                        color: _text,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+
+                    const SizedBox(
+                      width: 4,
+                    ),
+
+                    IconButton(
+                      tooltip: 'Como funciona o Backup .evbrain',
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(
+                        minWidth: 28,
+                        minHeight: 28,
+                      ),
+                      padding: EdgeInsets.zero,
+                      onPressed: _showBrainBackupInfo,
+                      icon: const Icon(
+                        Icons.info_outline_rounded,
+                        size: 17,
+                        color: _primaryDark,
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(height: 2),
-                Text(
-                  'Backup portátil criptografado do Vault. O arquivo não contém a Master Key em plaintext.',
-                  style: TextStyle(color: _muted, fontSize: 11),
+
+                const SizedBox(
+                  height: 2,
+                ),
+
+                const Text(
+                  'Backup portátil criptografado do Vault. '
+                  'O arquivo não contém a Master Key em plaintext.',
+                  style: TextStyle(
+                    color: _muted,
+                    fontSize: 11,
+                  ),
                 ),
               ],
             ),
           ),
 
-          const SizedBox(width: 12),
+          const SizedBox(
+            width: 12,
+          ),
 
           OutlinedButton.icon(
             onPressed: () {
-              _showBrainBackupPending(importBackup: true);
+              _showBrainBackupPending(
+                importBackup: true,
+              );
             },
-            icon: const Icon(Icons.file_open_outlined, size: 17),
-            label: const Text('Importar'),
+            icon: const Icon(
+              Icons.file_open_outlined,
+              size: 17,
+            ),
+            label: const Text(
+              'Importar',
+            ),
           ),
 
-          const SizedBox(width: 8),
+          const SizedBox(
+            width: 8,
+          ),
 
           FilledButton.tonalIcon(
             onPressed: () {
-              _showBrainBackupPending(importBackup: false);
+              _showBrainBackupPending(
+                importBackup: false,
+              );
             },
-            icon: const Icon(Icons.download_outlined, size: 17),
-            label: const Text('Exportar'),
+            icon: const Icon(
+              Icons.download_outlined,
+              size: 17,
+            ),
+            label: const Text(
+              'Exportar',
+            ),
           ),
         ],
       ),
@@ -1629,7 +3143,9 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
 
   Widget _buildBrainSecuritySection() {
     return const Padding(
-      padding: EdgeInsets.all(14),
+      padding: EdgeInsets.all(
+        14,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1639,7 +3155,9 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
             color: _primaryDark,
           ),
 
-          SizedBox(width: 10),
+          SizedBox(
+            width: 10,
+          ),
 
           Expanded(
             child: Column(
@@ -1647,15 +3165,24 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
               children: [
                 Text(
                   'Proteção dos dados',
-                  style: TextStyle(color: _text, fontWeight: FontWeight.w900),
+                  style: TextStyle(
+                    color: _text,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
-                SizedBox(height: 6),
+                SizedBox(
+                  height: 6,
+                ),
                 Text(
                   '• O Vault usa criptografia local.\n'
                   '• A Master Key fica no secure storage do sistema operacional.\n'
-                  '• O Supabase recebe somente objetos criptografados do Cérebro.\n'
+                  '• O Banco de dados recebe somente objetos criptografados do Cérebro.\n'
                   '• Cloud exige conta autenticada, Master Key e dispositivo autorizado.',
-                  style: TextStyle(color: _muted, fontSize: 11, height: 1.5),
+                  style: TextStyle(
+                    color: _muted,
+                    fontSize: 11,
+                    height: 1.5,
+                  ),
                 ),
               ],
             ),
@@ -1669,33 +3196,291 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   // BRAIN RECOVERY
   // ============================================================
 
-  Widget _buildBrainRecoverySection() {
-    return const Padding(
-      padding: EdgeInsets.all(14),
-      child: Row(
-        children: [
-          Icon(Icons.settings_backup_restore_rounded, size: 20, color: _muted),
+  // ============================================================
+  // RECOVERY DEVICE INFO
+  // ============================================================
 
-          SizedBox(width: 10),
+  Future<
+    void
+  >
+  _showRecoveryDeviceInfo() async {
+    await showDialog<
+      void
+    >(
+      context: context,
+      builder:
+          (
+            dialogContext,
+          ) {
+            return AlertDialog(
+              backgroundColor: _surface,
+              surfaceTintColor: Colors.transparent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(
+                  20,
+                ),
+                side: const BorderSide(
+                  color: _border,
+                ),
+              ),
+              title: const Row(
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    color: _primaryDark,
+                  ),
+
+                  SizedBox(
+                    width: 10,
+                  ),
+
+                  Expanded(
+                    child: Text(
+                      'Como funciona o Recovery Device',
+                    ),
+                  ),
+                ],
+              ),
+              content: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: 520,
+                ),
+                child: const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'O Recovery Device permite recuperar o seu Cérebro '
+                      'em um novo dispositivo sem enviar a Master Key em '
+                      'texto puro.',
+                      style: TextStyle(
+                        color: _text,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        height: 1.45,
+                      ),
+                    ),
+
+                    SizedBox(
+                      height: 14,
+                    ),
+
+                    _RecoveryInfoStep(
+                      number: '1',
+                      title: 'Novo dispositivo',
+                      text:
+                          'O novo computador gera uma identidade criptográfica '
+                          'própria e solicita acesso ao Vault existente.',
+                    ),
+
+                    SizedBox(
+                      height: 10,
+                    ),
+
+                    _RecoveryInfoStep(
+                      number: '2',
+                      title: 'Aprovação',
+                      text:
+                          'Um dispositivo que já está autorizado precisa aprovar '
+                          'o novo computador.',
+                    ),
+
+                    SizedBox(
+                      height: 10,
+                    ),
+
+                    _RecoveryInfoStep(
+                      number: '3',
+                      title: 'Fingerprint',
+                      text:
+                          'Antes da aprovação, compare o fingerprint mostrado '
+                          'nos dois dispositivos. Eles precisam ser idênticos.',
+                    ),
+
+                    SizedBox(
+                      height: 10,
+                    ),
+
+                    _RecoveryInfoStep(
+                      number: '4',
+                      title: 'Master Key protegida',
+                      text:
+                          'A Master Key é transferida somente dentro de um '
+                          'envelope criptografado E2EE e depois armazenada '
+                          'localmente no secure storage do novo dispositivo.',
+                    ),
+
+                    SizedBox(
+                      height: 16,
+                    ),
+
+                    _RecoverySecurityWarning(),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(
+                      dialogContext,
+                    ).pop();
+                  },
+                  child: const Text(
+                    'Entendi',
+                  ),
+                ),
+              ],
+            );
+          },
+    );
+  }
+
+  Widget _buildBrainRecoverySection() {
+    final alreadyHasAccess =
+        _brainVaultId !=
+            null &&
+        _brainVaultId!.trim().isNotEmpty &&
+        _brainMasterKeyAvailable;
+
+    return Padding(
+      padding: const EdgeInsets.all(
+        14,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(
+            alreadyHasAccess
+                ? Icons.verified_user_outlined
+                : Icons.settings_backup_restore_rounded,
+            size: 20,
+            color: alreadyHasAccess
+                ? _primaryDark
+                : _muted,
+          ),
+
+          const SizedBox(
+            width: 10,
+          ),
 
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Recovery Device',
-                  style: TextStyle(color: _text, fontWeight: FontWeight.w900),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Recovery Device',
+                      style: TextStyle(
+                        color: _text,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+
+                    const SizedBox(
+                      width: 4,
+                    ),
+
+                    IconButton(
+                      tooltip: 'Como funciona o Recovery Device',
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(
+                        minWidth: 28,
+                        minHeight: 28,
+                      ),
+                      padding: EdgeInsets.zero,
+                      onPressed: _showRecoveryDeviceInfo,
+                      icon: const Icon(
+                        Icons.info_outline_rounded,
+                        size: 17,
+                        color: _primaryDark,
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(height: 2),
+
+                const SizedBox(
+                  height: 2,
+                ),
+
                 Text(
-                  'Recuperação segura em um novo dispositivo será concluída na Fase 16.',
-                  style: TextStyle(color: _muted, fontSize: 11),
+                  alreadyHasAccess
+                      ? 'Este dispositivo já possui a Master Key. '
+                            'Para recuperar outro computador, aprove o '
+                            'dispositivo pendente na lista acima após conferir '
+                            'o fingerprint.'
+                      : 'Recupere este Cérebro usando um dispositivo que '
+                            'já esteja autorizado. A Master Key é transportada '
+                            'somente dentro de um envelope E2EE.',
+                  style: const TextStyle(
+                    color: _muted,
+                    fontSize: 11,
+                    height: 1.4,
+                  ),
                 ),
               ],
             ),
           ),
 
-          _PhaseBadge(text: 'Fase 16'),
+          const SizedBox(
+            width: 12,
+          ),
+
+          if (!alreadyHasAccess) ...[
+            OutlinedButton.icon(
+              onPressed:
+                  _requestingBrainRecovery ||
+                      _completingBrainRecovery
+                  ? null
+                  : _requestBrainRecovery,
+              icon: _requestingBrainRecovery
+                  ? const SizedBox(
+                      width: 15,
+                      height: 15,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.add_to_home_screen_rounded,
+                      size: 17,
+                    ),
+              label: const Text(
+                'Solicitar',
+              ),
+            ),
+
+            const SizedBox(
+              width: 8,
+            ),
+
+            FilledButton.tonalIcon(
+              onPressed:
+                  _requestingBrainRecovery ||
+                      _completingBrainRecovery
+                  ? null
+                  : _completeBrainRecovery,
+              icon: _completingBrainRecovery
+                  ? const SizedBox(
+                      width: 15,
+                      height: 15,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.lock_open_rounded,
+                      size: 17,
+                    ),
+              label: const Text(
+                'Concluir',
+              ),
+            ),
+          ] else
+            const _PhaseBadge(
+              text: 'Protegido',
+            ),
         ],
       ),
     );
@@ -1713,7 +3498,10 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       children: [
         const _AboutHero(),
 
-        const Divider(height: 1, color: _border),
+        const Divider(
+          height: 1,
+          color: _border,
+        ),
 
         _AboutActionRow(
           icon: Icons.info_outline_rounded,
@@ -1730,41 +3518,60 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
           },
         ),
 
-        const Divider(height: 1, color: _border),
+        const Divider(
+          height: 1,
+          color: _border,
+        ),
 
         _AboutActionRow(
           icon: Icons.privacy_tip_outlined,
           title: 'Política de privacidade',
           subtitle: 'Veja como seus dados são tratados.',
           onTap: () {
-            Navigator.of(context).push(
+            Navigator.of(
+              context,
+            ).push(
               MaterialPageRoute(
-                builder: (_) {
-                  return const PrivacyPolicyPage();
-                },
+                builder:
+                    (
+                      _,
+                    ) {
+                      return const PrivacyPolicyPage();
+                    },
               ),
             );
           },
         ),
 
-        const Divider(height: 1, color: _border),
+        const Divider(
+          height: 1,
+          color: _border,
+        ),
 
         _AboutActionRow(
           icon: Icons.description_outlined,
           title: 'Termos de uso',
           subtitle: 'Consulte os termos de utilização do aplicativo.',
           onTap: () {
-            Navigator.of(context).push(
+            Navigator.of(
+              context,
+            ).push(
               MaterialPageRoute(
-                builder: (_) {
-                  return const TermsOfUsePage();
-                },
+                builder:
+                    (
+                      _,
+                    ) {
+                      return const TermsOfUsePage();
+                    },
               ),
             );
           },
         ),
 
-        const Divider(height: 1, color: _border),
+        const Divider(
+          height: 1,
+          color: _border,
+        ),
 
         _AboutActionRow(
           icon: Icons.article_outlined,
@@ -1787,63 +3594,92 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   // ABOUT INFO DIALOG
   // ============================================================
 
-  Future<void> _showAboutInfoDialog({
+  Future<
+    void
+  >
+  _showAboutInfoDialog({
     required String title,
     required IconData icon,
     required String content,
   }) {
-    return showDialog<void>(
+    return showDialog<
+      void
+    >(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: _surface,
-          surfaceTintColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: const BorderSide(color: _border),
-          ),
-          title: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: _primary,
-                  borderRadius: BorderRadius.circular(12),
+      builder:
+          (
+            dialogContext,
+          ) {
+            return AlertDialog(
+              backgroundColor: _surface,
+              surfaceTintColor: Colors.transparent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(
+                  20,
                 ),
-                child: Icon(icon, color: _primaryDark, size: 20),
+                side: const BorderSide(
+                  color: _border,
+                ),
               ),
+              title: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: _primary,
+                      borderRadius: BorderRadius.circular(
+                        12,
+                      ),
+                    ),
+                    child: Icon(
+                      icon,
+                      color: _primaryDark,
+                      size: 20,
+                    ),
+                  ),
 
-              const SizedBox(width: 10),
+                  const SizedBox(
+                    width: 10,
+                  ),
 
-              Expanded(
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        color: _text,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              content: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: 440,
+                ),
                 child: Text(
-                  title,
+                  content,
                   style: const TextStyle(
-                    color: _text,
-                    fontWeight: FontWeight.w800,
+                    color: _muted,
+                    height: 1.5,
                   ),
                 ),
               ),
-            ],
-          ),
-          content: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 440),
-            child: Text(
-              content,
-              style: const TextStyle(color: _muted, height: 1.5),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
-              child: const Text('Fechar'),
-            ),
-          ],
-        );
-      },
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(
+                      dialogContext,
+                    ).pop();
+                  },
+                  child: const Text(
+                    'Fechar',
+                  ),
+                ),
+              ],
+            );
+          },
     );
   }
 }
@@ -1852,13 +3688,19 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
 // ABOUT HERO
 // ============================================================
 
-class _AboutHero extends StatelessWidget {
+class _AboutHero
+    extends
+        StatelessWidget {
   const _AboutHero();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(
+        20,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -1867,8 +3709,12 @@ class _AboutHero extends StatelessWidget {
             height: 76,
             decoration: BoxDecoration(
               color: _ProfileSettingsPageState._primary,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: _ProfileSettingsPageState._border),
+              borderRadius: BorderRadius.circular(
+                22,
+              ),
+              border: Border.all(
+                color: _ProfileSettingsPageState._border,
+              ),
             ),
             child: const Icon(
               Icons.auto_awesome_rounded,
@@ -1877,7 +3723,9 @@ class _AboutHero extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(width: 18),
+          const SizedBox(
+            width: 18,
+          ),
 
           const Expanded(
             child: Column(
@@ -1893,7 +3741,9 @@ class _AboutHero extends StatelessWidget {
                   ),
                 ),
 
-                SizedBox(height: 4),
+                SizedBox(
+                  height: 4,
+                ),
 
                 Text(
                   AppInfo.versionLabel,
@@ -1904,7 +3754,9 @@ class _AboutHero extends StatelessWidget {
                   ),
                 ),
 
-                SizedBox(height: 12),
+                SizedBox(
+                  height: 12,
+                ),
 
                 Text(
                   'Sua plataforma de evolução pessoal.',
@@ -1915,7 +3767,9 @@ class _AboutHero extends StatelessWidget {
                   ),
                 ),
 
-                SizedBox(height: 5),
+                SizedBox(
+                  height: 5,
+                ),
 
                 Text(
                   'Desenvolvido por João Vitor',
@@ -1938,7 +3792,9 @@ class _AboutHero extends StatelessWidget {
 // ABOUT ACTION ROW
 // ============================================================
 
-class _AboutActionRow extends StatelessWidget {
+class _AboutActionRow
+    extends
+        StatelessWidget {
   const _AboutActionRow({
     required this.icon,
     required this.title,
@@ -1955,13 +3811,17 @@ class _AboutActionRow extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(
+            14,
+          ),
           child: Row(
             children: [
               Container(
@@ -1969,7 +3829,9 @@ class _AboutActionRow extends StatelessWidget {
                 height: 40,
                 decoration: BoxDecoration(
                   color: _ProfileSettingsPageState._primary,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(
+                    12,
+                  ),
                 ),
                 child: Icon(
                   icon,
@@ -1978,7 +3840,9 @@ class _AboutActionRow extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(width: 12),
+              const SizedBox(
+                width: 12,
+              ),
 
               Expanded(
                 child: Column(
@@ -1992,7 +3856,9 @@ class _AboutActionRow extends StatelessWidget {
                       ),
                     ),
 
-                    const SizedBox(height: 2),
+                    const SizedBox(
+                      height: 2,
+                    ),
 
                     Text(
                       subtitle,
@@ -2005,7 +3871,9 @@ class _AboutActionRow extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(width: 10),
+              const SizedBox(
+                width: 10,
+              ),
 
               const Icon(
                 Icons.arrow_forward_ios_rounded,
@@ -2021,10 +3889,311 @@ class _AboutActionRow extends StatelessWidget {
 }
 
 // ============================================================
+// BACKUP INFO STEP
+// ============================================================
+
+class _BackupInfoStep
+    extends
+        StatelessWidget {
+  const _BackupInfoStep({
+    required this.number,
+    required this.title,
+    required this.text,
+  });
+
+  final String number;
+  final String title;
+  final String text;
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 26,
+          height: 26,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: _ProfileSettingsPageState._primary,
+            borderRadius: BorderRadius.circular(
+              8,
+            ),
+            border: Border.all(
+              color: _ProfileSettingsPageState._border,
+            ),
+          ),
+          child: Text(
+            number,
+            style: const TextStyle(
+              color: _ProfileSettingsPageState._primaryDark,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+
+        const SizedBox(
+          width: 10,
+        ),
+
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: _ProfileSettingsPageState._text,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(
+                height: 2,
+              ),
+              Text(
+                text,
+                style: const TextStyle(
+                  color: _ProfileSettingsPageState._muted,
+                  fontSize: 11,
+                  height: 1.45,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ============================================================
+// BACKUP SECURITY WARNING
+// ============================================================
+
+class _BackupSecurityWarning
+    extends
+        StatelessWidget {
+  const _BackupSecurityWarning();
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(
+        12,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(
+          0xFFFFF7E6,
+        ),
+        borderRadius: BorderRadius.circular(
+          12,
+        ),
+        border: Border.all(
+          color: const Color(
+            0xFFE6C56A,
+          ),
+        ),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.warning_amber_rounded,
+            size: 18,
+            color: Color(
+              0xFF9A6700,
+            ),
+          ),
+          SizedBox(
+            width: 8,
+          ),
+          Expanded(
+            child: Text(
+              'Guarde o arquivo .evbrain em um local confiável. '
+              'Ele é um backup dos seus dados e não deve ser tratado '
+              'como um arquivo público.',
+              style: TextStyle(
+                color: Color(
+                  0xFF6F5200,
+                ),
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                height: 1.45,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================
+// RECOVERY INFO STEP
+// ============================================================
+
+class _RecoveryInfoStep
+    extends
+        StatelessWidget {
+  const _RecoveryInfoStep({
+    required this.number,
+    required this.title,
+    required this.text,
+  });
+
+  final String number;
+
+  final String title;
+
+  final String text;
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 26,
+          height: 26,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: _ProfileSettingsPageState._primary,
+            borderRadius: BorderRadius.circular(
+              8,
+            ),
+            border: Border.all(
+              color: _ProfileSettingsPageState._border,
+            ),
+          ),
+          child: Text(
+            number,
+            style: const TextStyle(
+              color: _ProfileSettingsPageState._primaryDark,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+
+        const SizedBox(
+          width: 10,
+        ),
+
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: _ProfileSettingsPageState._text,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+
+              const SizedBox(
+                height: 2,
+              ),
+
+              Text(
+                text,
+                style: const TextStyle(
+                  color: _ProfileSettingsPageState._muted,
+                  fontSize: 11,
+                  height: 1.45,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ============================================================
+// RECOVERY SECURITY WARNING
+// ============================================================
+
+class _RecoverySecurityWarning
+    extends
+        StatelessWidget {
+  const _RecoverySecurityWarning();
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(
+        12,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(
+          0xFFFFF7E6,
+        ),
+        borderRadius: BorderRadius.circular(
+          12,
+        ),
+        border: Border.all(
+          color: const Color(
+            0xFFE6C56A,
+          ),
+        ),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.warning_amber_rounded,
+            size: 18,
+            color: Color(
+              0xFF9A6700,
+            ),
+          ),
+
+          SizedBox(
+            width: 8,
+          ),
+
+          Expanded(
+            child: Text(
+              'Se você não reconhecer o dispositivo ou se o '
+              'fingerprint não coincidir, não aprove a recuperação.',
+              style: TextStyle(
+                color: Color(
+                  0xFF6F5200,
+                ),
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                height: 1.45,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================
 // SETTINGS NAV ITEM
 // ============================================================
 
-class _SettingsNavItem extends StatelessWidget {
+class _SettingsNavItem
+    extends
+        StatelessWidget {
   const _SettingsNavItem({
     required this.icon,
     required this.label,
@@ -2041,19 +4210,28 @@ class _SettingsNavItem extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(
+          12,
+        ),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 11,
+          ),
           decoration: BoxDecoration(
             color: selected
                 ? _ProfileSettingsPageState._primary
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(
+              12,
+            ),
           ),
           child: Row(
             children: [
@@ -2065,7 +4243,9 @@ class _SettingsNavItem extends StatelessWidget {
                     : _ProfileSettingsPageState._muted,
               ),
 
-              const SizedBox(width: 9),
+              const SizedBox(
+                width: 9,
+              ),
 
               Expanded(
                 child: Text(
@@ -2074,7 +4254,9 @@ class _SettingsNavItem extends StatelessWidget {
                     color: selected
                         ? _ProfileSettingsPageState._text
                         : _ProfileSettingsPageState._muted,
-                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                    fontWeight: selected
+                        ? FontWeight.w800
+                        : FontWeight.w600,
                   ),
                 ),
               ),
@@ -2090,7 +4272,9 @@ class _SettingsNavItem extends StatelessWidget {
 // SETTINGS PANEL
 // ============================================================
 
-class _SettingsPanel extends StatelessWidget {
+class _SettingsPanel
+    extends
+        StatelessWidget {
   const _SettingsPanel({
     required this.icon,
     required this.title,
@@ -2104,17 +4288,28 @@ class _SettingsPanel extends StatelessWidget {
 
   final String subtitle;
 
-  final List<Widget> children;
+  final List<
+    Widget
+  >
+  children;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(
+        20,
+      ),
       decoration: BoxDecoration(
         color: _ProfileSettingsPageState._surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _ProfileSettingsPageState._border),
+        borderRadius: BorderRadius.circular(
+          20,
+        ),
+        border: Border.all(
+          color: _ProfileSettingsPageState._border,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2126,7 +4321,9 @@ class _SettingsPanel extends StatelessWidget {
                 height: 44,
                 decoration: BoxDecoration(
                   color: _ProfileSettingsPageState._primary,
-                  borderRadius: BorderRadius.circular(13),
+                  borderRadius: BorderRadius.circular(
+                    13,
+                  ),
                 ),
                 child: Icon(
                   icon,
@@ -2134,7 +4331,9 @@ class _SettingsPanel extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(width: 12),
+              const SizedBox(
+                width: 12,
+              ),
 
               Expanded(
                 child: Column(
@@ -2149,7 +4348,9 @@ class _SettingsPanel extends StatelessWidget {
                       ),
                     ),
 
-                    const SizedBox(height: 2),
+                    const SizedBox(
+                      height: 2,
+                    ),
 
                     Text(
                       subtitle,
@@ -2164,16 +4365,24 @@ class _SettingsPanel extends StatelessWidget {
             ],
           ),
 
-          const SizedBox(height: 18),
+          const SizedBox(
+            height: 18,
+          ),
 
           Container(
             width: double.infinity,
             decoration: BoxDecoration(
               color: _ProfileSettingsPageState._surfaceSoft,
-              borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: _ProfileSettingsPageState._border),
+              borderRadius: BorderRadius.circular(
+                15,
+              ),
+              border: Border.all(
+                color: _ProfileSettingsPageState._border,
+              ),
             ),
-            child: Column(children: children),
+            child: Column(
+              children: children,
+            ),
           ),
         ],
       ),
@@ -2185,7 +4394,9 @@ class _SettingsPanel extends StatelessWidget {
 // PREFERENCE SWITCH
 // ============================================================
 
-class _PreferenceSwitch extends StatelessWidget {
+class _PreferenceSwitch
+    extends
+        StatelessWidget {
   const _PreferenceSwitch({
     required this.icon,
     required this.title,
@@ -2202,16 +4413,24 @@ class _PreferenceSwitch extends StatelessWidget {
 
   final bool value;
 
-  final ValueChanged<bool> onChanged;
+  final ValueChanged<
+    bool
+  >
+  onChanged;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return SwitchListTile(
       value: value,
       onChanged: onChanged,
       activeThumbColor: _ProfileSettingsPageState._primaryDark,
       activeTrackColor: _ProfileSettingsPageState._primary,
-      secondary: Icon(icon, color: _ProfileSettingsPageState._primaryDark),
+      secondary: Icon(
+        icon,
+        color: _ProfileSettingsPageState._primaryDark,
+      ),
       title: Text(
         title,
         style: const TextStyle(
@@ -2234,7 +4453,9 @@ class _PreferenceSwitch extends StatelessWidget {
 // BRAIN MODE OPTION
 // ============================================================
 
-class _BrainModeOption extends StatelessWidget {
+class _BrainModeOption
+    extends
+        StatelessWidget {
   const _BrainModeOption({
     required this.icon,
     required this.title,
@@ -2257,20 +4478,32 @@ class _BrainModeOption extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(14),
+        onTap: enabled
+            ? onTap
+            : null,
+        borderRadius: BorderRadius.circular(
+          14,
+        ),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          padding: const EdgeInsets.all(13),
+          duration: const Duration(
+            milliseconds: 160,
+          ),
+          padding: const EdgeInsets.all(
+            13,
+          ),
           decoration: BoxDecoration(
             color: selected
                 ? _ProfileSettingsPageState._primary
                 : _ProfileSettingsPageState._surface,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(
+              14,
+            ),
             border: Border.all(
               color: selected
                   ? _ProfileSettingsPageState._primaryDark.withValues(
@@ -2290,7 +4523,9 @@ class _BrainModeOption extends StatelessWidget {
                 size: 21,
               ),
 
-              const SizedBox(width: 9),
+              const SizedBox(
+                width: 9,
+              ),
 
               Expanded(
                 child: Column(
@@ -2320,7 +4555,9 @@ class _BrainModeOption extends StatelessWidget {
                       ],
                     ),
 
-                    const SizedBox(height: 4),
+                    const SizedBox(
+                      height: 4,
+                    ),
 
                     Text(
                       subtitle,
@@ -2345,7 +4582,9 @@ class _BrainModeOption extends StatelessWidget {
 // BRAIN INFO ROW
 // ============================================================
 
-class _BrainInfoRow extends StatelessWidget {
+class _BrainInfoRow
+    extends
+        StatelessWidget {
   const _BrainInfoRow({
     required this.label,
     required this.value,
@@ -2359,7 +4598,9 @@ class _BrainInfoRow extends StatelessWidget {
   final bool good;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -2398,19 +4639,32 @@ class _BrainInfoRow extends StatelessWidget {
 // PHASE BADGE
 // ============================================================
 
-class _PhaseBadge extends StatelessWidget {
-  const _PhaseBadge({required this.text});
+class _PhaseBadge
+    extends
+        StatelessWidget {
+  const _PhaseBadge({
+    required this.text,
+  });
 
   final String text;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 9,
+        vertical: 4,
+      ),
       decoration: BoxDecoration(
         color: _ProfileSettingsPageState._surface,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: _ProfileSettingsPageState._border),
+        borderRadius: BorderRadius.circular(
+          999,
+        ),
+        border: Border.all(
+          color: _ProfileSettingsPageState._border,
+        ),
       ),
       child: Text(
         text,
@@ -2428,7 +4682,9 @@ class _PhaseBadge extends StatelessWidget {
 // SECURITY ROW
 // ============================================================
 
-class _SecurityRow extends StatelessWidget {
+class _SecurityRow
+    extends
+        StatelessWidget {
   const _SecurityRow({
     required this.icon,
     required this.title,
@@ -2445,9 +4701,13 @@ class _SecurityRow extends StatelessWidget {
   final Widget? trailing;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Padding(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(
+        14,
+      ),
       child: Row(
         children: [
           Container(
@@ -2455,7 +4715,9 @@ class _SecurityRow extends StatelessWidget {
             height: 40,
             decoration: BoxDecoration(
               color: _ProfileSettingsPageState._primary,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(
+                12,
+              ),
             ),
             child: Icon(
               icon,
@@ -2464,7 +4726,9 @@ class _SecurityRow extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(width: 12),
+          const SizedBox(
+            width: 12,
+          ),
 
           Expanded(
             child: Column(
@@ -2478,7 +4742,9 @@ class _SecurityRow extends StatelessWidget {
                   ),
                 ),
 
-                const SizedBox(height: 2),
+                const SizedBox(
+                  height: 2,
+                ),
 
                 Text(
                   subtitle,
@@ -2491,7 +4757,13 @@ class _SecurityRow extends StatelessWidget {
             ),
           ),
 
-          if (trailing != null) ...[const SizedBox(width: 10), trailing!],
+          if (trailing !=
+              null) ...[
+            const SizedBox(
+              width: 10,
+            ),
+            trailing!,
+          ],
         ],
       ),
     );

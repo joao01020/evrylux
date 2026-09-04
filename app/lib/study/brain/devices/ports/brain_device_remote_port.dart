@@ -7,16 +7,26 @@ abstract class BrainDeviceRemotePort {
     required String vaultId,
     required BrainDeviceLocalSecrets localSecrets,
   });
-  Future<List<BrainDeviceRecord>> listDevices({required String vaultId});
+
+  Future<List<BrainDeviceRecord>> listDevices({
+    required String vaultId,
+    required String requesterDeviceId,
+    required String requesterAuthorizationSecretBase64,
+  });
+
   Future<BrainDeviceRecord?> getDevice({
     required String vaultId,
-    required String deviceId,
+    required String requesterDeviceId,
+    required String requesterAuthorizationSecretBase64,
+    required String targetDeviceId,
   });
+
   Future<bool> isAuthorized({
     required String vaultId,
     required String deviceId,
     required String authorizationSecretBase64,
   });
+
   Future<void> approveDevice({
     required String vaultId,
     required String approverDeviceId,
@@ -24,21 +34,20 @@ abstract class BrainDeviceRemotePort {
     required String targetDeviceId,
     required BrainDeviceKeyEnvelope envelope,
   });
+
   Future<void> revokeDevice({
     required String vaultId,
     required String approverDeviceId,
     required String approverAuthorizationSecretBase64,
     required String targetDeviceId,
   });
-  Future<BrainDeviceKeyEnvelope?> loadPendingEnvelope({
+
+  /// Atomic one-time operation:
+  /// the backend marks the envelope consumed in the same transaction
+  /// that returns its payload. Replay returns null.
+  Future<BrainDeviceKeyEnvelope?> claimPendingEnvelope({
     required String vaultId,
     required String targetDeviceId,
     required String targetAuthorizationSecretBase64,
-  });
-  Future<void> markEnvelopeConsumed({
-    required String vaultId,
-    required String targetDeviceId,
-    required String targetAuthorizationSecretBase64,
-    required String envelopeId,
   });
 }

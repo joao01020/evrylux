@@ -10,127 +10,179 @@ import 'package:EVRYLUX/study/brain/devices/services/brain_device_gate_service.d
 import 'package:EVRYLUX/study/brain/devices/services/brain_device_identity_service.dart';
 
 void main() {
-  test('gate falha fechado sem identidade local', () async {
-    final identityService = BrainDeviceIdentityService(
-      storage: InMemoryBrainDeviceSecureStorage(),
-    );
+  test(
+    'gate falha fechado sem identidade local',
+    () async {
+      final identityService = BrainDeviceIdentityService(
+        storage: InMemoryBrainDeviceSecureStorage(),
+      );
 
-    final gate = BrainDeviceGateService(
-      identityService: identityService,
-      remote: _FakeRemote(authorized: true),
-      masterKeyPort: _FakeMasterKeyPort(hasKey: true),
-    );
+      final gate = BrainDeviceGateService(
+        identityService: identityService,
+        remote: _FakeRemote(
+          authorized: true,
+        ),
+        masterKeyPort: _FakeMasterKeyPort(
+          hasKey: true,
+        ),
+      );
 
-    final allowed = await gate.canUseCloud(
-      vaultId: 'vault_test',
-      isAuthenticated: true,
-      dataModeAllowsCloud: true,
-    );
-
-    expect(allowed, false);
-  });
-
-  test('gate exige Master Key local', () async {
-    final storage = InMemoryBrainDeviceSecureStorage();
-
-    final identityService = BrainDeviceIdentityService(storage: storage);
-
-    await identityService.getOrCreateLocalSecrets(deviceName: 'Apolo');
-
-    final gate = BrainDeviceGateService(
-      identityService: identityService,
-      remote: _FakeRemote(authorized: true),
-      masterKeyPort: _FakeMasterKeyPort(hasKey: false),
-    );
-
-    expect(
-      await gate.canUseCloud(
+      final allowed = await gate.canUseCloud(
         vaultId: 'vault_test',
         isAuthenticated: true,
         dataModeAllowsCloud: true,
-      ),
-      false,
-    );
-  });
+      );
 
-  test('gate exige auth + cloud + device authorized + Master Key', () async {
-    final storage = InMemoryBrainDeviceSecureStorage();
+      expect(
+        allowed,
+        false,
+      );
+    },
+  );
 
-    final identityService = BrainDeviceIdentityService(storage: storage);
+  test(
+    'gate exige Master Key local',
+    () async {
+      final storage = InMemoryBrainDeviceSecureStorage();
 
-    await identityService.getOrCreateLocalSecrets(deviceName: 'Apolo');
+      final identityService = BrainDeviceIdentityService(
+        storage: storage,
+      );
 
-    final gate = BrainDeviceGateService(
-      identityService: identityService,
-      remote: _FakeRemote(authorized: true),
-      masterKeyPort: _FakeMasterKeyPort(hasKey: true),
-    );
+      await identityService.getOrCreateLocalSecrets(
+        deviceName: 'Apolo',
+      );
 
-    expect(
-      await gate.canUseCloud(
-        vaultId: 'vault_test',
-        isAuthenticated: false,
-        dataModeAllowsCloud: true,
-      ),
-      false,
-    );
+      final gate = BrainDeviceGateService(
+        identityService: identityService,
+        remote: _FakeRemote(
+          authorized: true,
+        ),
+        masterKeyPort: _FakeMasterKeyPort(
+          hasKey: false,
+        ),
+      );
 
-    expect(
-      await gate.canUseCloud(
-        vaultId: 'vault_test',
-        isAuthenticated: true,
-        dataModeAllowsCloud: false,
-      ),
-      false,
-    );
+      expect(
+        await gate.canUseCloud(
+          vaultId: 'vault_test',
+          isAuthenticated: true,
+          dataModeAllowsCloud: true,
+        ),
+        false,
+      );
+    },
+  );
 
-    expect(
-      await gate.canUseCloud(
-        vaultId: 'vault_test',
-        isAuthenticated: true,
-        dataModeAllowsCloud: true,
-      ),
-      true,
-    );
-  });
+  test(
+    'gate exige auth + cloud + device authorized + Master Key',
+    () async {
+      final storage = InMemoryBrainDeviceSecureStorage();
 
-  test('device revogado é bloqueado pelo gate', () async {
-    final storage = InMemoryBrainDeviceSecureStorage();
+      final identityService = BrainDeviceIdentityService(
+        storage: storage,
+      );
 
-    final identityService = BrainDeviceIdentityService(storage: storage);
+      await identityService.getOrCreateLocalSecrets(
+        deviceName: 'Apolo',
+      );
 
-    await identityService.getOrCreateLocalSecrets(deviceName: 'Apolo');
+      final gate = BrainDeviceGateService(
+        identityService: identityService,
+        remote: _FakeRemote(
+          authorized: true,
+        ),
+        masterKeyPort: _FakeMasterKeyPort(
+          hasKey: true,
+        ),
+      );
 
-    final gate = BrainDeviceGateService(
-      identityService: identityService,
-      remote: _FakeRemote(authorized: false),
-      masterKeyPort: _FakeMasterKeyPort(hasKey: true),
-    );
+      expect(
+        await gate.canUseCloud(
+          vaultId: 'vault_test',
+          isAuthenticated: false,
+          dataModeAllowsCloud: true,
+        ),
+        false,
+      );
 
-    expect(
-      await gate.canUseCloud(
-        vaultId: 'vault_test',
-        isAuthenticated: true,
-        dataModeAllowsCloud: true,
-      ),
-      false,
-    );
-  });
+      expect(
+        await gate.canUseCloud(
+          vaultId: 'vault_test',
+          isAuthenticated: true,
+          dataModeAllowsCloud: false,
+        ),
+        false,
+      );
+
+      expect(
+        await gate.canUseCloud(
+          vaultId: 'vault_test',
+          isAuthenticated: true,
+          dataModeAllowsCloud: true,
+        ),
+        true,
+      );
+    },
+  );
+
+  test(
+    'device revogado é bloqueado pelo gate',
+    () async {
+      final storage = InMemoryBrainDeviceSecureStorage();
+
+      final identityService = BrainDeviceIdentityService(
+        storage: storage,
+      );
+
+      await identityService.getOrCreateLocalSecrets(
+        deviceName: 'Apolo',
+      );
+
+      final gate = BrainDeviceGateService(
+        identityService: identityService,
+        remote: _FakeRemote(
+          authorized: false,
+        ),
+        masterKeyPort: _FakeMasterKeyPort(
+          hasKey: true,
+        ),
+      );
+
+      expect(
+        await gate.canUseCloud(
+          vaultId: 'vault_test',
+          isAuthenticated: true,
+          dataModeAllowsCloud: true,
+        ),
+        false,
+      );
+    },
+  );
 }
 
 class _FakeMasterKeyPort implements BrainDeviceMasterKeyPort {
-  _FakeMasterKeyPort({required this.hasKey});
+  _FakeMasterKeyPort({
+    required this.hasKey,
+  });
 
   final bool hasKey;
 
   @override
-  Future<bool> hasMasterKey({required String vaultId}) async {
+  Future<bool> hasMasterKey({
+    required String vaultId,
+  }) async {
     return hasKey;
   }
 
   @override
-  Future<List<int>> exportMasterKey({required String vaultId}) async {
-    return List<int>.filled(32, 1);
+  Future<List<int>> exportMasterKey({
+    required String vaultId,
+  }) async {
+    return List<int>.filled(
+      32,
+      1,
+    );
   }
 
   @override
@@ -142,7 +194,9 @@ class _FakeMasterKeyPort implements BrainDeviceMasterKeyPort {
 }
 
 class _FakeRemote implements BrainDeviceRemotePort {
-  _FakeRemote({required this.authorized});
+  _FakeRemote({
+    required this.authorized,
+  });
 
   final bool authorized;
 
@@ -162,39 +216,35 @@ class _FakeRemote implements BrainDeviceRemotePort {
     required String approverAuthorizationSecretBase64,
     required String targetDeviceId,
     required BrainDeviceKeyEnvelope envelope,
-  }) {
+  }) async {
     throw UnimplementedError();
   }
 
   @override
   Future<BrainDeviceRecord?> getDevice({
     required String vaultId,
-    required String deviceId,
-  }) {
+    required String requesterDeviceId,
+    required String requesterAuthorizationSecretBase64,
+    required String targetDeviceId,
+  }) async {
     throw UnimplementedError();
   }
 
   @override
-  Future<List<BrainDeviceRecord>> listDevices({required String vaultId}) {
+  Future<List<BrainDeviceRecord>> listDevices({
+    required String vaultId,
+    required String requesterDeviceId,
+    required String requesterAuthorizationSecretBase64,
+  }) async {
     throw UnimplementedError();
   }
 
   @override
-  Future<BrainDeviceKeyEnvelope?> loadPendingEnvelope({
+  Future<BrainDeviceKeyEnvelope?> claimPendingEnvelope({
     required String vaultId,
     required String targetDeviceId,
     required String targetAuthorizationSecretBase64,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> markEnvelopeConsumed({
-    required String vaultId,
-    required String targetDeviceId,
-    required String targetAuthorizationSecretBase64,
-    required String envelopeId,
-  }) {
+  }) async {
     throw UnimplementedError();
   }
 
@@ -202,7 +252,7 @@ class _FakeRemote implements BrainDeviceRemotePort {
   Future<BrainDeviceRecord> registerDevice({
     required String vaultId,
     required BrainDeviceLocalSecrets localSecrets,
-  }) {
+  }) async {
     throw UnimplementedError();
   }
 
@@ -212,7 +262,7 @@ class _FakeRemote implements BrainDeviceRemotePort {
     required String approverDeviceId,
     required String approverAuthorizationSecretBase64,
     required String targetDeviceId,
-  }) {
+  }) async {
     throw UnimplementedError();
   }
 }

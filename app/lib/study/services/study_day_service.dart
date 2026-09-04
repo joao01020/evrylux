@@ -25,7 +25,7 @@ import '../models/study_day_summary.dart';
 // ============================================================
 
 class StudyDayService {
-  const StudyDayService({
+  StudyDayService({
     required this.repository,
     this.brainStorage = const BrainStorage(),
   });
@@ -33,6 +33,8 @@ class StudyDayService {
   final StudyRepository repository;
 
   final BrainStorage brainStorage;
+
+  List<DateTime>? _cachedContentDates;
 
   // ============================================================
   // LOAD DAY
@@ -97,7 +99,16 @@ class StudyDayService {
       DateTime
     >
   >
-  loadContentDates() async {
+  loadContentDates({
+    bool forceRefresh = false,
+  }) async {
+    final cached = _cachedContentDates;
+
+    if (!forceRefresh &&
+        cached != null) {
+      return cached;
+    }
+
     final dates = await brainStorage.loadCreatedDates();
 
     final normalizedDates =
@@ -115,11 +126,19 @@ class StudyDayService {
 
     normalizedDates.sort();
 
-    return List<
+    final result = List<
       DateTime
     >.unmodifiable(
       normalizedDates,
     );
+
+    _cachedContentDates = result;
+
+    return result;
+  }
+
+  void invalidateContentDates() {
+    _cachedContentDates = null;
   }
 
   // ============================================================

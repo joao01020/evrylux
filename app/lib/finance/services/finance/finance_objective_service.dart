@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../data/cache/finance_cache_store.dart';
+
 // ============================================================
 // FINANCE OBJECTIVE
 // ============================================================
@@ -161,9 +163,12 @@ class FinanceObjectiveService {
 
   FinanceObjectiveService({
     SupabaseClient? supabase,
+    this.cacheStore = const FinanceCacheStore(),
   }) : _supabase =
            supabase ??
            Supabase.instance.client;
+
+  final FinanceCacheStore cacheStore;
 
   // ==========================================================
   // CURRENT USER
@@ -219,28 +224,50 @@ class FinanceObjectiveService {
   // LOAD
   // ==========================================================
 
-  Future<
-    FinanceObjective?
-  >
-  load() async {
+  Future<FinanceObjective?> load() async {
+    final local = await loadLocal();
+
+    if (local != null) {
+      return local;
+    }
+
+    return refreshFromRemote();
+  }
+
+  // ==========================================================
+  // LOAD LOCAL
+  // ==========================================================
+
+  Future<FinanceObjective?> loadLocal() async {
     final userId = currentUserId;
 
-    if (userId ==
-        null) {
-      debugPrint(
-        '[FINANCE OBJECTIVE SERVICE] '
-        'Load cancelado: usuário não autenticado.',
-      );
+    if (userId == null) {
+      return null;
+    }
 
+    final data = await cacheStore.loadObjective(
+      userId,
+    );
+
+    if (data == null) {
+      return null;
+    }
+
+    return FinanceObjective.fromMap(data);
+  }
+
+  // ==========================================================
+  // REFRESH FROM REMOTE
+  // ==========================================================
+
+  Future<FinanceObjective?> refreshFromRemote() async {
+    final userId = currentUserId;
+
+    if (userId == null) {
       return null;
     }
 
     try {
-      debugPrint(
-        '[FINANCE OBJECTIVE SERVICE] '
-        'Carregando objetivo.',
-      );
-
       final response = await _supabase
           .from(
             _table,
@@ -257,46 +284,31 @@ class FinanceObjectiveService {
           )
           .maybeSingle();
 
-      if (response ==
-          null) {
-        debugPrint(
-          '[FINANCE OBJECTIVE SERVICE] '
-          'Nenhum objetivo encontrado.',
-        );
-
+      if (response == null) {
         return null;
       }
 
       final objective = FinanceObjective.fromMap(
-        Map<
-          String,
-          dynamic
-        >.from(
-          response,
-        ),
+        Map<String, dynamic>.from(response),
       );
 
-      debugPrint(
-        '[FINANCE OBJECTIVE SERVICE] '
-        'Objetivo carregado: '
-        '${objective.name} | '
-        '${objective.targetValue}',
+      await cacheStore.saveObjective(
+        userId,
+        objective.toMap(),
       );
 
       return objective;
-    } catch (
-      error,
-      stackTrace
-    ) {
-      debugPrint(
-        '[FINANCE OBJECTIVE SERVICE] '
-        'Erro ao carregar objetivo: '
-        '$error',
-      );
+    } catch (error) {
+      final local = await loadLocal();
 
-      debugPrint(
-        '$stackTrace',
-      );
+      if (local != null) {
+        debugPrint(
+          '[FINANCE OBJECTIVE SERVICE] '
+          'Remoto indisponível. Usando cache local.',
+        );
+
+        return local;
+      }
 
       rethrow;
     }
@@ -381,6 +393,11 @@ class FinanceObjectiveService {
         ),
       );
 
+      await cacheStore.saveObjective(
+        userId,
+        objective.toMap(),
+      );
+
       debugPrint(
         '[FINANCE OBJECTIVE SERVICE] '
         'Objetivo salvo com sucesso.',
@@ -461,14 +478,16 @@ class FinanceObjectiveService {
         );
       }
 
-      return FinanceObjective.fromMap(
-        Map<
-          String,
-          dynamic
-        >.from(
-          response,
-        ),
+      final objective = FinanceObjective.fromMap(
+        Map<String, dynamic>.from(response),
       );
+
+      await cacheStore.saveObjective(
+        userId,
+        objective.toMap(),
+      );
+
+      return objective;
     } catch (
       error,
       stackTrace
@@ -543,14 +562,16 @@ class FinanceObjectiveService {
         );
       }
 
-      return FinanceObjective.fromMap(
-        Map<
-          String,
-          dynamic
-        >.from(
-          response,
-        ),
+      final objective = FinanceObjective.fromMap(
+        Map<String, dynamic>.from(response),
       );
+
+      await cacheStore.saveObjective(
+        userId,
+        objective.toMap(),
+      );
+
+      return objective;
     } catch (
       error,
       stackTrace
@@ -594,6 +615,10 @@ class FinanceObjectiveService {
             'user_id',
             userId,
           );
+
+      await cacheStore.clearObjective(
+        userId,
+      );
 
       debugPrint(
         '[FINANCE OBJECTIVE SERVICE] '

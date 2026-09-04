@@ -2,10 +2,15 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../data/cache/finance_cache_store.dart';
+
 class CryptoPriceService {
   const CryptoPriceService({
     http.Client? client,
+    this.cacheStore = const FinanceCacheStore(),
   }) : _client = client;
+
+  final FinanceCacheStore cacheStore;
 
   // ============================================================
   // CLIENT
@@ -64,7 +69,7 @@ class CryptoPriceService {
       double
     >
   >
-  getPricesBrl() async {
+  refreshPricesBrl() async {
     final client =
         _client ??
         http.Client();
@@ -150,6 +155,10 @@ class CryptoPriceService {
         );
       }
 
+      await cacheStore.savePrices(
+        prices,
+      );
+
       return prices;
     } on CryptoPriceException {
       rethrow;
@@ -172,6 +181,36 @@ class CryptoPriceService {
         client.close();
       }
     }
+  }
+
+  // ============================================================
+  // GET CACHED PRICES
+  // ============================================================
+
+  Future<Map<String, double>> getCachedPricesBrl() {
+    return cacheStore.loadPrices();
+  }
+
+  // ============================================================
+  // GET ALL PRICES
+  // ============================================================
+  //
+  // Caminho compatível:
+  // - usa cache quando existir;
+  // - consulta rede somente quando ainda não há cache.
+  //
+  // Para refresh explícito use refreshPricesBrl().
+  //
+  // ============================================================
+
+  Future<Map<String, double>> getPricesBrl() async {
+    final cached = await getCachedPricesBrl();
+
+    if (cached.isNotEmpty) {
+      return cached;
+    }
+
+    return refreshPricesBrl();
   }
 
   // ============================================================

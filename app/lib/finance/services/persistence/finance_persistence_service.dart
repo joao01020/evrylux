@@ -25,6 +25,22 @@ class FinancePersistenceService {
   }
 
   // ============================================================
+  // LOAD CACHED HISTORY
+  // ============================================================
+
+  Future<List<InvestmentHistory>> loadCachedHistory() {
+    return historyStorage.loadLocal();
+  }
+
+  // ============================================================
+  // REFRESH HISTORY
+  // ============================================================
+
+  Future<List<InvestmentHistory>> refreshHistory() {
+    return historyStorage.refreshFromRemote();
+  }
+
+  // ============================================================
   // SAVE ALL
   // ============================================================
 

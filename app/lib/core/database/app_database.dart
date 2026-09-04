@@ -7,6 +7,7 @@ import 'package:sqlite3/sqlite3.dart';
 import 'tables/app_update_cache_table.dart';
 import 'tables/board_attachment_table.dart';
 import 'tables/board_comment_table.dart';
+import 'tables/profile_cache_table.dart';
 import 'tables/sync_queue_table.dart';
 import 'tables/training_activity_plan_table.dart';
 
@@ -39,6 +40,9 @@ import 'tables/training_activity_plan_table.dart';
 // v6
 // - app_update_cache
 //
+// v7
+// - profile_cache
+//
 // ============================================================
 
 class AppDatabase {
@@ -56,7 +60,7 @@ class AppDatabase {
 
   static const String _databaseFileName = 'ghost_core.db';
 
-  static const int _schemaVersion = 6;
+  static const int _schemaVersion = 7;
 
   // ============================================================
   // DATABASE
@@ -332,6 +336,29 @@ class AppDatabase {
       );
 
       currentVersion = 6;
+    }
+
+    // ==========================================================
+    // VERSION 7
+    // ==========================================================
+
+    if (currentVersion <
+        7) {
+      transactionWithDatabase(
+        database,
+        () {
+          _createVersion7(
+            database,
+          );
+
+          _writeSchemaVersion(
+            database,
+            7,
+          );
+        },
+      );
+
+      currentVersion = 7;
     }
 
     // ==========================================================
@@ -643,6 +670,24 @@ ON ${SyncQueueTable.tableName} (
     Database database,
   ) {
     for (final statement in AppUpdateCacheTable.createStatements) {
+      database.execute(
+        statement,
+      );
+    }
+  }
+
+  // ============================================================
+  // VERSION 7
+  // ============================================================
+  //
+  // Cache local do perfil básico e preferências.
+  //
+  // ============================================================
+
+  void _createVersion7(
+    Database database,
+  ) {
+    for (final statement in ProfileCacheTable.createStatements) {
       database.execute(
         statement,
       );

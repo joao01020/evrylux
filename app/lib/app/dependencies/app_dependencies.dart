@@ -144,6 +144,7 @@ import '../../study/brain/devices/services/brain_device_authorization_service.da
 import '../../study/brain/devices/services/brain_device_gate_service.dart';
 import '../../study/brain/devices/services/brain_device_identity_service.dart';
 import '../../study/brain/devices/services/brain_device_supabase_service.dart';
+import '../../study/brain/devices/services/brain_recovery_device_service.dart';
 
 // ======================================================
 // REMINDERS CONTROLLER
@@ -203,6 +204,7 @@ import '../../reminders/data/reminder_repository.dart';
 // ======================================================
 
 import '../../study/services/study_service.dart';
+import '../../study/services/study_day_service.dart';
 
 import '../../finance/services/persistence/finance_service.dart';
 
@@ -617,12 +619,17 @@ final brainDeviceGateService = BrainDeviceGateService(
   masterKeyPort: brainDeviceMasterKeyAdapter,
 );
 
+final brainRecoveryDeviceService = BrainRecoveryDeviceService(
+  authorizationService: brainDeviceAuthorizationService,
+  vaultService: brainVaultService,
+);
+
 // ======================================================
 // BRAIN DEVICE NAME
 // ======================================================
 
 String
-_brainDeviceName() {
+brainDeviceName() {
   final host = Platform.localHostname.trim();
 
   final os = Platform.operatingSystem.trim();
@@ -739,7 +746,7 @@ _bootstrapBrainAuthorizedDevice() async {
 
     final device = await brainDeviceAuthorizationService.registerCurrentDevice(
       vaultId: manifest.vaultId,
-      deviceName: _brainDeviceName(),
+      deviceName: brainDeviceName(),
     );
 
     debugPrint(
@@ -2552,6 +2559,11 @@ final studyRepository = StudyRepository(
 
 final studyService = StudyService(
   repository: studyRepository,
+);
+
+final studyDayService = StudyDayService(
+  repository: studyRepository,
+  brainStorage: brainStorage,
 );
 
 final studyController = StudyController(

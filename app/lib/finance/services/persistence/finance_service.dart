@@ -120,121 +120,73 @@ class FinanceService {
   // LOAD
   // ============================================================
 
-  Future<
-    FinanceModel
-  >
-  loadFinance() async {
+  Future<FinanceModel> loadFinance() async {
     final data = await repository.load();
 
+    return _modelFromData(data);
+  }
+
+  // ============================================================
+  // LOAD LOCAL
+  // ============================================================
+  //
+  // Caminho usado no primeiro frame do Finance.
+  //
+  // Não consulta Supabase.
+  //
+  // ============================================================
+
+  Future<FinanceModel> loadLocalFinance() async {
+    final data = await repository.loadLocal();
+
+    if (data == null) {
+      return FinanceModel();
+    }
+
+    return _modelFromData(data);
+  }
+
+  // ============================================================
+  // REFRESH REMOTE
+  // ============================================================
+
+  Future<FinanceModel> refreshFinance() async {
+    final data = await repository.refreshFromRemote();
+
+    return _modelFromData(data);
+  }
+
+  // ============================================================
+  // MODEL FROM DATA
+  // ============================================================
+
+  FinanceModel _modelFromData(
+    Map<String, dynamic> data,
+  ) {
     if (data.isEmpty) {
       return FinanceModel();
     }
 
     return FinanceModel(
-      // ========================================================
-      // PATRIMÔNIO
-      // ========================================================
-      patrimony:
-          (data['patrimony'] ??
-                  0)
-              .toDouble(),
-
-      invested:
-          (data['invested'] ??
-                  0)
-              .toDouble(),
-
-      monthlyGoal:
-          (data['monthlyGoal'] ??
-                  0)
-              .toDouble(),
-
-      investmentGoal:
-          (data['investmentGoal'] ??
-                  0)
-              .toDouble(),
-
-      // ========================================================
-      // PLANEJAMENTO
-      // ========================================================
-      minimumGoal:
-          (data['minimumGoal'] ??
-                  0)
-              .toDouble(),
-
-      mediumGoal:
-          (data['mediumGoal'] ??
-                  0)
-              .toDouble(),
-
-      maximumGoal:
-          (data['maximumGoal'] ??
-                  0)
-              .toDouble(),
-
-      projectionYears:
-          data['projectionYears'] ??
-          10,
-
-      // ========================================================
-      // EVOLUÇÃO
-      // ========================================================
-      totalInvested:
-          (data['totalInvested'] ??
-                  0)
-              .toDouble(),
-
-      investedMonths:
-          data['investedMonths'] ??
-          0,
-
-      averageContribution:
-          (data['averageContribution'] ??
-                  0)
-              .toDouble(),
-
-      // ========================================================
-      // CRYPTO
-      // ========================================================
-      bitcoin:
-          (data['bitcoin'] ??
-                  0)
-              .toDouble(),
-
-      ethereum:
-          (data['ethereum'] ??
-                  0)
-              .toDouble(),
-
-      solana:
-          (data['solana'] ??
-                  0)
-              .toDouble(),
-
-      usdt:
-          (data['usdt'] ??
-                  0)
-              .toDouble(),
-
-      // ========================================================
-      // OUTROS
-      // ========================================================
+      patrimony: (data['patrimony'] ?? 0).toDouble(),
+      invested: (data['invested'] ?? 0).toDouble(),
+      monthlyGoal: (data['monthlyGoal'] ?? 0).toDouble(),
+      investmentGoal: (data['investmentGoal'] ?? 0).toDouble(),
+      minimumGoal: (data['minimumGoal'] ?? 0).toDouble(),
+      mediumGoal: (data['mediumGoal'] ?? 0).toDouble(),
+      maximumGoal: (data['maximumGoal'] ?? 0).toDouble(),
+      projectionYears: data['projectionYears'] ?? 10,
+      totalInvested: (data['totalInvested'] ?? 0).toDouble(),
+      investedMonths: data['investedMonths'] ?? 0,
+      averageContribution: (data['averageContribution'] ?? 0).toDouble(),
+      bitcoin: (data['bitcoin'] ?? 0).toDouble(),
+      ethereum: (data['ethereum'] ?? 0).toDouble(),
+      solana: (data['solana'] ?? 0).toDouble(),
+      usdt: (data['usdt'] ?? 0).toDouble(),
       selectedDay: data['selectedDay']?.toString(),
-
-      completedDays:
-          data['completedDays'] !=
-              null
-          ? List<
-              bool
-            >.from(
-              data['completedDays'],
-            )
-          : List<
-              bool
-            >.filled(
-              7,
-              false,
-            ),
+      completedDays: data['completedDays'] != null
+          ? List<bool>.from(data['completedDays'])
+          : List<bool>.filled(7, false),
     );
   }
 

@@ -9,7 +9,6 @@ import 'widgets/study_header.dart';
 import 'widgets/streak_card.dart';
 
 import 'brain/screen/brain_screen.dart';
-import 'brain/services/brain_storage.dart';
 
 import 'services/study_day_service.dart';
 import 'widgets/dialogs/study_day_dialog.dart';
@@ -73,10 +72,7 @@ class _StudyScreenState
 
     _selectedDate = _today();
 
-    _studyDayService = StudyDayService(
-      repository: studyRepository,
-      brainStorage: const BrainStorage(),
-    );
+    _studyDayService = studyDayService;
 
     studyController.addListener(
       refresh,
@@ -148,7 +144,11 @@ class _StudyScreenState
     //
     // ========================================================
 
-    await _loadContentDates();
+    _studyDayService.invalidateContentDates();
+
+    await _loadContentDates(
+      forceRefresh: true,
+    );
   }
 
   // ============================================================
@@ -164,7 +164,9 @@ class _StudyScreenState
   Future<
     void
   >
-  _loadContentDates() async {
+  _loadContentDates({
+    bool forceRefresh = false,
+  }) async {
     if (_loadingContentDates) {
       return;
     }
@@ -172,7 +174,9 @@ class _StudyScreenState
     _loadingContentDates = true;
 
     try {
-      final dates = await _studyDayService.loadContentDates();
+      final dates = await _studyDayService.loadContentDates(
+        forceRefresh: forceRefresh,
+      );
 
       if (!mounted) {
         return;
