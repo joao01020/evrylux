@@ -98,6 +98,7 @@ import '../../study/controllers/study_controller.dart';
 import '../../profile/security/devices/repositories/account_device_repository.dart';
 import '../../profile/security/devices/services/account_device_identity_service.dart';
 import '../../profile/security/devices/services/account_device_presence_service.dart';
+import '../../profile/security/account/account_deletion_service.dart';
 
 import '../../routine/controllers/routine_controller.dart';
 import '../../routine/controllers/comments/board_comment_controller.dart';
@@ -627,6 +628,19 @@ final accountDevicePresenceService = AccountDevicePresenceService(
 // ======================================================
 
 final brainDeviceSecureStorage = PlatformBrainDeviceSecureStorage();
+
+// ======================================================
+// ACCOUNT DATA / ACCOUNT DELETION
+// ======================================================
+
+final accountDeletionService = AccountDeletionService(
+  client: supabaseClient,
+  appDatabase: appDatabase,
+  brainKeyStorage: brainKeyStorage,
+  brainDeviceSecureStorage: brainDeviceSecureStorage,
+  brainDataModeStorage: brainDataModeStorage,
+  accountDeviceIdentityService: accountDeviceIdentityService,
+);
 
 final brainDeviceCryptoService = BrainDeviceCryptoService();
 
