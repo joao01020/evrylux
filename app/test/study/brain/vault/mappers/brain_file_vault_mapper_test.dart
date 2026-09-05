@@ -17,7 +17,7 @@ void main() {
       final file = BrainFile(
         topic: 'Negociação',
         title: 'Perguntas abertas',
-        path: '/tmp/ghost_brain/negociacao/perguntas.md',
+        path: '/tmp/evrylux/users/test-user/brain/legacy/negociacao/perguntas.md',
         content: 'Perguntas abertas ajudam a entender melhor a outra pessoa.',
         concepts: const [],
         sources: const [],
@@ -56,7 +56,7 @@ void main() {
       final original = BrainFile(
         topic: 'Hábitos',
         title: 'Ambiente',
-        path: '/tmp/ghost_brain/habitos/ambiente.md',
+        path: '/tmp/evrylux/users/test-user/brain/legacy/habitos/ambiente.md',
         content: 'O ambiente influencia o comportamento.',
         concepts: const [],
         sources: const [],

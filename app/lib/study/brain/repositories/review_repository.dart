@@ -84,16 +84,14 @@ class ReviewRepository {
   ReviewRepository({
     required BrainReviewVaultStore vaultStore,
     SupabaseReviewService? remote,
-    ReviewStorage? local,
+    required ReviewStorage local,
     required SyncQueue syncQueue,
     BrainSyncQueueService? brainSyncQueueService,
   }) : _vaultStore = vaultStore,
        _remote =
            remote ??
            SupabaseReviewService(),
-       _legacyLocal =
-           local ??
-           const ReviewStorage(),
+       _legacyLocal = local,
        _legacySyncQueue = syncQueue,
        _brainSyncQueueService = brainSyncQueueService;
 

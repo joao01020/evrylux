@@ -51,6 +51,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' hide LocalStorage;
 // ======================================================
 
 import '../../core/storage/local_storage.dart';
+import '../../core/storage/user_storage_scope.dart';
 
 // ======================================================
 // CORE - DATABASE
@@ -244,6 +245,19 @@ SupabaseClient get supabaseClient {
 }
 
 // ======================================================
+// USER STORAGE SCOPE
+// ======================================================
+//
+// Única fonte de caminhos privados por conta.
+// Falha fechada quando não existe usuário autenticado.
+//
+// ======================================================
+
+final userStorageScope = UserStorageScope(
+  userIdProvider: () => supabaseClient.auth.currentUser?.id,
+);
+
+// ======================================================
 // REMOTE TABLES
 // ======================================================
 //
@@ -361,7 +375,9 @@ final syncService = SyncService(
 //
 // ======================================================
 
-const brainStorage = BrainStorage();
+final brainStorage = BrainStorage(
+  storageScope: userStorageScope,
+);
 
 final supabaseBrainService = SupabaseBrainService(client: supabaseClient);
 
@@ -409,7 +425,9 @@ final brainController = BrainController(repository: brainRepository);
 //
 // ======================================================
 
-const reviewStorage = ReviewStorage();
+final reviewStorage = ReviewStorage(
+  storageScope: userStorageScope,
+);
 
 // ======================================================
 // BRAIN MASTER KEY STORAGE
@@ -434,7 +452,9 @@ final brainKeyService = BrainKeyService(storage: brainKeyStorage);
 //
 // ======================================================
 
-final brainVaultStorage = BrainVaultStorage();
+final brainVaultStorage = BrainVaultStorage(
+  storageScope: userStorageScope,
+);
 
 // ======================================================
 // BRAIN VAULT
@@ -628,6 +648,7 @@ final accountDeletionService = AccountDeletionService(
   brainDeviceSecureStorage: brainDeviceSecureStorage,
   brainDataModeStorage: brainDataModeStorage,
   accountDeviceIdentityService: accountDeviceIdentityService,
+  userStorageScope: userStorageScope,
 );
 
 final brainDeviceCryptoService = BrainDeviceCryptoService();
@@ -939,7 +960,9 @@ final trainingActivityPlanDao = TrainingActivityPlanDao(database: appDatabase);
 
 final boardAttachmentDao = BoardAttachmentDao(database: appDatabase);
 
-const boardAttachmentStorage = BoardAttachmentStorage();
+final boardAttachmentStorage = BoardAttachmentStorage(
+  storageScope: userStorageScope,
+);
 
 final boardAttachmentService = BoardAttachmentService(
   storage: boardAttachmentStorage,
@@ -1918,6 +1941,7 @@ Future<void> initializeOfflineFirst() async {
     vaultService: brainVaultService,
     brainStorage: brainStorage,
     reviewStorage: reviewStorage,
+    storageScope: userStorageScope,
   );
 
   final brainReviewStartupMigrationService = BrainReviewStartupMigrationService(

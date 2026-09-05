@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
+import '../../../../core/storage/user_storage_scope.dart';
 
 import '../models/brain_migration_record.dart';
 import '../services/brain_object_link_service.dart';
@@ -43,20 +43,12 @@ class BrainMigrationRegistry
     implements
         BrainMigrationLinkStore {
   BrainMigrationRegistry({
-    Future<
-      Directory
-    >
-    Function()?
-    documentsDirectoryProvider,
-  }) : _documentsDirectoryProvider =
-           documentsDirectoryProvider ??
-           getApplicationDocumentsDirectory;
+    required UserStorageScope storageScope,
+  }) : _storageScope = storageScope;
 
   // ============================================================
   // CONSTANTS
   // ============================================================
-
-  static const String _rootDirectoryName = 'evrylux_brain';
 
   static const String _migrationDirectoryName = 'migration';
 
@@ -72,11 +64,7 @@ class BrainMigrationRegistry
   // DEPENDENCIES
   // ============================================================
 
-  final Future<
-    Directory
-  >
-  Function()
-  _documentsDirectoryProvider;
+  final UserStorageScope _storageScope;
 
   // ============================================================
   // STATE
@@ -88,6 +76,8 @@ class BrainMigrationRegistry
 
   bool _initialized = false;
 
+  String? _initializedUserId;
+
   // ============================================================
   // INITIALIZE
   // ============================================================
@@ -96,16 +86,23 @@ class BrainMigrationRegistry
     void
   >
   initialize() async {
-    if (_initialized) {
+    final currentUserId = _storageScope.userId;
+
+    if (_initialized && _initializedUserId == currentUserId) {
       return;
     }
 
-    final documentsDirectory = await _documentsDirectoryProvider();
+    final brainDirectory = await _storageScope.brainDirectory;
+
+    if (_storageScope.userId != currentUserId) {
+      throw StateError(
+        'A conta mudou durante a inicialização do BrainMigrationRegistry.',
+      );
+    }
 
     final rootDirectory = Directory(
       p.join(
-        documentsDirectory.path,
-        _rootDirectoryName,
+        brainDirectory.path,
         _migrationDirectoryName,
       ),
     );
@@ -126,6 +123,8 @@ class BrainMigrationRegistry
     _cachedRootDirectory = rootDirectory;
 
     _cachedRegistryFile = registryFile;
+
+    _initializedUserId = currentUserId;
 
     _initialized = true;
   }

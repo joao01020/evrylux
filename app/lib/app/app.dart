@@ -120,6 +120,8 @@ class _GhostAppState
 
   bool _authenticated = false;
 
+  String? _activeUserId;
+
   bool _isSigningOut = false;
 
   late final ProfileRepository _profileRepository;
@@ -194,9 +196,9 @@ class _GhostAppState
       _updateNotificationController.initialize(),
     );
 
-    _authenticated =
-        supabaseClient.auth.currentUser !=
-        null;
+    _activeUserId = supabaseClient.auth.currentUser?.id;
+
+    _authenticated = _activeUserId != null;
 
     // ==========================================================
     // AUTH LISTENER
@@ -206,9 +208,15 @@ class _GhostAppState
       (
         authState,
       ) {
-        final isAuthenticated =
-            authState.session?.user !=
-            null;
+        final newUserId = authState.session?.user.id;
+
+        final isAuthenticated = newUserId != null;
+
+        if (_activeUserId != newUserId) {
+          _activeUserId = newUserId;
+          brainController.resetForAccountChange();
+          reviewController.resetForAccountChange();
+        }
 
         if (mounted &&
             _authenticated !=

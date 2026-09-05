@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:EVRYLUX/core/storage/user_storage_scope.dart';
+
 import 'package:EVRYLUX/study/brain/security/keys/brain_key_service.dart';
 import 'package:EVRYLUX/study/brain/security/keys/brain_key_storage.dart';
 
@@ -29,7 +31,11 @@ main() {
           );
 
           storage = BrainVaultStorage(
-            documentsDirectoryProvider: () async => tempDirectory,
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => tempDirectory,
+              supportDirectoryProvider: () async => tempDirectory,
+            ),
           );
 
           keyService = BrainKeyService(
@@ -59,7 +65,7 @@ main() {
           await storage.initialize();
 
           final root = Directory(
-            '${tempDirectory.path}/evrylux_brain/vault',
+            '${tempDirectory.path}/evrylux/users/test-user/brain/vault',
           );
 
           final objects = Directory(
@@ -412,7 +418,7 @@ main() {
           );
 
           final root = Directory(
-            '${tempDirectory.path}/evrylux_brain/vault',
+            '${tempDirectory.path}/evrylux/users/test-user/brain/vault',
           );
 
           final entities = await root

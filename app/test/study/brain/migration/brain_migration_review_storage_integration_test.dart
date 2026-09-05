@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+
+import 'package:EVRYLUX/core/storage/user_storage_scope.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
 import 'package:EVRYLUX/study/brain/migration/models/brain_migration_status.dart';
@@ -78,9 +80,13 @@ main() {
             tempDirectory.path,
           );
 
-          brainStorage = const BrainStorage();
+          brainStorage = BrainStorage(
+            storageScope: UserStorageScope.fixed(userId: 'test-user'),
+          );
 
-          reviewStorage = const ReviewStorage();
+          reviewStorage = ReviewStorage(
+            storageScope: UserStorageScope.fixed(userId: 'test-user'),
+          );
 
           final keyStorage = InMemoryBrainKeyStorage();
 
@@ -89,7 +95,11 @@ main() {
           );
 
           final vaultStorage = BrainVaultStorage(
-            documentsDirectoryProvider: () async => tempDirectory,
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => tempDirectory,
+              supportDirectoryProvider: () async => tempDirectory,
+            ),
           );
 
           vaultService = BrainVaultService(
@@ -167,7 +177,11 @@ main() {
             vaultService: vaultService,
             brainStorage: brainStorage,
             reviewStorage: reviewStorage,
-            documentsDirectoryProvider: () async => tempDirectory,
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => tempDirectory,
+              supportDirectoryProvider: () async => tempDirectory,
+            ),
             now: () => currentTime,
           );
 
@@ -238,7 +252,11 @@ main() {
             vaultService: vaultService,
             brainStorage: brainStorage,
             reviewStorage: reviewStorage,
-            documentsDirectoryProvider: () async => tempDirectory,
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => tempDirectory,
+              supportDirectoryProvider: () async => tempDirectory,
+            ),
             now: () => currentTime,
           );
 
@@ -335,7 +353,11 @@ main() {
             vaultService: vaultService,
             brainStorage: brainStorage,
             reviewStorage: reviewStorage,
-            documentsDirectoryProvider: () async => tempDirectory,
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => tempDirectory,
+              supportDirectoryProvider: () async => tempDirectory,
+            ),
             now: () => currentTime,
           );
 
@@ -407,7 +429,11 @@ main() {
             vaultService: vaultService,
             brainStorage: brainStorage,
             reviewStorage: reviewStorage,
-            documentsDirectoryProvider: () async => tempDirectory,
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => tempDirectory,
+              supportDirectoryProvider: () async => tempDirectory,
+            ),
             now: () => currentTime,
           );
 
@@ -447,7 +473,11 @@ main() {
             vaultService: vaultService,
             brainStorage: brainStorage,
             reviewStorage: reviewStorage,
-            documentsDirectoryProvider: () async => tempDirectory,
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => tempDirectory,
+              supportDirectoryProvider: () async => tempDirectory,
+            ),
             now: () => currentTime,
           );
 
@@ -539,7 +569,11 @@ main() {
             vaultService: vaultService,
             brainStorage: brainStorage,
             reviewStorage: reviewStorage,
-            documentsDirectoryProvider: () async => tempDirectory,
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => tempDirectory,
+              supportDirectoryProvider: () async => tempDirectory,
+            ),
             now: () => currentTime,
           );
 
@@ -667,7 +701,11 @@ main() {
             vaultService: vaultService,
             brainStorage: brainStorage,
             reviewStorage: reviewStorage,
-            documentsDirectoryProvider: () async => tempDirectory,
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => tempDirectory,
+              supportDirectoryProvider: () async => tempDirectory,
+            ),
             now: () => currentTime,
           );
 

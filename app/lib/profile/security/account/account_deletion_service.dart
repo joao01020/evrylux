@@ -1,10 +1,10 @@
 import 'dart:io';
 
-import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/storage/user_storage_scope.dart';
 import '../../../study/brain/devices/security/brain_device_secure_storage.dart';
 import '../../../study/brain/security/keys/brain_key_storage.dart';
 import '../../../study/brain/settings/storage/brain_data_mode_storage.dart';
@@ -18,12 +18,14 @@ class AccountDeletionService {
     required BrainDeviceSecureStorage brainDeviceSecureStorage,
     required BrainDataModeStorage brainDataModeStorage,
     required AccountDeviceIdentityService accountDeviceIdentityService,
+    required UserStorageScope userStorageScope,
   })  : _client = client,
         _appDatabase = appDatabase,
         _brainKeyStorage = brainKeyStorage,
         _brainDeviceSecureStorage = brainDeviceSecureStorage,
         _brainDataModeStorage = brainDataModeStorage,
-        _accountDeviceIdentityService = accountDeviceIdentityService;
+        _accountDeviceIdentityService = accountDeviceIdentityService,
+        _userStorageScope = userStorageScope;
 
   final SupabaseClient _client;
   final AppDatabase _appDatabase;
@@ -31,6 +33,7 @@ class AccountDeletionService {
   final BrainDeviceSecureStorage _brainDeviceSecureStorage;
   final BrainDataModeStorage _brainDataModeStorage;
   final AccountDeviceIdentityService _accountDeviceIdentityService;
+  final UserStorageScope _userStorageScope;
 
   Future<void> deleteAllData({
     String? vaultId,
@@ -190,19 +193,15 @@ LIMIT 1
   }
 
   Future<void> _deleteManagedDirectories() async {
-    final documents = await getApplicationDocumentsDirectory();
+    // Remove somente os diretórios da conta atual. Nunca apaga a raiz
+    // compartilhada de outros usuários do mesmo computador.
+    final documentsRoot = await _userStorageScope.documentsRoot;
+    final supportRoot = await _userStorageScope.supportRoot;
 
-    final paths = <String>[
-      '${documents.path}/ghost_brain',
-      '${documents.path}/evrylux_brain',
-      '${documents.path}/evrylux/boards',
-    ];
-
-    for (final path in paths) {
-      final directory = Directory(
-        path,
-      );
-
+    for (final directory in <Directory>[
+      documentsRoot,
+      supportRoot,
+    ]) {
       if (await directory.exists()) {
         await directory.delete(
           recursive: true,

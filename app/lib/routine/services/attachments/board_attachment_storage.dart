@@ -1,35 +1,23 @@
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
+import '../../../core/storage/user_storage_scope.dart';
 
 import '../../models/attachments/board_attachment.dart';
 import '../../models/attachments/board_attachment_type.dart';
 
 class BoardAttachmentStorage {
-  const BoardAttachmentStorage();
+  const BoardAttachmentStorage({
+    required UserStorageScope storageScope,
+  }) : _storageScope = storageScope;
+
+  final UserStorageScope _storageScope;
 
   Future<
     Directory
   >
   _rootDirectory() async {
-    final documents = await getApplicationDocumentsDirectory();
-
-    final root = Directory(
-      p.join(
-        documents.path,
-        'evrylux',
-        'boards',
-      ),
-    );
-
-    if (!await root.exists()) {
-      await root.create(
-        recursive: true,
-      );
-    }
-
-    return root;
+    return _storageScope.boardsDirectory;
   }
 
   Future<

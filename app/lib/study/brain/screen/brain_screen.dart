@@ -80,7 +80,7 @@ class _BrainScreenState
   // CÉREBRO VISUAL — EVRYLUX
   // ============================================================
 
-  final BrainVisualStateStorage _brainVisualStateStorage = const BrainVisualStateStorage();
+  late final BrainVisualStateStorage _brainVisualStateStorage;
 
   BrainVisualController? _brainVisualController;
 
@@ -143,6 +143,10 @@ class _BrainScreenState
     // ========================================================
 
     _controller = dependencies.brainController;
+
+    _brainVisualStateStorage = BrainVisualStateStorage(
+      storageScope: dependencies.userStorageScope,
+    );
 
     _controller.addListener(
       _onControllerChanged,

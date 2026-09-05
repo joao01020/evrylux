@@ -2,19 +2,21 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
+import '../../../core/storage/user_storage_scope.dart';
 
 import '../models/brain_concept.dart';
 import '../models/brain_file.dart';
 
 class BrainStorage {
-  const BrainStorage();
+  const BrainStorage({
+    required UserStorageScope storageScope,
+  }) : _storageScope = storageScope;
+
+  final UserStorageScope _storageScope;
 
   // ============================================================
   // CONFIG
   // ============================================================
-
-  static const String _brainFolderName = 'ghost_brain';
 
   static const String _conceptsFolderName = '_concepts';
 
@@ -44,17 +46,7 @@ class BrainStorage {
     Directory
   >
   getBrainDirectory() async {
-    final documents = await getApplicationDocumentsDirectory();
-
-    final directory = Directory(
-      '${documents.path}/$_brainFolderName',
-    );
-
-    if (!await directory.exists()) {
-      await directory.create(
-        recursive: true,
-      );
-    }
+    final directory = await _storageScope.legacyBrainDirectory;
 
     await _ensureStorageStructure(
       directory,
@@ -200,17 +192,7 @@ class BrainStorage {
     void
   >
   clearAllLocalData() async {
-    final documents = await getApplicationDocumentsDirectory();
-
-    final root = Directory(
-      '${documents.path}/$_brainFolderName',
-    );
-
-    if (!await root.exists()) {
-      await root.create(
-        recursive: true,
-      );
-    }
+    final root = await _storageScope.legacyBrainDirectory;
 
     await _deleteAllChildren(
       root,

@@ -1,4 +1,4 @@
-import 'dart:io';
+import '../../../../core/storage/user_storage_scope.dart';
 
 import '../../services/brain_storage.dart';
 import '../../services/review_storage.dart';
@@ -64,21 +64,23 @@ class BrainMigrationFactory {
   >
   create({
     required BrainVaultService vaultService,
-    BrainStorage brainStorage = const BrainStorage(),
-    ReviewStorage reviewStorage = const ReviewStorage(),
-    Future<
-      Directory
-    >
-    Function()?
-    documentsDirectoryProvider,
+    BrainStorage? brainStorage,
+    ReviewStorage? reviewStorage,
+    required UserStorageScope storageScope,
     DateTime Function()? now,
   }) async {
+    final resolvedBrainStorage =
+        brainStorage ?? BrainStorage(storageScope: storageScope);
+
+    final resolvedReviewStorage =
+        reviewStorage ?? ReviewStorage(storageScope: storageScope);
+
     // ==========================================================
     // REGISTRY
     // ==========================================================
 
     final registry = BrainMigrationRegistry(
-      documentsDirectoryProvider: documentsDirectoryProvider,
+      storageScope: storageScope,
     );
 
     await registry.initialize();
@@ -122,9 +124,9 @@ class BrainMigrationFactory {
     // ==========================================================
 
     final coordinator = BrainMigrationCoordinator(
-      brainStorage: brainStorage,
+      brainStorage: resolvedBrainStorage,
       migrationService: legacyMigrationService,
-      reviewLoader: reviewStorage.loadReviews,
+      reviewLoader: resolvedReviewStorage.loadReviews,
       now: now,
     );
 
@@ -138,8 +140,8 @@ class BrainMigrationFactory {
       validationService: validationService,
       legacyMigrationService: legacyMigrationService,
       coordinator: coordinator,
-      brainStorage: brainStorage,
-      reviewStorage: reviewStorage,
+      brainStorage: resolvedBrainStorage,
+      reviewStorage: resolvedReviewStorage,
     );
   }
 }

@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:EVRYLUX/core/storage/user_storage_scope.dart';
+
 import 'package:EVRYLUX/study/brain/migration/models/brain_migration_record.dart';
 import 'package:EVRYLUX/study/brain/migration/models/brain_migration_status.dart';
 import 'package:EVRYLUX/study/brain/migration/storage/brain_migration_registry.dart';
@@ -26,7 +28,11 @@ main() {
           );
 
           registry = BrainMigrationRegistry(
-            documentsDirectoryProvider: () async => tempDirectory,
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => tempDirectory,
+              supportDirectoryProvider: () async => tempDirectory,
+            ),
           );
         },
       );
@@ -63,7 +69,7 @@ main() {
 
           expect(
             directory.path.endsWith(
-              'evrylux_brain/migration',
+              'evrylux/users/test-user/brain/migration',
             ),
             true,
           );

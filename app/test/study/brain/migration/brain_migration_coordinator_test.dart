@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+
+import 'package:EVRYLUX/core/storage/user_storage_scope.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
 import 'package:EVRYLUX/study/brain/migration/models/brain_migration_status.dart';
@@ -111,7 +113,9 @@ main() {
           // LEGACY STORAGE
           // ========================================================
 
-          brainStorage = const BrainStorage();
+          brainStorage = BrainStorage(
+            storageScope: UserStorageScope.fixed(userId: 'test-user'),
+          );
 
           // ========================================================
           // KEY SERVICE
@@ -126,7 +130,11 @@ main() {
           // ========================================================
 
           final vaultStorage = BrainVaultStorage(
-            documentsDirectoryProvider: () async => tempDirectory,
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => tempDirectory,
+              supportDirectoryProvider: () async => tempDirectory,
+            ),
           );
 
           // ========================================================
@@ -1061,7 +1069,9 @@ main() {
           // NOVA INSTÂNCIA
           // ========================================================
 
-          final reopenedStorage = const BrainStorage();
+          final reopenedStorage = BrainStorage(
+            storageScope: UserStorageScope.fixed(userId: 'test-user'),
+          );
 
           final directory = await reopenedStorage.getBrainDirectory();
 

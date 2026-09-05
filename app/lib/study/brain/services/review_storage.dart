@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
+import '../../../core/storage/user_storage_scope.dart';
 
 import '../models/brain_review_item.dart';
 
@@ -29,15 +29,16 @@ import '../models/brain_review_item.dart';
 // ============================================================
 
 class ReviewStorage {
-  static const String _brainFolderName = 'ghost_brain';
+  const ReviewStorage({
+    required UserStorageScope storageScope,
+  }) : _storageScope = storageScope;
 
-  static const String _reviewsFolderName = '_reviews';
+  final UserStorageScope _storageScope;
 
   static const String _reviewsFileName = 'reviews.json';
 
   static const String _temporaryFileName = 'reviews.tmp.json';
 
-  const ReviewStorage();
 
   // ============================================================
   // DIRETÓRIO PRINCIPAL
@@ -47,21 +48,7 @@ class ReviewStorage {
     Directory
   >
   getReviewsDirectory() async {
-    final documentsDirectory = await getApplicationDocumentsDirectory();
-
-    final directory = Directory(
-      '${documentsDirectory.path}/'
-      '$_brainFolderName/'
-      '$_reviewsFolderName',
-    );
-
-    if (!await directory.exists()) {
-      await directory.create(
-        recursive: true,
-      );
-    }
-
-    return directory;
+    return _storageScope.reviewsDirectory;
   }
 
   // ============================================================

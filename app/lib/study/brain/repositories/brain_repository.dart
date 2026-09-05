@@ -76,14 +76,14 @@ import '../vault/stores/brain_note_vault_store.dart';
 class BrainRepository {
   BrainRepository({
     SupabaseBrainService? remote,
-    BrainStorage? local,
+    required BrainStorage local,
     SyncQueue? syncQueue,
     SyncService? syncService,
     BrainNoteVaultStore? noteVaultStore,
     BrainConceptVaultStore? conceptVaultStore,
     BrainSyncQueueService? brainSyncQueueService,
   }) : _remote = remote ?? SupabaseBrainService(),
-       _local = local ?? const BrainStorage(),
+       _local = local,
        _legacySyncQueue = syncQueue,
        _legacySyncService = syncService,
        _noteVaultStore = noteVaultStore,

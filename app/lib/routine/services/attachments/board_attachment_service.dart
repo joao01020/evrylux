@@ -9,11 +9,9 @@ import 'board_attachment_storage.dart';
 
 class BoardAttachmentService {
   BoardAttachmentService({
-    BoardAttachmentStorage? storage,
+    required BoardAttachmentStorage storage,
     required SupabaseClient client,
-  }) : _storage =
-           storage ??
-           const BoardAttachmentStorage(),
+  }) : _storage = storage,
        _client = client;
 
   final BoardAttachmentStorage _storage;

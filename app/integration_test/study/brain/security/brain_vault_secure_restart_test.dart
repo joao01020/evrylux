@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+
+import 'package:EVRYLUX/core/storage/user_storage_scope.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'package:EVRYLUX/study/brain/security/exceptions/brain_crypto_exception.dart';
@@ -96,7 +98,11 @@ main() {
           );
 
           final firstVaultStorage = BrainVaultStorage(
-            documentsDirectoryProvider: () async => tempDirectory,
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => tempDirectory,
+              supportDirectoryProvider: () async => tempDirectory,
+            ),
           );
 
           final firstVaultService = BrainVaultService(
@@ -201,7 +207,11 @@ main() {
           );
 
           final secondVaultStorage = BrainVaultStorage(
-            documentsDirectoryProvider: () async => tempDirectory,
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => tempDirectory,
+              supportDirectoryProvider: () async => tempDirectory,
+            ),
           );
 
           final secondVaultService = BrainVaultService(
@@ -315,7 +325,11 @@ main() {
           );
 
           final vaultStorage = BrainVaultStorage(
-            documentsDirectoryProvider: () async => tempDirectory,
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => tempDirectory,
+              supportDirectoryProvider: () async => tempDirectory,
+            ),
           );
 
           final vaultService = BrainVaultService(
@@ -358,7 +372,11 @@ main() {
           );
 
           final reopenedVaultStorage = BrainVaultStorage(
-            documentsDirectoryProvider: () async => tempDirectory,
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => tempDirectory,
+              supportDirectoryProvider: () async => tempDirectory,
+            ),
           );
 
           final reopenedVaultService = BrainVaultService(
@@ -420,7 +438,11 @@ main() {
                 storage: storageA,
               ),
               storage: BrainVaultStorage(
-                documentsDirectoryProvider: () async => firstDirectory,
+                storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => firstDirectory,
+              supportDirectoryProvider: () async => firstDirectory,
+            ),
               ),
             );
 
@@ -437,7 +459,11 @@ main() {
                 storage: storageB,
               ),
               storage: BrainVaultStorage(
-                documentsDirectoryProvider: () async => secondDirectory,
+                storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => secondDirectory,
+              supportDirectoryProvider: () async => secondDirectory,
+            ),
               ),
             );
 

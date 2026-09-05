@@ -33,8 +33,8 @@ class BrainController extends ChangeNotifier {
 
   final BrainRepository _repository;
 
-  BrainController({BrainRepository? repository})
-    : _repository = repository ?? BrainRepository();
+  BrainController({required BrainRepository repository})
+    : _repository = repository;
 
   // ============================================================
   // CONTROLLERS DOS CAMPOS
@@ -154,6 +154,27 @@ class BrainController extends ChangeNotifier {
 
   String? get currentUserId {
     return _repository.currentUserId;
+  }
+
+
+  // ============================================================
+  // ACCOUNT SCOPE RESET
+  // ============================================================
+
+  void resetForAccountChange() {
+    _notes = <BrainFile>[];
+    _concepts = <BrainConcept>[];
+    _sources = <BrainSource>[];
+    _selectedNote = null;
+    _isInitialized = false;
+    _errorMessage = null;
+    _successMessage = null;
+
+    topicController.clear();
+    titleController.clear();
+    contentController.clear();
+
+    _safeNotifyListeners();
   }
 
   // ============================================================

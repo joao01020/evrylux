@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+
+import 'package:EVRYLUX/core/storage/user_storage_scope.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:EVRYLUX/core/sync/sync_queue.dart';
@@ -8,6 +10,7 @@ import 'package:EVRYLUX/core/sync/sync_queue.dart';
 import 'package:EVRYLUX/study/brain/models/brain_review_item.dart';
 
 import 'package:EVRYLUX/study/brain/repositories/review_repository.dart';
+import 'package:EVRYLUX/study/brain/services/review_storage.dart';
 
 import 'package:EVRYLUX/study/brain/security/keys/brain_key_service.dart';
 import 'package:EVRYLUX/study/brain/security/keys/brain_key_storage.dart';
@@ -140,7 +143,11 @@ main() {
         );
 
         vaultStorage = BrainVaultStorage(
-          documentsDirectoryProvider: () async => tempDirectory,
+          storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => tempDirectory,
+              supportDirectoryProvider: () async => tempDirectory,
+            ),
         );
 
         vaultService = BrainVaultService(
@@ -178,6 +185,13 @@ main() {
         return ReviewRepository(
           vaultStore: vaultStore,
           remote: remote,
+          local: ReviewStorage(
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => tempDirectory,
+              supportDirectoryProvider: () async => tempDirectory,
+            ),
+          ),
 
           // Dependência explícita do teste.
           //

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../app/dependencies/app_dependencies.dart' as dependencies;
+
 import '../../models/brain_concept.dart';
 import '../../repositories/brain_repository.dart';
 
@@ -24,7 +26,7 @@ class _ConceptScreenState
         State<
           ConceptScreen
         > {
-  final BrainRepository _repository = BrainRepository();
+  final BrainRepository _repository = dependencies.brainRepository;
 
   final TextEditingController _searchController = TextEditingController();
 

@@ -27,7 +27,7 @@ import '../models/study_day_summary.dart';
 class StudyDayService {
   StudyDayService({
     required this.repository,
-    this.brainStorage = const BrainStorage(),
+    required this.brainStorage,
   });
 
   final StudyRepository repository;

@@ -45,7 +45,7 @@ class BrainVaultService {
   BrainVaultService({
     required BrainKeyService keyService,
     BrainCryptoService? cryptoService,
-    BrainVaultStorage? storage,
+    required BrainVaultStorage storage,
     BrainVaultIdService? idService,
     BrainVaultSerializer? serializer,
   }) : _keyService =
@@ -59,9 +59,7 @@ class BrainVaultService {
        _serializer =
            serializer ??
            const BrainVaultSerializer(),
-       _storage =
-           storage ??
-           BrainVaultStorage();
+       _storage = storage;
 
   // ============================================================
   // DEPENDENCIES

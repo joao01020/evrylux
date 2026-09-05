@@ -1,8 +1,8 @@
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
+import '../../../../core/storage/user_storage_scope.dart';
 import '../models/brain_vault_manifest.dart';
 import '../models/brain_vault_object.dart';
 import '../services/brain_vault_id_service.dart';
@@ -27,48 +27,60 @@ import '../services/brain_vault_serializer.dart';
 // manifest.json
 // *.evobj
 //
+// IMPORTANTE:
+//
+// O armazenamento físico é obrigatoriamente isolado pela conta
+// atual através de UserStorageScope.
+//
+// Estrutura:
+//
+// Documents/
+//   evrylux/
+//     users/
+//       <user_id>/
+//         brain/
+//           vault/
+//             manifest.json
+//             objects/
+//               *.evobj
+//
+// Portanto:
+//
+// Conta A -> Vault A
+// Conta B -> Vault B
+//
+// Uma conta nunca deve compartilhar o diretório físico do Vault
+// com outra conta.
+//
 // ============================================================
 
 class BrainVaultStorage {
   BrainVaultStorage({
+    required UserStorageScope storageScope,
     BrainVaultSerializer? serializer,
     BrainVaultIdService? idService,
-    Future<
-      Directory
-    >
-    Function()?
-    documentsDirectoryProvider,
-  }) : _serializer =
+  }) : _storageScope =
+           storageScope,
+       _serializer =
            serializer ??
            const BrainVaultSerializer(),
        _idService =
            idService ??
-           BrainVaultIdService(),
-       _documentsDirectoryProvider =
-           documentsDirectoryProvider ??
-           getApplicationDocumentsDirectory;
+           BrainVaultIdService();
 
   // ============================================================
   // DEPENDENCIES
   // ============================================================
 
+  final UserStorageScope _storageScope;
+
   final BrainVaultSerializer _serializer;
 
   final BrainVaultIdService _idService;
 
-  final Future<
-    Directory
-  >
-  Function()
-  _documentsDirectoryProvider;
-
   // ============================================================
   // PATH CONSTANTS
   // ============================================================
-
-  static const String rootDirectoryName = 'evrylux_brain';
-
-  static const String vaultDirectoryName = 'vault';
 
   static const String objectsDirectoryName = 'objects';
 
@@ -85,6 +97,14 @@ class BrainVaultStorage {
   Directory? _vaultDirectory;
 
   Directory? _objectsDirectory;
+
+  // ============================================================
+  // USER
+  // ============================================================
+
+  String get userId {
+    return _storageScope.userId;
+  }
 
   // ============================================================
   // GETTERS
@@ -128,6 +148,16 @@ class BrainVaultStorage {
   // ============================================================
   // INITIALIZE
   // ============================================================
+  //
+  // O diretório base NÃO é mais obtido diretamente através de
+  // getApplicationDocumentsDirectory().
+  //
+  // UserStorageScope é a única fonte do caminho físico.
+  //
+  // Isso impede que duas contas autenticadas compartilhem o
+  // mesmo Vault local.
+  //
+  // ============================================================
 
   Future<
     void
@@ -137,21 +167,7 @@ class BrainVaultStorage {
       return;
     }
 
-    final documents = await _documentsDirectoryProvider();
-
-    final root = Directory(
-      p.join(
-        documents.path,
-        rootDirectoryName,
-      ),
-    );
-
-    final vault = Directory(
-      p.join(
-        root.path,
-        vaultDirectoryName,
-      ),
-    );
+    final vault = await _storageScope.vaultDirectory;
 
     final objects = Directory(
       p.join(
@@ -453,6 +469,31 @@ class BrainVaultStorage {
     final objects = await loadAllObjects();
 
     return objects.length;
+  }
+
+  // ============================================================
+  // DEBUG PATH
+  // ============================================================
+  //
+  // Útil durante os testes Conta A / Conta B.
+  //
+  // Nunca imprime:
+  //
+  // - Master Key;
+  // - conteúdo;
+  // - objetos;
+  //
+  // Apenas o caminho físico usado pelo Vault.
+  //
+  // ============================================================
+
+  Future<
+    String
+  >
+  getVaultDirectoryPath() async {
+    await initialize();
+
+    return vaultDirectory.path;
   }
 
   // ============================================================

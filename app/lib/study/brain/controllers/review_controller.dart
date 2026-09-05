@@ -80,6 +80,18 @@ class ReviewController extends ChangeNotifier {
     return List.unmodifiable(_reviews);
   }
 
+
+  // ============================================================
+  // ACCOUNT SCOPE RESET
+  // ============================================================
+
+  void resetForAccountChange() {
+    _reviews = <BrainReviewItem>[];
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+  }
+
   // ============================================================
   // ATIVAS
   // ============================================================

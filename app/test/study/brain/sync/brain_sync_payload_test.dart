@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:EVRYLUX/core/storage/user_storage_scope.dart';
+
 import 'package:EVRYLUX/study/brain/security/keys/brain_key_service.dart';
 import 'package:EVRYLUX/study/brain/security/keys/brain_key_storage.dart';
 import 'package:EVRYLUX/study/brain/vault/models/brain_vault_object_type.dart';
@@ -28,7 +30,11 @@ void main() {
       vaultService = BrainVaultService(
         keyService: keyService,
         storage: BrainVaultStorage(
-          documentsDirectoryProvider: () async => directory,
+          storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => directory,
+              supportDirectoryProvider: () async => directory,
+            ),
         ),
       );
 

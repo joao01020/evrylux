@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
+import '../../../core/storage/user_storage_scope.dart';
 
 import '../models/brain_growth_planner.dart';
 
@@ -54,13 +54,15 @@ class BrainVisualPersistedState {
 /// ============================================================
 
 class BrainVisualStateStorage {
-  const BrainVisualStateStorage();
+  const BrainVisualStateStorage({
+    required UserStorageScope storageScope,
+  }) : _storageScope = storageScope;
+
+  final UserStorageScope _storageScope;
 
   // ============================================================
   // FILE
   // ============================================================
-
-  static const String _folderName = 'evrylux_ui';
 
   static const String _fileName = 'brain_visual_state.json';
 
@@ -78,17 +80,7 @@ class BrainVisualStateStorage {
     File
   >
   _stateFile() async {
-    final root = await getApplicationSupportDirectory();
-
-    final directory = Directory(
-      '${root.path}/$_folderName',
-    );
-
-    if (!await directory.exists()) {
-      await directory.create(
-        recursive: true,
-      );
-    }
+    final directory = await _storageScope.uiDirectory;
 
     return File(
       '${directory.path}/$_fileName',

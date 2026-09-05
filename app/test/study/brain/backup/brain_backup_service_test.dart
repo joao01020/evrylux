@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:EVRYLUX/core/storage/user_storage_scope.dart';
+
 import 'package:EVRYLUX/study/brain/backup/services/brain_backup_service.dart';
 import 'package:EVRYLUX/study/brain/security/keys/brain_key_service.dart';
 import 'package:EVRYLUX/study/brain/security/keys/brain_key_storage.dart';
@@ -49,7 +51,11 @@ void main() {
       // ====================================================
 
       final sourceStorage = BrainVaultStorage(
-        documentsDirectoryProvider: () async => sourceDirectory,
+        storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => sourceDirectory,
+              supportDirectoryProvider: () async => sourceDirectory,
+            ),
       );
 
       final sourceVaultService = BrainVaultService(
@@ -117,7 +123,11 @@ void main() {
       // ====================================================
 
       final restoreStorage = BrainVaultStorage(
-        documentsDirectoryProvider: () async => restoreDirectory,
+        storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => restoreDirectory,
+              supportDirectoryProvider: () async => restoreDirectory,
+            ),
       );
 
       final restoreVaultService = BrainVaultService(
@@ -170,7 +180,11 @@ void main() {
 
     test('não sobrescreve versão local mais nova com backup antigo', () async {
       final sourceStorage = BrainVaultStorage(
-        documentsDirectoryProvider: () async => sourceDirectory,
+        storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => sourceDirectory,
+              supportDirectoryProvider: () async => sourceDirectory,
+            ),
       );
 
       final sourceVaultService = BrainVaultService(
@@ -195,7 +209,11 @@ void main() {
 
       // Cria no destino o mesmo Vault a partir do backup.
       final restoreStorage = BrainVaultStorage(
-        documentsDirectoryProvider: () async => restoreDirectory,
+        storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => restoreDirectory,
+              supportDirectoryProvider: () async => restoreDirectory,
+            ),
       );
 
       final restoreVaultService = BrainVaultService(

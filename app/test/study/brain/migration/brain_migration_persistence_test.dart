@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+
+import 'package:EVRYLUX/core/storage/user_storage_scope.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
 import 'package:EVRYLUX/study/brain/migration/models/brain_migration_status.dart';
@@ -97,7 +99,9 @@ main() {
           // LEGACY STORAGE
           // ========================================================
 
-          brainStorage = const BrainStorage();
+          brainStorage = BrainStorage(
+            storageScope: UserStorageScope.fixed(userId: 'test-user'),
+          );
 
           // ========================================================
           // KEY STORAGE
@@ -124,7 +128,11 @@ main() {
           // ========================================================
 
           final vaultStorage = BrainVaultStorage(
-            documentsDirectoryProvider: () async => tempDirectory,
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => tempDirectory,
+              supportDirectoryProvider: () async => tempDirectory,
+            ),
           );
 
           // ========================================================
@@ -181,7 +189,11 @@ main() {
           final runtime = await BrainMigrationFactory.create(
             vaultService: vaultService,
             brainStorage: brainStorage,
-            documentsDirectoryProvider: () async => tempDirectory,
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => tempDirectory,
+              supportDirectoryProvider: () async => tempDirectory,
+            ),
             now: () => currentTime,
           );
 
@@ -212,7 +224,11 @@ main() {
           final runtime = await BrainMigrationFactory.create(
             vaultService: vaultService,
             brainStorage: brainStorage,
-            documentsDirectoryProvider: () async => tempDirectory,
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => tempDirectory,
+              supportDirectoryProvider: () async => tempDirectory,
+            ),
             now: () => currentTime,
           );
 
@@ -302,7 +318,11 @@ main() {
           final firstRuntime = await BrainMigrationFactory.create(
             vaultService: vaultService,
             brainStorage: brainStorage,
-            documentsDirectoryProvider: () async => tempDirectory,
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => tempDirectory,
+              supportDirectoryProvider: () async => tempDirectory,
+            ),
             now: () => currentTime,
           );
 
@@ -371,7 +391,11 @@ main() {
           final secondRuntime = await BrainMigrationFactory.create(
             vaultService: vaultService,
             brainStorage: brainStorage,
-            documentsDirectoryProvider: () async => tempDirectory,
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => tempDirectory,
+              supportDirectoryProvider: () async => tempDirectory,
+            ),
             now: () => currentTime,
           );
 
@@ -429,7 +453,11 @@ main() {
           final firstRuntime = await BrainMigrationFactory.create(
             vaultService: vaultService,
             brainStorage: brainStorage,
-            documentsDirectoryProvider: () async => tempDirectory,
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => tempDirectory,
+              supportDirectoryProvider: () async => tempDirectory,
+            ),
             now: () => currentTime,
           );
 
@@ -468,7 +496,11 @@ main() {
           final secondRuntime = await BrainMigrationFactory.create(
             vaultService: vaultService,
             brainStorage: brainStorage,
-            documentsDirectoryProvider: () async => tempDirectory,
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => tempDirectory,
+              supportDirectoryProvider: () async => tempDirectory,
+            ),
             now: () => currentTime,
           );
 
@@ -542,7 +574,11 @@ main() {
           final runtime = await BrainMigrationFactory.create(
             vaultService: vaultService,
             brainStorage: brainStorage,
-            documentsDirectoryProvider: () async => tempDirectory,
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => tempDirectory,
+              supportDirectoryProvider: () async => tempDirectory,
+            ),
             now: () => currentTime,
           );
 
@@ -644,7 +680,11 @@ main() {
           final firstRuntime = await BrainMigrationFactory.create(
             vaultService: vaultService,
             brainStorage: brainStorage,
-            documentsDirectoryProvider: () async => tempDirectory,
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => tempDirectory,
+              supportDirectoryProvider: () async => tempDirectory,
+            ),
             now: () => currentTime,
           );
 
@@ -696,7 +736,11 @@ main() {
           final secondRuntime = await BrainMigrationFactory.create(
             vaultService: vaultService,
             brainStorage: brainStorage,
-            documentsDirectoryProvider: () async => tempDirectory,
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => tempDirectory,
+              supportDirectoryProvider: () async => tempDirectory,
+            ),
             now: () => currentTime,
           );
 
@@ -738,7 +782,11 @@ main() {
           final runtime = await BrainMigrationFactory.create(
             vaultService: vaultService,
             brainStorage: brainStorage,
-            documentsDirectoryProvider: () async => tempDirectory,
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => tempDirectory,
+              supportDirectoryProvider: () async => tempDirectory,
+            ),
             now: () => currentTime,
           );
 
@@ -761,7 +809,11 @@ main() {
           final reopenedRuntime = await BrainMigrationFactory.create(
             vaultService: vaultService,
             brainStorage: brainStorage,
-            documentsDirectoryProvider: () async => tempDirectory,
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => tempDirectory,
+              supportDirectoryProvider: () async => tempDirectory,
+            ),
             now: () => currentTime,
           );
 
