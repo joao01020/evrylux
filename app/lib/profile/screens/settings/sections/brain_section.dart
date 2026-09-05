@@ -158,13 +158,52 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
   }
 
   // ============================================================
-  // BRAIN VAULT
+  // PROTEÇÃO DO CÉREBRO
+  // ============================================================
+  //
+  // A interface principal evita termos técnicos como:
+  //
+  // - Vault;
+  // - Master Key;
+  // - E2EE;
+  // - versão da chave.
+  //
+  // Esses dados continuam disponíveis em "Detalhes técnicos",
+  // recolhidos por padrão, para diagnóstico e suporte.
+  //
   // ============================================================
 
   Widget _buildBrainVaultSection() {
-    final vaultId = _brainVaultId ?? 'Carregando...';
+    final vaultId = _brainVaultId;
 
-    final keyVersion = _brainKeyVersion?.toString() ?? '-';
+    final keyVersion = _brainKeyVersion;
+
+    final protectionReady =
+        vaultId != null &&
+        vaultId.trim().isNotEmpty &&
+        _brainMasterKeyAvailable;
+
+    final statusLabel = _loadingBrainSettings
+        ? 'Verificando...'
+        : protectionReady
+        ? 'Proteção ativa'
+        : 'Proteção precisa de atenção';
+
+    final statusGood = !_loadingBrainSettings && protectionReady;
+
+    final keyLabel = _loadingBrainSettings
+        ? 'Verificando...'
+        : _brainMasterKeyAvailable
+        ? 'Disponível neste dispositivo'
+        : 'Indisponível neste dispositivo';
+
+    final storageLabel = _brainCloudMode
+        ? 'Proteção automática na nuvem'
+        : 'Somente neste dispositivo';
+
+    final sectionDescription = _brainCloudMode
+        ? 'Seus dados ficam protegidos neste dispositivo e uma cópia criptografada pode ser mantida na nuvem.'
+        : 'Seus dados ficam protegidos neste dispositivo.';
 
     return Padding(
       padding: const EdgeInsets.all(14),
@@ -174,30 +213,33 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
           Row(
             children: [
               const Icon(
-                Icons.inventory_2_outlined,
+                Icons.shield_outlined,
                 size: 20,
                 color: _ProfileSettingsPageState._primaryDark,
               ),
 
               const SizedBox(width: 10),
 
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Vault',
+                    const Text(
+                      'Proteção do Cérebro',
                       style: TextStyle(
                         color: _ProfileSettingsPageState._text,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                    SizedBox(height: 2),
+
+                    const SizedBox(height: 2),
+
                     Text(
-                      'Identidade e estado criptográfico do seu Cérebro local.',
-                      style: TextStyle(
+                      sectionDescription,
+                      style: const TextStyle(
                         color: _ProfileSettingsPageState._muted,
                         fontSize: 11,
+                        height: 1.35,
                       ),
                     ),
                   ],
@@ -205,7 +247,7 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
               ),
 
               IconButton(
-                tooltip: 'Atualizar',
+                tooltip: 'Atualizar status de proteção',
                 onPressed: _loadingBrainSettings ? null : _loadBrainSettings,
                 icon: _loadingBrainSettings
                     ? const SizedBox(
@@ -218,29 +260,174 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
             ],
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
-          _BrainInfoRow(label: 'Vault ID', value: vaultId),
+          _buildBrainProtectionStatusRow(
+            icon: protectionReady
+                ? Icons.verified_user_outlined
+                : Icons.shield_outlined,
+            label: 'Status',
+            value: statusLabel,
+            good: statusGood,
+          ),
+
+          const SizedBox(height: 10),
+
+          _buildBrainProtectionStatusRow(
+            icon: Icons.key_rounded,
+            label: 'Chave de segurança',
+            value: keyLabel,
+            good: !_loadingBrainSettings && _brainMasterKeyAvailable,
+          ),
+
+          const SizedBox(height: 10),
+
+          _buildBrainProtectionStatusRow(
+            icon: _brainCloudMode
+                ? Icons.cloud_done_outlined
+                : Icons.laptop_rounded,
+            label: _brainCloudMode ? 'Proteção na nuvem' : 'Armazenamento',
+            value: storageLabel,
+            good: true,
+          ),
+
+          const SizedBox(height: 14),
+
+          _buildBrainTechnicalDetails(vaultId: vaultId, keyVersion: keyVersion),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // PROTECTION STATUS ROW
+  // ============================================================
+
+  Widget _buildBrainProtectionStatusRow({
+    required IconData icon,
+    required String label,
+    required String value,
+    required bool good,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: good
+            ? _ProfileSettingsPageState._primary.withValues(alpha: 0.38)
+            : _ProfileSettingsPageState._surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: good
+              ? _ProfileSettingsPageState._primaryDark.withValues(alpha: 0.18)
+              : _ProfileSettingsPageState._border,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 18,
+            color: good
+                ? _ProfileSettingsPageState._primaryDark
+                : _ProfileSettingsPageState._muted,
+          ),
+
+          const SizedBox(width: 10),
+
+          SizedBox(
+            width: 128,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: _ProfileSettingsPageState._muted,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                color: good
+                    ? _ProfileSettingsPageState._primaryDark
+                    : _ProfileSettingsPageState._text,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // TECHNICAL DETAILS
+  // ============================================================
+  //
+  // Mantém informações úteis para suporte/desenvolvimento sem
+  // deixá-las expostas na experiência principal.
+  //
+  // ============================================================
+
+  Widget _buildBrainTechnicalDetails({
+    required String? vaultId,
+    required int? keyVersion,
+  }) {
+    final safeVaultId = vaultId == null || vaultId.trim().isEmpty
+        ? 'Indisponível'
+        : vaultId;
+
+    final safeKeyVersion = keyVersion?.toString() ?? '-';
+
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: const EdgeInsets.only(top: 4, bottom: 2),
+        leading: const Icon(
+          Icons.tune_rounded,
+          size: 18,
+          color: _ProfileSettingsPageState._muted,
+        ),
+        title: const Text(
+          'Detalhes técnicos',
+          style: TextStyle(
+            color: _ProfileSettingsPageState._muted,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        subtitle: const Text(
+          'Informações úteis para diagnóstico e suporte.',
+          style: TextStyle(
+            color: _ProfileSettingsPageState._muted,
+            fontSize: 10,
+          ),
+        ),
+        children: [
+          _BrainInfoRow(label: 'Vault ID', value: safeVaultId),
 
           const SizedBox(height: 8),
 
-          _BrainInfoRow(label: 'Versão da chave', value: keyVersion),
+          _BrainInfoRow(label: 'Versão da chave', value: safeKeyVersion),
 
           const SizedBox(height: 8),
 
           _BrainInfoRow(
-            label: 'Master Key',
-            value: _brainMasterKeyAvailable
-                ? 'Disponível no secure storage'
-                : 'Indisponível',
+            label: 'Chave principal',
+            value: _brainMasterKeyAvailable ? 'Disponível' : 'Indisponível',
             good: _brainMasterKeyAvailable,
           ),
 
           const SizedBox(height: 8),
 
           _BrainInfoRow(
-            label: 'Sincronização',
-            value: _brainCloudMode ? 'Cloud E2EE' : 'Somente local',
+            label: 'Modo técnico',
+            value: _brainCloudMode ? 'Cloud E2EE' : 'Local',
             good: true,
           ),
         ],

@@ -681,6 +681,19 @@ class RoutineRemoteDataSource {
         'id',
       );
 
+      // --------------------------------------------------------
+      // IMPORTANTE:
+      //
+      // O ID pode existir apenas localmente. Nesse caso, um UPDATE
+      // remoto legítimo pode afetar 0 linhas. Não usamos maybeSingle()
+      // aqui porque o PostgREST pode responder PGRST116 ao tentar
+      // coercer uma resposta vazia para um único objeto.
+      //
+      // Em vez disso, pedimos uma lista e tratamos 0 linhas como
+      // "ainda não existe remotamente", permitindo o fallback por
+      // data e, se necessário, o INSERT logo abaixo.
+      // --------------------------------------------------------
+
       final response = await _client
           .from(
             _daysTable,
@@ -696,16 +709,14 @@ class RoutineRemoteDataSource {
             'user_id',
             userId,
           )
-          .select()
-          .maybeSingle();
+          .select();
 
-      if (response !=
-          null) {
+      if (response.isNotEmpty) {
         return Map<
           String,
           dynamic
         >.from(
-          response,
+          response.first,
         );
       }
     }

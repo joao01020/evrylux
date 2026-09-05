@@ -41,6 +41,7 @@ class BrainVisualEvent {
     required this.revision,
     this.growthResult,
     this.matchedBranchIndex,
+    this.matchedConnectionIndex,
   });
 
   final BrainVisualEventType type;
@@ -51,8 +52,16 @@ class BrainVisualEvent {
   /// semântico de uma ramificação.
   final BrainGrowthResult? growthResult;
 
-  /// Ramo associado a um resultado de pesquisa localizado.
+  /// Ramo semântico associado a um resultado de pesquisa localizado.
   final int? matchedBranchIndex;
+
+  /// Conexão legada exata associada ao arquivo encontrado.
+  ///
+  /// Enquanto a BrainScreen usa crescimento linear por BrainFile, cada
+  /// arquivo salvo corresponde exatamente a uma entrada de
+  /// BrainPaths.connections. Guardar este índice evita escolher um ramo
+  /// diferente por hash durante a pesquisa.
+  final int? matchedConnectionIndex;
 }
 
 // ============================================================
@@ -95,6 +104,8 @@ class BrainVisualController extends ChangeNotifier {
 
   int? _matchedBranchIndex;
 
+  int? _matchedConnectionIndex;
+
   // ============================================================
   // SEMANTIC GROWTH
   // ============================================================
@@ -131,6 +142,10 @@ class BrainVisualController extends ChangeNotifier {
     return _matchedBranchIndex;
   }
 
+  int? get matchedConnectionIndex {
+    return _matchedConnectionIndex;
+  }
+
   BrainGrowthState get growthState {
     return _growthState;
   }
@@ -163,6 +178,7 @@ class BrainVisualController extends ChangeNotifier {
     BrainVisualEventType type, {
     BrainGrowthResult? growthResult,
     int? matchedBranchIndex,
+    int? matchedConnectionIndex,
   }) {
     _revision += 1;
 
@@ -171,6 +187,7 @@ class BrainVisualController extends ChangeNotifier {
       revision: _revision,
       growthResult: growthResult,
       matchedBranchIndex: matchedBranchIndex,
+      matchedConnectionIndex: matchedConnectionIndex,
     );
 
     notifyListeners();
@@ -379,6 +396,7 @@ class BrainVisualController extends ChangeNotifier {
   void setSearching(bool value) {
     if (value) {
       _matchedBranchIndex = null;
+      _matchedConnectionIndex = null;
     }
 
     if (_isSearching == value) {
@@ -408,18 +426,30 @@ class BrainVisualController extends ChangeNotifier {
   //
   // ============================================================
 
-  void resolveSearch({required int branchIndex}) {
-    if (branchIndex < 0) {
+  void resolveSearch({int? branchIndex, int? connectionIndex}) {
+    final hasValidBranch = branchIndex != null && branchIndex >= 0;
+    final hasValidConnection = connectionIndex != null && connectionIndex >= 0;
+
+    if (!hasValidBranch && !hasValidConnection) {
       return;
     }
 
     _isSearching = false;
 
-    _matchedBranchIndex = branchIndex;
+    _matchedBranchIndex = hasValidBranch ? branchIndex : null;
+    _matchedConnectionIndex = hasValidConnection ? connectionIndex : null;
 
-    debugPrint('[BRAIN VISUAL] searchResolved branch=$branchIndex');
+    debugPrint(
+      '[BRAIN VISUAL] searchResolved '
+      'branch=$_matchedBranchIndex '
+      'connection=$_matchedConnectionIndex',
+    );
 
-    _emit(BrainVisualEventType.searchResolved, matchedBranchIndex: branchIndex);
+    _emit(
+      BrainVisualEventType.searchResolved,
+      matchedBranchIndex: _matchedBranchIndex,
+      matchedConnectionIndex: _matchedConnectionIndex,
+    );
   }
 
   // ============================================================
@@ -427,11 +457,12 @@ class BrainVisualController extends ChangeNotifier {
   // ============================================================
 
   void clearSearchMatch() {
-    if (_matchedBranchIndex == null) {
+    if (_matchedBranchIndex == null && _matchedConnectionIndex == null) {
       return;
     }
 
     _matchedBranchIndex = null;
+    _matchedConnectionIndex = null;
 
     notifyListeners();
   }
@@ -476,6 +507,7 @@ class BrainVisualController extends ChangeNotifier {
     _knowledgeCount = 0;
 
     _matchedBranchIndex = null;
+    _matchedConnectionIndex = null;
 
     _isSearching = false;
 

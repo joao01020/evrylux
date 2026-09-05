@@ -62,6 +62,7 @@ class EvolvingBrainPainter extends CustomPainter {
     // SEARCH RESULT
     // ==========================================================
     this.resolvedBranchIndex,
+    this.resolvedConnectionIndex,
     this.searchResolveProgress = 0,
     this.matchGlowProgress = 0,
   });
@@ -126,6 +127,9 @@ class EvolvingBrainPainter extends CustomPainter {
   // ============================================================
 
   final int? resolvedBranchIndex;
+
+  /// Conexão legada exata vinculada ao BrainFile encontrado.
+  final int? resolvedConnectionIndex;
 
   final double searchResolveProgress;
 
@@ -230,13 +234,21 @@ class EvolvingBrainPainter extends CustomPainter {
     // RESULTADO ENCONTRADO
     // ==========================================================
 
-    if (resolvedBranchIndex != null) {
+    if (resolvedBranchIndex != null || resolvedConnectionIndex != null) {
       if (matchGlowProgress > 0) {
-        _drawMatchedBranchGlow(canvas, size);
+        if (resolvedConnectionIndex != null) {
+          _drawMatchedConnectionGlow(canvas, size);
+        } else {
+          _drawMatchedBranchGlow(canvas, size);
+        }
       }
 
       if (searchResolveProgress > 0) {
-        _drawResolvedSearchPulse(canvas, size);
+        if (resolvedConnectionIndex != null) {
+          _drawResolvedConnectionPulse(canvas, size);
+        } else {
+          _drawResolvedSearchPulse(canvas, size);
+        }
       }
     }
   }
@@ -478,6 +490,164 @@ class EvolvingBrainPainter extends CustomPainter {
 
       _drawPulseOnPath(canvas, path, localProgress, intensity: fade);
     }
+  }
+
+  // ============================================================
+  // FINAL SEARCH PULSE — CONEXÃO EXATA
+  // ============================================================
+  //
+  // No fluxo legado cada BrainFile criado faz nascer exatamente uma
+  // entrada de BrainPaths.connections. Quando a busca local encontra
+  // esse arquivo, percorremos a MESMA Path que nasceu naquela posição,
+  // em vez de converter o resultado em um branchIndex por hash.
+  //
+  // ============================================================
+
+  void _drawResolvedConnectionPulse(Canvas canvas, Size size) {
+    final connectionIndex = resolvedConnectionIndex;
+
+    if (connectionIndex == null ||
+        connectionIndex < 0 ||
+        connectionIndex >= BrainPaths.connections.length) {
+      return;
+    }
+
+    final definition = BrainPaths.connections[connectionIndex];
+    final path = definition.build(size);
+    final progress = searchResolveProgress.clamp(0.0, 1.0);
+
+    _drawPulseOnPath(canvas, path, progress, intensity: 1);
+
+    final metrics = path.computeMetrics().toList();
+
+    if (metrics.isEmpty) {
+      return;
+    }
+
+    final metric = metrics.first;
+    final head = metric.length * progress;
+    final tail = math.max(0.0, head - (metric.length * 0.30));
+
+    if (head > tail) {
+      final electricPath = metric.extractPath(tail, head);
+
+      final electricPaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = config.connectionStrokeWidth * 1.85
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..color = pulseColor.withValues(alpha: 0.96)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.2);
+
+      canvas.drawPath(electricPath, electricPaint);
+    }
+
+    if (progress > 0.72) {
+      final tangent = metric.getTangentForOffset(metric.length);
+
+      if (tangent == null) {
+        return;
+      }
+
+      final impactProgress = ((progress - 0.72) / 0.28).clamp(0.0, 1.0);
+      final pulse = math.sin(impactProgress * math.pi);
+
+      final haloPaint = Paint()
+        ..style = PaintingStyle.fill
+        ..color = pulseColor.withValues(alpha: 0.42 * pulse)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
+
+      final ringPaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0
+        ..color = pulseColor.withValues(alpha: 0.82 * pulse);
+
+      canvas.drawCircle(
+        tangent.position,
+        config.pulseRadius * (3.0 + (impactProgress * 3.0)),
+        haloPaint,
+      );
+
+      canvas.drawCircle(
+        tangent.position,
+        config.pulseRadius * (1.4 + (impactProgress * 2.5)),
+        ringPaint,
+      );
+    }
+  }
+
+  // ============================================================
+  // MATCHED CONNECTION GLOW
+  // ============================================================
+
+  void _drawMatchedConnectionGlow(Canvas canvas, Size size) {
+    final connectionIndex = resolvedConnectionIndex;
+
+    if (connectionIndex == null ||
+        connectionIndex < 0 ||
+        connectionIndex >= BrainPaths.connections.length) {
+      return;
+    }
+
+    final glow = matchGlowProgress.clamp(0.0, 1.0);
+
+    if (glow <= 0) {
+      return;
+    }
+
+    final definition = BrainPaths.connections[connectionIndex];
+    final path = definition.build(size);
+
+    final haloPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = config.connectionStrokeWidth * 5.6
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..color = pulseColor.withValues(alpha: 0.34 * glow)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
+
+    final activeGlowPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = config.connectionStrokeWidth * 1.75
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..color = activeConnectionColor.withValues(alpha: 0.92 * glow);
+
+    canvas.drawPath(path, haloPaint);
+    canvas.drawPath(path, activeGlowPaint);
+
+    final metrics = path.computeMetrics().toList();
+
+    if (metrics.isEmpty) {
+      return;
+    }
+
+    final tangent = metrics.first.getTangentForOffset(metrics.first.length);
+
+    if (tangent == null) {
+      return;
+    }
+
+    final regionHaloPaint = Paint()
+      ..style = PaintingStyle.fill
+      ..color = pulseColor.withValues(alpha: 0.30 * glow)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 13);
+
+    final regionCorePaint = Paint()
+      ..style = PaintingStyle.fill
+      ..color = pulseColor.withValues(alpha: 0.82 * glow);
+
+    canvas.drawCircle(
+      tangent.position,
+      config.pulseRadius * 5.0,
+      regionHaloPaint,
+    );
+
+    canvas.drawCircle(
+      tangent.position,
+      config.pulseRadius * 1.15,
+      regionCorePaint,
+    );
   }
 
   // ============================================================
@@ -859,6 +1029,7 @@ class EvolvingBrainPainter extends CustomPainter {
         oldDelegate.searchPulseProgress != searchPulseProgress ||
         oldDelegate.isSearching != isSearching ||
         oldDelegate.resolvedBranchIndex != resolvedBranchIndex ||
+        oldDelegate.resolvedConnectionIndex != resolvedConnectionIndex ||
         oldDelegate.searchResolveProgress != searchResolveProgress ||
         oldDelegate.matchGlowProgress != matchGlowProgress ||
         // ======================================================

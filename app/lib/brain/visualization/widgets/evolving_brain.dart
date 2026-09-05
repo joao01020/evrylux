@@ -92,6 +92,8 @@ class _EvolvingBrainState extends State<EvolvingBrain>
 
   int? _resolvedBranchIndex;
 
+  int? _resolvedConnectionIndex;
+
   // ============================================================
   // EVENT STATE
   // ============================================================
@@ -272,6 +274,7 @@ class _EvolvingBrainState extends State<EvolvingBrain>
     _matchGlowController.stop();
 
     _resolvedBranchIndex = null;
+    _resolvedConnectionIndex = null;
 
     _growingConnectionIndex = null;
 
@@ -377,7 +380,12 @@ class _EvolvingBrainState extends State<EvolvingBrain>
           break;
 
         case BrainVisualEventType.searchResolved:
-          unawaited(_playSearchResolved(event.matchedBranchIndex));
+          unawaited(
+            _playSearchResolved(
+              branchIndex: event.matchedBranchIndex,
+              connectionIndex: event.matchedConnectionIndex,
+            ),
+          );
           break;
 
         // ======================================================
@@ -660,15 +668,28 @@ class _EvolvingBrainState extends State<EvolvingBrain>
   //
   // ============================================================
 
-  Future<void> _playSearchResolved(int? branchIndex) async {
-    if (branchIndex == null ||
-        branchIndex < 0 ||
-        branchIndex >= BrainPaths.mainBranchCount ||
-        _birthController.value < 1) {
+  Future<void> _playSearchResolved({
+    int? branchIndex,
+    int? connectionIndex,
+  }) async {
+    final validBranch =
+        branchIndex != null &&
+        branchIndex >= 0 &&
+        branchIndex < BrainPaths.mainBranchCount;
+
+    final validConnection =
+        connectionIndex != null &&
+        connectionIndex >= 0 &&
+        connectionIndex < BrainPaths.connections.length;
+
+    if ((!validBranch && !validConnection) || _birthController.value < 1) {
       return;
     }
 
-    debugPrint('[BRAIN VISUAL] Executando pulso final no ramo $branchIndex.');
+    debugPrint(
+      '[BRAIN VISUAL] Executando pulso final '
+      'branch=$branchIndex connection=$connectionIndex.',
+    );
 
     _searchController.stop();
 
@@ -678,7 +699,8 @@ class _EvolvingBrainState extends State<EvolvingBrain>
 
     if (mounted) {
       setState(() {
-        _resolvedBranchIndex = branchIndex;
+        _resolvedBranchIndex = validBranch ? branchIndex : null;
+        _resolvedConnectionIndex = validConnection ? connectionIndex : null;
       });
     }
 
@@ -712,6 +734,7 @@ class _EvolvingBrainState extends State<EvolvingBrain>
 
     setState(() {
       _resolvedBranchIndex = null;
+      _resolvedConnectionIndex = null;
     });
 
     _searchResolveController.value = 0;
@@ -899,6 +922,8 @@ class _EvolvingBrainState extends State<EvolvingBrain>
                 widget.controller.isSearching && _birthController.value >= 1,
 
             resolvedBranchIndex: _resolvedBranchIndex,
+
+            resolvedConnectionIndex: _resolvedConnectionIndex,
 
             searchResolveProgress: Curves.easeInOutCubic.transform(
               _searchResolveController.value,

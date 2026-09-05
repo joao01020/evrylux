@@ -8,6 +8,8 @@
 
 #include "flutter/generated_plugin_registrant.h"
 
+#include "evrylux_icon.h"
+
 // ============================================================
 // DESKTOP MULTI WINDOW
 // ============================================================
@@ -49,6 +51,70 @@ static void first_frame_cb(
 }
 
 // ============================================================
+// EVRYLUX WINDOW ICON
+// ============================================================
+//
+// O PNG fica embutido no binário. Assim o ícone funciona tanto
+// no flutter run quanto no bundle final, sem depender do diretório
+// atual de execução.
+//
+// ============================================================
+
+static void set_evrylux_window_icon(
+    GtkWindow *window)
+{
+  g_autoptr(GdkPixbufLoader) loader =
+      gdk_pixbuf_loader_new();
+
+  g_autoptr(GError) error =
+      nullptr;
+
+  if (!gdk_pixbuf_loader_write(
+          loader,
+          kEvryluxIconPng,
+          kEvryluxIconPngSize,
+          &error))
+  {
+    g_warning(
+        "Failed to load EVRYLUX icon: %s",
+        error != nullptr
+            ? error->message
+            : "unknown error");
+
+    return;
+  }
+
+  if (!gdk_pixbuf_loader_close(
+          loader,
+          &error))
+  {
+    g_warning(
+        "Failed to finalize EVRYLUX icon: %s",
+        error != nullptr
+            ? error->message
+            : "unknown error");
+
+    return;
+  }
+
+  GdkPixbuf *pixbuf =
+      gdk_pixbuf_loader_get_pixbuf(
+          loader);
+
+  if (pixbuf == nullptr)
+  {
+    g_warning(
+        "EVRYLUX icon pixbuf is null.");
+
+    return;
+  }
+
+  gtk_window_set_icon(
+      window,
+      pixbuf);
+}
+
+// ============================================================
 // APPLICATION ACTIVATE
 // ============================================================
 
@@ -66,6 +132,10 @@ static void my_application_activate(
       GTK_WINDOW(
           gtk_application_window_new(
               GTK_APPLICATION(application)));
+
+  // Ícone nativo da janela / taskbar.
+  set_evrylux_window_icon(
+      window);
 
   // ==========================================================
   // HEADER BAR
