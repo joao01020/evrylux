@@ -1,7 +1,8 @@
 part of '../../profile_settings_page.dart';
 
 extension _ProfileSettingsBrainSection
-    on _ProfileSettingsPageState {
+    on
+        _ProfileSettingsPageState {
   // BRAIN SETTINGS
   // ============================================================
 
@@ -323,7 +324,7 @@ extension _ProfileSettingsBrainSection
                   ),
                   Expanded(
                     child: Text(
-                      'Como funciona o Backup .evbrain',
+                      'Seu backup do Cérebro',
                     ),
                   ),
                 ],
@@ -337,9 +338,8 @@ extension _ProfileSettingsBrainSection
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'O arquivo .evbrain é um backup portátil do seu Vault. '
-                      'Ele permite manter uma cópia dos dados do Cérebro sem '
-                      'colocar a Master Key em plaintext dentro do arquivo.',
+                      'O arquivo .evbrain guarda uma cópia dos seus dados '
+                      'do Cérebro para você poder restaurá-los depois.',
                       style: TextStyle(
                         color: _ProfileSettingsPageState._text,
                         fontSize: 13,
@@ -348,45 +348,62 @@ extension _ProfileSettingsBrainSection
                       ),
                     ),
                     SizedBox(
-                      height: 14,
+                      height: 16,
                     ),
                     _BackupInfoStep(
                       number: '1',
-                      title: 'Exportar',
+                      title: 'Criar backup',
                       text:
-                          'Cria um arquivo .evbrain portátil com os dados '
-                          'do Vault preparados para backup.',
+                          'Gera um arquivo .evbrain com uma cópia dos seus '
+                          'dados do Cérebro.',
                     ),
                     SizedBox(
                       height: 10,
                     ),
                     _BackupInfoStep(
                       number: '2',
-                      title: 'Master Key protegida',
+                      title: 'Guardar',
                       text:
-                          'A Master Key não é colocada em plaintext dentro '
-                          'do arquivo de backup.',
+                          'Salve o arquivo .evbrain em um local seguro, '
+                          'como outro disco ou um armazenamento de sua confiança.',
                     ),
                     SizedBox(
                       height: 10,
                     ),
                     _BackupInfoStep(
                       number: '3',
-                      title: 'Importar',
+                      title: 'Restaurar',
                       text:
-                          'Permite restaurar um backup .evbrain compatível quando '
-                          'a Master Key correspondente ao Vault está disponível.',
+                          'Quando precisar, importe o arquivo .evbrain para '
+                          'recuperar os dados do seu Cérebro.',
                     ),
                     SizedBox(
-                      height: 10,
+                      height: 16,
                     ),
-                    _BackupInfoStep(
-                      number: '4',
-                      title: 'Backup e Recovery são diferentes',
-                      text:
-                          'O backup preserva os dados do Vault. O Recovery Device '
-                          'é o fluxo usado para recuperar o acesso criptográfico '
-                          'em outro dispositivo.',
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.lock_outline_rounded,
+                          size: 18,
+                          color: _ProfileSettingsPageState._primaryDark,
+                        ),
+                        SizedBox(
+                          width: 8,
+                        ),
+                        Expanded(
+                          child: Text(
+                            'Sua chave secreta não é incluída dentro do arquivo '
+                            'de backup.',
+                            style: TextStyle(
+                              color: _ProfileSettingsPageState._text,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     SizedBox(
                       height: 16,
@@ -441,7 +458,7 @@ extension _ProfileSettingsBrainSection
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text(
-                      'Backup .evbrain',
+                      'Backup do Cérebro',
                       style: TextStyle(
                         color: _ProfileSettingsPageState._text,
                         fontWeight: FontWeight.w900,
@@ -453,7 +470,7 @@ extension _ProfileSettingsBrainSection
                     ),
 
                     IconButton(
-                      tooltip: 'Como funciona o Backup .evbrain',
+                      tooltip: 'Como funciona o backup',
                       visualDensity: VisualDensity.compact,
                       constraints: const BoxConstraints(
                         minWidth: 28,
@@ -475,8 +492,7 @@ extension _ProfileSettingsBrainSection
                 ),
 
                 const Text(
-                  'Backup portátil criptografado do Vault. '
-                  'O arquivo não contém a Master Key em plaintext.',
+                  'Crie uma cópia dos seus dados para restaurar quando precisar.',
                   style: TextStyle(
                     color: _ProfileSettingsPageState._muted,
                     fontSize: 11,
@@ -508,8 +524,8 @@ extension _ProfileSettingsBrainSection
                   ),
             label: Text(
               _importingBrainBackup
-                  ? 'Importando...'
-                  : 'Importar',
+                  ? 'Restaurando...'
+                  : 'Restaurar',
             ),
           ),
 
@@ -535,8 +551,8 @@ extension _ProfileSettingsBrainSection
                   ),
             label: Text(
               _exportingBrainBackup
-                  ? 'Exportando...'
-                  : 'Exportar',
+                  ? 'Criando...'
+                  : 'Criar backup',
             ),
           ),
         ],
@@ -643,7 +659,7 @@ extension _ProfileSettingsBrainSection
 
                   Expanded(
                     child: Text(
-                      'Como funciona o Recovery Device',
+                      'Recuperar em outro dispositivo',
                     ),
                   ),
                 ],
@@ -657,9 +673,8 @@ extension _ProfileSettingsBrainSection
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'O Recovery Device permite recuperar o seu Cérebro '
-                      'em um novo dispositivo sem enviar a Master Key em '
-                      'texto puro.',
+                      'Use esta opção quando quiser acessar o seu Cérebro '
+                      'em um novo computador.',
                       style: TextStyle(
                         color: _ProfileSettingsPageState._text,
                         fontSize: 13,
@@ -669,15 +684,15 @@ extension _ProfileSettingsBrainSection
                     ),
 
                     SizedBox(
-                      height: 14,
+                      height: 16,
                     ),
 
                     _RecoveryInfoStep(
                       number: '1',
-                      title: 'Novo dispositivo',
+                      title: 'Solicite no novo dispositivo',
                       text:
-                          'O novo computador gera uma identidade criptográfica '
-                          'própria e solicita acesso ao Vault existente.',
+                          'No computador novo, abra o EVRYLUX e toque em '
+                          '"Solicitar" para pedir acesso ao seu Cérebro.',
                     ),
 
                     SizedBox(
@@ -686,10 +701,10 @@ extension _ProfileSettingsBrainSection
 
                     _RecoveryInfoStep(
                       number: '2',
-                      title: 'Aprovação',
+                      title: 'Vá até Segurança',
                       text:
-                          'Um dispositivo que já está autorizado precisa aprovar '
-                          'o novo computador.',
+                          'No dispositivo que já possui acesso, abra '
+                          'Segurança → Sessão e dispositivos → Gerenciar.',
                     ),
 
                     SizedBox(
@@ -698,10 +713,10 @@ extension _ProfileSettingsBrainSection
 
                     _RecoveryInfoStep(
                       number: '3',
-                      title: 'Fingerprint',
+                      title: 'Confira e aprove',
                       text:
-                          'Antes da aprovação, compare o fingerprint mostrado '
-                          'nos dois dispositivos. Eles precisam ser idênticos.',
+                          'Encontre o novo dispositivo na lista, confira se '
+                          'ele é realmente seu e aprove a solicitação.',
                     ),
 
                     SizedBox(
@@ -710,11 +725,10 @@ extension _ProfileSettingsBrainSection
 
                     _RecoveryInfoStep(
                       number: '4',
-                      title: 'Master Key protegida',
+                      title: 'Conclua no novo dispositivo',
                       text:
-                          'A Master Key é transferida somente dentro de um '
-                          'envelope criptografado E2EE e depois armazenada '
-                          'localmente no secure storage do novo dispositivo.',
+                          'Volte ao computador novo e toque em "Concluir". '
+                          'Depois disso, ele poderá acessar o seu Cérebro.',
                     ),
 
                     SizedBox(
@@ -778,7 +792,7 @@ extension _ProfileSettingsBrainSection
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text(
-                      'Recovery Device',
+                      'Recuperar em outro dispositivo',
                       style: TextStyle(
                         color: _ProfileSettingsPageState._text,
                         fontWeight: FontWeight.w900,
@@ -790,7 +804,7 @@ extension _ProfileSettingsBrainSection
                     ),
 
                     IconButton(
-                      tooltip: 'Como funciona o Recovery Device',
+                      tooltip: 'Como recuperar em outro dispositivo',
                       visualDensity: VisualDensity.compact,
                       constraints: const BoxConstraints(
                         minWidth: 28,
@@ -813,13 +827,12 @@ extension _ProfileSettingsBrainSection
 
                 Text(
                   alreadyHasAccess
-                      ? 'Este dispositivo já possui a Master Key. '
-                            'Para recuperar outro computador, aprove o '
-                            'dispositivo pendente na lista acima após conferir '
-                            'o fingerprint.'
-                      : 'Recupere este Cérebro usando um dispositivo que '
-                            'já esteja autorizado. A Master Key é transportada '
-                            'somente dentro de um envelope E2EE.',
+                      ? 'Este dispositivo já possui acesso ao seu Cérebro. '
+                            'Para autorizar outro, vá em Segurança → '
+                            'Sessão e dispositivos → Gerenciar.'
+                      : 'Solicite acesso neste dispositivo e aprove a '
+                            'solicitação em um dispositivo que já esteja '
+                            'autorizado.',
                   style: const TextStyle(
                     color: _ProfileSettingsPageState._muted,
                     fontSize: 11,
