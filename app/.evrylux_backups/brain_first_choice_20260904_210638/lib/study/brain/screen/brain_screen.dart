@@ -242,9 +242,6 @@ class _BrainScreenState extends State<BrainScreen> {
   // ============================================================
 
   Future<void> _ensureFirstBrainDataModeChoice() async {
-    // A leitura é feita diretamente do storage de preferência.
-    // O service pode operar em Local como fail-safe antes da escolha,
-    // mas isso não conta como uma decisão persistida do usuário.
     final storedMode = await dependencies.brainDataModeStorage.load();
 
     if (!mounted || storedMode != null) {
@@ -257,109 +254,99 @@ class _BrainScreenState extends State<BrainScreen> {
       builder: (dialogContext) {
         final scheme = Theme.of(dialogContext).colorScheme;
 
-        return PopScope(
-          canPop: false,
-          child: AlertDialog(
-            title: const Text('Como você quer proteger seus dados?'),
-            content: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 560),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: scheme.primary.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: scheme.primary.withValues(alpha: 0.28),
-                      ),
+        return AlertDialog(
+          title: const Text('Como você quer proteger seus dados?'),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: scheme.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: scheme.primary.withValues(alpha: 0.28),
                     ),
-                    child: const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.cloud_done_outlined),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Cloud  •  Recomendado',
-                                style: TextStyle(fontWeight: FontWeight.w800),
-                              ),
+                  ),
+                  child: const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.cloud_done_outlined),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Cloud  •  Recomendado',
+                              style: TextStyle(fontWeight: FontWeight.w800),
                             ),
-                          ],
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Seus dados continuam neste dispositivo e uma '
-                          'cópia criptografada é mantida automaticamente '
-                          'na nuvem. Se trocar ou perder o computador, '
-                          'você poderá recuperar o seu Cérebro.',
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: Theme.of(dialogContext).dividerColor,
+                          ),
+                        ],
                       ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Seus dados continuam neste dispositivo e uma cópia criptografada é mantida automaticamente na nuvem. Se trocar ou perder o computador, você poderá recuperar o seu Cérebro.',
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Theme.of(dialogContext).dividerColor,
                     ),
-                    child: const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.laptop_rounded),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Somente local',
-                                style: TextStyle(fontWeight: FontWeight.w800),
-                              ),
+                  ),
+                  child: const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.laptop_rounded),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Somente local',
+                              style: TextStyle(fontWeight: FontWeight.w800),
                             ),
-                          ],
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Seus dados ficam somente neste dispositivo. '
-                          'Nada novo do Cérebro é enviado para a nuvem '
-                          'e você será responsável por manter seus '
-                          'próprios backups.',
-                        ),
-                      ],
-                    ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Seus dados ficam somente neste dispositivo. Nada novo do Cérebro é enviado para a nuvem e você será responsável por manter seus próprios backups.',
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Você poderá mudar isso depois em '
-                    'Perfil e configurações → Cérebro.',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Você poderá mudar isso depois em Perfil e configurações → Cérebro.',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(dialogContext).pop(BrainDataMode.local);
-                },
-                child: const Text('Somente local'),
-              ),
-              FilledButton.tonalIcon(
-                onPressed: () {
-                  Navigator.of(dialogContext).pop(BrainDataMode.cloud);
-                },
-                icon: const Icon(Icons.cloud_done_outlined),
-                label: const Text('Usar Cloud'),
-              ),
-            ],
           ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(BrainDataMode.local);
+              },
+              child: const Text('Somente local'),
+            ),
+            FilledButton.tonalIcon(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(BrainDataMode.cloud);
+              },
+              icon: const Icon(Icons.cloud_done_outlined),
+              label: const Text('Usar Cloud'),
+            ),
+          ],
         );
       },
     );
@@ -394,23 +381,19 @@ class _BrainScreenState extends State<BrainScreen> {
 
       if (result.isPending) {
         _showMessage(
-          'Cloud ativado. Este dispositivo ainda precisa ser autorizado '
-          'para concluir a proteção na nuvem.',
+          'Cloud ativado. Este dispositivo ainda precisa ser autorizado para concluir a proteção na nuvem.',
         );
       } else if (result.deviceRegistrationError != null) {
         _showMessage(
-          'Cloud ativado. A proteção será concluída automaticamente '
-          'quando houver conexão.',
+          'Cloud ativado. A proteção será concluída automaticamente quando houver conexão.',
         );
       } else {
         _showMessage(
-          'Cloud ativado. Seus dados continuam locais e uma cópia '
-          'criptografada será mantida na nuvem.',
+          'Cloud ativado. Seus dados continuam locais e uma cópia criptografada será mantida na nuvem.',
         );
       }
     } catch (error, stackTrace) {
       debugPrint('[BRAIN DATA MODE] Primeira escolha falhou: $error');
-
       debugPrintStack(stackTrace: stackTrace);
 
       if (!mounted) {

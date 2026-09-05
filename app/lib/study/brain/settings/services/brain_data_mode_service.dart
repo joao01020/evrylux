@@ -5,26 +5,11 @@ import '../storage/brain_data_mode_storage.dart';
 // BRAIN DATA MODE SERVICE
 // ============================================================
 //
-// Fonte de verdade da decisão:
+// Fonte de verdade operacional da decisão LOCAL / CLOUD.
 //
-// LOCAL
-// ou
-// CLOUD
-//
-// IMPORTANTE:
-//
-// Esta Fase 05 NÃO implementa o sync E2EE.
-//
-// Ela somente define o gate:
-//
-// local
-//   -> Brain não pode sincronizar.
-//
-// cloud
-//   -> Brain pode entrar no fluxo de sync E2EE da Fase 06.
-//
-// Nunca interpretar "cloud" como autorização para enviar
-// plaintext.
+// A preferência persistida pode ser isolada por conta. Por isso
+// este serviço também conhece um identificador de scope e invalida
+// seu cache quando o usuário autenticado muda.
 //
 // ============================================================
 
@@ -32,28 +17,62 @@ class BrainDataModeService {
   BrainDataModeService({
     required BrainDataModeStorage storage,
     BrainDataMode defaultMode = BrainDataMode.local,
+    String? Function()? scopeProvider,
   }) : _storage = storage,
-       _defaultMode = defaultMode;
+       _defaultMode = defaultMode,
+       _scopeProvider = scopeProvider;
 
   final BrainDataModeStorage _storage;
 
   final BrainDataMode _defaultMode;
 
+  final String? Function()? _scopeProvider;
+
   BrainDataMode? _currentMode;
 
   bool _initialized = false;
+
+  String? _initializedScope;
+
+  // ============================================================
+  // SCOPE
+  // ============================================================
+
+  String? get _currentScope {
+    final raw = _scopeProvider?.call()?.trim();
+
+    if (raw ==
+            null ||
+        raw.isEmpty) {
+      return null;
+    }
+
+    return raw;
+  }
+
+  bool get isInitializedForCurrentScope {
+    return _initialized &&
+        _currentMode !=
+            null &&
+        _initializedScope ==
+            _currentScope;
+  }
 
   // ============================================================
   // STATE
   // ============================================================
 
   bool get isInitialized {
-    return _initialized;
+    return isInitializedForCurrentScope;
   }
 
   BrainDataMode get currentMode {
-    if (!_initialized || _currentMode == null) {
-      throw StateError('BrainDataModeService ainda não foi inicializado.');
+    if (!isInitializedForCurrentScope ||
+        _currentMode ==
+            null) {
+      throw StateError(
+        'BrainDataModeService ainda não foi inicializado para a conta atual.',
+      );
     }
 
     return _currentMode!;
@@ -75,15 +94,29 @@ class BrainDataModeService {
   // INITIALIZE
   // ============================================================
 
-  Future<BrainDataMode> initialize() async {
-    if (_initialized && _currentMode != null) {
+  Future<
+    BrainDataMode
+  >
+  initialize() async {
+    final scope = _currentScope;
+
+    if (isInitializedForCurrentScope &&
+        _currentMode !=
+            null) {
       return _currentMode!;
     }
 
     final stored = await _storage.load();
 
-    _currentMode = stored ?? _defaultMode;
+    // O default Local é apenas fail-safe operacional.
+    // Ele NÃO é salvo automaticamente. Assim, quando não existe
+    // escolha persistida, a BrainScreen ainda pode detectar null
+    // no storage e mostrar o modal obrigatório de primeira escolha.
+    _currentMode =
+        stored ??
+        _defaultMode;
 
+    _initializedScope = scope;
     _initialized = true;
 
     return _currentMode!;
@@ -93,41 +126,64 @@ class BrainDataModeService {
   // SET MODE
   // ============================================================
 
-  Future<BrainDataMode> setMode(BrainDataMode mode) async {
-    await _storage.save(mode);
+  Future<
+    BrainDataMode
+  >
+  setMode(
+    BrainDataMode mode,
+  ) async {
+    await _storage.save(
+      mode,
+    );
 
     _currentMode = mode;
+    _initializedScope = _currentScope;
     _initialized = true;
 
     return mode;
   }
 
   // ============================================================
-  // LOCAL
+  // LOCAL / CLOUD
   // ============================================================
 
-  Future<BrainDataMode> useLocalMode() {
-    return setMode(BrainDataMode.local);
+  Future<
+    BrainDataMode
+  >
+  useLocalMode() {
+    return setMode(
+      BrainDataMode.local,
+    );
   }
 
-  // ============================================================
-  // CLOUD
-  // ============================================================
-
-  Future<BrainDataMode> useCloudMode() {
-    return setMode(BrainDataMode.cloud);
+  Future<
+    BrainDataMode
+  >
+  useCloudMode() {
+    return setMode(
+      BrainDataMode.cloud,
+    );
   }
 
   // ============================================================
   // CLOUD SYNC GATE
   // ============================================================
 
-  bool canUseCloudSync({required bool isAuthenticated}) {
+  bool canUseCloudSync({
+    required bool isAuthenticated,
+  }) {
+    // Se a conta mudou e o serviço ainda não foi inicializado
+    // para o novo scope, falha fechado: nada de Cloud.
+    if (!isInitializedForCurrentScope) {
+      return false;
+    }
+
     if (!allowsCloudSync) {
       return false;
     }
 
-    if (requiresAuthentication && !isAuthenticated) {
+    if (requiresAuthentication &&
+        !isAuthenticated) {
       return false;
     }
 
@@ -138,10 +194,14 @@ class BrainDataModeService {
   // RESET
   // ============================================================
 
-  Future<BrainDataMode> reset() async {
+  Future<
+    BrainDataMode
+  >
+  reset() async {
     await _storage.clear();
 
     _currentMode = _defaultMode;
+    _initializedScope = _currentScope;
     _initialized = true;
 
     return _currentMode!;

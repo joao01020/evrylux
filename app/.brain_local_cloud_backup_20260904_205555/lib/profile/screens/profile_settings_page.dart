@@ -35,7 +35,6 @@ import 'legal/terms_of_use_page.dart';
 part 'settings/actions/preferences_actions.dart';
 part 'settings/actions/security_actions.dart';
 part 'settings/actions/brain_actions.dart';
-part 'settings/actions/brain_mode_actions.dart';
 part 'settings/sections/profile_settings_shell.dart';
 part 'settings/sections/security_section.dart';
 part 'settings/sections/brain_section.dart';
@@ -124,8 +123,6 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   bool _loadingBrainSettings = false;
 
   bool _switchingBrainMode = false;
-
-  String? _brainModeProgressText;
 
   bool _brainCloudMode = false;
 

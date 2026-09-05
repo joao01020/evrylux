@@ -81,9 +81,7 @@ class BrainSyncQueueService {
   //
   // ============================================================
 
-  Future<int> enqueueAllVaultObjects({
-    void Function(int completed, int total)? onProgress,
-  }) async {
+  Future<int> enqueueAllVaultObjects() async {
     await _ensureModeInitialized();
 
     if (!_dataModeService.allowsCloudSync) {
@@ -92,12 +90,7 @@ class BrainSyncQueueService {
 
     final objects = await _vaultService.loadAllEncryptedObjects();
 
-    final total = objects.length;
-
-    onProgress?.call(0, total);
-
     var enqueued = 0;
-    var completed = 0;
 
     for (final object in objects) {
       final didEnqueue = await enqueueObject(object);
@@ -105,10 +98,6 @@ class BrainSyncQueueService {
       if (didEnqueue) {
         enqueued++;
       }
-
-      completed++;
-
-      onProgress?.call(completed, total);
     }
 
     return enqueued;

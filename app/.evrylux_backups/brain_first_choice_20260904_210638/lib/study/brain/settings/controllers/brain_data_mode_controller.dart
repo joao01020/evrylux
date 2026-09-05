@@ -6,6 +6,25 @@ import '../services/brain_data_mode_service.dart';
 // ============================================================
 // BRAIN DATA MODE CONTROLLER
 // ============================================================
+//
+// Controller de apresentação para futuras telas de Settings.
+//
+// Não conhece:
+//
+// - Supabase;
+// - SyncQueue;
+// - Vault internals;
+// - Master Key.
+//
+// A Fase 06 poderá consultar:
+//
+// controller/service
+//        ↓
+// canUseCloudSync(...)
+//        ↓
+// somente então enfileirar ciphertext.
+//
+// ============================================================
 
 class BrainDataModeController extends ChangeNotifier {
   BrainDataModeController({required BrainDataModeService service})
@@ -37,15 +56,11 @@ class BrainDataModeController extends ChangeNotifier {
   }
 
   BrainDataMode? get mode {
-    if (!_service.isInitializedForCurrentScope) {
-      return null;
-    }
-
     return _mode;
   }
 
   bool get isInitialized {
-    return _service.isInitializedForCurrentScope && _mode != null;
+    return _mode != null;
   }
 
   String? get errorMessage {
@@ -53,15 +68,15 @@ class BrainDataModeController extends ChangeNotifier {
   }
 
   bool get isLocalMode {
-    return mode == BrainDataMode.local;
+    return _mode == BrainDataMode.local;
   }
 
   bool get isCloudMode {
-    return mode == BrainDataMode.cloud;
+    return _mode == BrainDataMode.cloud;
   }
 
   bool get allowsCloudSync {
-    return mode?.allowsCloudSync ?? false;
+    return _mode?.allowsCloudSync ?? false;
   }
 
   // ============================================================
@@ -73,9 +88,10 @@ class BrainDataModeController extends ChangeNotifier {
       return;
     }
 
-    // Não fazemos early-return apenas porque _mode já tem valor.
-    // O usuário autenticado pode ter mudado. O service decide se
-    // o cache ainda pertence ao scope atual.
+    if (_mode != null) {
+      return;
+    }
+
     _isLoading = true;
     _errorMessage = null;
 
@@ -84,8 +100,6 @@ class BrainDataModeController extends ChangeNotifier {
     try {
       _mode = await _service.initialize();
     } catch (error) {
-      _mode = null;
-
       _errorMessage = 'Não foi possível carregar o modo de dados do Cérebro.';
 
       debugPrint('[BRAIN DATA MODE] Erro ao inicializar: $error');
@@ -105,9 +119,7 @@ class BrainDataModeController extends ChangeNotifier {
       return false;
     }
 
-    // Mesmo valor só pode retornar imediatamente se a instância
-    // estiver inicializada para a conta atual.
-    if (isInitialized && _mode == mode) {
+    if (_mode == mode) {
       return true;
     }
 
@@ -150,7 +162,7 @@ class BrainDataModeController extends ChangeNotifier {
   // ============================================================
 
   bool canUseCloudSync({required bool isAuthenticated}) {
-    if (!isInitialized) {
+    if (_mode == null) {
       return false;
     }
 

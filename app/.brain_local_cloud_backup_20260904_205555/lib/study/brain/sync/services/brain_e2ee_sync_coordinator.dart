@@ -157,14 +157,21 @@ class BrainE2eeSyncCoordinator {
 
         pullSucceeded = true;
 
-        debugPrint('[BRAIN E2EE] Pull: $pullResult');
-      } catch (error, stackTrace) {
+        debugPrint(
+          '[BRAIN E2EE] Pull: $pullResult',
+        );
+      } catch (
+        error,
+        stackTrace
+      ) {
         debugPrint(
           '[BRAIN E2EE] '
           'Pull indisponível; mantendo estado local: $error',
         );
 
-        debugPrintStack(stackTrace: stackTrace);
+        debugPrintStack(
+          stackTrace: stackTrace,
+        );
       }
     } else {
       debugPrint(
@@ -262,7 +269,8 @@ class BrainE2eeSyncCoordinator {
       return true;
     }
 
-    if (!pullSucceeded || pullResult == null) {
+    if (!pullSucceeded ||
+        pullResult == null) {
       return true;
     }
 
@@ -319,16 +327,23 @@ class BrainE2eeSyncCoordinator {
     try {
       final result = await _pullService.pullCurrentVault();
 
-      debugPrint('[BRAIN E2EE] Pull manual: $result');
+      debugPrint(
+        '[BRAIN E2EE] Pull manual: $result',
+      );
 
       return result;
-    } catch (error, stackTrace) {
+    } catch (
+      error,
+      stackTrace
+    ) {
       debugPrint(
         '[BRAIN E2EE] '
         'Pull manual indisponível; mantendo estado local: $error',
       );
 
-      debugPrintStack(stackTrace: stackTrace);
+      debugPrintStack(
+        stackTrace: stackTrace,
+      );
 
       return null;
     }
@@ -352,10 +367,8 @@ class BrainE2eeSyncCoordinator {
   //
   // ============================================================
 
-  Future<int> queueAllLocal({
-    void Function(int completed, int total)? onProgress,
-  }) {
-    return _queueService.enqueueAllVaultObjects(onProgress: onProgress);
+  Future<int> queueAllLocal() {
+    return _queueService.enqueueAllVaultObjects();
   }
 
   // ============================================================
@@ -372,13 +385,18 @@ class BrainE2eeSyncCoordinator {
   Future<bool> _safeCanUseCloudOperations() async {
     try {
       return await _canUseCloudOperations();
-    } catch (error, stackTrace) {
+    } catch (
+      error,
+      stackTrace
+    ) {
       debugPrint(
         '[BRAIN E2EE] '
         'Gate Cloud indisponível; acesso remoto bloqueado: $error',
       );
 
-      debugPrintStack(stackTrace: stackTrace);
+      debugPrintStack(
+        stackTrace: stackTrace,
+      );
 
       return false;
     }

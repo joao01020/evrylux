@@ -471,23 +471,10 @@ final brainConceptVaultStore = BrainConceptVaultStore(
 // BRAIN DATA MODE — FASE 05
 // ======================================================
 
-String? _brainDataModeScope() {
-  final userId = supabaseClient.auth.currentUser?.id.trim();
-
-  if (userId == null || userId.isEmpty) {
-    return null;
-  }
-
-  return userId;
-}
-
-final brainDataModeStorage = SharedPreferencesBrainDataModeStorage(
-  scopeProvider: _brainDataModeScope,
-);
+final brainDataModeStorage = SharedPreferencesBrainDataModeStorage();
 
 final brainDataModeService = BrainDataModeService(
   storage: brainDataModeStorage,
-  scopeProvider: _brainDataModeScope,
 );
 
 final brainDataModeController = BrainDataModeController(
