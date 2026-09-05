@@ -11,7 +11,7 @@ extension _ProfileSettingsAboutSection
     return _SettingsPanel(
       icon: Icons.info_outline_rounded,
       title: 'Sobre',
-      subtitle: 'Informações sobre o EVRYLUX.',
+      subtitle: 'Conheça a ideia por trás do EVRYLUX.',
       children: [
         // ======================================================
         // ABOUT HERO / BRANDING
@@ -38,16 +38,92 @@ extension _ProfileSettingsAboutSection
         // SOBRE O EVRYLUX
         // ======================================================
         _AboutActionRow(
-          icon: Icons.info_outline_rounded,
-          title: 'Sobre',
-          subtitle: 'Conheça a proposta e a visão do EVRYLUX.',
+          icon: Icons.auto_awesome_outlined,
+          title: 'O que é o EVRYLUX?',
+          subtitle: 'Uma forma mais prática de guardar, encontrar e revisar o que você aprende.',
           onTap: () {
             _showAboutInfoDialog(
               title: 'Sobre o EVRYLUX',
-              icon: Icons.info_outline_rounded,
+              icon: Icons.auto_awesome_outlined,
               content:
-                  'EVRYLUX é uma plataforma de evolução pessoal criada para reunir, em um só lugar, áreas como estudos, treino, finanças, rotina e acompanhamento de progresso.\n\n'
-                  'A proposta é ajudar você a organizar sua evolução de forma simples, visual e consistente.',
+                  'Na internet, muitas vezes pesquisamos a mesma coisa várias vezes porque o que aprendemos acaba se perdendo.\n\n'
+                  'No caderno, você até pode anotar tudo, mas com o tempo pode ficar difícil encontrar uma informação específica, revisar conteúdos antigos e manter suas anotações organizadas.\n\n'
+                  'No EVRYLUX, seus estudos ficam no seu Cérebro: você adiciona o que aprendeu e, quando precisar, pesquisa dentro do seu próprio conhecimento como se tivesse um Google pessoal das suas anotações.\n\n'
+                  'Você também pode revisar seus arquivos e acompanhar sua evolução nos estudos.\n\n'
+                  'Assim, você não precisa começar do zero sempre que quiser lembrar de algo.',
+            );
+          },
+        ),
+
+        const Divider(
+          height: 1,
+          color: _ProfileSettingsPageState._border,
+        ),
+
+        // ======================================================
+        // VISÃO
+        // ======================================================
+        _AboutActionRow(
+          icon: Icons.psychology_alt_outlined,
+          title: 'A visão',
+          subtitle: 'Conhecimento que continua com você.',
+          onTap: () {
+            _showAboutInfoDialog(
+              title: 'A visão do EVRYLUX',
+              icon: Icons.psychology_alt_outlined,
+              content:
+                  'A proposta do EVRYLUX é transformar o estudo em algo acumulativo.\n\n'
+                  'Em vez de pesquisar, esquecer e precisar procurar tudo novamente, você constrói uma base própria de conhecimento ao longo do tempo.\n\n'
+                  'Quanto mais você aprende e registra, mais útil o seu Cérebro se torna para consultas, revisões e continuidade dos seus estudos.',
+            );
+          },
+        ),
+
+        const Divider(
+          height: 1,
+          color: _ProfileSettingsPageState._border,
+        ),
+
+        // ======================================================
+        // CÉREBRO EVRYLUX
+        // ======================================================
+        _AboutActionRow(
+          icon: Icons.hub_outlined,
+          title: 'Seu Cérebro',
+          subtitle: 'Seu próprio sistema de pesquisa para tudo o que você já aprendeu.',
+          onTap: () {
+            _showAboutInfoDialog(
+              title: 'Seu Cérebro no EVRYLUX',
+              icon: Icons.hub_outlined,
+              content:
+                  'O Cérebro reúne o conhecimento que você adiciona durante seus estudos.\n\n'
+                  'Em vez de procurar página por página em um caderno ou refazer uma pesquisa na internet, você pode buscar diretamente no seu próprio conteúdo.\n\n'
+                  'A ideia é funcionar como um Google pessoal: você pergunta ao seu Cérebro e encontra aquilo que já estudou, junto com seus arquivos, anotações, perguntas e revisões.\n\n'
+                  'Quanto mais você registra, mais útil essa base se torna.',
+            );
+          },
+        ),
+
+        const Divider(
+          height: 1,
+          color: _ProfileSettingsPageState._border,
+        ),
+
+        // ======================================================
+        // PRIVACIDADE
+        // ======================================================
+        _AboutActionRow(
+          icon: Icons.lock_outline_rounded,
+          title: 'Seus dados, suas escolhas',
+          subtitle: 'Controle sobre como o seu Cérebro é protegido.',
+          onTap: () {
+            _showAboutInfoDialog(
+              title: 'Seus dados, suas escolhas',
+              icon: Icons.lock_outline_rounded,
+              content:
+                  'O EVRYLUX foi pensado para que seus dados continuem sob seu controle.\n\n'
+                  'Você pode utilizar o Cérebro apenas localmente, mantendo o conteúdo neste dispositivo, ou utilizar a proteção em nuvem disponível no aplicativo.\n\n'
+                  'A forma como o seu conhecimento é armazenado e protegido continua sendo uma escolha sua.',
             );
           },
         ),
@@ -200,13 +276,15 @@ extension _ProfileSettingsAboutSection
 
               content: ConstrainedBox(
                 constraints: const BoxConstraints(
-                  maxWidth: 440,
+                  maxWidth: 480,
                 ),
-                child: Text(
-                  content,
-                  style: const TextStyle(
-                    color: _ProfileSettingsPageState._muted,
-                    height: 1.5,
+                child: SingleChildScrollView(
+                  child: Text(
+                    content,
+                    style: const TextStyle(
+                      color: _ProfileSettingsPageState._muted,
+                      height: 1.6,
+                    ),
                   ),
                 ),
               ),
