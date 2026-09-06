@@ -107,7 +107,6 @@ class _WelcomeScreenState
       name: 'Estudar',
       description: 'Construa conhecimento, registre ideias e desenvolva seu Cérebro.',
       icon: Icons.psychology_alt_outlined,
-      number: '01',
       accent: Color(
         0xFFBCEFB4,
       ),
@@ -120,7 +119,6 @@ class _WelcomeScreenState
       name: 'Treinar',
       description: 'Cuide do corpo, acompanhe treinos e mantenha sua consistência.',
       icon: Icons.favorite_border_rounded,
-      number: '02',
       accent: Color(
         0xFFFFE0E0,
       ),
@@ -133,7 +131,6 @@ class _WelcomeScreenState
       name: 'Financeiro',
       description: 'Organize suas finanças e acompanhe sua evolução financeira.',
       icon: Icons.account_balance_wallet_outlined,
-      number: '03',
       accent: Color(
         0xFFFFEDBD,
       ),
@@ -146,7 +143,6 @@ class _WelcomeScreenState
       name: 'Rotina',
       description: 'Planeje seus dias, organize tarefas e transforme ideias em ação.',
       icon: Icons.calendar_month_outlined,
-      number: '04',
       accent: Color(
         0xFFDDE8FF,
       ),
@@ -159,7 +155,6 @@ class _WelcomeScreenState
       name: 'Evolução',
       description: 'Veja seu progresso e acompanhe o que mudou ao longo do tempo.',
       icon: Icons.trending_up_rounded,
-      number: '05',
       accent: Color(
         0xFFE6DEFF,
       ),
@@ -937,7 +932,6 @@ class _WelcomeObjective {
     required this.name,
     required this.description,
     required this.icon,
-    required this.number,
     required this.accent,
     required this.accentDark,
   });
@@ -947,8 +941,6 @@ class _WelcomeObjective {
   final String description;
 
   final IconData icon;
-
-  final String number;
 
   final Color accent;
 
@@ -1239,31 +1231,6 @@ class _WelcomeObjectiveCardState
                       width: widget.compact
                           ? 10
                           : 14,
-                    ),
-
-                    // ============================================
-                    // NUMBER
-                    // ============================================
-                    Text(
-                      objective.number,
-
-                      style: TextStyle(
-                        color: objective.accentDark.withValues(
-                          alpha: 0.40,
-                        ),
-
-                        fontSize: 10,
-
-                        fontWeight: FontWeight.w900,
-
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-
-                    SizedBox(
-                      width: widget.compact
-                          ? 9
-                          : 12,
                     ),
 
                     // ============================================

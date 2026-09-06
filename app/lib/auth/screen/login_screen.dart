@@ -817,22 +817,56 @@ class _LoginScreenState
                         // ======================================
                         // TITLE
                         // ======================================
-                        Text(
-                          _isLogin
-                              ? 'Bem-vindo'
-                              : 'Criar conta',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: _text,
-                            fontSize: 25,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: .3,
+                        // ======================================
+                        // LOGO
+                        // ======================================
+                        if (_isLogin) ...[
+                          const SizedBox(
+                            height: 14,
                           ),
-                        ),
+                          Center(
+                            child: Image.asset(
+                              'assets/images/branding/evrylux_logo.png',
+                              height: 58,
+                              fit: BoxFit.contain,
+                              filterQuality: FilterQuality.high,
+                              errorBuilder:
+                                  (
+                                    context,
+                                    error,
+                                    stackTrace,
+                                  ) {
+                                    debugPrint(
+                                      '[AUTH][LOGO] Não foi possível carregar a logo: $error',
+                                    );
 
-                        const SizedBox(
-                          height: 7,
-                        ),
+                                    return const SizedBox.shrink();
+                                  },
+                            ),
+                          ),
+                          const SizedBox(
+                            height: 10,
+                          ),
+                        ] else
+                          const SizedBox(
+                            height: 7,
+                          ),
+
+                        if (!_isLogin) ...[
+                          const Text(
+                            'Criar conta',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: _text,
+                              fontSize: 25,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: .3,
+                            ),
+                          ),
+                          const SizedBox(
+                            height: 7,
+                          ),
+                        ],
 
                         Text(
                           _isLogin

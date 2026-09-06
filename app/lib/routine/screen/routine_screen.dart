@@ -1148,6 +1148,18 @@ class _RoutineScreenState
   }
 
   // ============================================================
+  // EXPANDIR / RECOLHER CALENDÁRIO
+  // ============================================================
+
+  void _toggleCalendarExpanded() {
+    if (!_routineControllerReady) {
+      return;
+    }
+
+    _routineController.toggleCalendarExpanded();
+  }
+
+  // ============================================================
   // DOCUMENTOS / ANEXOS
   // ============================================================
 
@@ -2636,7 +2648,7 @@ class _RoutineScreenState
                             date,
                           );
                         },
-                    onToggleExpanded: _routineController.toggleCalendarExpanded,
+                    onToggleExpanded: _toggleCalendarExpanded,
                     reminderStatusForDate: _reminderStatusForDate,
                   ),
                   if (state.hasError)

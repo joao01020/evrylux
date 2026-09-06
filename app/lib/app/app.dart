@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../auth/auth_gate.dart';
@@ -198,7 +199,9 @@ class _GhostAppState
 
     _activeUserId = supabaseClient.auth.currentUser?.id;
 
-    _authenticated = _activeUserId != null;
+    _authenticated =
+        _activeUserId !=
+        null;
 
     // ==========================================================
     // AUTH LISTENER
@@ -210,9 +213,12 @@ class _GhostAppState
       ) {
         final newUserId = authState.session?.user.id;
 
-        final isAuthenticated = newUserId != null;
+        final isAuthenticated =
+            newUserId !=
+            null;
 
-        if (_activeUserId != newUserId) {
+        if (_activeUserId !=
+            newUserId) {
           _activeUserId = newUserId;
           brainController.resetForAccountChange();
           reviewController.resetForAccountChange();
@@ -302,7 +308,8 @@ class _GhostAppState
   _startAccountDevicePresence() async {
     final user = supabaseClient.auth.currentUser;
 
-    if (user == null) {
+    if (user ==
+        null) {
       accountDevicePresenceService.stop();
 
       return;
@@ -1088,6 +1095,41 @@ class _GhostAppState
   ) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+
+      // ========================================================
+      // LOCALIZAÇÃO GLOBAL — PT-BR
+      // ========================================================
+      //
+      // Define português do Brasil como idioma padrão dos
+      // componentes Material/Cupertino do app.
+      //
+      // Isso corrige textos automáticos do Flutter, por exemplo:
+      //
+      // Back   -> Voltar
+      // Close  -> Fechar
+      // Cancel -> Cancelar
+      //
+      // Também afeta componentes nativos de data/hora, tooltips e
+      // outros textos fornecidos pelo framework.
+      //
+      // ========================================================
+      locale: const Locale(
+        'pt',
+        'BR',
+      ),
+
+      supportedLocales: const [
+        Locale(
+          'pt',
+          'BR',
+        ),
+      ],
+
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
 
       // ========================================================
       // GLOBAL KEYS

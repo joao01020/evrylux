@@ -91,173 +91,185 @@ class RoutineCalendarPanel
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(
-            20,
-            16,
-            20,
-            10,
+        AnimatedSize(
+          duration: const Duration(
+            milliseconds: 280,
           ),
-          decoration: BoxDecoration(
-            color: _surface,
-            border: Border.all(
-              color: _border,
-            ),
-            borderRadius: BorderRadius.circular(
-              22,
-            ),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(
-                  0x09000000,
-                ),
-                blurRadius: 14,
-                offset: Offset(
-                  0,
-                  5,
-                ),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              // ========================================================
-              // HEADER CENTRALIZADO
-              // ========================================================
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _CalendarNavButton(
-                    icon: Icons.chevron_left_rounded,
-                    tooltip: 'Semana anterior',
-                    onTap: onPreviousWeek,
+          curve: Curves.easeInOutCubic,
+          alignment: Alignment.topCenter,
+          child: isExpanded
+              ? Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(
+                    20,
+                    16,
+                    20,
+                    10,
                   ),
-                  const SizedBox(
-                    width: 14,
-                  ),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      minWidth: 170,
+                  decoration: BoxDecoration(
+                    color: _surface,
+                    border: Border.all(
+                      color: _border,
                     ),
-                    child: Column(
-                      children: [
-                        Text(
-                          title,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: _text,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.2,
-                          ),
-                        ),
-                        const SizedBox(
-                          height: 3,
-                        ),
-                        Text(
-                          rangeText,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: _muted,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
+                    borderRadius: BorderRadius.circular(
+                      22,
                     ),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(
+                          0x09000000,
+                        ),
+                        blurRadius: 14,
+                        offset: Offset(
+                          0,
+                          5,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(
-                    width: 14,
-                  ),
-                  _CalendarNavButton(
-                    icon: Icons.chevron_right_rounded,
-                    tooltip: 'Próxima semana',
-                    onTap: onNextWeek,
-                  ),
-                ],
-              ),
-
-              const SizedBox(
-                height: 16,
-              ),
-
-              LayoutBuilder(
-                builder:
-                    (
-                      context,
-                      constraints,
-                    ) {
-                      final compact =
-                          constraints.maxWidth <
-                          760;
-
-                      if (compact) {
-                        return Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
-                          alignment: WrapAlignment.center,
-                          children: weekDates.map(
-                            (
-                              date,
-                            ) {
-                              return SizedBox(
-                                width: 92,
-                                child: _WeekDayCard(
-                                  date: date,
-                                  selected: _isSameDate(
-                                    date,
-                                    selectedDate,
-                                  ),
-                                  reminderStatus: reminderStatusForDate(
-                                    date,
-                                  ),
-                                  onTap: () => onSelectDay(
-                                    date,
+                  child: Column(
+                    children: [
+                      // ========================================================
+                      // HEADER CENTRALIZADO
+                      // ========================================================
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _CalendarNavButton(
+                            icon: Icons.chevron_left_rounded,
+                            tooltip: 'Semana anterior',
+                            onTap: onPreviousWeek,
+                          ),
+                          const SizedBox(
+                            width: 14,
+                          ),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              minWidth: 170,
+                            ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  title,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: _text,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.2,
                                   ),
                                 ),
+                                const SizedBox(
+                                  height: 3,
+                                ),
+                                Text(
+                                  rangeText,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: _muted,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(
+                            width: 14,
+                          ),
+                          _CalendarNavButton(
+                            icon: Icons.chevron_right_rounded,
+                            tooltip: 'Próxima semana',
+                            onTap: onNextWeek,
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(
+                        height: 16,
+                      ),
+
+                      LayoutBuilder(
+                        builder:
+                            (
+                              context,
+                              constraints,
+                            ) {
+                              final compact =
+                                  constraints.maxWidth <
+                                  760;
+
+                              if (compact) {
+                                return Wrap(
+                                  spacing: 10,
+                                  runSpacing: 10,
+                                  alignment: WrapAlignment.center,
+                                  children: weekDates.map(
+                                    (
+                                      date,
+                                    ) {
+                                      return SizedBox(
+                                        width: 92,
+                                        child: _WeekDayCard(
+                                          date: date,
+                                          selected: _isSameDate(
+                                            date,
+                                            selectedDate,
+                                          ),
+                                          reminderStatus: reminderStatusForDate(
+                                            date,
+                                          ),
+                                          onTap: () => onSelectDay(
+                                            date,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ).toList(),
+                                );
+                              }
+
+                              return Row(
+                                children: [
+                                  for (
+                                    var i = 0;
+                                    i <
+                                        weekDates.length;
+                                    i++
+                                  ) ...[
+                                    Expanded(
+                                      child: _WeekDayCard(
+                                        date: weekDates[i],
+                                        selected: _isSameDate(
+                                          weekDates[i],
+                                          selectedDate,
+                                        ),
+                                        reminderStatus: reminderStatusForDate(
+                                          weekDates[i],
+                                        ),
+                                        onTap: () => onSelectDay(
+                                          weekDates[i],
+                                        ),
+                                      ),
+                                    ),
+                                    if (i !=
+                                        weekDates.length -
+                                            1)
+                                      const SizedBox(
+                                        width: 10,
+                                      ),
+                                  ],
+                                ],
                               );
                             },
-                          ).toList(),
-                        );
-                      }
-
-                      return Row(
-                        children: [
-                          for (
-                            var i = 0;
-                            i <
-                                weekDates.length;
-                            i++
-                          ) ...[
-                            Expanded(
-                              child: _WeekDayCard(
-                                date: weekDates[i],
-                                selected: _isSameDate(
-                                  weekDates[i],
-                                  selectedDate,
-                                ),
-                                reminderStatus: reminderStatusForDate(
-                                  weekDates[i],
-                                ),
-                                onTap: () => onSelectDay(
-                                  weekDates[i],
-                                ),
-                              ),
-                            ),
-                            if (i !=
-                                weekDates.length -
-                                    1)
-                              const SizedBox(
-                                width: 10,
-                              ),
-                          ],
-                        ],
-                      );
-                    },
-              ),
-            ],
-          ),
+                      ),
+                    ],
+                  ),
+                )
+              : const SizedBox(
+                  width: double.infinity,
+                  height: 0,
+                ),
         ),
 
         const SizedBox(
@@ -265,45 +277,50 @@ class RoutineCalendarPanel
         ),
 
         Center(
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onToggleExpanded,
-              borderRadius: BorderRadius.circular(
-                999,
-              ),
-              child: Ink(
-                width: 48,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: _primarySoft,
-                  borderRadius: BorderRadius.circular(
-                    999,
-                  ),
-                  border: Border.all(
-                    color: const Color(
-                      0xFF9AD394,
-                    ),
-                  ),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(
-                        0x10000000,
-                      ),
-                      blurRadius: 6,
-                      offset: Offset(
-                        0,
-                        2,
-                      ),
-                    ),
-                  ],
+          child: Tooltip(
+            message: isExpanded
+                ? 'Recolher calendário'
+                : 'Expandir calendário',
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onToggleExpanded,
+                borderRadius: BorderRadius.circular(
+                  999,
                 ),
-                child: Icon(
-                  isExpanded
-                      ? Icons.keyboard_arrow_up_rounded
-                      : Icons.keyboard_arrow_down_rounded,
-                  size: 18,
-                  color: _primary,
+                child: Ink(
+                  width: 48,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: _primarySoft,
+                    borderRadius: BorderRadius.circular(
+                      999,
+                    ),
+                    border: Border.all(
+                      color: const Color(
+                        0xFF9AD394,
+                      ),
+                    ),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(
+                          0x10000000,
+                        ),
+                        blurRadius: 6,
+                        offset: Offset(
+                          0,
+                          2,
+                        ),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    isExpanded
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    size: 18,
+                    color: _primary,
+                  ),
                 ),
               ),
             ),
