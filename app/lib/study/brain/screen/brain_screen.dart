@@ -60,16 +60,27 @@ part 'brain_screen_parts/brain_screen_models.dart';
 //
 // ============================================================
 
-class BrainScreen extends StatefulWidget {
-  const BrainScreen({super.key});
+class BrainScreen
+    extends
+        StatefulWidget {
+  const BrainScreen({
+    super.key,
+  });
 
   @override
-  State<BrainScreen> createState() {
+  State<
+    BrainScreen
+  >
+  createState() {
     return _BrainScreenState();
   }
 }
 
-class _BrainScreenState extends State<BrainScreen> {
+class _BrainScreenState
+    extends
+        State<
+          BrainScreen
+        > {
   // ============================================================
   // CONTROLLERS
   // ============================================================
@@ -282,9 +293,16 @@ class _BrainScreenState extends State<BrainScreen> {
     BuildContext context,
   ) {
     return Scaffold(
-      appBar: _buildAppBar(
-        context,
-      ),
+      // ========================================================
+      // APP BAR
+      // ========================================================
+      //
+      // Mantemos a AppBar para preservar o botão de voltar,
+      // mas removemos o título "Cérebro" e o ícone do topo.
+      //
+      // ========================================================
+      appBar: AppBar(),
+
       body:
           _controller.isLoading ||
               _experienceController.isInitializing

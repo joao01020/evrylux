@@ -458,21 +458,15 @@ class _StudyScreenState
     BuildContext context,
   ) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Conhecimento 📚',
-        ),
-      ),
+      appBar: AppBar(),
 
       body: Padding(
         padding: const EdgeInsets.all(
           24,
         ),
-
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-
             children: [
               // =================================================
               // HEADER
@@ -483,11 +477,9 @@ class _StudyScreenState
                   const Expanded(
                     child: StudyHeader(),
                   ),
-
                   const SizedBox(
                     width: 12,
                   ),
-
                   StreakCard(
                     streak: studyController.streak,
                   ),

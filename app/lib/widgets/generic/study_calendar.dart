@@ -356,59 +356,80 @@ class _StudyCalendarState
   // ============================================================
 
   Widget _buildHeader() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        // ======================================================
-        // PREVIOUS
-        // ======================================================
-        _navigationButton(
-          icon: Icons.chevron_left_rounded,
-          tooltip: 'Semana anterior',
-          onPressed: _previousWeek,
-        ),
-
-        // ======================================================
-        // TITLE
-        // ======================================================
-        Expanded(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                _monthTitle,
-                style: const TextStyle(
-                  color: _textPrimary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-
-              const SizedBox(
-                height: 1,
-              ),
-
-              Text(
-                _weekRange,
-                style: const TextStyle(
-                  color: _textSecondary,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
+    return Center(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // ======================================================
+          // PREVIOUS
+          // ======================================================
+          //
+          // A navegação da semana fica agrupada ao título.
+          // Assim ela não se confunde com o botão de voltar da tela.
+          //
+          // ======================================================
+          _navigationButton(
+            icon: Icons.chevron_left_rounded,
+            tooltip: 'Semana anterior',
+            onPressed: _previousWeek,
           ),
-        ),
 
-        // ======================================================
-        // NEXT
-        // ======================================================
-        _navigationButton(
-          icon: Icons.chevron_right_rounded,
-          tooltip: 'Próxima semana',
-          onPressed: _nextWeek,
-        ),
-      ],
+          const SizedBox(
+            width: 14,
+          ),
+
+          // ======================================================
+          // TITLE
+          // ======================================================
+          ConstrainedBox(
+            constraints: const BoxConstraints(
+              minWidth: 170,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _monthTitle,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: _textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+
+                const SizedBox(
+                  height: 2,
+                ),
+
+                Text(
+                  _weekRange,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: _textSecondary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(
+            width: 14,
+          ),
+
+          // ======================================================
+          // NEXT
+          // ======================================================
+          _navigationButton(
+            icon: Icons.chevron_right_rounded,
+            tooltip: 'Próxima semana',
+            onPressed: _nextWeek,
+          ),
+        ],
+      ),
     );
   }
 

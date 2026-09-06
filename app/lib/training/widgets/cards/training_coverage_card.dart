@@ -1,88 +1,249 @@
 import 'package:flutter/material.dart';
 
-class TrainingCoverageCard extends StatelessWidget {
-  final Map<String, int> coverage;
+class TrainingCoverageCard
+    extends
+        StatelessWidget {
+  const TrainingCoverageCard({
+    super.key,
+    required this.coverage,
+  });
 
-  const TrainingCoverageCard({super.key, required this.coverage});
+  // ============================================================
+  // DADOS
+  // ============================================================
+
+  final Map<
+    String,
+    int
+  >
+  coverage;
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
-  Widget build(BuildContext context) {
-    final entries = coverage.entries.toList();
+  Widget build(
+    BuildContext context,
+  ) {
+    final theme = Theme.of(
+      context,
+    );
+
+    final colorScheme = theme.colorScheme;
+
+    final entries =
+        coverage.entries
+            .where(
+              (
+                entry,
+              ) {
+                return entry.value >
+                    0;
+              },
+            )
+            .toList(
+              growable: false,
+            )
+          ..sort(
+            (
+              first,
+              second,
+            ) {
+              return second.value.compareTo(
+                first.value,
+              );
+            },
+          );
+
+    final total =
+        entries.fold<
+          int
+        >(
+          0,
+          (
+            current,
+            entry,
+          ) {
+            return current +
+                entry.value;
+          },
+        );
 
     final highestValue = entries.isEmpty
         ? 0
-        : entries.map((entry) => entry.value).reduce((current, next) {
-            return current > next ? current : next;
-          });
+        : entries.first.value;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
+    final topActivity = entries.isEmpty
+        ? null
+        : entries.first.key;
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(
+          22,
+        ),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(
+            alpha: 0.72,
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.shadow.withValues(
+              alpha: 0.055,
+            ),
+            blurRadius: 28,
+            offset: const Offset(
+              0,
+              10,
+            ),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(
+          22,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.fitness_center),
-                ),
-
-                const SizedBox(width: 12),
-
-                Expanded(
-                  child: Text(
-                    'Como seus treinos se distribuíram',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+            // ======================================================
+            // HEADER
+            // ======================================================
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                20,
+                18,
+                20,
+                17,
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(
+                        14,
+                      ),
+                      border: Border.all(
+                        color: colorScheme.primary.withValues(
+                          alpha: 0.10,
+                        ),
+                      ),
+                    ),
+                    child: Icon(
+                      Icons.query_stats_rounded,
+                      size: 22,
+                      color: colorScheme.primary,
                     ),
                   ),
-                ),
-              ],
-            ),
 
-            const SizedBox(height: 14),
-
-            Text(
-              'Veja quais atividades apareceram mais vezes nos seus registros deste mês.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-
-            const SizedBox(height: 6),
-
-            Text(
-              'As barras apenas comparam seus próprios registros.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-
-            const SizedBox(height: 22),
-
-            if (entries.isEmpty)
-              const _EmptyCoverage()
-            else ...[
-              ...entries.map((entry) {
-                final progress = highestValue == 0
-                    ? 0.0
-                    : entry.value / highestValue;
-
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 18),
-                  child: _CoverageItem(
-                    name: entry.key,
-                    total: entry.value,
-                    progress: progress,
+                  const SizedBox(
+                    width: 13,
                   ),
-                );
-              }),
 
-              _CoverageExplanation(highestValue: highestValue),
-            ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Como seus treinos se distribuíram',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: colorScheme.onSurface,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.1,
+                          ),
+                        ),
+
+                        const SizedBox(
+                          height: 4,
+                        ),
+
+                        Text(
+                          'Veja quais atividades apareceram mais vezes nos seus registros deste mês.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  if (entries.isNotEmpty) ...[
+                    const SizedBox(
+                      width: 12,
+                    ),
+
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 11,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary.withValues(
+                          alpha: 0.07,
+                        ),
+                        borderRadius: BorderRadius.circular(
+                          999,
+                        ),
+                        border: Border.all(
+                          color: colorScheme.primary.withValues(
+                            alpha: 0.12,
+                          ),
+                        ),
+                      ),
+                      child: Text(
+                        total ==
+                                1
+                            ? '1 registro'
+                            : '$total registros',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: colorScheme.primary,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            Divider(
+              height: 1,
+              thickness: 1,
+              color: colorScheme.outlineVariant.withValues(
+                alpha: 0.52,
+              ),
+            ),
+
+            // ======================================================
+            // CONTEÚDO
+            // ======================================================
+            Padding(
+              padding: const EdgeInsets.all(
+                20,
+              ),
+              child: entries.isEmpty
+                  ? _EmptyCoverageState(
+                      colorScheme: colorScheme,
+                      theme: theme,
+                    )
+                  : _CoverageContent(
+                      entries: entries,
+                      total: total,
+                      highestValue: highestValue,
+                      topActivity: topActivity,
+                      colorScheme: colorScheme,
+                      theme: theme,
+                    ),
+            ),
           ],
         ),
       ),
@@ -90,90 +251,277 @@ class TrainingCoverageCard extends StatelessWidget {
   }
 }
 
-class _CoverageItem extends StatelessWidget {
-  final String name;
-  final int total;
-  final double progress;
+// ============================================================
+// CONTEÚDO COM DADOS
+// ============================================================
 
-  const _CoverageItem({
-    required this.name,
+class _CoverageContent
+    extends
+        StatelessWidget {
+  const _CoverageContent({
+    required this.entries,
     required this.total,
-    required this.progress,
+    required this.highestValue,
+    required this.topActivity,
+    required this.colorScheme,
+    required this.theme,
   });
 
+  final List<
+    MapEntry<
+      String,
+      int
+    >
+  >
+  entries;
+
+  final int total;
+
+  final int highestValue;
+
+  final String? topActivity;
+
+  final ColorScheme colorScheme;
+
+  final ThemeData theme;
+
   @override
-  Widget build(BuildContext context) {
-    final safeProgress = progress.clamp(0.0, 1.0);
-
-    final totalText = total == 1 ? '1 registro' : '$total registros';
-
+  Widget build(
+    BuildContext context,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // ==========================================================
+        // RESUMO
+        // ==========================================================
         Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: Text(
-                name,
-                style: const TextStyle(fontWeight: FontWeight.bold),
+              child: _SummaryTile(
+                icon: Icons.auto_graph_rounded,
+                label: 'Mais frequente',
+                value: _cleanActivityName(
+                  topActivity ??
+                      '—',
+                ),
+                colorScheme: colorScheme,
+                theme: theme,
               ),
             ),
 
-            const SizedBox(width: 12),
+            const SizedBox(
+              width: 10,
+            ),
 
-            Text(
-              totalText,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+            Expanded(
+              child: _SummaryTile(
+                icon: Icons.fitness_center_rounded,
+                label: 'Atividades',
+                value:
+                    entries.length ==
+                        1
+                    ? '1 tipo'
+                    : '${entries.length} tipos',
+                colorScheme: colorScheme,
+                theme: theme,
+              ),
+            ),
+
+            const SizedBox(
+              width: 10,
+            ),
+
+            Expanded(
+              child: _SummaryTile(
+                icon: Icons.repeat_rounded,
+                label: 'Registros',
+                value: '$total',
+                colorScheme: colorScheme,
+                theme: theme,
+              ),
             ),
           ],
         ),
 
-        const SizedBox(height: 9),
+        const SizedBox(
+          height: 20,
+        ),
 
-        ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: LinearProgressIndicator(value: safeProgress, minHeight: 10),
+        // ==========================================================
+        // LEGENDA
+        // ==========================================================
+        Row(
+          children: [
+            Text(
+              'Distribuição no mês',
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: colorScheme.onSurface,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+
+            const Spacer(),
+
+            Text(
+              'comparação entre seus registros',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(
+          height: 12,
+        ),
+
+        // ==========================================================
+        // BARRAS
+        // ==========================================================
+        ...List.generate(
+          entries.length,
+          (
+            index,
+          ) {
+            final entry = entries[index];
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom:
+                    index ==
+                        entries.length -
+                            1
+                    ? 0
+                    : 13,
+              ),
+              child: _CoverageBar(
+                activity: entry.key,
+                value: entry.value,
+                total: total,
+                highestValue: highestValue,
+                colorScheme: colorScheme,
+                theme: theme,
+              ),
+            );
+          },
         ),
       ],
     );
   }
+
+  String _cleanActivityName(
+    String value,
+  ) {
+    return value
+        .replaceAll(
+          RegExp(
+            r'^[^\p{L}\p{N}]+',
+            unicode: true,
+          ),
+          '',
+        )
+        .trim();
+  }
 }
 
-class _CoverageExplanation extends StatelessWidget {
-  final int highestValue;
+// ============================================================
+// RESUMO
+// ============================================================
 
-  const _CoverageExplanation({required this.highestValue});
+class _SummaryTile
+    extends
+        StatelessWidget {
+  const _SummaryTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.colorScheme,
+    required this.theme,
+  });
+
+  final IconData icon;
+
+  final String label;
+
+  final String value;
+
+  final ColorScheme colorScheme;
+
+  final ThemeData theme;
 
   @override
-  Widget build(BuildContext context) {
-    final referenceText = highestValue == 1
-        ? 'A maior frequência deste mês foi 1 registro.'
-        : 'A maior frequência deste mês foi de $highestValue registros.';
-
+  Widget build(
+    BuildContext context,
+  ) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 13,
+        vertical: 12,
+      ),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(14),
+        color: colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(
+          15,
+        ),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(
+            alpha: 0.58,
+          ),
+        ),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.info_outline, size: 21),
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: colorScheme.primary.withValues(
+                alpha: 0.08,
+              ),
+              borderRadius: BorderRadius.circular(
+                10,
+              ),
+            ),
+            child: Icon(
+              icon,
+              size: 17,
+              color: colorScheme.primary,
+            ),
+          ),
 
-          const SizedBox(width: 10),
+          const SizedBox(
+            width: 10,
+          ),
 
           Expanded(
-            child: Text(
-              '$referenceText '
-              'As outras barras são comparadas com esse valor.',
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(height: 1.35),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+
+                const SizedBox(
+                  height: 2,
+                ),
+
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurface,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -182,35 +530,300 @@ class _CoverageExplanation extends StatelessWidget {
   }
 }
 
-class _EmptyCoverage extends StatelessWidget {
-  const _EmptyCoverage();
+// ============================================================
+// BARRA
+// ============================================================
+
+class _CoverageBar
+    extends
+        StatelessWidget {
+  const _CoverageBar({
+    required this.activity,
+    required this.value,
+    required this.total,
+    required this.highestValue,
+    required this.colorScheme,
+    required this.theme,
+  });
+
+  final String activity;
+
+  final int value;
+
+  final int total;
+
+  final int highestValue;
+
+  final ColorScheme colorScheme;
+
+  final ThemeData theme;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
+    final relativeProgress =
+        highestValue <=
+            0
+        ? 0.0
+        : value /
+              highestValue;
+
+    final percentage =
+        total <=
+            0
+        ? 0
+        : ((value /
+                      total) *
+                  100)
+              .round();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                activity,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurface,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+
+            const SizedBox(
+              width: 12,
+            ),
+
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 4,
+              ),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.55,
+                ),
+                borderRadius: BorderRadius.circular(
+                  999,
+                ),
+              ),
+              child: Text(
+                value ==
+                        1
+                    ? '1x · $percentage%'
+                    : '${value}x · $percentage%',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(
+          height: 7,
+        ),
+
+        LayoutBuilder(
+          builder:
+              (
+                context,
+                constraints,
+              ) {
+                final width =
+                    constraints.maxWidth *
+                    relativeProgress.clamp(
+                      0.0,
+                      1.0,
+                    );
+
+                return Container(
+                  height: 9,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(
+                      999,
+                    ),
+                  ),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: AnimatedContainer(
+                      duration: const Duration(
+                        milliseconds: 380,
+                      ),
+                      curve: Curves.easeOutCubic,
+                      width: width,
+                      height: 9,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            colorScheme.primary.withValues(
+                              alpha: 0.72,
+                            ),
+                            colorScheme.primary,
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(
+                          999,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+        ),
+      ],
+    );
+  }
+}
+
+// ============================================================
+// ESTADO VAZIO
+// ============================================================
+
+class _EmptyCoverageState
+    extends
+        StatelessWidget {
+  const _EmptyCoverageState({
+    required this.colorScheme,
+    required this.theme,
+  });
+
+  final ColorScheme colorScheme;
+
+  final ThemeData theme;
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(14),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 24,
+        vertical: 28,
       ),
-      child: const Column(
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(
+          18,
+        ),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(
+            alpha: 0.60,
+          ),
+        ),
+      ),
+      child: Column(
         children: [
-          Icon(Icons.query_stats_outlined, size: 38),
-
-          SizedBox(height: 12),
-
-          Text(
-            'Nenhum treino registrado neste mês.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontWeight: FontWeight.bold),
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: colorScheme.primary.withValues(
+                alpha: 0.08,
+              ),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: colorScheme.primary.withValues(
+                  alpha: 0.10,
+                ),
+              ),
+            ),
+            child: Icon(
+              Icons.monitor_heart_outlined,
+              size: 24,
+              color: colorScheme.primary,
+            ),
           ),
 
-          SizedBox(height: 7),
+          const SizedBox(
+            height: 14,
+          ),
 
           Text(
-            'Quando você registrar seus treinos, esta área mostrará quais atividades apareceram mais vezes.',
+            'Seu mês ainda está em branco',
             textAlign: TextAlign.center,
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: colorScheme.onSurface,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+
+          const SizedBox(
+            height: 6,
+          ),
+
+          ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: 520,
+            ),
+            child: Text(
+              'Quando você registrar seus primeiros treinos, esta área vai mostrar quais atividades aparecem mais vezes na sua rotina.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+                height: 1.5,
+              ),
+            ),
+          ),
+
+          const SizedBox(
+            height: 16,
+          ),
+
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 8,
+            ),
+            decoration: BoxDecoration(
+              color: colorScheme.primary.withValues(
+                alpha: 0.055,
+              ),
+              borderRadius: BorderRadius.circular(
+                14,
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(
+                    top: 1,
+                  ),
+                  child: Icon(
+                    Icons.info_outline_rounded,
+                    size: 14,
+                    color: colorScheme.primary,
+                  ),
+                ),
+
+                const SizedBox(
+                  width: 7,
+                ),
+
+                Expanded(
+                  child: Text(
+                    'As barras comparam apenas os seus próprios registros.',
+                    softWrap: true,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

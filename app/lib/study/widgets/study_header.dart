@@ -1,5 +1,15 @@
 import 'package:flutter/material.dart';
 
+// ============================================================
+// STUDY HEADER
+// ============================================================
+//
+// O antigo texto introdutório foi removido.
+// Mantemos o widget para não quebrar os pontos que ainda usam
+// const StudyHeader() na tela de Conhecimento.
+//
+// ============================================================
+
 class StudyHeader
     extends
         StatelessWidget {
@@ -11,26 +21,6 @@ class StudyHeader
   Widget build(
     BuildContext context,
   ) {
-    return const Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "Sua evolução mental começa aqui.",
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        SizedBox(
-          height: 20,
-        ),
-        Text(
-          "Construa conhecimento um pouco todos os dias.",
-          style: TextStyle(
-            fontSize: 18,
-          ),
-        ),
-      ],
-    );
+    return const SizedBox.shrink();
   }
 }

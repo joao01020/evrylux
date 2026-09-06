@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../app/dependencies/app_dependencies.dart' as dependencies;
+import '../../telegram/widgets/telegram_connect_dialog.dart';
+
 import '../controllers/reminder_controller.dart';
 
 class ReminderDialog
@@ -504,6 +507,65 @@ class _ReminderDialogState
   }
 
   // ============================================================
+  // TELEGRAM NOTIFICATION
+  // ============================================================
+
+  Future<void> _changeTelegramNotification(
+    bool value,
+  ) async {
+    if (_saving) {
+      return;
+    }
+
+    if (!value) {
+      setState(
+        () {
+          _notifyTelegram = false;
+          _errorMessage = null;
+        },
+      );
+
+      return;
+    }
+
+    final telegramController = dependencies.telegramConnectionController;
+
+    await telegramController.load();
+
+    if (!mounted) {
+      return;
+    }
+
+    if (!telegramController.isConnected) {
+      final connected = await TelegramConnectDialog.show(
+        context,
+        controller: telegramController,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      if (connected != true) {
+        setState(
+          () {
+            _notifyTelegram = false;
+          },
+        );
+
+        return;
+      }
+    }
+
+    setState(
+      () {
+        _notifyTelegram = true;
+        _errorMessage = null;
+      },
+    );
+  }
+
+  // ============================================================
   // BUILD
   // ============================================================
 
@@ -692,18 +754,9 @@ class _ReminderDialogState
                   title: 'Telegram',
                   subtitle: 'Envia uma mensagem para seu celular.',
                   value: _notifyTelegram,
-                  onChanged:
-                      (
-                        value,
-                      ) {
-                        setState(
-                          () {
-                            _notifyTelegram = value;
-
-                            _errorMessage = null;
-                          },
-                        );
-                      },
+                  onChanged: (value) {
+                    _changeTelegramNotification(value);
+                  },
                 ),
 
                 // =================================================

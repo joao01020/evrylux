@@ -12,7 +12,6 @@ import 'widgets/history/training_history_dialog.dart';
 import 'widgets/history/training_history_records.dart';
 import 'widgets/cards/training_consistency_card.dart';
 import 'widgets/cards/training_coverage_card.dart';
-import 'widgets/sections/training_header.dart';
 import 'widgets/sections/training_registration_section.dart';
 import 'widgets/cards/training_weekly_goal_card.dart';
 
@@ -930,11 +929,7 @@ class _TrainingScreenState
               // ==================================================
               // APP BAR
               // ==================================================
-              appBar: AppBar(
-                title: const Text(
-                  'Saúde 💪',
-                ),
-              ),
+              appBar: AppBar(),
 
               // ==================================================
               // BODY
@@ -943,121 +938,178 @@ class _TrainingScreenState
                   ? const Center(
                       child: CircularProgressIndicator(),
                     )
-                  : SingleChildScrollView(
-                      padding: const EdgeInsets.all(
-                        20,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // ======================================
-                          // HEADER
-                          // ======================================
-                          TrainingHeader(
-                            streak: controller.streak,
-                          ),
+                  : LayoutBuilder(
+                      builder:
+                          (
+                            context,
+                            constraints,
+                          ) {
+                            // ============================================
+                            // RESPONSIVIDADE VERTICAL
+                            // ============================================
+                            //
+                            // Em alturas menores reduzimos espaçamentos.
+                            //
+                            // Se ainda assim o conteúdo não couber, usamos
+                            // um SingleChildScrollView como fallback seguro,
+                            // MAS com a barra visual desativada.
+                            //
+                            // Resultado:
+                            // - nenhuma faixa amarela/preta;
+                            // - nenhuma barra de rolagem visível;
+                            // - janela pode ficar menor sem quebrar;
+                            // - mouse wheel/touchpad continuam funcionando.
+                            //
+                            // ============================================
 
-                          const SizedBox(
-                            height: 24,
-                          ),
+                            final compact =
+                                constraints.maxHeight <
+                                620;
 
-                          // ======================================
-                          // CALENDÁRIO
-                          // ======================================
-                          StudyCalendar(
-                            selectedDate: _selectedDate,
-                            completedDates: completedDates,
-                            onDateSelected: _selectDate,
-                          ),
+                            final veryCompact =
+                                constraints.maxHeight <
+                                560;
 
-                          const SizedBox(
-                            height: 12,
-                          ),
+                            final ultraCompact =
+                                constraints.maxHeight <
+                                500;
 
-                          // ======================================
-                          // ATALHOS
-                          // ======================================
-                          Row(
-                            children: [
-                              // ==================================
-                              // PLANO
-                              // ==================================
-                              _ModalShortcutButton(
-                                tooltip: 'Plano semanal',
-                                icon: Icons.calendar_month_rounded,
-                                onTap: _showWeeklyPlanModal,
+                            final verticalPadding = ultraCompact
+                                ? 4.0
+                                : veryCompact
+                                ? 6.0
+                                : compact
+                                ? 10.0
+                                : 20.0;
+
+                            final calendarGap = ultraCompact
+                                ? 3.0
+                                : veryCompact
+                                ? 5.0
+                                : compact
+                                ? 7.0
+                                : 12.0;
+
+                            final coverageGap = ultraCompact
+                                ? 6.0
+                                : veryCompact
+                                ? 8.0
+                                : compact
+                                ? 12.0
+                                : 24.0;
+
+                            final bottomGap = ultraCompact
+                                ? 0.0
+                                : veryCompact
+                                ? 2.0
+                                : compact
+                                ? 6.0
+                                : 18.0;
+
+                            return ScrollConfiguration(
+                              behavior:
+                                  ScrollConfiguration.of(
+                                    context,
+                                  ).copyWith(
+                                    scrollbars: false,
+                                  ),
+                              child: SingleChildScrollView(
+                                physics: const ClampingScrollPhysics(),
+                                padding: EdgeInsets.fromLTRB(
+                                  20,
+                                  verticalPadding,
+                                  20,
+                                  verticalPadding,
+                                ),
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    minHeight:
+                                        (constraints.maxHeight -
+                                                (verticalPadding *
+                                                    2))
+                                            .clamp(
+                                              0.0,
+                                              double.infinity,
+                                            ),
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      // ==================================
+                                      // CALENDÁRIO
+                                      // ==================================
+                                      StudyCalendar(
+                                        selectedDate: _selectedDate,
+                                        completedDates: completedDates,
+                                        onDateSelected: _selectDate,
+                                      ),
+
+                                      SizedBox(
+                                        height: calendarGap,
+                                      ),
+
+                                      // ==================================
+                                      // ATALHOS
+                                      // ==================================
+                                      Wrap(
+                                        spacing: 10,
+                                        runSpacing: ultraCompact
+                                            ? 6
+                                            : 10,
+                                        children: [
+                                          _ModalShortcutButton(
+                                            tooltip: 'Plano semanal',
+                                            icon: Icons.calendar_month_rounded,
+                                            onTap: _showWeeklyPlanModal,
+                                          ),
+
+                                          _ModalShortcutButton(
+                                            tooltip: 'Registrar treino',
+                                            icon: Icons.fitness_center_rounded,
+                                            onTap: _showTrainingRegistrationModal,
+                                          ),
+
+                                          _ModalShortcutButton(
+                                            tooltip: 'Seu ritmo neste mês',
+                                            icon: Icons.local_fire_department_rounded,
+                                            onTap: _showMonthlyRhythmModal,
+                                          ),
+
+                                          _ModalShortcutButton(
+                                            tooltip: 'Mapa corporal',
+                                            icon: Icons.accessibility_new_rounded,
+                                            onTap: _showBodyMapModal,
+                                          ),
+
+                                          _ModalShortcutButton(
+                                            tooltip: 'Histórico',
+                                            icon: Icons.history_rounded,
+                                            onTap: _showHistory,
+                                          ),
+                                        ],
+                                      ),
+
+                                      SizedBox(
+                                        height: coverageGap,
+                                      ),
+
+                                      // ==================================
+                                      // COBERTURA
+                                      // ==================================
+                                      TrainingCoverageCard(
+                                        coverage: controller.monthlyCoverage,
+                                      ),
+
+                                      SizedBox(
+                                        height: bottomGap,
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
-
-                              const SizedBox(
-                                width: 10,
-                              ),
-
-                              // ==================================
-                              // REGISTRAR
-                              // ==================================
-                              _ModalShortcutButton(
-                                tooltip: 'Registrar treino',
-                                icon: Icons.fitness_center_rounded,
-                                onTap: _showTrainingRegistrationModal,
-                              ),
-
-                              const SizedBox(
-                                width: 10,
-                              ),
-
-                              // ==================================
-                              // RITMO
-                              // ==================================
-                              _ModalShortcutButton(
-                                tooltip: 'Seu ritmo neste mês',
-                                icon: Icons.local_fire_department_rounded,
-                                onTap: _showMonthlyRhythmModal,
-                              ),
-
-                              const SizedBox(
-                                width: 10,
-                              ),
-
-                              // ==================================
-                              // MAPA CORPORAL
-                              // ==================================
-                              _ModalShortcutButton(
-                                tooltip: 'Mapa corporal',
-                                icon: Icons.accessibility_new_rounded,
-                                onTap: _showBodyMapModal,
-                              ),
-
-                              const SizedBox(
-                                width: 10,
-                              ),
-
-                              // ==================================
-                              // HISTÓRICO
-                              // ==================================
-                              _ModalShortcutButton(
-                                tooltip: 'Histórico',
-                                icon: Icons.history_rounded,
-                                onTap: _showHistory,
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(
-                            height: 24,
-                          ),
-
-                          // ======================================
-                          // COBERTURA
-                          // ======================================
-                          TrainingCoverageCard(
-                            coverage: controller.monthlyCoverage,
-                          ),
-
-                          const SizedBox(
-                            height: 30,
-                          ),
-                        ],
-                      ),
+                            );
+                          },
                     ),
             );
           },
@@ -1068,10 +1120,25 @@ class _TrainingScreenState
 // ============================================================
 // BOTÃO DOS ATALHOS
 // ============================================================
+//
+// Botão compacto dos atalhos da tela de treino.
+//
+// Estado normal:
+// - fundo quase branco/esverdeado;
+// - borda verde muito suave;
+// - ícone verde acinzentado.
+//
+// Hover:
+// - usa exatamente o verde claro da identidade EVRYLUX;
+// - ícone escurece;
+// - botão cresce levemente;
+// - recebe uma sombra suave.
+//
+// ============================================================
 
 class _ModalShortcutButton
     extends
-        StatelessWidget {
+        StatefulWidget {
   const _ModalShortcutButton({
     required this.tooltip,
     required this.icon,
@@ -1085,38 +1152,224 @@ class _ModalShortcutButton
   final VoidCallback onTap;
 
   @override
+  State<
+    _ModalShortcutButton
+  >
+  createState() {
+    return _ModalShortcutButtonState();
+  }
+}
+
+class _ModalShortcutButtonState
+    extends
+        State<
+          _ModalShortcutButton
+        > {
+  // ============================================================
+  // CORES
+  // ============================================================
+
+  static const Color _normalBackground = Color(
+    0xFFF7FBF5,
+  );
+
+  static const Color _hoverBackground = Color(
+    0xFFBCF0B4,
+  );
+
+  static const Color _normalBorder = Color(
+    0xFFD9E7D5,
+  );
+
+  static const Color _hoverBorder = Color(
+    0xFFA2D99B,
+  );
+
+  static const Color _normalIcon = Color(
+    0xFF657366,
+  );
+
+  static const Color _hoverIcon = Color(
+    0xFF315E35,
+  );
+
+  // ============================================================
+  // ESTADO
+  // ============================================================
+
+  bool _hovered = false;
+
+  bool _pressed = false;
+
+  // ============================================================
+  // BUILD
+  // ============================================================
+
+  @override
   Widget build(
     BuildContext context,
   ) {
-    final colorScheme = Theme.of(
-      context,
-    ).colorScheme;
+    final backgroundColor = _hovered
+        ? _hoverBackground
+        : _normalBackground;
+
+    final borderColor = _hovered
+        ? _hoverBorder
+        : _normalBorder;
+
+    final iconColor = _hovered
+        ? _hoverIcon
+        : _normalIcon;
 
     return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(
-          13,
-        ),
-        child: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(
-              13,
+      message: widget.tooltip,
+
+      waitDuration: const Duration(
+        milliseconds: 420,
+      ),
+
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+
+        onEnter:
+            (
+              _,
+            ) {
+              if (_hovered) {
+                return;
+              }
+
+              setState(
+                () {
+                  _hovered = true;
+                },
+              );
+            },
+
+        onExit:
+            (
+              _,
+            ) {
+              if (!_hovered &&
+                  !_pressed) {
+                return;
+              }
+
+              setState(
+                () {
+                  _hovered = false;
+                  _pressed = false;
+                },
+              );
+            },
+
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+
+          onTap: widget.onTap,
+
+          onTapDown:
+              (
+                _,
+              ) {
+                setState(
+                  () {
+                    _pressed = true;
+                  },
+                );
+              },
+
+          onTapUp:
+              (
+                _,
+              ) {
+                setState(
+                  () {
+                    _pressed = false;
+                  },
+                );
+              },
+
+          onTapCancel: () {
+            setState(
+              () {
+                _pressed = false;
+              },
+            );
+          },
+
+          child: AnimatedScale(
+            duration: const Duration(
+              milliseconds: 130,
             ),
-            border: Border.all(
-              color: colorScheme.primary.withValues(
-                alpha: 0.16,
+
+            curve: Curves.easeOutCubic,
+
+            scale: _pressed
+                ? 0.95
+                : _hovered
+                ? 1.055
+                : 1.0,
+
+            child: AnimatedContainer(
+              duration: const Duration(
+                milliseconds: 180,
+              ),
+
+              curve: Curves.easeOutCubic,
+
+              width: 44,
+
+              height: 44,
+
+              decoration: BoxDecoration(
+                color: backgroundColor,
+
+                borderRadius: BorderRadius.circular(
+                  13,
+                ),
+
+                border: Border.all(
+                  color: borderColor,
+                  width: 1,
+                ),
+
+                boxShadow: _hovered
+                    ? [
+                        BoxShadow(
+                          color: _hoverIcon.withValues(
+                            alpha: 0.12,
+                          ),
+                          blurRadius: 15,
+                          offset: const Offset(
+                            0,
+                            5,
+                          ),
+                        ),
+                      ]
+                    : const [],
+              ),
+
+              child: Center(
+                child: AnimatedScale(
+                  duration: const Duration(
+                    milliseconds: 160,
+                  ),
+
+                  curve: Curves.easeOutCubic,
+
+                  scale: _hovered
+                      ? 1.06
+                      : 1.0,
+
+                  child: Icon(
+                    widget.icon,
+                    size: 21,
+                    color: iconColor,
+                  ),
+                ),
               ),
             ),
-          ),
-          child: Icon(
-            icon,
-            size: 21,
-            color: colorScheme.primary,
           ),
         ),
       ),

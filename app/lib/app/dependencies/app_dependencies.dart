@@ -159,6 +159,13 @@ import '../../study/brain/devices/services/brain_recovery_device_service.dart';
 import '../../reminders/controllers/reminder_controller.dart';
 
 // ======================================================
+// TELEGRAM
+// ======================================================
+
+import '../../telegram/controllers/telegram_connection_controller.dart';
+import '../../telegram/services/telegram_connection_service.dart';
+
+// ======================================================
 // ROUTINE
 // ======================================================
 
@@ -2300,4 +2307,16 @@ final reminderService = ReminderService(
   controller: reminderController,
 
   checkInterval: const Duration(seconds: 30),
+);
+
+// ======================================================
+// TELEGRAM CONNECTION
+// ======================================================
+
+final telegramConnectionService = TelegramConnectionService(
+  client: supabaseClient,
+);
+
+final telegramConnectionController = TelegramConnectionController(
+  service: telegramConnectionService,
 );

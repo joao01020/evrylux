@@ -50,8 +50,10 @@ extension _ProfileSettingsSecuritySection
                     Icons.edit_outlined,
                     size: 17,
                   ),
-            label: const Text(
-              'Alterar',
+            label: Text(
+              _changingPassword
+                  ? 'Alterando...'
+                  : 'Alterar',
             ),
           ),
         ),
@@ -70,15 +72,26 @@ extension _ProfileSettingsSecuritySection
           subtitle: _loadingAccountDevices
               ? 'Carregando dispositivos...'
               : _accountDevicesError ??
-                  (_activeAccountDeviceCount == 1
-                      ? '1 dispositivo conectado'
-                      : '$_activeAccountDeviceCount dispositivos conectados'),
+                    (_activeAccountDeviceCount ==
+                            1
+                        ? '1 dispositivo conectado'
+                        : '$_activeAccountDeviceCount dispositivos conectados'),
           trailing: FilledButton.tonalIcon(
-            onPressed: _showSessionsAndDevicesDialog,
-            icon: const Icon(
-              Icons.manage_accounts_outlined,
-              size: 17,
-            ),
+            onPressed: _loadingAccountDevices
+                ? null
+                : _showSessionsAndDevicesDialog,
+            icon: _loadingAccountDevices
+                ? const SizedBox(
+                    width: 15,
+                    height: 15,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Icon(
+                    Icons.manage_accounts_outlined,
+                    size: 17,
+                  ),
             label: const Text(
               'Gerenciar',
             ),
@@ -93,8 +106,164 @@ extension _ProfileSettingsSecuritySection
         // ======================================================
         // ZONA DE RISCO
         // ======================================================
-        const _DangerZoneHeader(),
+        _buildDangerZoneHeader(),
 
+        // ======================================================
+        // CONTEÚDO EXPANSÍVEL
+        // ======================================================
+        AnimatedSize(
+          duration: const Duration(
+            milliseconds: 240,
+          ),
+          curve: Curves.easeInOutCubic,
+          alignment: Alignment.topCenter,
+          child: _dangerZoneExpanded
+              ? _buildDangerZoneContent()
+              : const SizedBox.shrink(),
+        ),
+      ],
+    );
+  }
+
+  // ============================================================
+  // DANGER ZONE HEADER
+  // ============================================================
+
+  Widget _buildDangerZoneHeader() {
+    return Material(
+      color: const Color(
+        0xFFFFF7F5,
+      ),
+      child: InkWell(
+        onTap: _toggleDangerZone,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            14,
+            13,
+            12,
+            13,
+          ),
+          child: Row(
+            children: [
+              // ==================================================
+              // ICON
+              // ==================================================
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: _ProfileSettingsPageState._danger.withValues(
+                    alpha: 0.08,
+                  ),
+                  borderRadius: BorderRadius.circular(
+                    9,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.warning_amber_rounded,
+                  size: 18,
+                  color: _ProfileSettingsPageState._danger,
+                ),
+              ),
+
+              const SizedBox(
+                width: 10,
+              ),
+
+              // ==================================================
+              // TEXT
+              // ==================================================
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Zona de risco',
+                      style: TextStyle(
+                        color: _ProfileSettingsPageState._danger,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+
+                    SizedBox(
+                      height: 2,
+                    ),
+
+                    Text(
+                      'Ações permanentes relacionadas aos seus dados e à sua conta.',
+                      style: TextStyle(
+                        color: _ProfileSettingsPageState._muted,
+                        fontSize: 11,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(
+                width: 12,
+              ),
+
+              // ==================================================
+              // SHOW MORE / LESS
+              // ==================================================
+              TextButton.icon(
+                onPressed: _toggleDangerZone,
+                style: TextButton.styleFrom(
+                  foregroundColor: _ProfileSettingsPageState._danger,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(
+                      9,
+                    ),
+                  ),
+                ),
+                iconAlignment: IconAlignment.end,
+                icon: AnimatedRotation(
+                  turns: _dangerZoneExpanded
+                      ? 0.5
+                      : 0,
+                  duration: const Duration(
+                    milliseconds: 220,
+                  ),
+                  curve: Curves.easeInOutCubic,
+                  child: const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    size: 18,
+                  ),
+                ),
+                label: Text(
+                  _dangerZoneExpanded
+                      ? 'Mostrar menos'
+                      : 'Mostrar mais',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // DANGER ZONE CONTENT
+  // ============================================================
+
+  Widget _buildDangerZoneContent() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
         const Divider(
           height: 1,
           color: _ProfileSettingsPageState._border,
@@ -106,7 +275,9 @@ extension _ProfileSettingsSecuritySection
         _DangerZoneRow(
           icon: Icons.delete_sweep_outlined,
           title: 'Excluir meus dados',
-          subtitle: 'Remove os dados associados ao EVRYLUX, mas mantém sua conta ativa.',
+          subtitle:
+              'Remove os dados associados ao EVRYLUX, '
+              'mas mantém sua conta ativa.',
           buttonLabel: 'Excluir dados',
           onPressed: _confirmDeleteAllData,
         ),
@@ -122,12 +293,26 @@ extension _ProfileSettingsSecuritySection
         _DangerZoneRow(
           icon: Icons.person_remove_alt_1_outlined,
           title: 'Excluir conta',
-          subtitle: 'Remove permanentemente sua conta e os dados associados.',
+          subtitle:
+              'Remove permanentemente sua conta '
+              'e os dados associados.',
           buttonLabel: 'Excluir conta',
           strongest: true,
           onPressed: _confirmDeleteAccount,
         ),
       ],
+    );
+  }
+
+  // ============================================================
+  // TOGGLE DANGER ZONE
+  // ============================================================
+
+  void _toggleDangerZone() {
+    _updateProfileState(
+      () {
+        _dangerZoneExpanded = !_dangerZoneExpanded;
+      },
     );
   }
 

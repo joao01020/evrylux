@@ -538,6 +538,29 @@ extension _ProfileSettingsShell
           ),
 
           _SettingsNavItem(
+            icon: Icons.send_rounded,
+            label: 'Telegram',
+            selected:
+                _section ==
+                ProfileSettingsSection.telegram,
+            onTap: () {
+              _updateProfileState(
+                () {
+                  _section = ProfileSettingsSection.telegram;
+                },
+              );
+
+              unawaited(
+                telegramConnectionController.load(),
+              );
+            },
+          ),
+
+          const SizedBox(
+            height: 8,
+          ),
+
+          _SettingsNavItem(
             icon: Icons.shield_outlined,
             label: 'Segurança',
             selected:
@@ -673,6 +696,10 @@ extension _ProfileSettingsShell
             if (_section ==
                 ProfileSettingsSection.preferences)
               _buildPreferences(),
+
+            if (_section ==
+                ProfileSettingsSection.telegram)
+              _buildTelegramSettings(),
 
             if (_section ==
                 ProfileSettingsSection.security)

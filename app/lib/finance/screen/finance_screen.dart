@@ -126,7 +126,10 @@ class _FinanceScreenState
   // LOAD CACHED
   // ============================================================
 
-  Future<void> _loadCachedScreen() async {
+  Future<
+    void
+  >
+  _loadCachedScreen() async {
     try {
       await _controller.loadCached();
     } catch (
@@ -153,7 +156,10 @@ class _FinanceScreenState
   //
   // ============================================================
 
-  Future<void> _refreshRemoteScreen() async {
+  Future<
+    void
+  >
+  _refreshRemoteScreen() async {
     try {
       await _controller.refreshFromRemote();
     } catch (
@@ -854,9 +860,6 @@ class _FinanceScreenState
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      title: const Text(
-        'Financeiro 💰',
-      ),
       actions: [
         // ======================================================
         // OLHO
