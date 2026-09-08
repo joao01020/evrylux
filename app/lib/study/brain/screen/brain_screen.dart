@@ -31,6 +31,7 @@ import 'question/question_screen.dart';
 import 'example/example_screen.dart';
 import 'warning/warning_screen.dart';
 import 'note/brain_note_screen.dart';
+import 'widgets/brain_add_knowledge_button.dart';
 
 part 'brain_screen_parts/brain_screen_core.dart';
 part 'brain_screen_parts/brain_screen_visual_search.dart';
@@ -301,7 +302,7 @@ class _BrainScreenState
       // mas removemos o título "Cérebro" e o ícone do topo.
       //
       // ========================================================
-      appBar: AppBar(),
+      appBar: _buildAppBar(context),
 
       body:
           _controller.isLoading ||

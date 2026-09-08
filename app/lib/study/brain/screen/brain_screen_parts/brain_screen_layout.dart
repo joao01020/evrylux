@@ -37,12 +37,9 @@ extension _BrainScreenLayout on _BrainScreenState {
         ],
       ),
       actions: [
-        Tooltip(
-          message: 'Novo conhecimento',
-          child: IconButton(
-            onPressed: _controller.isSaving ? null : _showCreateNoteDialog,
-            icon: const Icon(Icons.add_rounded),
-          ),
+        BrainAddKnowledgeButton(
+          isSaving: _controller.isSaving,
+          onPressed: _showCreateNoteDialog,
         ),
 
         Container(
