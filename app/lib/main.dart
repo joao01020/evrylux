@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +9,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app/app.dart';
+import 'core/constants/app_info.dart';
+import 'core/database/app_database.dart';
+import 'core/updater/update_installation_service.dart';
 import 'app/dependencies/app_dependencies.dart';
 import 'routine/windows/mind_map_window.dart';
 
@@ -14,26 +19,55 @@ import 'routine/windows/mind_map_window.dart';
 // WINDOW TYPES
 // ============================================================
 
-const String
-_mainWindowType = 'main';
+const String _mainWindowType = 'main';
 
-const String
-_mindMapWindowType = 'mind_map';
+const String _mindMapWindowType = 'mind_map';
 
 // ============================================================
 // MAIN
 // ============================================================
 
-Future<
-  void
->
-main(
-  List<
-    String
-  >
-  args,
-) async {
+Future<void> main(List<String> args) async {
+  // ==========================================================
+  // UPDATER PREFLIGHT
+  // ==========================================================
+  //
+  // O instalador verifica a identidade exata do bundle antes
+  // de ativar uma nova versão.
+  //
+  // Esta verificação deve acontecer ANTES de inicializar o
+  // Flutter, abrir janelas, carregar .env ou acessar o banco.
+  //
+  // Não executa migrações nem inicia serviços do aplicativo.
+  //
+  // ==========================================================
+
+  if (args.contains('--evrylux-update-preflight')) {
+    stdout.writeln(
+      'EVRYLUX_PREFLIGHT:${jsonEncode({'version': AppInfo.version, 'dataSchema': AppDatabase.schemaVersion})}',
+    );
+
+    await stdout.flush();
+    exit(0);
+  }
+
+  // ==========================================================
+  // FLUTTER
+  // ==========================================================
+
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ==========================================================
+  // UPDATER HEALTH
+  // ==========================================================
+
+  final healthArguments = args.where(
+    (value) => value.startsWith('--evrylux-update-health='),
+  );
+
+  final updateHealthNonce = healthArguments.isEmpty
+      ? null
+      : healthArguments.first.substring('--evrylux-update-health='.length);
 
   // ==========================================================
   // CURRENT WINDOW
@@ -43,9 +77,7 @@ main(
 
   final windowArguments = windowController.arguments.trim();
 
-  final windowType = _resolveWindowType(
-    windowArguments,
-  );
+  final windowType = _resolveWindowType(windowArguments);
 
   // ==========================================================
   // WINDOW MANAGER
@@ -75,13 +107,8 @@ main(
   //
   // ==========================================================
 
-  if (windowType ==
-      _mindMapWindowType) {
-    runApp(
-      MindMapWindowApp(
-        arguments: windowArguments,
-      ),
-    );
+  if (windowType == _mindMapWindowType) {
+    runApp(MindMapWindowApp(arguments: windowArguments));
 
     return;
   }
@@ -90,25 +117,17 @@ main(
   // MAIN WINDOW - ENV
   // ==========================================================
 
-  await dotenv.load(
-    fileName: '.env',
-  );
+  await dotenv.load(fileName: '.env');
 
   final supabaseUrl = dotenv.env['SUPABASE_URL']?.trim();
 
   final supabasePublishableKey = dotenv.env['SUPABASE_PUBLISHABLE_KEY']?.trim();
 
-  if (supabaseUrl ==
-          null ||
-      supabaseUrl.isEmpty) {
-    throw StateError(
-      'SUPABASE_URL não foi configurada no arquivo .env.',
-    );
+  if (supabaseUrl == null || supabaseUrl.isEmpty) {
+    throw StateError('SUPABASE_URL não foi configurada no arquivo .env.');
   }
 
-  if (supabasePublishableKey ==
-          null ||
-      supabasePublishableKey.isEmpty) {
+  if (supabasePublishableKey == null || supabasePublishableKey.isEmpty) {
     throw StateError(
       'SUPABASE_PUBLISHABLE_KEY não foi configurada no arquivo .env.',
     );
@@ -135,57 +154,54 @@ main(
 
   await initializeOfflineFirst();
 
-  runApp(
-    GhostApp(
-      evolutionController: evolutionController,
-    ),
-  );
+  runApp(GhostApp(evolutionController: evolutionController));
+
+  // A healthy acknowledgement means initialization completed and the main
+  // engine rendered a frame. It does not claim every feature was tested.
+  if (updateHealthNonce != null) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(
+        UpdateInstallationService.reportHealthy(
+          nonce: updateHealthNonce,
+          version: AppInfo.version,
+        ).catchError((Object error) {
+          debugPrint(
+            '[UPDATER] Não foi possível confirmar a inicialização: $error',
+          );
+        }),
+      );
+    });
+  }
 }
 
 // ============================================================
 // RESOLVE WINDOW TYPE
 // ============================================================
 
-String
-_resolveWindowType(
-  String arguments,
-) {
+String _resolveWindowType(String arguments) {
   final value = arguments.trim();
 
   if (value.isEmpty) {
     return _mainWindowType;
   }
 
-  if (value ==
-      _mindMapWindowType) {
+  if (value == _mindMapWindowType) {
     return _mindMapWindowType;
   }
 
   try {
-    final decoded = jsonDecode(
-      value,
-    );
+    final decoded = jsonDecode(value);
 
-    if (decoded
-        is Map) {
-      final map =
-          Map<
-            String,
-            dynamic
-          >.from(
-            decoded,
-          );
+    if (decoded is Map) {
+      final map = Map<String, dynamic>.from(decoded);
 
       final window = map['window']?.toString().trim();
 
-      if (window ==
-          _mindMapWindowType) {
+      if (window == _mindMapWindowType) {
         return _mindMapWindowType;
       }
     }
-  } catch (
-    _
-  ) {
+  } catch (_) {
     // Argumento inválido -> janela principal.
   }
 

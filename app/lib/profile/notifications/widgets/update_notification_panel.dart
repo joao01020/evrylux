@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/database/app_database.dart';
+import '../../../core/updater/update_download_coordinator.dart';
+import 'update_download_dialog.dart';
 import '../controllers/update_notification_controller.dart';
 import '../models/app_update_notification.dart';
 
@@ -55,104 +57,36 @@ class UpdateNotificationPanel
   );
 
   // ============================================================
-  // OPEN DOWNLOAD
-  // ============================================================
-
-  Future<
-    void
-  >
-  _openDownload(
+  // DOWNLOAD — exige manifesto assinado e chave confiável.
+  Future<void> _openDownload(
     BuildContext context,
     AppUpdateNotification notification,
   ) async {
-    final rawUrl = notification.downloadUrl?.trim();
-
-    // ==========================================================
-    // SEM URL
-    // ==========================================================
-
-    if (rawUrl ==
-            null ||
-        rawUrl.isEmpty) {
-      _showMessage(
-        context,
-        'Esta atualização ainda não possui um link de download.',
-      );
-
-      return;
-    }
-
-    // ==========================================================
-    // PARSE
-    // ==========================================================
-
-    final uri = Uri.tryParse(
-      rawUrl,
-    );
-
-    if (uri ==
-            null ||
-        !uri.hasScheme) {
-      _showMessage(
-        context,
-        'O link desta atualização é inválido.',
-      );
-
-      return;
-    }
-
-    // ==========================================================
-    // OPEN EXTERNAL
-    // ==========================================================
-    //
-    // Abre no navegador padrão do sistema.
-    //
-    // Exemplo:
-    //
-    // https://updates.evrylux.com/evrylux-1.1.0-linux.tar.gz
-    //
-    // ou:
-    //
-    // https://pub-xxxxx.r2.dev/evrylux-1.1.0-linux.tar.gz
-    //
-    // ==========================================================
-
     try {
-      final opened = await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
-
-      if (!opened) {
-        if (!context.mounted) {
-          return;
-        }
-
-        _showMessage(
-          context,
-          'Não foi possível abrir o download.',
-        );
+      final database = AppDatabase.instance;
+      await database.initialize();
+      final schema = database.db
+          .select('PRAGMA user_version;')
+          .first['user_version'] as int;
+      if (schema < 1) {
+        throw StateError('Esquema local ainda não inicializado.');
       }
-    } catch (
-      error
-    ) {
-      debugPrint(
-        '[APP UPDATE] '
-        'Erro ao abrir download: $error',
+      final downloader = UpdateDownloadCoordinator.shared(
+        currentVersion: controller.currentVersion,
+        currentDataSchema: schema,
       );
-
-      if (!context.mounted) {
-        return;
-      }
-
-      _showMessage(
+      if (!context.mounted) return;
+      await UpdateDownloadDialog.show(
         context,
-        'Não foi possível abrir o link da atualização.',
+        coordinator: downloader,
+        version: notification.version,
       );
+    } catch (error) {
+      if (!context.mounted) return;
+      _showMessage(context, error.toString());
     }
   }
 
-  // ============================================================
   // MESSAGE
   // ============================================================
 
@@ -592,10 +526,6 @@ class UpdateNotificationPanel
     BuildContext context,
     AppUpdateNotification notification,
   ) {
-    final hasDownload =
-        notification.downloadUrl?.trim().isNotEmpty ==
-        true;
-
     return SingleChildScrollView(
       padding: const EdgeInsets.all(
         14,
@@ -725,7 +655,7 @@ class UpdateNotificationPanel
             // ==========================================
             // DOWNLOAD
             // ==========================================
-            if (hasDownload) ...[
+            ...[
               const SizedBox(
                 height: 16,
               ),
@@ -758,7 +688,7 @@ class UpdateNotificationPanel
                     size: 18,
                   ),
                   label: const Text(
-                    'Baixar atualização',
+                    'Atualizar',
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
                     ),

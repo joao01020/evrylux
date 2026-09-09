@@ -61,6 +61,7 @@ class AppDatabase {
   static const String _databaseFileName = 'ghost_core.db';
 
   static const int _schemaVersion = 7;
+  static int get schemaVersion => _schemaVersion;
 
   // ============================================================
   // DATABASE
@@ -73,15 +74,13 @@ class AppDatabase {
   // ============================================================
 
   bool get isOpen {
-    return _database !=
-        null;
+    return _database != null;
   }
 
   Database get db {
     final database = _database;
 
-    if (database ==
-        null) {
+    if (database == null) {
       throw StateError(
         'AppDatabase ainda não foi inicializado. '
         'Chame AppDatabase.instance.initialize() primeiro.',
@@ -95,56 +94,37 @@ class AppDatabase {
   // INITIALIZE
   // ============================================================
 
-  Future<
-    void
-  >
-  initialize() async {
-    if (_database !=
-        null) {
+  Future<void> initialize() async {
+    if (_database != null) {
       return;
     }
 
     final directory = await getApplicationSupportDirectory();
 
     if (!await directory.exists()) {
-      await directory.create(
-        recursive: true,
-      );
+      await directory.create(recursive: true);
     }
 
-    final databasePath = p.join(
-      directory.path,
-      _databaseFileName,
-    );
+    final databasePath = p.join(directory.path, _databaseFileName);
 
-    final database = sqlite3.open(
-      databasePath,
-    );
+    final database = sqlite3.open(databasePath);
 
     try {
       // ========================================================
       // PRAGMAS
       // ========================================================
 
-      database.execute(
-        'PRAGMA foreign_keys = ON;',
-      );
+      database.execute('PRAGMA foreign_keys = ON;');
 
-      database.execute(
-        'PRAGMA journal_mode = WAL;',
-      );
+      database.execute('PRAGMA journal_mode = WAL;');
 
-      database.execute(
-        'PRAGMA synchronous = NORMAL;',
-      );
+      database.execute('PRAGMA synchronous = NORMAL;');
 
       // ========================================================
       // MIGRATIONS
       // ========================================================
 
-      _migrate(
-        database,
-      );
+      _migrate(database);
 
       // ========================================================
       // PUBLICA INSTÂNCIA
@@ -156,9 +136,7 @@ class AppDatabase {
       // ========================================================
 
       _database = database;
-    } catch (
-      _
-    ) {
+    } catch (_) {
       database.dispose();
 
       _database = null;
@@ -171,16 +149,10 @@ class AppDatabase {
   // MIGRATIONS
   // ============================================================
 
-  void _migrate(
-    Database database,
-  ) {
-    _createMetadataTable(
-      database,
-    );
+  void _migrate(Database database) {
+    _createMetadataTable(database);
 
-    var currentVersion = _readSchemaVersion(
-      database,
-    );
+    var currentVersion = _readSchemaVersion(database);
 
     // ==========================================================
     // INVALID FUTURE VERSION
@@ -191,8 +163,7 @@ class AppDatabase {
     //
     // ==========================================================
 
-    if (currentVersion >
-        _schemaVersion) {
+    if (currentVersion > _schemaVersion) {
       throw StateError(
         'Banco local possui versão mais nova que o aplicativo: '
         '$currentVersion. '
@@ -204,21 +175,12 @@ class AppDatabase {
     // VERSION 1
     // ==========================================================
 
-    if (currentVersion <
-        1) {
-      transactionWithDatabase(
-        database,
-        () {
-          _createVersion1(
-            database,
-          );
+    if (currentVersion < 1) {
+      transactionWithDatabase(database, () {
+        _createVersion1(database);
 
-          _writeSchemaVersion(
-            database,
-            1,
-          );
-        },
-      );
+        _writeSchemaVersion(database, 1);
+      });
 
       currentVersion = 1;
     }
@@ -227,21 +189,12 @@ class AppDatabase {
     // VERSION 2
     // ==========================================================
 
-    if (currentVersion <
-        2) {
-      transactionWithDatabase(
-        database,
-        () {
-          _createVersion2(
-            database,
-          );
+    if (currentVersion < 2) {
+      transactionWithDatabase(database, () {
+        _createVersion2(database);
 
-          _writeSchemaVersion(
-            database,
-            2,
-          );
-        },
-      );
+        _writeSchemaVersion(database, 2);
+      });
 
       currentVersion = 2;
     }
@@ -250,21 +203,12 @@ class AppDatabase {
     // VERSION 3
     // ==========================================================
 
-    if (currentVersion <
-        3) {
-      transactionWithDatabase(
-        database,
-        () {
-          _createVersion3(
-            database,
-          );
+    if (currentVersion < 3) {
+      transactionWithDatabase(database, () {
+        _createVersion3(database);
 
-          _writeSchemaVersion(
-            database,
-            3,
-          );
-        },
-      );
+        _writeSchemaVersion(database, 3);
+      });
 
       currentVersion = 3;
     }
@@ -273,21 +217,12 @@ class AppDatabase {
     // VERSION 4
     // ==========================================================
 
-    if (currentVersion <
-        4) {
-      transactionWithDatabase(
-        database,
-        () {
-          _createVersion4(
-            database,
-          );
+    if (currentVersion < 4) {
+      transactionWithDatabase(database, () {
+        _createVersion4(database);
 
-          _writeSchemaVersion(
-            database,
-            4,
-          );
-        },
-      );
+        _writeSchemaVersion(database, 4);
+      });
 
       currentVersion = 4;
     }
@@ -296,21 +231,12 @@ class AppDatabase {
     // VERSION 5
     // ==========================================================
 
-    if (currentVersion <
-        5) {
-      transactionWithDatabase(
-        database,
-        () {
-          _createVersion5(
-            database,
-          );
+    if (currentVersion < 5) {
+      transactionWithDatabase(database, () {
+        _createVersion5(database);
 
-          _writeSchemaVersion(
-            database,
-            5,
-          );
-        },
-      );
+        _writeSchemaVersion(database, 5);
+      });
 
       currentVersion = 5;
     }
@@ -319,21 +245,12 @@ class AppDatabase {
     // VERSION 6
     // ==========================================================
 
-    if (currentVersion <
-        6) {
-      transactionWithDatabase(
-        database,
-        () {
-          _createVersion6(
-            database,
-          );
+    if (currentVersion < 6) {
+      transactionWithDatabase(database, () {
+        _createVersion6(database);
 
-          _writeSchemaVersion(
-            database,
-            6,
-          );
-        },
-      );
+        _writeSchemaVersion(database, 6);
+      });
 
       currentVersion = 6;
     }
@@ -342,21 +259,12 @@ class AppDatabase {
     // VERSION 7
     // ==========================================================
 
-    if (currentVersion <
-        7) {
-      transactionWithDatabase(
-        database,
-        () {
-          _createVersion7(
-            database,
-          );
+    if (currentVersion < 7) {
+      transactionWithDatabase(database, () {
+        _createVersion7(database);
 
-          _writeSchemaVersion(
-            database,
-            7,
-          );
-        },
-      );
+        _writeSchemaVersion(database, 7);
+      });
 
       currentVersion = 7;
     }
@@ -365,8 +273,7 @@ class AppDatabase {
     // FINAL VERSION CHECK
     // ==========================================================
 
-    if (currentVersion !=
-        _schemaVersion) {
+    if (currentVersion != _schemaVersion) {
       throw StateError(
         'Versão do banco local inesperada: '
         '$currentVersion. '
@@ -379,26 +286,20 @@ class AppDatabase {
   // METADATA TABLE
   // ============================================================
 
-  void _createMetadataTable(
-    Database database,
-  ) {
-    database.execute(
-      '''
+  void _createMetadataTable(Database database) {
+    database.execute('''
 CREATE TABLE IF NOT EXISTS app_metadata (
   key TEXT PRIMARY KEY NOT NULL,
   value TEXT NOT NULL
 );
-''',
-    );
+''');
   }
 
   // ============================================================
   // READ SCHEMA VERSION
   // ============================================================
 
-  int _readSchemaVersion(
-    Database database,
-  ) {
+  int _readSchemaVersion(Database database) {
     final result = database.select(
       '''
 SELECT value
@@ -406,31 +307,21 @@ FROM app_metadata
 WHERE key = ?
 LIMIT 1
 ''',
-      <
-        Object?
-      >[
-        'schema_version',
-      ],
+      <Object?>['schema_version'],
     );
 
     if (result.isEmpty) {
       return 0;
     }
 
-    return int.tryParse(
-          result.first['value'].toString(),
-        ) ??
-        0;
+    return int.tryParse(result.first['value'].toString()) ?? 0;
   }
 
   // ============================================================
   // WRITE SCHEMA VERSION
   // ============================================================
 
-  void _writeSchemaVersion(
-    Database database,
-    int version,
-  ) {
+  void _writeSchemaVersion(Database database, int version) {
     database.execute(
       '''
 INSERT INTO app_metadata (
@@ -442,12 +333,7 @@ ON CONFLICT(key)
 DO UPDATE SET
   value = excluded.value
 ''',
-      <
-        Object?
-      >[
-        'schema_version',
-        version.toString(),
-      ],
+      <Object?>['schema_version', version.toString()],
     );
   }
 
@@ -462,13 +348,9 @@ DO UPDATE SET
   //
   // ============================================================
 
-  void _createVersion1(
-    Database database,
-  ) {
+  void _createVersion1(Database database) {
     for (final statement in SyncQueueTable.createStatements) {
-      database.execute(
-        statement,
-      );
+      database.execute(statement);
     }
   }
 
@@ -480,13 +362,9 @@ DO UPDATE SET
   //
   // ============================================================
 
-  void _createVersion2(
-    Database database,
-  ) {
+  void _createVersion2(Database database) {
     for (final statement in TrainingActivityPlanTable.createStatements) {
-      database.execute(
-        statement,
-      );
+      database.execute(statement);
     }
   }
 
@@ -504,13 +382,9 @@ DO UPDATE SET
   //
   // ============================================================
 
-  void _createVersion3(
-    Database database,
-  ) {
+  void _createVersion3(Database database) {
     for (final statement in BoardAttachmentTable.createStatements) {
-      database.execute(
-        statement,
-      );
+      database.execute(statement);
     }
   }
 
@@ -537,9 +411,7 @@ DO UPDATE SET
   //
   // ============================================================
 
-  void _createVersion4(
-    Database database,
-  ) {
+  void _createVersion4(Database database) {
     // ==========================================================
     // DEDUPLICATE EXISTING QUEUE
     // ==========================================================
@@ -554,8 +426,7 @@ DO UPDATE SET
     //
     // ==========================================================
 
-    database.execute(
-      '''
+    database.execute('''
 DELETE FROM ${SyncQueueTable.tableName}
 WHERE ${SyncQueueTable.id} IN (
   SELECT duplicate.${SyncQueueTable.id}
@@ -594,8 +465,7 @@ WHERE ${SyncQueueTable.id} IN (
       )
   )
 );
-''',
-    );
+''');
 
     // ==========================================================
     // UNIQUE ENTITY INDEX
@@ -606,16 +476,14 @@ WHERE ${SyncQueueTable.id} IN (
     //
     // ==========================================================
 
-    database.execute(
-      '''
+    database.execute('''
 CREATE UNIQUE INDEX IF NOT EXISTS
 idx_sync_queue_entity_unique
 ON ${SyncQueueTable.tableName} (
   ${SyncQueueTable.entityType},
   ${SyncQueueTable.entityId}
 );
-''',
-    );
+''');
 
     // ==========================================================
     // READY / RETRY INDEX
@@ -628,16 +496,14 @@ ON ${SyncQueueTable.tableName} (
     //
     // ==========================================================
 
-    database.execute(
-      '''
+    database.execute('''
 CREATE INDEX IF NOT EXISTS
 idx_sync_queue_ready
 ON ${SyncQueueTable.tableName} (
   ${SyncQueueTable.nextAttemptAt},
   ${SyncQueueTable.createdAt}
 );
-''',
-    );
+''');
   }
 
   // ============================================================
@@ -648,13 +514,9 @@ ON ${SyncQueueTable.tableName} (
   //
   // ============================================================
 
-  void _createVersion5(
-    Database database,
-  ) {
+  void _createVersion5(Database database) {
     for (final statement in BoardCommentTable.createStatements) {
-      database.execute(
-        statement,
-      );
+      database.execute(statement);
     }
   }
 
@@ -666,13 +528,9 @@ ON ${SyncQueueTable.tableName} (
   //
   // ============================================================
 
-  void _createVersion6(
-    Database database,
-  ) {
+  void _createVersion6(Database database) {
     for (final statement in AppUpdateCacheTable.createStatements) {
-      database.execute(
-        statement,
-      );
+      database.execute(statement);
     }
   }
 
@@ -684,13 +542,9 @@ ON ${SyncQueueTable.tableName} (
   //
   // ============================================================
 
-  void _createVersion7(
-    Database database,
-  ) {
+  void _createVersion7(Database database) {
     for (final statement in ProfileCacheTable.createStatements) {
-      database.execute(
-        statement,
-      );
+      database.execute(statement);
     }
   }
 
@@ -698,49 +552,27 @@ ON ${SyncQueueTable.tableName} (
   // TRANSACTION
   // ============================================================
 
-  T transaction<
-    T
-  >(
-    T Function() action,
-  ) {
-    return transactionWithDatabase(
-      db,
-      action,
-    );
+  T transaction<T>(T Function() action) {
+    return transactionWithDatabase(db, action);
   }
 
   // ============================================================
   // INTERNAL TRANSACTION
   // ============================================================
 
-  T transactionWithDatabase<
-    T
-  >(
-    Database database,
-    T Function() action,
-  ) {
-    database.execute(
-      'BEGIN IMMEDIATE TRANSACTION;',
-    );
+  T transactionWithDatabase<T>(Database database, T Function() action) {
+    database.execute('BEGIN IMMEDIATE TRANSACTION;');
 
     try {
       final result = action();
 
-      database.execute(
-        'COMMIT;',
-      );
+      database.execute('COMMIT;');
 
       return result;
-    } catch (
-      _
-    ) {
+    } catch (_) {
       try {
-        database.execute(
-          'ROLLBACK;',
-        );
-      } catch (
-        _
-      ) {
+        database.execute('ROLLBACK;');
+      } catch (_) {
         // Evita esconder o erro original.
       }
 
@@ -754,16 +586,10 @@ ON ${SyncQueueTable.tableName} (
 
   bool healthCheck() {
     try {
-      final result = db.select(
-        'SELECT 1 AS ok;',
-      );
+      final result = db.select('SELECT 1 AS ok;');
 
-      return result.isNotEmpty &&
-          result.first['ok'] ==
-              1;
-    } catch (
-      _
-    ) {
+      return result.isNotEmpty && result.first['ok'] == 1;
+    } catch (_) {
       return false;
     }
   }
@@ -772,45 +598,30 @@ ON ${SyncQueueTable.tableName} (
   // DATABASE PATH
   // ============================================================
 
-  Future<
-    String
-  >
-  getDatabasePath() async {
+  Future<String> getDatabasePath() async {
     final directory = await getApplicationSupportDirectory();
 
-    return p.join(
-      directory.path,
-      _databaseFileName,
-    );
+    return p.join(directory.path, _databaseFileName);
   }
 
   // ============================================================
   // FILE EXISTS
   // ============================================================
 
-  Future<
-    bool
-  >
-  databaseFileExists() async {
+  Future<bool> databaseFileExists() async {
     final path = await getDatabasePath();
 
-    return File(
-      path,
-    ).exists();
+    return File(path).exists();
   }
 
   // ============================================================
   // CLOSE
   // ============================================================
 
-  Future<
-    void
-  >
-  close() async {
+  Future<void> close() async {
     final database = _database;
 
-    if (database ==
-        null) {
+    if (database == null) {
       return;
     }
 

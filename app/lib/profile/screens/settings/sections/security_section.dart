@@ -104,6 +104,30 @@ extension _ProfileSettingsSecuritySection
         ),
 
         // ======================================================
+        // RECUPERAÇÃO LOCAL (NÃO DESTRUTIVA)
+        // ======================================================
+        _SecurityRow(
+          icon: Icons.settings_backup_restore_rounded,
+          title: 'Backups e recuperação',
+          subtitle: 'Verifique backups locais e exporte uma cópia dos dados.',
+          trailing: OutlinedButton.icon(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const UpdateRecoveryPage(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.folder_copy_outlined, size: 17),
+            label: const Text('Abrir'),
+          ),
+        ),
+        const Divider(
+          height: 1,
+          color: _ProfileSettingsPageState._border,
+        ),
+
+        // ======================================================
         // ZONA DE RISCO
         // ======================================================
         _buildDangerZoneHeader(),

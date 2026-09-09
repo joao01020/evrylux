@@ -15,6 +15,7 @@ import '../models/profile_preferences.dart';
 import '../../telegram/widgets/telegram_connect_dialog.dart';
 import 'legal/privacy_policy_page.dart';
 import 'legal/terms_of_use_page.dart';
+import 'update_recovery_page.dart';
 
 // ============================================================
 // PROFILE SETTINGS PAGE
