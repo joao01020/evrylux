@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -65,6 +66,33 @@ void main() {
       expect((await storage.loadNotes()).single.title, 'Nota A');
     });
 
+    test(
+      'inicialização antiga não publica caminhos após troca de conta',
+      () async {
+        final firstDirectory = Completer<Directory>();
+        var directoryCalls = 0;
+        final delayedScope = UserStorageScope(
+          userIdProvider: () => activeUserId,
+          documentsDirectoryProvider: () {
+            directoryCalls++;
+            if (directoryCalls == 1) return firstDirectory.future;
+            return Future.value(tempDirectory);
+          },
+          supportDirectoryProvider: () async => tempDirectory,
+        );
+        final storage = BrainVaultStorage(storageScope: delayedScope);
+
+        final pendingA = storage.initialize();
+        activeUserId = 'account-b';
+        await storage.initialize();
+        firstDirectory.complete(tempDirectory);
+
+        await expectLater(pendingA, throwsStateError);
+        expect(storage.vaultDirectory.path, contains('account-b'));
+        expect(storage.objectsDirectory.path, contains('account-b'));
+      },
+    );
+
     test('BrainVaultStorage troca o Vault físico junto com a conta', () async {
       final storage = BrainVaultStorage(storageScope: scope);
       final keyService = BrainKeyService(storage: InMemoryBrainKeyStorage());
@@ -77,11 +105,15 @@ void main() {
 
       activeUserId = 'account-b';
 
+      // Cached paths must not remain accessible after an account switch.
+      expect(() => storage.vaultDirectory, throwsStateError);
+      expect(() => storage.objectsDirectory, throwsStateError);
       expect(await storage.hasManifest(), false);
 
       final manifestB = await vaultService.createVault();
 
       expect(manifestB.vaultId, isNot(manifestA.vaultId));
+      expect(storage.vaultDirectory.path, contains('account-b'));
 
       activeUserId = 'account-a';
 

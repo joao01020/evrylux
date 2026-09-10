@@ -11,31 +11,26 @@ import 'screen/login_screen.dart';
 // AUTHENTICATED BUILDER
 // ============================================================
 
-typedef AuthenticatedBuilder =
-    Widget Function(
-      BuildContext context,
-      User user,
-    );
+typedef AuthenticatedBuilder = Widget Function(BuildContext context, User user);
 
 // ============================================================
 // AUTH GATE
 // ============================================================
 
-class AuthGate
-    extends
-        StatefulWidget {
+class AuthGate extends StatefulWidget {
   const AuthGate({
     super.key,
     required this.authenticatedBuilder,
+    required this.prepareUser,
+    required this.onUserChanged,
   });
 
   final AuthenticatedBuilder authenticatedBuilder;
+  final Future<void> Function(String userId) prepareUser;
+  final void Function(String? userId) onUserChanged;
 
   @override
-  State<
-    AuthGate
-  >
-  createState() {
+  State<AuthGate> createState() {
     return _AuthGateState();
   }
 }
@@ -44,11 +39,7 @@ class AuthGate
 // AUTH GATE STATE
 // ============================================================
 
-class _AuthGateState
-    extends
-        State<
-          AuthGate
-        > {
+class _AuthGateState extends State<AuthGate> {
   // ============================================================
   // SUPABASE
   // ============================================================
@@ -67,10 +58,7 @@ class _AuthGateState
   // AUTH SUBSCRIPTION
   // ============================================================
 
-  StreamSubscription<
-    AuthState
-  >?
-  _authSubscription;
+  StreamSubscription<AuthState>? _authSubscription;
 
   // ============================================================
   // STATE
@@ -98,9 +86,7 @@ class _AuthGateState
   void initState() {
     super.initState();
 
-    _profileRepository = ProfileRepository(
-      client: _supabase,
-    );
+    _profileRepository = ProfileRepository(client: _supabase);
 
     _initialize();
   }
@@ -109,14 +95,9 @@ class _AuthGateState
   // INITIALIZE
   // ============================================================
 
-  Future<
-    void
-  >
-  _initialize() async {
+  Future<void> _initialize() async {
     try {
-      debugPrint(
-        '[AUTH GATE] Inicializando...',
-      );
+      debugPrint('[AUTH GATE] Inicializando...');
 
       // --------------------------------------------------------
       // Escuta login/logout/refresh.
@@ -124,26 +105,19 @@ class _AuthGateState
 
       _authSubscription = _supabase.auth.onAuthStateChange.listen(
         _onAuthChanged,
-        onError:
-            (
-              Object error,
-            ) {
-              debugPrint(
-                '[AUTH GATE] Erro no stream: $error',
-              );
+        onError: (Object error) {
+          debugPrint('[AUTH GATE] Erro no stream: $error');
 
-              if (!mounted) {
-                return;
-              }
+          if (!mounted) {
+            return;
+          }
 
-              setState(
-                () {
-                  _errorMessage = error.toString();
+          setState(() {
+            _errorMessage = error.toString();
 
-                  _loading = false;
-                },
-              );
-            },
+            _loading = false;
+          });
+        },
       );
 
       // --------------------------------------------------------
@@ -152,29 +126,25 @@ class _AuthGateState
 
       final user = _supabase.auth.currentUser;
 
-      debugPrint(
-        '[AUTH GATE] Usuário atual: ${user?.id ?? 'null'}',
-      );
+      debugPrint('[AUTH GATE] Usuário atual: ${user?.id ?? 'null'}');
 
       _user = user;
+      widget.onUserChanged(user?.id);
 
       // --------------------------------------------------------
       // Não autenticado.
       // --------------------------------------------------------
 
-      if (user ==
-          null) {
+      if (user == null) {
         if (!mounted) {
           return;
         }
 
-        setState(
-          () {
-            _loading = false;
-            _profileComplete = false;
-            _errorMessage = null;
-          },
-        );
+        setState(() {
+          _loading = false;
+          _profileComplete = false;
+          _errorMessage = null;
+        });
 
         return;
       }
@@ -184,27 +154,19 @@ class _AuthGateState
       // Agora precisamos descobrir se o perfil está completo.
       // --------------------------------------------------------
 
-      await _loadProfile(
-        user,
-      );
-    } catch (
-      error
-    ) {
-      debugPrint(
-        '[AUTH GATE] Erro ao inicializar: $error',
-      );
+      await _loadProfile(user);
+    } catch (error) {
+      debugPrint('[AUTH GATE] Erro ao inicializar: $error');
 
       if (!mounted) {
         return;
       }
 
-      setState(
-        () {
-          _errorMessage = error.toString();
+      setState(() {
+        _errorMessage = error.toString();
 
-          _loading = false;
-        },
-      );
+        _loading = false;
+      });
     }
   }
 
@@ -212,45 +174,34 @@ class _AuthGateState
   // AUTH CHANGED
   // ============================================================
 
-  Future<
-    void
-  >
-  _onAuthChanged(
-    AuthState state,
-  ) async {
+  Future<void> _onAuthChanged(AuthState state) async {
     if (!mounted) {
       return;
     }
 
     final user = state.session?.user;
 
-    debugPrint(
-      '[AUTH GATE] Evento: ${state.event}',
-    );
+    debugPrint('[AUTH GATE] Evento: ${state.event}');
 
-    debugPrint(
-      '[AUTH GATE] Usuário: ${user?.id ?? 'null'}',
-    );
+    debugPrint('[AUTH GATE] Usuário: ${user?.id ?? 'null'}');
 
     // ----------------------------------------------------------
     // Logout
     // ----------------------------------------------------------
 
-    if (user ==
-        null) {
+    if (user == null) {
+      widget.onUserChanged(null);
       _profileRequestId++;
 
-      setState(
-        () {
-          _user = null;
+      setState(() {
+        _user = null;
 
-          _profileComplete = false;
+        _profileComplete = false;
 
-          _loading = false;
+        _loading = false;
 
-          _errorMessage = null;
-        },
-      );
+        _errorMessage = null;
+      });
 
       return;
     }
@@ -259,55 +210,49 @@ class _AuthGateState
     // Login / sessão restaurada
     // ----------------------------------------------------------
 
-    setState(
-      () {
-        _user = user;
+    widget.onUserChanged(user.id);
 
-        _loading = true;
+    setState(() {
+      _user = user;
 
-        _profileComplete = false;
+      _loading = true;
 
-        _errorMessage = null;
-      },
-    );
+      _profileComplete = false;
 
-    await _loadProfile(
-      user,
-    );
+      _errorMessage = null;
+    });
+
+    await _loadProfile(user);
   }
 
   // ============================================================
   // LOAD PROFILE
   // ============================================================
 
-  Future<
-    void
-  >
-  _loadProfile(
-    User user,
-  ) async {
+  Future<void> _loadProfile(User user) async {
     final requestId = ++_profileRequestId;
 
     try {
-      debugPrint(
-        '[AUTH GATE] Verificando perfil...',
-      );
+      await widget.prepareUser(user.id);
 
-      debugPrint(
-        '[AUTH GATE] User ID: ${user.id}',
-      );
+      if (requestId != _profileRequestId ||
+          !mounted ||
+          _supabase.auth.currentUser?.id != user.id) {
+        return;
+      }
 
-      final profile = await _profileRepository.getProfile(
-        user.id,
-      );
+      debugPrint('[AUTH GATE] Verificando perfil...');
+
+      debugPrint('[AUTH GATE] User ID: ${user.id}');
+
+      final profile = await _profileRepository.getProfile(user.id);
 
       // --------------------------------------------------------
       // Uma nova requisição começou antes desta terminar.
       // Ignoramos esta resposta antiga.
       // --------------------------------------------------------
 
-      if (requestId !=
-          _profileRequestId) {
+      if (requestId != _profileRequestId) {
         return;
       }
 
@@ -321,101 +266,67 @@ class _AuthGateState
 
       final currentUser = _supabase.auth.currentUser;
 
-      if (currentUser ==
-              null ||
-          currentUser.id !=
-              user.id) {
+      if (currentUser == null || currentUser.id != user.id) {
         return;
       }
 
-      final profileComplete =
-          profile !=
-              null &&
-          profile.hasName;
+      final profileComplete = profile != null && profile.hasName;
 
-      debugPrint(
-        '[AUTH GATE] Perfil encontrado: ${profile != null}',
-      );
+      debugPrint('[AUTH GATE] Perfil encontrado: ${profile != null}');
 
-      debugPrint(
-        '[AUTH GATE] Nome: ${profile?.fullName ?? 'não definido'}',
-      );
+      debugPrint('[AUTH GATE] Nome: ${profile?.fullName ?? 'não definido'}');
 
-      debugPrint(
-        '[AUTH GATE] Perfil completo: $profileComplete',
-      );
+      debugPrint('[AUTH GATE] Perfil completo: $profileComplete');
 
-      setState(
-        () {
-          _user = currentUser;
+      setState(() {
+        _user = currentUser;
 
-          _profileComplete = profileComplete;
+        _profileComplete = profileComplete;
 
-          _loading = false;
+        _loading = false;
 
-          _errorMessage = null;
-        },
-      );
-    } on PostgrestException catch (
-      error
-    ) {
-      if (requestId !=
-          _profileRequestId) {
+        _errorMessage = null;
+      });
+    } on PostgrestException catch (error) {
+      if (requestId != _profileRequestId ||
+          _supabase.auth.currentUser?.id != user.id) {
         return;
       }
 
-      debugPrint(
-        '[AUTH GATE] Erro Supabase ao buscar perfil.',
-      );
+      debugPrint('[AUTH GATE] Erro Supabase ao buscar perfil.');
 
-      debugPrint(
-        '[AUTH GATE] Code: ${error.code}',
-      );
+      debugPrint('[AUTH GATE] Code: ${error.code}');
 
-      debugPrint(
-        '[AUTH GATE] Message: ${error.message}',
-      );
+      debugPrint('[AUTH GATE] Message: ${error.message}');
 
-      debugPrint(
-        '[AUTH GATE] Details: ${error.details}',
-      );
+      debugPrint('[AUTH GATE] Details: ${error.details}');
 
       if (!mounted) {
         return;
       }
 
-      setState(
-        () {
-          _loading = false;
+      setState(() {
+        _loading = false;
 
-          _errorMessage = _translateProfileError(
-            error,
-          );
-        },
-      );
-    } catch (
-      error
-    ) {
-      if (requestId !=
-          _profileRequestId) {
+        _errorMessage = _translateProfileError(error);
+      });
+    } catch (error) {
+      if (requestId != _profileRequestId) {
         return;
       }
 
-      debugPrint(
-        '[AUTH GATE] Erro ao verificar perfil: $error',
-      );
+      if (_supabase.auth.currentUser?.id != user.id) return;
+      debugPrint('[AUTH GATE] Erro ao verificar perfil: $error');
 
       if (!mounted) {
         return;
       }
 
-      setState(
-        () {
-          _loading = false;
+      setState(() {
+        _loading = false;
 
-          _errorMessage = 'Não foi possível carregar seu perfil.\n\n$error';
-        },
-      );
+        _errorMessage = 'Não foi possível carregar seu perfil.\n\n$error';
+      });
     }
   }
 
@@ -423,24 +334,68 @@ class _AuthGateState
   // PROFILE COMPLETED
   // ============================================================
 
-  Future<
-    void
-  >
-  _onProfileCompleted() async {
-    debugPrint(
-      '[AUTH GATE] Nome salvo. Recarregando perfil...',
-    );
+  Future<void> _onProfileCompleted() async {
+    debugPrint('[AUTH GATE] Nome salvo. Recarregando perfil...');
 
     final user = _supabase.auth.currentUser;
 
-    if (user ==
-        null) {
+    if (user == null) {
       if (!mounted) {
         return;
       }
 
-      setState(
-        () {
+      setState(() {
+        _user = null;
+
+        _profileComplete = false;
+
+        _loading = false;
+
+        _errorMessage = null;
+      });
+
+      return;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _user = user;
+
+      _loading = true;
+
+      _errorMessage = null;
+    });
+
+    await _loadProfile(user);
+  }
+
+  // ============================================================
+  // RETRY
+  // ============================================================
+
+  Future<void> _retry() async {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+
+      _errorMessage = null;
+    });
+
+    try {
+      final user = _supabase.auth.currentUser;
+
+      if (user == null) {
+        if (!mounted) {
+          return;
+        }
+
+        setState(() {
           _user = null;
 
           _profileComplete = false;
@@ -448,98 +403,26 @@ class _AuthGateState
           _loading = false;
 
           _errorMessage = null;
-        },
-      );
-
-      return;
-    }
-
-    if (!mounted) {
-      return;
-    }
-
-    setState(
-      () {
-        _user = user;
-
-        _loading = true;
-
-        _errorMessage = null;
-      },
-    );
-
-    await _loadProfile(
-      user,
-    );
-  }
-
-  // ============================================================
-  // RETRY
-  // ============================================================
-
-  Future<
-    void
-  >
-  _retry() async {
-    if (!mounted) {
-      return;
-    }
-
-    setState(
-      () {
-        _loading = true;
-
-        _errorMessage = null;
-      },
-    );
-
-    try {
-      final user = _supabase.auth.currentUser;
-
-      if (user ==
-          null) {
-        if (!mounted) {
-          return;
-        }
-
-        setState(
-          () {
-            _user = null;
-
-            _profileComplete = false;
-
-            _loading = false;
-
-            _errorMessage = null;
-          },
-        );
+        });
 
         return;
       }
 
       _user = user;
 
-      await _loadProfile(
-        user,
-      );
-    } catch (
-      error
-    ) {
-      debugPrint(
-        '[AUTH GATE] Erro ao tentar novamente: $error',
-      );
+      await _loadProfile(user);
+    } catch (error) {
+      debugPrint('[AUTH GATE] Erro ao tentar novamente: $error');
 
       if (!mounted) {
         return;
       }
 
-      setState(
-        () {
-          _loading = false;
+      setState(() {
+        _loading = false;
 
-          _errorMessage = error.toString();
-        },
-      );
+        _errorMessage = error.toString();
+      });
     }
   }
 
@@ -547,9 +430,7 @@ class _AuthGateState
   // TRANSLATE PROFILE ERROR
   // ============================================================
 
-  String _translateProfileError(
-    PostgrestException error,
-  ) {
+  String _translateProfileError(PostgrestException error) {
     final code = error.code;
 
     final message = error.message.toLowerCase();
@@ -558,14 +439,8 @@ class _AuthGateState
     // Tabela não existe
     // ----------------------------------------------------------
 
-    if (code ==
-            '42P01' ||
-        message.contains(
-              'relation',
-            ) &&
-            message.contains(
-              'does not exist',
-            )) {
+    if (code == '42P01' ||
+        message.contains('relation') && message.contains('does not exist')) {
       return 'A tabela "profiles" ainda não existe no Supabase.';
     }
 
@@ -573,14 +448,8 @@ class _AuthGateState
     // Coluna não existe
     // ----------------------------------------------------------
 
-    if (code ==
-            '42703' ||
-        message.contains(
-              'column',
-            ) &&
-            message.contains(
-              'does not exist',
-            )) {
+    if (code == '42703' ||
+        message.contains('column') && message.contains('does not exist')) {
       return 'A estrutura da tabela "profiles" não corresponde ao aplicativo.';
     }
 
@@ -588,11 +457,7 @@ class _AuthGateState
     // RLS
     // ----------------------------------------------------------
 
-    if (code ==
-            '42501' ||
-        message.contains(
-          'row-level security',
-        )) {
+    if (code == '42501' || message.contains('row-level security')) {
       return 'O Supabase bloqueou o acesso ao perfil pelas regras de segurança (RLS).';
     }
 
@@ -617,9 +482,7 @@ class _AuthGateState
   // ============================================================
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     // ==========================================================
     // LOADING
     // ==========================================================
@@ -632,12 +495,8 @@ class _AuthGateState
     // ERROR
     // ==========================================================
 
-    if (_errorMessage !=
-        null) {
-      return _AuthErrorScreen(
-        message: _errorMessage!,
-        onRetry: _retry,
-      );
+    if (_errorMessage != null) {
+      return _AuthErrorScreen(message: _errorMessage!, onRetry: _retry);
     }
 
     // ==========================================================
@@ -646,8 +505,7 @@ class _AuthGateState
 
     final user = _user;
 
-    if (user ==
-        null) {
+    if (user == null) {
       return const LoginScreen();
     }
 
@@ -666,10 +524,7 @@ class _AuthGateState
     // AUTENTICADO + PERFIL COMPLETO
     // ==========================================================
 
-    return widget.authenticatedBuilder(
-      context,
-      user,
-    );
+    return widget.authenticatedBuilder(context, user);
   }
 }
 
@@ -677,40 +532,22 @@ class _AuthGateState
 // LOADING SCREEN
 // ============================================================
 
-class _AuthLoadingScreen
-    extends
-        StatelessWidget {
+class _AuthLoadingScreen extends StatelessWidget {
   const _AuthLoadingScreen();
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return const Scaffold(
-      backgroundColor: Color(
-        0xFFF7FBF1,
-      ),
+      backgroundColor: Color(0xFFF7FBF1),
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircularProgressIndicator(
-              color: Color(
-                0xFF3B6939,
-              ),
-              strokeWidth: 2,
-            ),
-            SizedBox(
-              height: 16,
-            ),
+            CircularProgressIndicator(color: Color(0xFF3B6939), strokeWidth: 2),
+            SizedBox(height: 16),
             Text(
               'Carregando sua conta...',
-              style: TextStyle(
-                color: Color(
-                  0xFF68746B,
-                ),
-                fontSize: 12,
-              ),
+              style: TextStyle(color: Color(0xFF68746B), fontSize: 12),
             ),
           ],
         ),
@@ -723,55 +560,28 @@ class _AuthLoadingScreen
 // ERROR SCREEN
 // ============================================================
 
-class _AuthErrorScreen
-    extends
-        StatelessWidget {
-  const _AuthErrorScreen({
-    required this.message,
-    required this.onRetry,
-  });
+class _AuthErrorScreen extends StatelessWidget {
+  const _AuthErrorScreen({required this.message, required this.onRetry});
 
   final String message;
 
-  final Future<
-    void
-  >
-  Function()
-  onRetry;
+  final Future<void> Function() onRetry;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(
-        0xFFF7FBF1,
-      ),
+      backgroundColor: const Color(0xFFF7FBF1),
       body: Center(
         child: Padding(
-          padding: const EdgeInsets.all(
-            24,
-          ),
+          padding: const EdgeInsets.all(24),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: 430,
-            ),
+            constraints: const BoxConstraints(maxWidth: 430),
             child: Container(
-              padding: const EdgeInsets.all(
-                26,
-              ),
+              padding: const EdgeInsets.all(26),
               decoration: BoxDecoration(
-                color: const Color(
-                  0xFFFFFFFF,
-                ),
-                borderRadius: BorderRadius.circular(
-                  18,
-                ),
-                border: Border.all(
-                  color: const Color(
-                    0xFFE3B7B7,
-                  ),
-                ),
+                color: const Color(0xFFFFFFFF),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFE3B7B7)),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -781,15 +591,11 @@ class _AuthErrorScreen
                   // ==================================================
                   const Icon(
                     Icons.cloud_off_outlined,
-                    color: Color(
-                      0xFFB3261E,
-                    ),
+                    color: Color(0xFFB3261E),
                     size: 36,
                   ),
 
-                  const SizedBox(
-                    height: 16,
-                  ),
+                  const SizedBox(height: 16),
 
                   // ==================================================
                   // TITLE
@@ -798,17 +604,13 @@ class _AuthErrorScreen
                     'Não foi possível continuar',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Color(
-                        0xFF172019,
-                      ),
+                      color: Color(0xFF172019),
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
 
-                  const SizedBox(
-                    height: 10,
-                  ),
+                  const SizedBox(height: 10),
 
                   // ==================================================
                   // ERROR
@@ -817,17 +619,13 @@ class _AuthErrorScreen
                     message,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      color: Color(
-                        0xFF68746B,
-                      ),
+                      color: Color(0xFF68746B),
                       fontSize: 11,
                       height: 1.45,
                     ),
                   ),
 
-                  const SizedBox(
-                    height: 20,
-                  ),
+                  const SizedBox(height: 20),
 
                   // ==================================================
                   // RETRY
@@ -838,31 +636,20 @@ class _AuthErrorScreen
                     },
                     style: ElevatedButton.styleFrom(
                       elevation: 0,
-                      backgroundColor: const Color(
-                        0xFFBCF0B4,
-                      ),
-                      foregroundColor: const Color(
-                        0xFF3B6939,
-                      ),
+                      backgroundColor: const Color(0xFFBCF0B4),
+                      foregroundColor: const Color(0xFF3B6939),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 18,
                         vertical: 13,
                       ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          11,
-                        ),
+                        borderRadius: BorderRadius.circular(11),
                       ),
                     ),
-                    icon: const Icon(
-                      Icons.refresh_rounded,
-                      size: 18,
-                    ),
+                    icon: const Icon(Icons.refresh_rounded, size: 18),
                     label: const Text(
                       'Tentar novamente',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),
                 ],

@@ -11,13 +11,7 @@ import 'sync_queue.dart';
 // HANDLER
 // ============================================================
 
-typedef SyncItemHandler =
-    Future<
-      void
-    >
-    Function(
-      SyncItem item,
-    );
+typedef SyncItemHandler = Future<void> Function(SyncItem item);
 
 // ============================================================
 // PROCESSING GATE
@@ -38,26 +32,13 @@ typedef SyncItemHandler =
 //
 // ============================================================
 
-typedef SyncItemProcessingGate =
-    Future<
-      bool
-    >
-    Function(
-      SyncItem item,
-    );
+typedef SyncItemProcessingGate = Future<bool> Function(SyncItem item);
 
 // ============================================================
 // SERVICE STATE
 // ============================================================
 
-enum SyncServiceState {
-  stopped,
-  checking,
-  offline,
-  idle,
-  syncing,
-  error,
-}
+enum SyncServiceState { stopped, checking, offline, idle, syncing, error }
 
 // ============================================================
 // SYNC SERVICE
@@ -77,23 +58,16 @@ enum SyncServiceState {
 //
 // ============================================================
 
-class SyncService
-    extends
-        ChangeNotifier {
+class SyncService extends ChangeNotifier {
   SyncService({
     required SyncQueue queue,
     required ConnectivityService connectivityService,
     SupabaseClient? client,
-    this.syncInterval = const Duration(
-      minutes: 1,
-    ),
+    this.syncInterval = const Duration(minutes: 1),
     this.batchSize = 50,
-  }) : _queue =
-           queue,
+  }) : _queue = queue,
        _connectivityService = connectivityService,
-       _client =
-           client ??
-           Supabase.instance.client;
+       _client = client ?? Supabase.instance.client;
 
   // ============================================================
   // DEPENDENCIES
@@ -117,25 +91,10 @@ class SyncService
   // HANDLERS
   // ============================================================
 
-  final Map<
-    String,
-    SyncItemHandler
-  >
-  _handlers =
-      <
-        String,
-        SyncItemHandler
-      >{};
+  final Map<String, SyncItemHandler> _handlers = <String, SyncItemHandler>{};
 
-  final Map<
-    String,
-    SyncItemProcessingGate
-  >
-  _processingGates =
-      <
-        String,
-        SyncItemProcessingGate
-      >{};
+  final Map<String, SyncItemProcessingGate> _processingGates =
+      <String, SyncItemProcessingGate>{};
 
   // ============================================================
   // STATE
@@ -148,6 +107,36 @@ class SyncService
   bool _started = false;
 
   bool _syncing = false;
+
+  String? _authorizedUserId;
+  Future<void>? _activeSync;
+  Future<void>? _stopping;
+
+  /// Revoga imediatamente a autorização anterior.
+  /// O coordenador aguarda stop() antes de preparar outra conta.
+  void authorizeUser(String? userId) {
+    final value = userId?.trim();
+    if (value != null &&
+        value.isNotEmpty &&
+        (_started || _activeSync != null || _stopping != null)) {
+      throw StateError('Pare o sync antes de autorizar outra conta.');
+    }
+    _authorizedUserId = value == null || value.isEmpty ? null : value;
+    if (_authorizedUserId == null) {
+      _resyncRequested = false;
+    }
+  }
+
+  bool _isAuthorizedFor(String owner) =>
+      _started &&
+      !_disposed &&
+      _authorizedUserId == owner &&
+      _client.auth.currentUser?.id == owner;
+
+  bool get _isAuthorizedUser {
+    final owner = _authorizedUserId;
+    return owner != null && _isAuthorizedFor(owner);
+  }
 
   bool _disposed = false;
 
@@ -206,44 +195,33 @@ class SyncService
 
   DateTime? get lastAttemptAt => _lastAttemptAt;
 
-  bool get hasPending =>
-      _pendingCount >
-      0;
+  bool get hasPending => _pendingCount > 0;
 
-  bool get hasReady =>
-      _readyCount >
-      0;
+  bool get hasReady => _readyCount > 0;
 
-  bool get hasError =>
-      _lastError !=
-      null;
+  bool get hasError => _lastError != null;
 
   // ============================================================
   // START
   // ============================================================
 
-  Future<
-    void
-  >
-  start() async {
-    if (_disposed ||
-        _started) {
+  Future<void> start() async {
+    if (_disposed || _started) {
       return;
+    }
+
+    if (_authorizedUserId == null ||
+        _client.auth.currentUser?.id != _authorizedUserId) {
+      throw StateError('Sync requer uma conta autorizada.');
     }
 
     _started = true;
 
-    debugPrint(
-      '[SYNC SERVICE] Iniciando...',
-    );
+    debugPrint('[SYNC SERVICE] Iniciando...');
 
-    _setState(
-      SyncServiceState.checking,
-    );
+    _setState(SyncServiceState.checking);
 
-    _connectivityService.addListener(
-      _onConnectivityChanged,
-    );
+    _connectivityService.addListener(_onConnectivityChanged);
 
     try {
       await _connectivityService.start();
@@ -260,18 +238,11 @@ class SyncService
       );
 
       if (_connectivityService.isOffline) {
-        _setState(
-          SyncServiceState.offline,
-        );
-      } else if (_readyCount >
-          0) {
-        await syncNow(
-          checkConnection: false,
-        );
+        _setState(SyncServiceState.offline);
+      } else if (_readyCount > 0) {
+        await syncNow(checkConnection: false);
       } else {
-        _setState(
-          SyncServiceState.idle,
-        );
+        _setState(SyncServiceState.idle);
       }
 
       // ======================================================
@@ -297,40 +268,24 @@ class SyncService
       //
       // ======================================================
 
-      _timer = Timer.periodic(
-        syncInterval,
-        (
-          _,
-        ) {
-          unawaited(
-            _periodicCheck(),
-          );
-        },
-      );
-    } catch (
-      error,
-      stackTrace
-    ) {
+      _timer = Timer.periodic(syncInterval, (_) {
+        unawaited(_periodicCheck());
+      });
+    } catch (error, stackTrace) {
       _started = false;
 
-      _connectivityService.removeListener(
-        _onConnectivityChanged,
-      );
+      _connectivityService.removeListener(_onConnectivityChanged);
 
       _lastError = error.toString();
 
-      _setState(
-        SyncServiceState.error,
-      );
+      _setState(SyncServiceState.error);
 
       debugPrint(
         '[SYNC SERVICE] '
         'Erro ao iniciar: $error',
       );
 
-      debugPrint(
-        stackTrace.toString(),
-      );
+      debugPrint(stackTrace.toString());
 
       rethrow;
     }
@@ -340,13 +295,8 @@ class SyncService
   // PERIODIC CHECK
   // ============================================================
 
-  Future<
-    void
-  >
-  _periodicCheck() async {
-    if (!_started ||
-        _disposed ||
-        _syncing) {
+  Future<void> _periodicCheck() async {
+    if (!_isAuthorizedUser || !_started || _disposed || _syncing) {
       return;
     }
 
@@ -368,16 +318,11 @@ class SyncService
 
     await refreshPendingCount();
 
-    if (_readyCount <=
-        0) {
+    if (_readyCount <= 0) {
       if (_connectivityService.isOffline) {
-        _setState(
-          SyncServiceState.offline,
-        );
+        _setState(SyncServiceState.offline);
       } else {
-        _setState(
-          SyncServiceState.idle,
-        );
+        _setState(SyncServiceState.idle);
       }
 
       return;
@@ -390,16 +335,12 @@ class SyncService
     final online = await _connectivityService.checkNow();
 
     if (!online) {
-      _setState(
-        SyncServiceState.offline,
-      );
+      _setState(SyncServiceState.offline);
 
       return;
     }
 
-    await syncNow(
-      checkConnection: false,
-    );
+    await syncNow(checkConnection: false);
   }
 
   // ============================================================
@@ -407,30 +348,23 @@ class SyncService
   // ============================================================
 
   void _onConnectivityChanged() {
-    if (!_started ||
-        _disposed) {
+    if (!_started || _disposed) {
       return;
     }
 
     if (_connectivityService.isOffline) {
-      _setState(
-        SyncServiceState.offline,
-      );
+      _setState(SyncServiceState.offline);
 
       return;
     }
 
     if (_connectivityService.isOnline) {
-      unawaited(
-        _onConnectionRestored(),
-      );
+      unawaited(_onConnectionRestored());
     }
   }
 
-  Future<
-    void
-  >
-  _onConnectionRestored() async {
+  Future<void> _onConnectionRestored() async {
+    if (!_isAuthorizedUser) return;
     debugPrint(
       '[SYNC SERVICE] '
       'Conexão restaurada.',
@@ -438,18 +372,13 @@ class SyncService
 
     await refreshPendingCount();
 
-    if (_pendingCount ==
-        0) {
-      _setState(
-        SyncServiceState.idle,
-      );
+    if (_pendingCount == 0) {
+      _setState(SyncServiceState.idle);
 
       return;
     }
 
-    await syncNow(
-      checkConnection: false,
-    );
+    await syncNow(checkConnection: false);
   }
 
   // ============================================================
@@ -464,18 +393,13 @@ class SyncService
     final key = entityType.trim();
 
     if (key.isEmpty) {
-      throw ArgumentError(
-        'entityType não pode ser vazio.',
-      );
+      throw ArgumentError('entityType não pode ser vazio.');
     }
 
     _handlers[key] = handler;
 
-    if (processingGate ==
-        null) {
-      _processingGates.remove(
-        key,
-      );
+    if (processingGate == null) {
+      _processingGates.remove(key);
     } else {
       _processingGates[key] = processingGate;
     }
@@ -503,70 +427,42 @@ class SyncService
     final normalizedIdColumn = idColumn.trim();
 
     if (normalizedEntityType.isEmpty) {
-      throw ArgumentError(
-        'entityType não pode ser vazio.',
-      );
+      throw ArgumentError('entityType não pode ser vazio.');
     }
 
     if (normalizedTable.isEmpty) {
-      throw ArgumentError(
-        'table não pode ser vazia.',
-      );
+      throw ArgumentError('table não pode ser vazia.');
     }
 
     if (normalizedIdColumn.isEmpty) {
-      throw ArgumentError(
-        'idColumn não pode ser vazio.',
-      );
+      throw ArgumentError('idColumn não pode ser vazio.');
     }
 
     registerHandler(
       entityType: normalizedEntityType,
-      handler:
-          (
-            item,
-          ) async {
-            switch (item.operation) {
-              case SyncOperation.create:
-              case SyncOperation.update:
-                final payload =
-                    Map<
-                      String,
-                      dynamic
-                    >.from(
-                      item.payload,
-                    );
+      handler: (item) async {
+        switch (item.operation) {
+          case SyncOperation.create:
+          case SyncOperation.update:
+            final payload = Map<String, dynamic>.from(item.payload);
 
-                payload.putIfAbsent(
-                  normalizedIdColumn,
-                  () => item.entityId,
-                );
+            payload.putIfAbsent(normalizedIdColumn, () => item.entityId);
 
-                await _client
-                    .from(
-                      normalizedTable,
-                    )
-                    .upsert(
-                      payload,
-                      onConflict: normalizedIdColumn,
-                    );
+            await _client
+                .from(normalizedTable)
+                .upsert(payload, onConflict: normalizedIdColumn);
 
-                break;
+            break;
 
-              case SyncOperation.delete:
-                await _client
-                    .from(
-                      normalizedTable,
-                    )
-                    .delete()
-                    .eq(
-                      normalizedIdColumn,
-                      item.entityId,
-                    );
+          case SyncOperation.delete:
+            await _client
+                .from(normalizedTable)
+                .delete()
+                .eq(normalizedIdColumn, item.entityId);
 
-                break;
-            }
-          },
+            break;
+        }
+      },
     );
   }
 
@@ -574,26 +470,16 @@ class SyncService
   // UNREGISTER
   // ============================================================
 
-  void unregisterHandler(
-    String entityType,
-  ) {
+  void unregisterHandler(String entityType) {
     final key = entityType.trim();
 
-    _handlers.remove(
-      key,
-    );
+    _handlers.remove(key);
 
-    _processingGates.remove(
-      key,
-    );
+    _processingGates.remove(key);
   }
 
-  bool hasHandler(
-    String entityType,
-  ) {
-    return _handlers.containsKey(
-      entityType.trim(),
-    );
+  bool hasHandler(String entityType) {
+    return _handlers.containsKey(entityType.trim());
   }
 
   // ============================================================
@@ -608,6 +494,7 @@ class SyncService
   // ============================================================
 
   void requestSync() {
+    if (!_isAuthorizedUser) return;
     if (_disposed) {
       return;
     }
@@ -628,17 +515,11 @@ class SyncService
       'Sincronização solicitada.',
     );
 
-    unawaited(
-      _requestSyncInternal(),
-    );
+    unawaited(_requestSyncInternal());
   }
 
-  Future<
-    void
-  >
-  _requestSyncInternal() async {
-    if (_disposed ||
-        !_started) {
+  Future<void> _requestSyncInternal() async {
+    if (!_isAuthorizedUser || _disposed || !_started) {
       return;
     }
 
@@ -656,16 +537,11 @@ class SyncService
     // Nada pronto para transmitir.
     //
     // Pode haver itens em backoff ou bloqueados por política.
-    if (_readyCount <=
-        0) {
+    if (_readyCount <= 0) {
       if (_connectivityService.isOffline) {
-        _setState(
-          SyncServiceState.offline,
-        );
+        _setState(SyncServiceState.offline);
       } else {
-        _setState(
-          SyncServiceState.idle,
-        );
+        _setState(SyncServiceState.idle);
       }
 
       return;
@@ -683,32 +559,45 @@ class SyncService
     // Caso o estado conhecido seja offline, o item permanece na
     // fila e o evento de reconexão cuidará do envio.
     if (!_connectivityService.isOnline) {
-      _setState(
-        SyncServiceState.offline,
-      );
+      _setState(SyncServiceState.offline);
 
       return;
     }
 
-    await syncNow(
-      checkConnection: false,
-    );
+    await syncNow(checkConnection: false);
   }
 
   // ============================================================
   // SYNC NOW
   // ============================================================
 
-  Future<
-    void
-  >
-  syncNow({
-    bool checkConnection = true,
-  }) async {
-    if (!_started ||
-        _disposed) {
-      return;
+  Future<void> syncNow({bool checkConnection = true}) {
+    if (!_isAuthorizedUser) return Future<void>.value();
+    final running = _activeSync;
+    if (running != null) {
+      _resyncRequested = true;
+      return running;
     }
+    final completed = Completer<void>();
+    _activeSync = completed.future;
+    unawaited(
+      _runSyncNow(checkConnection: checkConnection).then(
+        (_) {
+          _activeSync = null;
+          completed.complete();
+        },
+        onError: (Object error, StackTrace stackTrace) {
+          _activeSync = null;
+          completed.completeError(error, stackTrace);
+        },
+      ),
+    );
+    return completed.future;
+  }
+
+  Future<void> _runSyncNow({bool checkConnection = true}) async {
+    final owner = _authorizedUserId;
+    if (owner == null || !_isAuthorizedFor(owner)) return;
 
     if (_syncing) {
       _resyncRequested = true;
@@ -730,17 +619,13 @@ class SyncService
     // ========================================================
 
     await refreshPendingCount();
+    if (!_isAuthorizedFor(owner)) return;
 
-    if (_readyCount <=
-        0) {
+    if (_readyCount <= 0) {
       if (_connectivityService.isOffline) {
-        _setState(
-          SyncServiceState.offline,
-        );
+        _setState(SyncServiceState.offline);
       } else {
-        _setState(
-          SyncServiceState.idle,
-        );
+        _setState(SyncServiceState.idle);
       }
 
       return;
@@ -760,13 +645,9 @@ class SyncService
     _lastError = null;
 
     if (checkConnection) {
-      _setState(
-        SyncServiceState.checking,
-      );
+      _setState(SyncServiceState.checking);
     } else {
-      _setState(
-        SyncServiceState.syncing,
-      );
+      _setState(SyncServiceState.syncing);
     }
 
     try {
@@ -780,16 +661,12 @@ class SyncService
         );
 
         if (!online) {
-          _setState(
-            SyncServiceState.offline,
-          );
+          _setState(SyncServiceState.offline);
 
           return;
         }
       } else if (!_connectivityService.isOnline) {
-        _setState(
-          SyncServiceState.offline,
-        );
+        _setState(SyncServiceState.offline);
 
         return;
       }
@@ -806,15 +683,12 @@ class SyncService
       //
       // ========================================================
 
-      if (_client.auth.currentUser ==
-          null) {
+      if (_client.auth.currentUser == null) {
         await refreshPendingCount();
 
         _lastError = null;
 
-        _setState(
-          SyncServiceState.idle,
-        );
+        _setState(SyncServiceState.idle);
 
         debugPrint(
           '[SYNC SERVICE] '
@@ -825,9 +699,7 @@ class SyncService
         return;
       }
 
-      _setState(
-        SyncServiceState.syncing,
-      );
+      _setState(SyncServiceState.syncing);
 
       // ========================================================
       // PROCESS BATCHES
@@ -841,6 +713,7 @@ class SyncService
       var continueProcessing = true;
 
       while (continueProcessing &&
+          _isAuthorizedFor(owner) &&
           _started &&
           !_disposed &&
           _connectivityService.isOnline) {
@@ -858,10 +731,12 @@ class SyncService
         var processedThisBatch = 0;
 
         for (final item in items) {
+          if (!_isAuthorizedFor(owner)) {
+            continueProcessing = false;
+            break;
+          }
           if (!_connectivityService.isOnline) {
-            _setState(
-              SyncServiceState.offline,
-            );
+            _setState(SyncServiceState.offline);
 
             continueProcessing = false;
 
@@ -870,8 +745,7 @@ class SyncService
 
           final handler = _handlers[item.entityType];
 
-          if (handler ==
-              null) {
+          if (handler == null) {
             _lastFailedCount++;
 
             _lastError =
@@ -897,13 +771,14 @@ class SyncService
               '(${item.operation.value})',
             );
 
-            await handler(
-              item,
-            );
+            await handler(item);
 
-            await _queue.markSuccess(
-              item.id,
-            );
+            // Não marque uma operação da conta anterior após logout.
+            if (!_isAuthorizedFor(owner)) {
+              continueProcessing = false;
+              break;
+            }
+            await _queue.markSuccess(item.id);
 
             _lastSyncedCount++;
             processedThisBatch++;
@@ -914,10 +789,11 @@ class SyncService
               '${item.entityType}/${item.entityId} '
               '(${item.operation.value})',
             );
-          } catch (
-            error,
-            stackTrace
-          ) {
+          } catch (error, stackTrace) {
+            if (!_isAuthorizedFor(owner)) {
+              continueProcessing = false;
+              break;
+            }
             _lastFailedCount++;
             processedThisBatch++;
 
@@ -930,18 +806,11 @@ class SyncService
               '(${item.operation.value})',
             );
 
-            debugPrint(
-              '[SYNC SERVICE] $error',
-            );
+            debugPrint('[SYNC SERVICE] $error');
 
-            debugPrint(
-              stackTrace.toString(),
-            );
+            debugPrint(stackTrace.toString());
 
-            await _queue.markFailed(
-              id: item.id,
-              error: error,
-            );
+            await _queue.markFailed(id: item.id, error: error);
 
             // Não fazemos um novo probe remoto para cada erro.
             //
@@ -949,9 +818,7 @@ class SyncService
             // interface de rede. Erros funcionais/RLS/servidor
             // permanecem na fila com exponential backoff.
             if (_connectivityService.isOffline) {
-              _setState(
-                SyncServiceState.offline,
-              );
+              _setState(SyncServiceState.offline);
 
               continueProcessing = false;
 
@@ -962,15 +829,13 @@ class SyncService
 
         // Se nenhum item do lote pôde ser processado, geralmente
         // significa ausência de handler. Evitamos loop infinito.
-        if (processedThisBatch ==
-            0) {
+        if (processedThisBatch == 0) {
           continueProcessing = false;
         }
 
         // Se o lote veio menor que batchSize, já chegamos ao fim
         // dos itens atualmente prontos.
-        if (items.length <
-            batchSize) {
+        if (items.length < batchSize) {
           continueProcessing = false;
         }
       }
@@ -980,20 +845,11 @@ class SyncService
       _lastSyncAt = DateTime.now();
 
       if (_connectivityService.isOffline) {
-        _setState(
-          SyncServiceState.offline,
-        );
-      } else if (_lastFailedCount >
-              0 &&
-          _lastSyncedCount ==
-              0) {
-        _setState(
-          SyncServiceState.error,
-        );
+        _setState(SyncServiceState.offline);
+      } else if (_lastFailedCount > 0 && _lastSyncedCount == 0) {
+        _setState(SyncServiceState.error);
       } else {
-        _setState(
-          SyncServiceState.idle,
-        );
+        _setState(SyncServiceState.idle);
       }
 
       debugPrint(
@@ -1004,10 +860,7 @@ class SyncService
         'pending=$_pendingCount '
         'ready=$_readyCount',
       );
-    } catch (
-      error,
-      stackTrace
-    ) {
+    } catch (error, stackTrace) {
       _lastError = error.toString();
 
       debugPrint(
@@ -1015,18 +868,12 @@ class SyncService
         'Erro geral: $error',
       );
 
-      debugPrint(
-        stackTrace.toString(),
-      );
+      debugPrint(stackTrace.toString());
 
       if (_connectivityService.isOffline) {
-        _setState(
-          SyncServiceState.offline,
-        );
+        _setState(SyncServiceState.offline);
       } else {
-        _setState(
-          SyncServiceState.error,
-        );
+        _setState(SyncServiceState.error);
       }
     } finally {
       _syncing = false;
@@ -1043,21 +890,16 @@ class SyncService
       // ========================================================
 
       if (_resyncRequested &&
+          _isAuthorizedFor(owner) &&
           _started &&
           !_disposed &&
           _connectivityService.isOnline) {
         _resyncRequested = false;
 
         unawaited(
-          Future<
-            void
-          >.delayed(
-            const Duration(
-              milliseconds: 100,
-            ),
-            () => syncNow(
-              checkConnection: false,
-            ),
+          Future<void>.delayed(
+            const Duration(milliseconds: 100),
+            () => syncNow(checkConnection: false),
           ),
         );
       }
@@ -1089,38 +931,25 @@ class SyncService
   //
   // ============================================================
 
-  Future<
-    List<
-      SyncItem
-    >
-  >
-  _loadProcessableItems() async {
+  Future<List<SyncItem>> _loadProcessableItems() async {
     final all = await _queue.getAll();
 
-    final result =
-        <
-          SyncItem
-        >[];
+    final result = <SyncItem>[];
 
     for (final item in all) {
+      if (!_isAuthorizedUser) break;
       if (!item.canAttemptNow) {
         continue;
       }
 
       final gate = _processingGates[item.entityType];
 
-      if (gate !=
-          null) {
+      if (gate != null) {
         var allowed = false;
 
         try {
-          allowed = await gate(
-            item,
-          );
-        } catch (
-          error,
-          stackTrace
-        ) {
+          allowed = await gate(item);
+        } catch (error, stackTrace) {
           // ====================================================
           // FAIL CLOSED
           // ====================================================
@@ -1139,13 +968,9 @@ class SyncService
             '${item.entityType}/${item.entityId}',
           );
 
-          debugPrint(
-            '[SYNC SERVICE] $error',
-          );
+          debugPrint('[SYNC SERVICE] $error');
 
-          debugPrint(
-            stackTrace.toString(),
-          );
+          debugPrint(stackTrace.toString());
 
           allowed = false;
         }
@@ -1161,12 +986,9 @@ class SyncService
         }
       }
 
-      result.add(
-        item,
-      );
+      result.add(item);
 
-      if (result.length >=
-          batchSize) {
+      if (result.length >= batchSize) {
         break;
       }
     }
@@ -1178,20 +1000,13 @@ class SyncService
   // REFRESH PENDING COUNT
   // ============================================================
 
-  Future<
-    void
-  >
-  refreshPendingCount() async {
+  Future<void> refreshPendingCount() async {
     try {
       final count = await _queue.count();
 
       final ready = await _queue.countReady();
 
-      final changed =
-          _pendingCount !=
-              count ||
-          _readyCount !=
-              ready;
+      final changed = _pendingCount != count || _readyCount != ready;
 
       _pendingCount = count;
 
@@ -1206,9 +1021,7 @@ class SyncService
 
         _safeNotifyListeners();
       }
-    } catch (
-      error
-    ) {
+    } catch (error) {
       debugPrint(
         '[SYNC SERVICE] '
         'Erro ao contar pendências: $error',
@@ -1221,25 +1034,18 @@ class SyncService
   // ============================================================
 
   void clearError() {
-    if (_lastError ==
-        null) {
+    if (_lastError == null) {
       return;
     }
 
     _lastError = null;
 
     if (_connectivityService.isOffline) {
-      _setState(
-        SyncServiceState.offline,
-      );
+      _setState(SyncServiceState.offline);
     } else if (_syncing) {
-      _setState(
-        SyncServiceState.syncing,
-      );
+      _setState(SyncServiceState.syncing);
     } else {
-      _setState(
-        SyncServiceState.idle,
-      );
+      _setState(SyncServiceState.idle);
     }
   }
 
@@ -1256,8 +1062,7 @@ class SyncService
         return 'Verificando conexão...';
 
       case SyncServiceState.offline:
-        if (_pendingCount >
-            0) {
+        if (_pendingCount > 0) {
           return 'Offline • $_pendingCount alteração'
               '${_pendingCount == 1 ? '' : 'ões'} salva'
               '${_pendingCount == 1 ? '' : 's'} neste dispositivo';
@@ -1266,8 +1071,7 @@ class SyncService
         return 'Offline';
 
       case SyncServiceState.syncing:
-        if (_pendingCount >
-            0) {
+        if (_pendingCount > 0) {
           return 'Sincronizando $_pendingCount alteração'
               '${_pendingCount == 1 ? '' : 'ões'}...';
         }
@@ -1278,10 +1082,8 @@ class SyncService
         return 'Erro de sincronização';
 
       case SyncServiceState.idle:
-        if (_pendingCount >
-            0) {
-          if (_readyCount ==
-              0) {
+        if (_pendingCount > 0) {
+          if (_readyCount == 0) {
             return '$_pendingCount alteração'
                 '${_pendingCount == 1 ? '' : 'ões'} aguardando nova tentativa';
           }
@@ -1298,11 +1100,8 @@ class SyncService
   // STATE
   // ============================================================
 
-  void _setState(
-    SyncServiceState value,
-  ) {
-    if (_state ==
-        value) {
+  void _setState(SyncServiceState value) {
+    if (_state == value) {
       return;
     }
 
@@ -1323,37 +1122,47 @@ class SyncService
   // STOP
   // ============================================================
 
-  Future<
-    void
-  >
-  stop() async {
-    if (!_started) {
-      return;
-    }
+  Future<void> stop() {
+    final running = _stopping;
+    if (running != null) return running;
+    final completed = Completer<void>();
+    _stopping = completed.future;
+    unawaited(
+      _stopInternal().then(
+        (_) {
+          _stopping = null;
+          completed.complete();
+        },
+        onError: (Object error, StackTrace stackTrace) {
+          _stopping = null;
+          completed.completeError(error, stackTrace);
+        },
+      ),
+    );
+    return completed.future;
+  }
+
+  Future<void> _stopInternal() async {
+    // Bloqueia novos lotes antes de aguardar o lote existente.
+    _started = false;
+    _authorizedUserId = null;
+    _resyncRequested = false;
 
     _timer?.cancel();
 
     _timer = null;
 
-    _connectivityService.removeListener(
-      _onConnectivityChanged,
-    );
+    _connectivityService.removeListener(_onConnectivityChanged);
 
-    await _connectivityService.stop();
+    final running = _activeSync;
+    try {
+      if (running != null) await running;
+    } finally {
+      await _connectivityService.stop();
+      _setState(SyncServiceState.stopped);
+    }
 
-    _started = false;
-
-    _syncing = false;
-
-    _resyncRequested = false;
-
-    _setState(
-      SyncServiceState.stopped,
-    );
-
-    debugPrint(
-      '[SYNC SERVICE] Parado.',
-    );
+    debugPrint('[SYNC SERVICE] Parado.');
   }
 
   // ============================================================
@@ -1372,13 +1181,9 @@ class SyncService
 
     _timer = null;
 
-    _connectivityService.removeListener(
-      _onConnectivityChanged,
-    );
+    _connectivityService.removeListener(_onConnectivityChanged);
 
-    unawaited(
-      _connectivityService.stop(),
-    );
+    unawaited(_connectivityService.stop());
 
     super.dispose();
   }

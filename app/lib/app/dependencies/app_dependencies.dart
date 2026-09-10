@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'account_startup_coordinator.dart';
+
 import 'package:flutter/foundation.dart';
 
 /*
@@ -382,9 +384,7 @@ final syncService = SyncService(
 //
 // ======================================================
 
-final brainStorage = BrainStorage(
-  storageScope: userStorageScope,
-);
+final brainStorage = BrainStorage(storageScope: userStorageScope);
 
 final supabaseBrainService = SupabaseBrainService(client: supabaseClient);
 
@@ -432,9 +432,7 @@ final brainController = BrainController(repository: brainRepository);
 //
 // ======================================================
 
-final reviewStorage = ReviewStorage(
-  storageScope: userStorageScope,
-);
+final reviewStorage = ReviewStorage(storageScope: userStorageScope);
 
 // ======================================================
 // BRAIN MASTER KEY STORAGE
@@ -459,9 +457,7 @@ final brainKeyService = BrainKeyService(storage: brainKeyStorage);
 //
 // ======================================================
 
-final brainVaultStorage = BrainVaultStorage(
-  storageScope: userStorageScope,
-);
+final brainVaultStorage = BrainVaultStorage(storageScope: userStorageScope);
 
 // ======================================================
 // BRAIN VAULT
@@ -1036,7 +1032,7 @@ User _requireQueueUser({required String? userId, required String entity}) {
 //
 // ======================================================
 
-Future<void> _purgeLegacyBrainQueueItems() async {
+Future<void> _purgeLegacyBrainQueueItems(void Function() check) async {
   const legacyEntityTypes = <String>{
     'brain_note',
     'brain_concept',
@@ -1048,10 +1044,12 @@ Future<void> _purgeLegacyBrainQueueItems() async {
   var removed = 0;
 
   for (final item in items) {
+    check();
     if (!legacyEntityTypes.contains(item.entityType)) {
       continue;
     }
 
+    check();
     await syncQueue.remove(item.id);
 
     removed++;
@@ -1885,6 +1883,31 @@ Future<void> initializeOfflineFirst() async {
   //
   // ====================================================
 
+  // Registra os handlers, mas não inicia sincronização sem conta.
+  registerSyncHandlers();
+}
+
+// A identidade é validada novamente depois de cada operação assíncrona.
+// O coordenador serializa inicialização, logout e troca de conta.
+final accountStartupCoordinator = AccountStartupCoordinator(
+  currentUserId: () => supabaseClient.auth.currentUser?.id,
+  initialize: _initializeAuthenticatedOfflineFirst,
+  stop: () => syncService.stop(),
+  onIdentityChanged: (userId) => syncService.authorizeUser(userId),
+);
+
+void notifyAppUserChanged(String? userId) {
+  accountStartupCoordinator.setUser(userId);
+}
+
+Future<void> initializeAuthenticatedOfflineFirst(String userId) {
+  return accountStartupCoordinator.ensure(userId);
+}
+
+Future<void> _initializeAuthenticatedOfflineFirst(
+  String userId,
+  void Function() check,
+) async {
   // ====================================================
   // BRAIN REVIEW VAULT
   // ====================================================
@@ -1895,7 +1918,9 @@ Future<void> initializeOfflineFirst() async {
   //
   // ====================================================
 
+  check();
   await reviewRepository.initialize();
+  check();
 
   // ====================================================
   // BRAIN AUTHORIZED DEVICE BOOTSTRAP — FASE 07
@@ -1917,7 +1942,9 @@ Future<void> initializeOfflineFirst() async {
   //
   // ====================================================
 
+  check();
   await _bootstrapBrainAuthorizedDevice();
+  check();
 
   // ====================================================
   // BRAIN LEGACY MIGRATION RUNTIME
@@ -1955,7 +1982,9 @@ Future<void> initializeOfflineFirst() async {
     coordinator: brainMigrationRuntime.coordinator,
   );
 
+  check();
   await brainReviewStartupMigrationService.run();
+  check();
 
   // ====================================================
   // PURGE LEGACY BRAIN QUEUE
@@ -1967,7 +1996,9 @@ Future<void> initializeOfflineFirst() async {
   //
   // ====================================================
 
-  await _purgeLegacyBrainQueueItems();
+  check();
+  await _purgeLegacyBrainQueueItems(check);
+  check();
 
   // ====================================================
   // SYNC HANDLERS
@@ -1977,7 +2008,7 @@ Future<void> initializeOfflineFirst() async {
   //
   // ====================================================
 
-  registerSyncHandlers();
+  check();
 
   // ====================================================
   // BRAIN E2EE BOOTSTRAP — FASE 06
@@ -1997,13 +2028,18 @@ Future<void> initializeOfflineFirst() async {
   //
   // ====================================================
 
+  check();
   await brainE2eeSyncCoordinator.bootstrap();
+  check();
 
   // ====================================================
   // START GLOBAL SYNC
   // ====================================================
 
+  check();
+  syncService.authorizeUser(userId);
   await syncService.start();
+  check();
 }
 
 // ======================================================
