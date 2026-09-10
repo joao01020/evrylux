@@ -59,14 +59,9 @@ class BrainVaultStorage {
     required UserStorageScope storageScope,
     BrainVaultSerializer? serializer,
     BrainVaultIdService? idService,
-  }) : _storageScope =
-           storageScope,
-       _serializer =
-           serializer ??
-           const BrainVaultSerializer(),
-       _idService =
-           idService ??
-           BrainVaultIdService();
+  }) : _storageScope = storageScope,
+       _serializer = serializer ?? const BrainVaultSerializer(),
+       _idService = idService ?? BrainVaultIdService();
 
   // ============================================================
   // DEPENDENCIES
@@ -94,6 +89,21 @@ class BrainVaultStorage {
 
   bool _initialized = false;
 
+  String? _initializedUserId;
+
+  // Prevent an older asynchronous initialization from publishing stale paths.
+  int _initializationGeneration = 0;
+
+  void _assertCurrentOwner() {
+    if (!_initialized ||
+        _initializedUserId == null ||
+        _initializedUserId != _storageScope.userId) {
+      throw StateError(
+        'BrainVaultStorage não foi inicializado para a conta atual.',
+      );
+    }
+  }
+
   Directory? _vaultDirectory;
 
   Directory? _objectsDirectory;
@@ -111,38 +121,29 @@ class BrainVaultStorage {
   // ============================================================
 
   Directory get vaultDirectory {
+    _assertCurrentOwner();
     final value = _vaultDirectory;
 
-    if (value ==
-        null) {
-      throw StateError(
-        'BrainVaultStorage ainda não foi inicializado.',
-      );
+    if (value == null) {
+      throw StateError('BrainVaultStorage ainda não foi inicializado.');
     }
 
     return value;
   }
 
   Directory get objectsDirectory {
+    _assertCurrentOwner();
     final value = _objectsDirectory;
 
-    if (value ==
-        null) {
-      throw StateError(
-        'BrainVaultStorage ainda não foi inicializado.',
-      );
+    if (value == null) {
+      throw StateError('BrainVaultStorage ainda não foi inicializado.');
     }
 
     return value;
   }
 
   File get manifestFile {
-    return File(
-      p.join(
-        vaultDirectory.path,
-        manifestFileName,
-      ),
-    );
+    return File(p.join(vaultDirectory.path, manifestFileName));
   }
 
   // ============================================================
@@ -159,31 +160,39 @@ class BrainVaultStorage {
   //
   // ============================================================
 
-  Future<
-    void
-  >
-  initialize() async {
-    if (_initialized) {
+  Future<void> initialize() async {
+    final requestedUserId = _storageScope.userId;
+
+    if (_initialized && _initializedUserId == requestedUserId) {
       return;
     }
 
+    // Invalidate cached paths before resolving a different account.
+    final generation = ++_initializationGeneration;
+    _initialized = false;
+    _initializedUserId = null;
+    _vaultDirectory = null;
+    _objectsDirectory = null;
+
     final vault = await _storageScope.vaultDirectory;
 
-    final objects = Directory(
-      p.join(
-        vault.path,
-        objectsDirectoryName,
-      ),
-    );
+    if (_initializationGeneration != generation ||
+        _storageScope.userId != requestedUserId) {
+      throw StateError('A conta mudou durante a inicialização do Vault.');
+    }
 
-    await objects.create(
-      recursive: true,
-    );
+    final objects = Directory(p.join(vault.path, objectsDirectoryName));
+
+    await objects.create(recursive: true);
+
+    if (_initializationGeneration != generation ||
+        _storageScope.userId != requestedUserId) {
+      throw StateError('A conta mudou durante a inicialização do Vault.');
+    }
 
     _vaultDirectory = vault;
-
     _objectsDirectory = objects;
-
+    _initializedUserId = requestedUserId;
     _initialized = true;
   }
 
@@ -191,10 +200,7 @@ class BrainVaultStorage {
   // HAS MANIFEST
   // ============================================================
 
-  Future<
-    bool
-  >
-  hasManifest() async {
+  Future<bool> hasManifest() async {
     await initialize();
 
     return manifestFile.exists();
@@ -204,12 +210,7 @@ class BrainVaultStorage {
   // SAVE MANIFEST
   // ============================================================
 
-  Future<
-    void
-  >
-  saveManifest(
-    BrainVaultManifest manifest,
-  ) async {
+  Future<void> saveManifest(BrainVaultManifest manifest) async {
     await initialize();
 
     manifest.validate();
@@ -224,10 +225,7 @@ class BrainVaultStorage {
   // LOAD MANIFEST
   // ============================================================
 
-  Future<
-    BrainVaultManifest?
-  >
-  loadManifest() async {
+  Future<BrainVaultManifest?> loadManifest() async {
     await initialize();
 
     final file = manifestFile;
@@ -238,73 +236,44 @@ class BrainVaultStorage {
 
     final content = await file.readAsString();
 
-    return BrainVaultManifest.fromJsonString(
-      content,
-    );
+    return BrainVaultManifest.fromJsonString(content);
   }
 
   // ============================================================
   // OBJECT FILE
   // ============================================================
 
-  File objectFile(
-    String objectId,
-  ) {
-    _assertValidObjectId(
-      objectId,
-    );
+  File objectFile(String objectId) {
+    _assertValidObjectId(objectId);
 
-    return File(
-      p.join(
-        objectsDirectory.path,
-        '$objectId$objectExtension',
-      ),
-    );
+    return File(p.join(objectsDirectory.path, '$objectId$objectExtension'));
   }
 
   // ============================================================
   // OBJECT EXISTS
   // ============================================================
 
-  Future<
-    bool
-  >
-  containsObject(
-    String objectId,
-  ) async {
+  Future<bool> containsObject(String objectId) async {
     await initialize();
 
-    return objectFile(
-      objectId,
-    ).exists();
+    return objectFile(objectId).exists();
   }
 
   // ============================================================
   // SAVE OBJECT
   // ============================================================
 
-  Future<
-    void
-  >
-  saveObject(
-    BrainVaultObject object,
-  ) async {
+  Future<void> saveObject(BrainVaultObject object) async {
     await initialize();
 
     object.validate();
 
-    _assertValidObjectId(
-      object.header.objectId,
-    );
+    _assertValidObjectId(object.header.objectId);
 
-    final content = _serializer.serializeObject(
-      object,
-    );
+    final content = _serializer.serializeObject(object);
 
     await _atomicWriteString(
-      file: objectFile(
-        object.header.objectId,
-      ),
+      file: objectFile(object.header.objectId),
       content: content,
     );
   }
@@ -313,17 +282,10 @@ class BrainVaultStorage {
   // LOAD OBJECT
   // ============================================================
 
-  Future<
-    BrainVaultObject?
-  >
-  loadObject(
-    String objectId,
-  ) async {
+  Future<BrainVaultObject?> loadObject(String objectId) async {
     await initialize();
 
-    final file = objectFile(
-      objectId,
-    );
+    final file = objectFile(objectId);
 
     if (!await file.exists()) {
       return null;
@@ -331,12 +293,9 @@ class BrainVaultStorage {
 
     final content = await file.readAsString();
 
-    final object = _serializer.deserializeObject(
-      content,
-    );
+    final object = _serializer.deserializeObject(content);
 
-    if (object.header.objectId !=
-        objectId) {
+    if (object.header.objectId != objectId) {
       throw const FormatException(
         'objectId interno não corresponde ao nome do arquivo.',
       );
@@ -349,79 +308,38 @@ class BrainVaultStorage {
   // LOAD ALL OBJECTS
   // ============================================================
 
-  Future<
-    List<
-      BrainVaultObject
-    >
-  >
-  loadAllObjects() async {
+  Future<List<BrainVaultObject>> loadAllObjects() async {
     await initialize();
 
-    final entities = await objectsDirectory
-        .list(
-          followLinks: false,
-        )
-        .toList();
+    final entities = await objectsDirectory.list(followLinks: false).toList();
 
-    final files = entities
-        .whereType<
-          File
-        >()
-        .where(
-          (
-            file,
-          ) {
-            return file.path.endsWith(
-              objectExtension,
-            );
-          },
-        )
-        .toList();
+    final files = entities.whereType<File>().where((file) {
+      return file.path.endsWith(objectExtension);
+    }).toList();
 
-    files.sort(
-      (
-        first,
-        second,
-      ) {
-        return first.path.compareTo(
-          second.path,
-        );
-      },
-    );
+    files.sort((first, second) {
+      return first.path.compareTo(second.path);
+    });
 
-    final objects =
-        <
-          BrainVaultObject
-        >[];
+    final objects = <BrainVaultObject>[];
 
     for (final file in files) {
       final content = await file.readAsString();
 
-      final object = _serializer.deserializeObject(
-        content,
-      );
+      final object = _serializer.deserializeObject(content);
 
       final expectedFileName = '${object.header.objectId}$objectExtension';
 
-      if (p.basename(
-            file.path,
-          ) !=
-          expectedFileName) {
+      if (p.basename(file.path) != expectedFileName) {
         throw FormatException(
           'Arquivo do Vault não corresponde ao objectId interno.',
         );
       }
 
-      objects.add(
-        object,
-      );
+      objects.add(object);
     }
 
-    return List<
-      BrainVaultObject
-    >.unmodifiable(
-      objects,
-    );
+    return List<BrainVaultObject>.unmodifiable(objects);
   }
 
   // ============================================================
@@ -441,17 +359,10 @@ class BrainVaultStorage {
   //
   // ============================================================
 
-  Future<
-    void
-  >
-  deleteObjectFile(
-    String objectId,
-  ) async {
+  Future<void> deleteObjectFile(String objectId) async {
     await initialize();
 
-    final file = objectFile(
-      objectId,
-    );
+    final file = objectFile(objectId);
 
     if (await file.exists()) {
       await file.delete();
@@ -462,10 +373,7 @@ class BrainVaultStorage {
   // COUNT
   // ============================================================
 
-  Future<
-    int
-  >
-  countObjects() async {
+  Future<int> countObjects() async {
     final objects = await loadAllObjects();
 
     return objects.length;
@@ -487,10 +395,7 @@ class BrainVaultStorage {
   //
   // ============================================================
 
-  Future<
-    String
-  >
-  getVaultDirectoryPath() async {
+  Future<String> getVaultDirectoryPath() async {
     await initialize();
 
     return vaultDirectory.path;
@@ -500,33 +405,22 @@ class BrainVaultStorage {
   // ATOMIC WRITE
   // ============================================================
 
-  Future<
-    void
-  >
-  _atomicWriteString({
+  Future<void> _atomicWriteString({
     required File file,
     required String content,
   }) async {
-    await file.parent.create(
-      recursive: true,
-    );
+    await file.parent.create(recursive: true);
 
-    final temp = File(
-      '${file.path}.tmp',
-    );
+    final temp = File('${file.path}.tmp');
 
     if (await temp.exists()) {
       await temp.delete();
     }
 
-    final sink = temp.openWrite(
-      mode: FileMode.writeOnly,
-    );
+    final sink = temp.openWrite(mode: FileMode.writeOnly);
 
     try {
-      sink.write(
-        content,
-      );
+      sink.write(content);
 
       await sink.flush();
     } finally {
@@ -534,17 +428,13 @@ class BrainVaultStorage {
     }
 
     try {
-      await temp.rename(
-        file.path,
-      );
+      await temp.rename(file.path);
     } on FileSystemException {
       if (await file.exists()) {
         await file.delete();
       }
 
-      await temp.rename(
-        file.path,
-      );
+      await temp.rename(file.path);
     }
   }
 
@@ -552,15 +442,9 @@ class BrainVaultStorage {
   // VALIDATE OBJECT ID
   // ============================================================
 
-  void _assertValidObjectId(
-    String objectId,
-  ) {
-    if (!_idService.isValidObjectId(
-      objectId,
-    )) {
-      throw ArgumentError(
-        'objectId inválido para o Vault.',
-      );
+  void _assertValidObjectId(String objectId) {
+    if (!_idService.isValidObjectId(objectId)) {
+      throw ArgumentError('objectId inválido para o Vault.');
     }
   }
 }
