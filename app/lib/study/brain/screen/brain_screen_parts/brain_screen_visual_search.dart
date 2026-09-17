@@ -1,32 +1,14 @@
 part of '../brain_screen.dart';
 
 // Visual lifecycle + local/Vault-first search experience.
-extension _BrainScreenVisualSearch on _BrainScreenState {
+extension _BrainScreenVisualSearch
+    on
+        _BrainScreenState {
   // ============================================================
   // CÉREBRO VISUAL — CONTAGEM
   // ============================================================
 
   int _currentBrainKnowledgeCount() {
-    // ========================================================
-    // FONTE REAL DO PROGRESSO VISUAL
-    // ========================================================
-    //
-    // Cada captura de conhecimento criada pela BrainScreen gera
-    // uma BrainFile persistida localmente.
-    //
-    // Usar notes.length é mais confiável do que somar concepts,
-    // pois o carregamento/migração de conceitos pode acontecer em
-    // uma etapa diferente do carregamento da nota.
-    //
-    // Resultado:
-    //
-    // 0 notas salvas = cérebro vazio
-    // 1 nota salva   = 1 ramificação
-    // 2 notas salvas = 2 ramificações
-    // ...
-    //
-    // ========================================================
-
     return _controller.notes.length;
   }
 
@@ -34,12 +16,10 @@ extension _BrainScreenVisualSearch on _BrainScreenState {
   // CÉREBRO VISUAL — NASCIMENTO
   // ============================================================
 
-  Future<void> _onBrainBirthCompleted() async {
-    // O callback visual não persiste estado diretamente.
-    //
-    // Ele apenas comunica o evento real ao ExperienceController.
-    // A persistência de introSeen pertence ao
-    // BrainInitializationService.
+  Future<
+    void
+  >
+  _onBrainBirthCompleted() async {
     await _completeBrainBirth();
   }
 
@@ -47,24 +27,19 @@ extension _BrainScreenVisualSearch on _BrainScreenState {
   // CÉREBRO VISUAL — SINCRONIZAR CONHECIMENTO
   // ============================================================
 
-  Future<bool> _syncBrainVisualKnowledge({
+  Future<
+    bool
+  >
+  _syncBrainVisualKnowledge({
     required bool animateGrowth,
     bool reloadLocal = false,
   }) async {
     final visualController = _brainVisualController;
 
-    if (visualController == null) {
+    if (visualController ==
+        null) {
       return false;
     }
-
-    // ========================================================
-    // RECARREGAR A FONTE REAL
-    // ========================================================
-    //
-    // O crescimento só deve acontecer a partir do conteúdo que
-    // realmente foi persistido no armazenamento local.
-    //
-    // ========================================================
 
     if (reloadLocal) {
       await _controller.loadNotes();
@@ -75,7 +50,6 @@ extension _BrainScreenVisualSearch on _BrainScreenState {
     }
 
     final currentCount = _currentBrainKnowledgeCount();
-
     final previousVisualCount = visualController.knowledgeCount;
 
     debugPrint(
@@ -87,23 +61,463 @@ extension _BrainScreenVisualSearch on _BrainScreenState {
 
     _brainVisualKnowledgeCount = currentCount;
 
-    // ========================================================
-    // NOVO CONHECIMENTO
-    // ========================================================
-
-    if (animateGrowth && currentCount > previousVisualCount) {
-      visualController.animateKnowledgeTarget(currentCount);
+    if (animateGrowth &&
+        currentCount >
+            previousVisualCount) {
+      visualController.animateKnowledgeTarget(
+        currentCount,
+      );
 
       return true;
     }
 
-    // ========================================================
-    // RECONCILIAÇÃO NORMAL
-    // ========================================================
-
-    visualController.setKnowledgeCount(currentCount);
+    visualController.setKnowledgeCount(
+      currentCount,
+    );
 
     return false;
+  }
+
+  // ============================================================
+  // BUSCA NATURAL — PREFIXOS
+  // ============================================================
+  //
+  // Estes prefixos fazem parte da linguagem da interface.
+  //
+  // Eles NÃO representam o assunto que deve ser procurado.
+  //
+  // Exemplo:
+  //
+  // "onde eu falei de FL Studio"
+  //
+  // prefixo:
+  // "onde eu falei de"
+  //
+  // assunto:
+  // "FL Studio"
+  //
+  // ============================================================
+
+  static const List<
+    String
+  >
+  _brainSearchSubjectPrefixes = [
+    // ============================================================
+    // BUSCA SIMPLES
+    // ============================================================
+    'algo sobre',
+
+    'onde eu falei de',
+    'quando eu falei de',
+
+    'onde eu falei sobre',
+    'quando eu falei sobre',
+
+    'onde eu anotei sobre',
+    'quando eu anotei sobre',
+
+    'onde eu escrevi sobre',
+    'quando eu escrevi sobre',
+
+    'aquele conteúdo sobre',
+    'a anotação que falava de',
+
+    // ============================================================
+    // TIPOS
+    // ============================================================
+    'conceitos sobre',
+    'perguntas sobre',
+    'exemplos sobre',
+    'atenções sobre',
+
+    // ============================================================
+    // RECÊNCIA
+    // ============================================================
+    'o que estudei recentemente sobre',
+    'minhas últimas anotações sobre',
+    'o que eu vi por último sobre',
+
+    // ============================================================
+    // CONHECIMENTO ACUMULADO
+    // ============================================================
+    'o que eu já sei sobre',
+    'o que eu já aprendi sobre',
+    'o que eu já anotei sobre',
+  ];
+
+  // ============================================================
+  // NORMALIZAÇÃO LEVE
+  // ============================================================
+
+  String _normalizeBrainSearchStructure(
+    String value,
+  ) {
+    return value.trim().toLowerCase().replaceAll(
+      RegExp(
+        r'\s+',
+      ),
+      ' ',
+    );
+  }
+
+  // ============================================================
+  // ESTADO DA CONSULTA
+  // ============================================================
+
+  _BrainSearchInputState _brainSearchInputState(
+    String rawQuery,
+  ) {
+    final original = rawQuery.trim();
+
+    if (original.isEmpty) {
+      return const _BrainSearchInputState.empty();
+    }
+
+    final normalized = _normalizeBrainSearchStructure(
+      original,
+    );
+
+    // ==========================================================
+    // 1. PREFIXO COMPLETO
+    // ==========================================================
+
+    for (final prefix in _brainSearchSubjectPrefixes) {
+      final normalizedPrefix = _normalizeBrainSearchStructure(
+        prefix,
+      );
+
+      if (normalized ==
+          normalizedPrefix) {
+        return _BrainSearchInputState.waitingSubject(
+          prefix: prefix,
+        );
+      }
+
+      // ========================================================
+      // PREFIXO + ASSUNTO
+      // ========================================================
+
+      final prefixWithSpace = '$normalizedPrefix ';
+
+      if (normalized.startsWith(
+        prefixWithSpace,
+      )) {
+        final prefixWordCount = normalizedPrefix
+            .split(
+              ' ',
+            )
+            .length;
+
+        final originalWords = original
+            .split(
+              RegExp(
+                r'\s+',
+              ),
+            )
+            .where(
+              (
+                word,
+              ) => word.trim().isNotEmpty,
+            )
+            .toList();
+
+        if (originalWords.length <=
+            prefixWordCount) {
+          return _BrainSearchInputState.waitingSubject(
+            prefix: prefix,
+          );
+        }
+
+        final subject = originalWords
+            .skip(
+              prefixWordCount,
+            )
+            .join(
+              ' ',
+            )
+            .trim();
+
+        if (subject.isEmpty) {
+          return _BrainSearchInputState.waitingSubject(
+            prefix: prefix,
+          );
+        }
+
+        return _BrainSearchInputState.ready(
+          originalQuery: original,
+          effectiveQuery: subject,
+          recognizedPrefix: prefix,
+        );
+      }
+    }
+
+    // ==========================================================
+    // 2. PREFIXO AINDA SENDO DIGITADO
+    // ==========================================================
+
+    for (final prefix in _brainSearchSubjectPrefixes) {
+      final normalizedPrefix = _normalizeBrainSearchStructure(
+        prefix,
+      );
+
+      if (normalizedPrefix.startsWith(
+        normalized,
+      )) {
+        return _BrainSearchInputState.incomplete(
+          expectedPrefix: prefix,
+        );
+      }
+    }
+
+    // ==========================================================
+    // 3. BUSCA LIVRE
+    // ==========================================================
+
+    return _BrainSearchInputState.ready(
+      originalQuery: original,
+      effectiveQuery: original,
+    );
+  }
+
+  // ============================================================
+  // DEBOUNCE — PESQUISA
+  // ============================================================
+  //
+  // Temos agora dois estados diferentes:
+  //
+  // _searchQuery
+  //     texto que o usuário está digitando.
+  //
+  // _committedSearchQuery
+  //     texto que realmente pode ser pesquisado.
+  //
+  // Toda nova tecla cancela o timer anterior.
+  //
+  // Somente depois de 500 ms sem digitação a consulta é
+  // confirmada.
+  //
+  // ============================================================
+
+  void _scheduleSearchCommit(
+    String rawQuery,
+  ) {
+    _searchDebounceTimer?.cancel();
+
+    final query = rawQuery.trim();
+
+    // ==========================================================
+    // CAMPO VAZIO
+    // ==========================================================
+
+    if (query.isEmpty) {
+      _mutateState(
+        () {
+          _committedSearchQuery = '';
+          _showAllSearchResults = false;
+        },
+      );
+
+      _setBrainSearchActivity(
+        '',
+      );
+
+      return;
+    }
+
+    // ==========================================================
+    // VERIFICAR ESTRUTURA DA FRASE
+    // ==========================================================
+    //
+    // Frases incompletas não precisam esperar o debounce para
+    // sabermos que ainda não podem ser pesquisadas.
+    //
+    // Exemplo:
+    //
+    // onde eu falei d
+    //
+    // ou:
+    //
+    // onde eu falei de
+    //
+    // ==========================================================
+
+    final inputState = _brainSearchInputState(
+      rawQuery,
+    );
+
+    if (!inputState.canSearch) {
+      _mutateState(
+        () {
+          _committedSearchQuery = '';
+          _showAllSearchResults = false;
+        },
+      );
+
+      _setBrainSearchActivity(
+        '',
+      );
+
+      return;
+    }
+
+    // ==========================================================
+    // AGUARDAR O USUÁRIO PARAR DE DIGITAR
+    // ==========================================================
+
+    _searchDebounceTimer = Timer(
+      _BrainScreenState._searchDebounceDuration,
+      () {
+        if (!mounted) {
+          return;
+        }
+
+        // ======================================================
+        // GARANTIR QUE A CONSULTA NÃO MUDOU
+        // ======================================================
+
+        if (_searchQuery.trim() !=
+            query) {
+          return;
+        }
+
+        final currentState = _brainSearchInputState(
+          _searchQuery,
+        );
+
+        if (!currentState.canSearch) {
+          _mutateState(
+            () {
+              _committedSearchQuery = '';
+              _showAllSearchResults = false;
+            },
+          );
+
+          _setBrainSearchActivity(
+            '',
+          );
+
+          return;
+        }
+
+        // ======================================================
+        // CONFIRMAR A CONSULTA
+        // ======================================================
+
+        _mutateState(
+          () {
+            _committedSearchQuery = _searchQuery;
+            _showAllSearchResults = false;
+          },
+        );
+
+        _scheduleRemoteSearch(
+          _committedSearchQuery,
+        );
+
+        _setBrainSearchActivity(
+          _committedSearchQuery,
+        );
+      },
+    );
+  }
+
+  // ============================================================
+  // CONFIRMAR PESQUISA IMEDIATAMENTE
+  // ============================================================
+  //
+  // Usado quando:
+  //
+  // - usuário pressiona Enter;
+  // - usuário escolhe uma sugestão do modal de ajuda.
+  //
+  // Nesses casos não precisamos esperar os 500 ms.
+  //
+  // ============================================================
+
+  void _commitSearchImmediately(
+    String rawQuery, {
+    Duration activityHold = const Duration(
+      milliseconds: 1600,
+    ),
+  }) {
+    _searchDebounceTimer?.cancel();
+
+    final query = rawQuery.trim();
+
+    if (query.isEmpty) {
+      _mutateState(
+        () {
+          _committedSearchQuery = '';
+          _showAllSearchResults = false;
+        },
+      );
+
+      _setBrainSearchActivity(
+        '',
+      );
+
+      return;
+    }
+
+    final inputState = _brainSearchInputState(
+      rawQuery,
+    );
+
+    if (!inputState.canSearch) {
+      _mutateState(
+        () {
+          _committedSearchQuery = '';
+          _showAllSearchResults = false;
+        },
+      );
+
+      _setBrainSearchActivity(
+        '',
+      );
+
+      return;
+    }
+
+    _mutateState(
+      () {
+        _searchQuery = rawQuery;
+        _committedSearchQuery = rawQuery;
+        _showAllSearchResults = false;
+      },
+    );
+
+    _scheduleRemoteSearch(
+      rawQuery,
+    );
+
+    _setBrainSearchActivity(
+      rawQuery,
+      hold: activityHold,
+    );
+  }
+
+  // ============================================================
+  // SABER SE O USUÁRIO AINDA ESTÁ DIGITANDO
+  // ============================================================
+
+  bool get _isSearchWaitingForDebounce {
+    final current = _searchQuery.trim();
+    final committed = _committedSearchQuery.trim();
+
+    if (current.isEmpty) {
+      return false;
+    }
+
+    final inputState = _brainSearchInputState(
+      current,
+    );
+
+    if (!inputState.canSearch) {
+      return false;
+    }
+
+    return current !=
+        committed;
   }
 
   // ============================================================
@@ -112,187 +526,286 @@ extension _BrainScreenVisualSearch on _BrainScreenState {
 
   void _setBrainSearchActivity(
     String rawQuery, {
-    Duration hold = const Duration(milliseconds: 900),
+    Duration hold = const Duration(
+      milliseconds: 900,
+    ),
   }) {
     final visualController = _brainVisualController;
 
     _brainSearchPulseStopTimer?.cancel();
 
-    if (visualController == null) {
+    if (visualController ==
+        null) {
       return;
     }
 
     final normalizedQuery = rawQuery.trim();
 
     if (normalizedQuery.isEmpty) {
-      visualController.setSearching(false);
+      visualController.setSearching(
+        false,
+      );
 
       visualController.clearSearchMatch();
 
       return;
     }
 
-    // Limpa qualquer brilho anterior antes de uma nova pesquisa.
+    final inputState = _brainSearchInputState(
+      rawQuery,
+    );
+
+    if (!inputState.canSearch) {
+      visualController.setSearching(
+        false,
+      );
+
+      visualController.clearSearchMatch();
+
+      return;
+    }
+
     visualController.clearSearchMatch();
 
-    // Mantém os pulsos distribuídos enquanto o usuário digita.
-    visualController.setSearching(true);
+    visualController.setSearching(
+      true,
+    );
 
-    // A busca local é síncrona. Consideramos que a pesquisa
-    // "terminou" quando o usuário fica alguns milissegundos sem
-    // alterar o texto. Nesse momento resolvemos o resultado e
-    // disparamos o pulso final.
-    _brainSearchPulseStopTimer = Timer(hold, () {
-      if (!mounted) {
-        return;
-      }
+    _brainSearchPulseStopTimer = Timer(
+      hold,
+      () {
+        if (!mounted) {
+          return;
+        }
 
-      // Ignora timer de uma consulta antiga.
-      if (_searchQuery.trim() != normalizedQuery) {
-        return;
-      }
+        // ======================================================
+        // IMPORTANTE
+        // ======================================================
+        //
+        // Agora comparamos com a consulta CONFIRMADA.
+        //
+        // Não usamos mais somente _searchQuery, porque o usuário
+        // pode estar digitando uma nova consulta enquanto uma
+        // pesquisa anterior ainda estava animando.
+        //
+        // ======================================================
 
-      final response = _searchResponse;
+        if (_committedSearchQuery.trim() !=
+            normalizedQuery) {
+          return;
+        }
 
-      final results = response.allResults;
-
-      if (results.isEmpty) {
-        debugPrint(
-          '[BRAIN SEARCH VISUAL] Nenhum resultado para "$normalizedQuery".',
+        final currentState = _brainSearchInputState(
+          _committedSearchQuery,
         );
 
-        visualController.setSearching(false);
+        if (!currentState.canSearch) {
+          visualController.setSearching(
+            false,
+          );
 
-        visualController.clearSearchMatch();
+          visualController.clearSearchMatch();
 
-        return;
-      }
+          return;
+        }
 
-      // topResults normalmente contém o primeiro resultado mais
-      // relevante. O fallback para allResults garante que o efeito
-      // não deixe de acontecer caso topResults esteja vazio.
-      final topResult = response.topResults.isNotEmpty
-          ? response.topResults.first
-          : results.first;
+        final response = _searchResponse;
+        final results = response.allResults;
 
-      final target = _visualTargetForSearchResult(topResult);
+        if (results.isEmpty) {
+          debugPrint(
+            '[BRAIN SEARCH VISUAL] '
+            'Nenhum resultado para "${currentState.effectiveQuery}".',
+          );
 
-      debugPrint(
-        '[BRAIN SEARCH VISUAL] '
-        'Encontrado="${topResult.title}" '
-        'ramo=${target.branchIndex} '
-        'conexao=${target.connectionIndex}.',
-      );
+          visualController.setSearching(
+            false,
+          );
 
-      visualController.resolveSearch(
-        branchIndex: target.branchIndex,
-        connectionIndex: target.connectionIndex,
-      );
-    });
+          visualController.clearSearchMatch();
+
+          return;
+        }
+
+        final topResult = response.topResults.isNotEmpty
+            ? response.topResults.first
+            : results.first;
+
+        final target = _visualTargetForSearchResult(
+          topResult,
+        );
+
+        debugPrint(
+          '[BRAIN SEARCH VISUAL] '
+          'Encontrado="${topResult.title}" '
+          'ramo=${target.branchIndex} '
+          'conexao=${target.connectionIndex}.',
+        );
+
+        visualController.resolveSearch(
+          branchIndex: target.branchIndex,
+          connectionIndex: target.connectionIndex,
+        );
+      },
+    );
   }
 
   // ============================================================
   // ALVO VISUAL EXATO DO RESULTADO
   // ============================================================
-  //
-  // O BrainScreen atual ainda usa o crescimento visual legado:
-  //
-  //   1 BrainFile salvo
-  //        ↓
-  //   1 nova entrada de BrainPaths.connections
-  //
-  // Portanto o vínculo correto do arquivo com o desenho é a posição
-  // dele em _controller.notes. Não usamos mais hash para escolher um
-  // ramo durante a pesquisa.
-  //
-  // Se no futuro o crescimento semântico for realmente ativado e o
-  // BrainFile passar a carregar uma semanticKey persistida, este método
-  // poderá devolver branchIndex. Por enquanto preservamos a arquitetura
-  // real que está desenhando o cérebro hoje.
-  //
-  // ============================================================
 
-  _BrainSearchVisualTarget _visualTargetForSearchResult(BrainFile note) {
-    final noteIndex = _indexOfBrainNote(note);
+  _BrainSearchVisualTarget _visualTargetForSearchResult(
+    BrainFile note,
+  ) {
+    final noteIndex = _indexOfBrainNote(
+      note,
+    );
 
-    if (noteIndex >= 0 && noteIndex < BrainPaths.connections.length) {
-      return _BrainSearchVisualTarget(connectionIndex: noteIndex);
+    if (noteIndex >=
+            0 &&
+        noteIndex <
+            BrainPaths.connections.length) {
+      return _BrainSearchVisualTarget(
+        connectionIndex: noteIndex,
+      );
     }
 
-    // Fail-safe: se por algum motivo o resultado não estiver mais na
-    // lista local (por exemplo, exclusão/reload entre busca e animação),
-    // não acendemos outro ramo aleatório.
     return const _BrainSearchVisualTarget();
   }
 
-  int _indexOfBrainNote(BrainFile note) {
-    // O crescimento legado nasce em ordem de criação: cada novo arquivo
-    // aumenta knowledgeCount em 1 e revela a próxima conexão. A lista de
-    // notas pode ser exibida em outra ordenação, então não usamos
-    // _controller.notes.indexOf(note) como posição visual.
-    final orderedNotes = <BrainFile>[..._controller.notes]
-      ..sort((a, b) {
-        final byCreatedAt = a.createdAt.compareTo(b.createdAt);
+  int _indexOfBrainNote(
+    BrainFile note,
+  ) {
+    final orderedNotes =
+        <
+            BrainFile
+          >[
+            ..._controller.notes,
+          ]
+          ..sort(
+            (
+              a,
+              b,
+            ) {
+              final byCreatedAt = a.createdAt.compareTo(
+                b.createdAt,
+              );
 
-        if (byCreatedAt != 0) {
-          return byCreatedAt;
-        }
+              if (byCreatedAt !=
+                  0) {
+                return byCreatedAt;
+              }
 
-        return a.path.compareTo(b.path);
-      });
+              return a.path.compareTo(
+                b.path,
+              );
+            },
+          );
 
     final notePath = note.path.trim();
 
     if (notePath.isNotEmpty) {
       final pathIndex = orderedNotes.indexWhere(
-        (item) => item.path.trim() == notePath,
+        (
+          item,
+        ) =>
+            item.path.trim() ==
+            notePath,
       );
 
-      if (pathIndex >= 0) {
+      if (pathIndex >=
+          0) {
         return pathIndex;
       }
     }
 
-    final directIndex = orderedNotes.indexOf(note);
+    final directIndex = orderedNotes.indexOf(
+      note,
+    );
 
-    if (directIndex >= 0) {
+    if (directIndex >=
+        0) {
       return directIndex;
     }
 
-    // Último fallback por identidade textual. Isso apenas reencontra o
-    // mesmo arquivo na lista cronológica; nunca escolhe um caminho por hash.
     return orderedNotes.indexWhere(
-      (item) =>
-          item.title == note.title &&
-          item.content == note.content &&
-          item.createdAt == note.createdAt,
+      (
+        item,
+      ) =>
+          item.title ==
+              note.title &&
+          item.content ==
+              note.content &&
+          item.createdAt ==
+              note.createdAt,
     );
   }
-
 
   // ============================================================
   // PESQUISA
   // ============================================================
   //
-  // FASE 12 — RESPOSTAS ESTRUTURADAS
+  // IMPORTANTE:
   //
-  // A BrainScreen apenas:
+  // Este getter NÃO usa mais _searchQuery.
   //
-  // - consulta o conteúdo local já carregado;
-  //   // - envia para BrainSearchEngine;
-  // - renderiza BrainSearchResponse.
+  // _searchQuery é apenas a digitação atual.
   //
-  // O parser interpreta a linguagem natural.
-  // O engine filtra e ranqueia.
-  // A response organiza os resultados.
+  // O mecanismo de pesquisa recebe exclusivamente:
+  //
+  // _committedSearchQuery
   //
   // ============================================================
 
   BrainSearchResponse get _searchResponse {
-    final parsedQuery = _BrainScreenState._searchParser.parse(_searchQuery);
+    final committedQuery = _committedSearchQuery.trim();
+
+    if (committedQuery.isEmpty) {
+      return BrainSearchResponse.fromResults(
+        const <
+          BrainFile
+        >[],
+      );
+    }
+
+    final inputState = _brainSearchInputState(
+      committedQuery,
+    );
+
+    // ==========================================================
+    // NÃO PESQUISAR FRASES INCOMPLETAS
+    // ==========================================================
+
+    if (!inputState.canSearch) {
+      return BrainSearchResponse.fromResults(
+        const <
+          BrainFile
+        >[],
+      );
+    }
+
+    // ==========================================================
+    // PARSER RECEBE SOMENTE A CONSULTA EFETIVA
+    // ==========================================================
+    //
+    // onde eu falei de FL Studio
+    //
+    // vira:
+    //
+    // FL Studio
+    //
+    // ==========================================================
+
+    final parsedQuery = _BrainScreenState._searchParser.parse(
+      inputState.effectiveQuery,
+    );
 
     if (parsedQuery.isEmpty) {
-      return BrainSearchResponse.fromResults(const <BrainFile>[]);
+      return BrainSearchResponse.fromResults(
+        const <
+          BrainFile
+        >[],
+      );
     }
 
     return _BrainScreenState._searchEngine.search(
@@ -305,21 +818,10 @@ extension _BrainScreenVisualSearch on _BrainScreenState {
   // ============================================================
   // PESQUISA LOCAL / VAULT-FIRST
   // ============================================================
-  //
-  // A pesquisa não consulta o Supabase automaticamente.
-  //
-  // O parser e o engine trabalham somente sobre as notas que o
-  // BrainController já carregou do armazenamento local/Vault.
-  //
-  // A nuvem permanece fora do caminho crítico e continua sendo
-  // usada apenas pela sincronização E2EE.
-  //
-  // ============================================================
 
-  void _scheduleRemoteSearch(String rawQuery) {
-    // Mantido para preservar os callers existentes da interface.
-    // A alteração de _searchQuery já dispara o rebuild e a busca
-    // local. Nenhuma chamada de rede acontece aqui.
+  void _scheduleRemoteSearch(
+    String rawQuery,
+  ) {
     if (rawQuery.trim().isEmpty) {
       return;
     }
@@ -329,11 +831,18 @@ extension _BrainScreenVisualSearch on _BrainScreenState {
   // DATA BR
   // ============================================================
 
-  String _formatSearchDate(DateTime date) {
+  String _formatSearchDate(
+    DateTime date,
+  ) {
     final local = date.toLocal();
 
-    String two(int value) {
-      return value.toString().padLeft(2, '0');
+    String two(
+      int value,
+    ) {
+      return value.toString().padLeft(
+        2,
+        '0',
+      );
     }
 
     return '${two(local.day)}/'
@@ -345,10 +854,20 @@ extension _BrainScreenVisualSearch on _BrainScreenState {
   // PREVIEW
   // ============================================================
 
-  String _previewContent(String content) {
-    final clean = content.replaceAll(RegExp(r'\s+'), ' ').trim();
+  String _previewContent(
+    String content,
+  ) {
+    final clean = content
+        .replaceAll(
+          RegExp(
+            r'\s+',
+          ),
+          ' ',
+        )
+        .trim();
 
-    if (clean.length <= 180) {
+    if (clean.length <=
+        180) {
       return clean;
     }
 
@@ -358,90 +877,105 @@ extension _BrainScreenVisualSearch on _BrainScreenState {
   // ============================================================
   // ABRIR RESULTADO EM PÁGINA
   // ============================================================
-  //
-  // Qualquer anotação existente localmente,
-  // é aberta exclusivamente pela BrainNoteScreen.
-  //
-  // NÃO reutilizar o modal de criação aqui.
-  //
-  // ============================================================
 
-  Future<void> _openSearchResult(BrainFile note) async {
+  Future<
+    void
+  >
+  _openSearchResult(
+    BrainFile note,
+  ) async {
     if (!mounted) {
       return;
     }
 
     final noteToOpen = note;
 
-    final changed = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) {
-          return BrainNoteScreen(note: noteToOpen);
-        },
-      ),
-    );
+    final changed =
+        await Navigator.of(
+          context,
+        ).push<
+          bool
+        >(
+          MaterialPageRoute(
+            builder:
+                (
+                  _,
+                ) {
+                  return BrainNoteScreen(
+                    note: noteToOpen,
+                  );
+                },
+          ),
+        );
 
     if (!mounted) {
       return;
     }
 
-    // ========================================================
-    // RECARREGAR AO VOLTAR
-    // ========================================================
-    //
-    // Se a página editou ou excluiu a anotação, a lista local
-    // e os resultados da pesquisa refletem a mudança.
-    //
-    // ========================================================
-
-    if (changed == true) {
+    if (changed ==
+        true) {
       await _controller.loadNotes();
 
       if (!mounted) {
         return;
       }
 
-      await _syncBrainVisualKnowledge(animateGrowth: false);
+      await _syncBrainVisualKnowledge(
+        animateGrowth: false,
+      );
     }
 
     if (!mounted) {
       return;
     }
 
-    _mutateState(() {});
+    _mutateState(
+      () {},
+    );
   }
 
   // ============================================================
   // AJUDA DA PESQUISA
   // ============================================================
 
-  Future<void> _showSearchHelp() async {
+  Future<
+    void
+  >
+  _showSearchHelp() async {
     await BrainSearchHelpDialog.show(
       context: context,
-      onUseExample: (example) {
-        if (!mounted) {
-          return;
-        }
+      onUseExample:
+          (
+            example,
+          ) {
+            if (!mounted) {
+              return;
+            }
 
-        _searchController.text = example;
+            _searchController.text = example;
 
-        _searchController.selection = TextSelection.collapsed(
-          offset: example.length,
-        );
+            _searchController.selection = TextSelection.collapsed(
+              offset: example.length,
+            );
 
-        _mutateState(() {
-          _searchQuery = example;
+            // ======================================================
+            // SUGESTÃO ESCOLHIDA PELO USUÁRIO
+            // ======================================================
+            //
+            // Como houve uma ação explícita no botão "Usar", podemos
+            // confirmar imediatamente a consulta.
+            //
+            // Não precisamos esperar 500 ms.
+            //
+            // ======================================================
 
-          _showAllSearchResults = false;
-        });
-
-        _scheduleRemoteSearch(example);
-
-        _setBrainSearchActivity(
-          example,
-          hold: const Duration(milliseconds: 1500),
-        );
-      },
+            _commitSearchImmediately(
+              example,
+              activityHold: const Duration(
+                milliseconds: 1500,
+              ),
+            );
+          },
     );
   }
 
@@ -449,8 +983,12 @@ extension _BrainScreenVisualSearch on _BrainScreenState {
   // CAMPO DE PESQUISA
   // ============================================================
 
-  Widget _buildSearchField(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+  Widget _buildSearchField(
+    BuildContext context,
+  ) {
+    final colorScheme = Theme.of(
+      context,
+    ).colorScheme;
 
     return Row(
       children: [
@@ -459,16 +997,24 @@ extension _BrainScreenVisualSearch on _BrainScreenState {
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(
+                14,
+              ),
               onTap: _showSearchHelp,
               child: Ink(
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: colorScheme.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(14),
+                  color: colorScheme.primary.withValues(
+                    alpha: 0.08,
+                  ),
+                  borderRadius: BorderRadius.circular(
+                    14,
+                  ),
                   border: Border.all(
-                    color: colorScheme.primary.withValues(alpha: 0.22),
+                    color: colorScheme.primary.withValues(
+                      alpha: 0.22,
+                    ),
                   ),
                 ),
                 child: Icon(
@@ -481,68 +1027,167 @@ extension _BrainScreenVisualSearch on _BrainScreenState {
           ),
         ),
 
-        const SizedBox(width: 10),
+        const SizedBox(
+          width: 10,
+        ),
 
         Expanded(
           child: TextField(
             controller: _searchController,
             textInputAction: TextInputAction.search,
-            onChanged: (value) {
-              _mutateState(() {
-                _searchQuery = value;
 
-                _showAllSearchResults = false;
-              });
+            // ==================================================
+            // DIGITAÇÃO
+            // ==================================================
+            //
+            // Aqui NÃO pesquisamos mais imediatamente.
+            //
+            // 1. atualizamos o texto visual;
+            // 2. apagamos a consulta confirmada;
+            // 3. escondemos resultados anteriores;
+            // 4. iniciamos/reiniciamos o debounce.
+            //
+            // ==================================================
+            onChanged:
+                (
+                  value,
+                ) {
+                  _searchDebounceTimer?.cancel();
 
-              _scheduleRemoteSearch(value);
+                  _brainSearchPulseStopTimer?.cancel();
 
-              _setBrainSearchActivity(value);
-            },
-            onSubmitted: (value) {
-              _setBrainSearchActivity(
-                value,
-                hold: const Duration(milliseconds: 1600),
-              );
-            },
+                  _mutateState(
+                    () {
+                      _searchQuery = value;
+
+                      // =================================================
+                      // MUITO IMPORTANTE
+                      // =================================================
+                      //
+                      // Enquanto existe uma nova digitação, a pesquisa
+                      // anterior deixa de representar o que está no campo.
+                      //
+                      // Por isso limpamos a consulta confirmada.
+                      //
+                      // Isso impede resultados antigos de permanecerem
+                      // visíveis enquanto o usuário formula outra busca.
+                      //
+                      // =================================================
+
+                      _committedSearchQuery = '';
+
+                      _showAllSearchResults = false;
+                    },
+                  );
+
+                  final visualController = _brainVisualController;
+
+                  visualController?.setSearching(
+                    false,
+                  );
+
+                  visualController?.clearSearchMatch();
+
+                  _scheduleSearchCommit(
+                    value,
+                  );
+                },
+
+            // ==================================================
+            // ENTER / SEARCH DO TECLADO
+            // ==================================================
+            //
+            // Aqui a intenção do usuário é explícita.
+            //
+            // Portanto confirmamos imediatamente.
+            //
+            // ==================================================
+            onSubmitted:
+                (
+                  value,
+                ) {
+                  _commitSearchImmediately(
+                    value,
+                    activityHold: const Duration(
+                      milliseconds: 1600,
+                    ),
+                  );
+                },
+
             decoration: InputDecoration(
               hintText: 'Pergunte ao que você já aprendeu...',
-              prefixIcon: const Icon(Icons.search_rounded),
+              prefixIcon: const Icon(
+                Icons.search_rounded,
+              ),
               suffixIcon: _searchQuery.trim().isEmpty
                   ? null
                   : IconButton(
                       tooltip: 'Limpar pesquisa',
                       onPressed: () {
+                        // ===========================================
+                        // CANCELAR QUALQUER PESQUISA PENDENTE
+                        // ===========================================
+
+                        _searchDebounceTimer?.cancel();
+
+                        _brainSearchPulseStopTimer?.cancel();
+
                         _searchController.clear();
 
-                        _mutateState(() {
-                          _searchQuery = '';
+                        _mutateState(
+                          () {
+                            _searchQuery = '';
+                            _committedSearchQuery = '';
+                            _showAllSearchResults = false;
+                          },
+                        );
 
-                          _showAllSearchResults = false;
-                        });
-
-                        _setBrainSearchActivity('');
+                        _setBrainSearchActivity(
+                          '',
+                        );
                       },
-                      icon: const Icon(Icons.close_rounded),
+                      icon: const Icon(
+                        Icons.close_rounded,
+                      ),
                     ),
               filled: true,
               fillColor: colorScheme.surfaceContainerHighest.withValues(
                 alpha: 0.28,
               ),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(
+                  16,
+                ),
                 borderSide: BorderSide(
-                  color: Theme.of(context).dividerColor.withValues(alpha: 0.45),
+                  color:
+                      Theme.of(
+                        context,
+                      ).dividerColor.withValues(
+                        alpha: 0.45,
+                      ),
                 ),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(
+                  16,
+                ),
                 borderSide: BorderSide(
-                  color: Theme.of(context).dividerColor.withValues(alpha: 0.45),
+                  color:
+                      Theme.of(
+                        context,
+                      ).dividerColor.withValues(
+                        alpha: 0.45,
+                      ),
                 ),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: colorScheme.primary, width: 1.4),
+                borderRadius: BorderRadius.circular(
+                  16,
+                ),
+                borderSide: BorderSide(
+                  color: colorScheme.primary,
+                  width: 1.4,
+                ),
               ),
             ),
           ),
@@ -554,20 +1199,116 @@ extension _BrainScreenVisualSearch on _BrainScreenState {
   // ============================================================
   // RESULTADOS DA PESQUISA
   // ============================================================
-  //
-  // FASE 12:
-  //
-  // Mostramos inicialmente apenas os 3 resultados mais relevantes.
-  //
-  // Se houver mais:
-  //
-  // "Ver todos os X resultados"
-  //
-  // Assim a pesquisa não cresce indefinidamente na tela.
-  //
-  // ============================================================
 
-  Widget _buildSearchResults(BuildContext context) {
+  Widget _buildSearchResults(
+    BuildContext context,
+  ) {
+    // ==========================================================
+    // PRIMEIRO ANALISAMOS O TEXTO QUE ESTÁ NO CAMPO
+    // ==========================================================
+    //
+    // Isso é diferente da consulta confirmada.
+    //
+    // Precisamos do texto atual para saber se:
+    //
+    // - a frase está incompleta;
+    // - falta o assunto;
+    // - o usuário ainda está digitando.
+    //
+    // ==========================================================
+
+    final inputState = _brainSearchInputState(
+      _searchQuery,
+    );
+
+    // ==========================================================
+    // CAMPO VAZIO
+    // ==========================================================
+
+    if (_searchQuery.trim().isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    // ==========================================================
+    // FRASE AINDA SENDO FORMULADA
+    // ==========================================================
+    //
+    // Exemplo:
+    //
+    // onde eu falei d
+    //
+    // ==========================================================
+
+    if (inputState.isIncomplete) {
+      return _buildSearchWaitingCard(
+        context: context,
+        icon: Icons.edit_rounded,
+        title: 'Continue digitando',
+        message: 'Complete a frase para iniciar a pesquisa.',
+      );
+    }
+
+    // ==========================================================
+    // MODELO COMPLETO, MAS SEM ASSUNTO
+    // ==========================================================
+    //
+    // Exemplo:
+    //
+    // onde eu falei de
+    //
+    // ==========================================================
+
+    if (inputState.isWaitingSubject) {
+      return _buildSearchWaitingCard(
+        context: context,
+        icon: Icons.search_rounded,
+        title: 'Qual assunto você procura?',
+        message: 'Complete com o assunto que deseja pesquisar.',
+      );
+    }
+
+    // ==========================================================
+    // USUÁRIO AINDA ESTÁ DIGITANDO
+    // ==========================================================
+    //
+    // Este é o comportamento principal da correção.
+    //
+    // Exemplo:
+    //
+    // m
+    // me
+    // mem
+    // memó
+    // memória
+    //
+    // Enquanto o debounce ainda não terminou:
+    //
+    // NÃO mostramos:
+    //
+    // - resultados antigos;
+    // - "Nenhum resultado";
+    // - resultados parciais.
+    //
+    // A interface fica limpa.
+    //
+    // ==========================================================
+
+    if (_isSearchWaitingForDebounce) {
+      return const SizedBox.shrink();
+    }
+
+    // ==========================================================
+    // AINDA NÃO EXISTE CONSULTA CONFIRMADA
+    // ==========================================================
+
+    if (_committedSearchQuery.trim().isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    // ==========================================================
+    // EXECUTAR / MOSTRAR RESULTADO CONFIRMADO
+    // ==========================================================
+
     final response = _searchResponse;
 
     final visibleNotes = _showAllSearchResults
@@ -577,132 +1318,216 @@ extension _BrainScreenVisualSearch on _BrainScreenState {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.38),
-        borderRadius: BorderRadius.circular(18),
+        color:
+            Theme.of(
+              context,
+            ).colorScheme.surface.withValues(
+              alpha: 0.38,
+            ),
+        borderRadius: BorderRadius.circular(
+          18,
+        ),
         border: Border.all(
-          color: Theme.of(context).dividerColor.withValues(alpha: 0.50),
+          color:
+              Theme.of(
+                context,
+              ).dividerColor.withValues(
+                alpha: 0.50,
+              ),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ==================================================
+          // ====================================================
           // HEADER
-          // ==================================================
+          // ====================================================
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+            padding: const EdgeInsets.fromLTRB(
+              16,
+              14,
+              16,
+              10,
+            ),
             child: Row(
               children: [
-                const Icon(Icons.manage_search_rounded, size: 20),
+                const Icon(
+                  Icons.manage_search_rounded,
+                  size: 20,
+                ),
 
-                const SizedBox(width: 8),
+                const SizedBox(
+                  width: 8,
+                ),
 
                 Expanded(
                   child: Text(
                     response.isEmpty
                         ? 'Nenhum resultado'
                         : response.resultLabel,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style:
+                        Theme.of(
+                          context,
+                        ).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                   ),
                 ),
               ],
             ),
           ),
 
-          // ==================================================
+          // ====================================================
           // RESUMO POR TIPO
-          // ==================================================
-          if (response.isNotEmpty && response.groupSummary.isNotEmpty)
+          // ====================================================
+          if (response.isNotEmpty &&
+              response.groupSummary.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              padding: const EdgeInsets.fromLTRB(
+                16,
+                0,
+                16,
+                12,
+              ),
               child: Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: response.groupSummary.map((item) {
-                  return Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .surfaceContainerHighest
-                          .withValues(alpha: 0.42),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
-                        color: Theme.of(
-                          context,
-                        ).dividerColor.withValues(alpha: 0.35),
+                children: response.groupSummary.map(
+                  (
+                    item,
+                  ) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 5,
                       ),
-                    ),
-                    child: Text(
-                      item,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w600,
+                      decoration: BoxDecoration(
+                        color:
+                            Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerHighest.withValues(
+                              alpha: 0.42,
+                            ),
+                        borderRadius: BorderRadius.circular(
+                          999,
+                        ),
+                        border: Border.all(
+                          color:
+                              Theme.of(
+                                context,
+                              ).dividerColor.withValues(
+                                alpha: 0.35,
+                              ),
+                        ),
                       ),
-                    ),
-                  );
-                }).toList(),
+                      child: Text(
+                        item,
+                        style:
+                            Theme.of(
+                              context,
+                            ).textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                    );
+                  },
+                ).toList(),
               ),
             ),
 
           Divider(
             height: 1,
-            color: Theme.of(context).dividerColor.withValues(alpha: 0.45),
+            color:
+                Theme.of(
+                  context,
+                ).dividerColor.withValues(
+                  alpha: 0.45,
+                ),
           ),
 
-          // ==================================================
+          // ====================================================
           // EMPTY
-          // ==================================================
+          // ====================================================
           if (response.isEmpty)
             const Padding(
-              padding: EdgeInsets.all(18),
-              child: Text('Nenhuma anotação corresponde à pesquisa.'),
+              padding: EdgeInsets.all(
+                18,
+              ),
+              child: Text(
+                'Nenhuma anotação corresponde à pesquisa.',
+              ),
             )
           else ...[
-            // ================================================
+            // ==================================================
             // TOP RESULTS / ALL RESULTS
-            // ================================================
+            // ==================================================
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 13, 16, 5),
+              padding: const EdgeInsets.fromLTRB(
+                16,
+                13,
+                16,
+                5,
+              ),
               child: Text(
                 _showAllSearchResults
                     ? 'Todos os resultados'
                     : 'Mais relevantes',
-                style: Theme.of(
-                  context,
-                ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+                style:
+                    Theme.of(
+                      context,
+                    ).textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
               ),
             ),
 
-            for (var index = 0; index < visibleNotes.length; index++) ...[
-              _buildSearchResultCard(context, visibleNotes[index]),
+            for (
+              var index = 0;
+              index <
+                  visibleNotes.length;
+              index++
+            ) ...[
+              _buildSearchResultCard(
+                context,
+                visibleNotes[index],
+              ),
 
-              if (index != visibleNotes.length - 1)
+              if (index !=
+                  visibleNotes.length -
+                      1)
                 Divider(
                   height: 1,
                   indent: 16,
                   endIndent: 16,
-                  color: Theme.of(context).dividerColor.withValues(alpha: 0.35),
+                  color:
+                      Theme.of(
+                        context,
+                      ).dividerColor.withValues(
+                        alpha: 0.35,
+                      ),
                 ),
             ],
 
-            // ================================================
+            // ==================================================
             // EXPAND / COLLAPSE
-            // ================================================
+            // ==================================================
             if (response.hasMoreResults)
               Padding(
-                padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                padding: const EdgeInsets.fromLTRB(
+                  12,
+                  4,
+                  12,
+                  12,
+                ),
                 child: SizedBox(
                   width: double.infinity,
                   child: TextButton.icon(
                     onPressed: () {
-                      _mutateState(() {
-                        _showAllSearchResults = !_showAllSearchResults;
-                      });
+                      _mutateState(
+                        () {
+                          _showAllSearchResults = !_showAllSearchResults;
+                        },
+                      );
                     },
                     icon: Icon(
                       _showAllSearchResults
@@ -724,18 +1549,102 @@ extension _BrainScreenVisualSearch on _BrainScreenState {
   }
 
   // ============================================================
+  // AGUARDANDO CONSULTA
+  // ============================================================
+
+  Widget _buildSearchWaitingCard({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    required String message,
+  }) {
+    final theme = Theme.of(
+      context,
+    );
+
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 15,
+      ),
+      decoration: BoxDecoration(
+        color: colorScheme.surface.withValues(
+          alpha: 0.30,
+        ),
+        borderRadius: BorderRadius.circular(
+          16,
+        ),
+        border: Border.all(
+          color: theme.dividerColor.withValues(
+            alpha: 0.45,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 19,
+            color: colorScheme.onSurfaceVariant,
+          ),
+
+          const SizedBox(
+            width: 10,
+          ),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+
+                const SizedBox(
+                  height: 2,
+                ),
+
+                Text(
+                  message,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
   // CARD DE RESULTADO
   // ============================================================
 
-  Widget _buildSearchResultCard(BuildContext context, BrainFile note) {
+  Widget _buildSearchResultCard(
+    BuildContext context,
+    BrainFile note,
+  ) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: () {
-          _openSearchResult(note);
+          _openSearchResult(
+            note,
+          );
         },
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 12,
+          ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -743,18 +1652,27 @@ extension _BrainScreenVisualSearch on _BrainScreenState {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.primary.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(12),
+                  color:
+                      Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(
+                        alpha: 0.10,
+                      ),
+                  borderRadius: BorderRadius.circular(
+                    12,
+                  ),
                 ),
                 child: Icon(
                   Icons.description_outlined,
-                  color: Theme.of(context).colorScheme.primary,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primary,
                 ),
               ),
 
-              const SizedBox(width: 13),
+              const SizedBox(
+                width: 13,
+              ),
 
               Expanded(
                 child: Column(
@@ -762,12 +1680,17 @@ extension _BrainScreenVisualSearch on _BrainScreenState {
                   children: [
                     Text(
                       note.title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style:
+                          Theme.of(
+                            context,
+                          ).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                     ),
 
-                    const SizedBox(height: 4),
+                    const SizedBox(
+                      height: 4,
+                    ),
 
                     Wrap(
                       spacing: 10,
@@ -776,36 +1699,46 @@ extension _BrainScreenVisualSearch on _BrainScreenState {
                         _buildSearchMeta(
                           context: context,
                           icon: Icons.calendar_today_outlined,
-                          text:
-                              'Criado em ${_formatSearchDate(note.createdAt)}',
+                          text: 'Criado em ${_formatSearchDate(note.createdAt)}',
                         ),
                         _buildSearchMeta(
                           context: context,
                           icon: Icons.update_rounded,
-                          text:
-                              'Atualizado em ${_formatSearchDate(note.updatedAt)}',
+                          text: 'Atualizado em ${_formatSearchDate(note.updatedAt)}',
                         ),
                       ],
                     ),
 
                     if (note.content.trim().isNotEmpty) ...[
-                      const SizedBox(height: 8),
+                      const SizedBox(
+                        height: 8,
+                      ),
                       Text(
-                        _previewContent(note.content),
+                        _previewContent(
+                          note.content,
+                        ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodyMedium,
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodyMedium,
                       ),
                     ],
                   ],
                 ),
               ),
 
-              const SizedBox(width: 10),
+              const SizedBox(
+                width: 10,
+              ),
 
               const Padding(
-                padding: EdgeInsets.only(top: 8),
-                child: Icon(Icons.chevron_right_rounded),
+                padding: EdgeInsets.only(
+                  top: 8,
+                ),
+                child: Icon(
+                  Icons.chevron_right_rounded,
+                ),
               ),
             ],
           ),
@@ -829,12 +1762,102 @@ extension _BrainScreenVisualSearch on _BrainScreenState {
         Icon(
           icon,
           size: 14,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          color: Theme.of(
+            context,
+          ).colorScheme.onSurfaceVariant,
         ),
-        const SizedBox(width: 4),
-        Text(text, style: Theme.of(context).textTheme.bodySmall),
+
+        const SizedBox(
+          width: 4,
+        ),
+
+        Text(
+          text,
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall,
+        ),
       ],
     );
   }
+}
 
+// ============================================================
+// SEARCH INPUT STATE
+// ============================================================
+//
+// Representa o estado da frase antes de enviá-la ao parser.
+//
+// ============================================================
+
+class _BrainSearchInputState {
+  const _BrainSearchInputState._({
+    required this.originalQuery,
+    required this.effectiveQuery,
+    required this.canSearch,
+    required this.isIncomplete,
+    required this.isWaitingSubject,
+    this.recognizedPrefix,
+    this.expectedPrefix,
+  });
+
+  const _BrainSearchInputState.empty()
+    : this._(
+        originalQuery: '',
+        effectiveQuery: '',
+        canSearch: false,
+        isIncomplete: false,
+        isWaitingSubject: false,
+      );
+
+  factory _BrainSearchInputState.incomplete({
+    required String expectedPrefix,
+  }) {
+    return _BrainSearchInputState._(
+      originalQuery: '',
+      effectiveQuery: '',
+      canSearch: false,
+      isIncomplete: true,
+      isWaitingSubject: false,
+      expectedPrefix: expectedPrefix,
+    );
+  }
+
+  factory _BrainSearchInputState.waitingSubject({
+    required String prefix,
+  }) {
+    return _BrainSearchInputState._(
+      originalQuery: prefix,
+      effectiveQuery: '',
+      canSearch: false,
+      isIncomplete: false,
+      isWaitingSubject: true,
+      recognizedPrefix: prefix,
+    );
+  }
+
+  factory _BrainSearchInputState.ready({
+    required String originalQuery,
+    required String effectiveQuery,
+    String? recognizedPrefix,
+  }) {
+    return _BrainSearchInputState._(
+      originalQuery: originalQuery,
+      effectiveQuery: effectiveQuery,
+      canSearch: effectiveQuery.trim().isNotEmpty,
+      isIncomplete: false,
+      isWaitingSubject: false,
+      recognizedPrefix: recognizedPrefix,
+    );
+  }
+
+  final String originalQuery;
+  final String effectiveQuery;
+
+  final bool canSearch;
+  final bool isIncomplete;
+  final bool isWaitingSubject;
+
+  final String? recognizedPrefix;
+  final String? expectedPrefix;
 }

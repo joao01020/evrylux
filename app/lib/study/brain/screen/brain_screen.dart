@@ -122,7 +122,76 @@ class _BrainScreenState
 
   final TextEditingController _searchController = TextEditingController();
 
+  // ==========================================================
+  // TEXTO ATUAL DO CAMPO
+  // ==========================================================
+  //
+  // Este valor acompanha a digitação imediatamente.
+  //
+  // Exemplo:
+  //
+  // m
+  // me
+  // mem
+  // memo
+  // memória
+  //
+  // Ele serve para:
+  //
+  // - atualizar visualmente o campo;
+  // - saber se existe texto;
+  // - reconhecer frases incompletas;
+  //
+  // Ele NÃO deve ser usado diretamente para executar a busca.
+  //
+  // ==========================================================
+
   String _searchQuery = '';
+
+  // ==========================================================
+  // CONSULTA CONFIRMADA
+  // ==========================================================
+  //
+  // Este é o texto que realmente pode ser enviado ao:
+  //
+  // BrainSearchParser
+  //        ↓
+  // BrainSearchEngine
+  //
+  // Ele só será atualizado depois que o usuário parar de
+  // digitar pelo tempo definido em _searchDebounceDuration.
+  //
+  // Exemplo:
+  //
+  // usuário digita:
+  //
+  // memória dinâ...
+  //
+  // _searchQuery muda imediatamente.
+  //
+  // _committedSearchQuery continua vazio.
+  //
+  // Depois de 500 ms sem nova tecla:
+  //
+  // _committedSearchQuery = "memória dinâmica"
+  //
+  // ==========================================================
+
+  String _committedSearchQuery = '';
+
+  // ==========================================================
+  // DEBOUNCE DA PESQUISA
+  // ==========================================================
+
+  Timer? _searchDebounceTimer;
+
+  static const Duration _searchDebounceDuration = Duration(
+    milliseconds: 500,
+  );
+
+  // ==========================================================
+  // PARSER / ENGINE
+  // ==========================================================
 
   static const BrainSearchParser _searchParser = BrainSearchParser();
 
@@ -211,11 +280,36 @@ class _BrainScreenState
       _onExperienceChanged,
     );
 
+    // ========================================================
+    // CANCELAR TIMERS DA PESQUISA
+    // ========================================================
+    //
+    // Muito importante:
+    //
+    // nenhum callback do debounce ou da animação deve continuar
+    // executando depois que BrainScreen for destruída.
+    //
+    // ========================================================
+
+    _searchDebounceTimer?.cancel();
+
     _brainSearchPulseStopTimer?.cancel();
+
+    // ========================================================
+    // CÉREBRO VISUAL
+    // ========================================================
 
     _brainVisualController?.dispose();
 
+    // ========================================================
+    // EXPERIENCE
+    // ========================================================
+
     _experienceController.dispose();
+
+    // ========================================================
+    // TEXT CONTROLLER
+    // ========================================================
 
     _searchController.dispose();
 
@@ -298,12 +392,16 @@ class _BrainScreenState
       // APP BAR
       // ========================================================
       //
-      // Mantemos a AppBar para preservar o botão de voltar,
-      // mas removemos o título "Cérebro" e o ícone do topo.
+      // Mantemos a AppBar para preservar o botão de voltar.
       //
       // ========================================================
-      appBar: _buildAppBar(context),
+      appBar: _buildAppBar(
+        context,
+      ),
 
+      // ========================================================
+      // BODY
+      // ========================================================
       body:
           _controller.isLoading ||
               _experienceController.isInitializing
