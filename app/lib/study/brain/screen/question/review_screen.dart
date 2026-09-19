@@ -21,7 +21,9 @@ import '../../services/brain_review_deletion_service.dart';
 //
 // ============================================================
 
-class ReviewScreen extends StatefulWidget {
+class ReviewScreen
+    extends
+        StatefulWidget {
   const ReviewScreen({
     super.key,
     required this.review,
@@ -33,15 +35,25 @@ class ReviewScreen extends StatefulWidget {
 
   final ReviewController controller;
 
-  final List<BrainReviewItem>? sessionReviews;
+  final List<
+    BrainReviewItem
+  >?
+  sessionReviews;
 
   @override
-  State<ReviewScreen> createState() {
+  State<
+    ReviewScreen
+  >
+  createState() {
     return _ReviewScreenState();
   }
 }
 
-class _ReviewScreenState extends State<ReviewScreen> {
+class _ReviewScreenState
+    extends
+        State<
+          ReviewScreen
+        > {
   bool _showAnswer = false;
 
   bool _isSubmitting = false;
@@ -77,14 +89,23 @@ class _ReviewScreenState extends State<ReviewScreen> {
   // ============================================================
 
   bool get _isSession {
-    return widget.sessionReviews != null && widget.sessionReviews!.isNotEmpty;
+    return widget.sessionReviews !=
+            null &&
+        widget.sessionReviews!.isNotEmpty;
   }
 
-  List<BrainReviewItem> get _sessionItems {
+  List<
+    BrainReviewItem
+  >
+  get _sessionItems {
     final items = widget.sessionReviews;
 
-    if (items == null || items.isEmpty) {
-      return [widget.review];
+    if (items ==
+            null ||
+        items.isEmpty) {
+      return [
+        widget.review,
+      ];
     }
 
     return items;
@@ -97,7 +118,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
     final items = _sessionItems;
 
-    final safeIndex = _currentIndex.clamp(0, items.length - 1);
+    final safeIndex = _currentIndex.clamp(
+      0,
+      items.length -
+          1,
+    );
 
     return items[safeIndex];
   }
@@ -109,25 +134,38 @@ class _ReviewScreenState extends State<ReviewScreen> {
   BrainReviewItem get _review {
     final seed = _seedReview;
 
-    final current = widget.controller.findById(seed.id);
+    final current = widget.controller.findById(
+      seed.id,
+    );
 
-    return current ?? seed;
+    return current ??
+        seed;
   }
 
   // ============================================================
   // ANSWER
   // ============================================================
 
-  Future<void> _answer(ReviewAnswer answer) async {
+  Future<
+    void
+  >
+  _answer(
+    ReviewAnswer answer,
+  ) async {
     if (_isSubmitting) {
       return;
     }
 
-    setState(() {
-      _isSubmitting = true;
-    });
+    setState(
+      () {
+        _isSubmitting = true;
+      },
+    );
 
-    await widget.controller.answerReview(review: _review, answer: answer);
+    await widget.controller.answerReview(
+      review: _review,
+      answer: answer,
+    );
 
     if (!mounted) {
       return;
@@ -135,12 +173,17 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
     final error = widget.controller.errorMessage;
 
-    if (error != null) {
-      setState(() {
-        _isSubmitting = false;
-      });
+    if (error !=
+        null) {
+      setState(
+        () {
+          _isSubmitting = false;
+        },
+      );
 
-      _showMessage(error);
+      _showMessage(
+        error,
+      );
 
       widget.controller.clearMessages();
 
@@ -148,40 +191,58 @@ class _ReviewScreenState extends State<ReviewScreen> {
     }
 
     if (!_isSession) {
-      Navigator.pop(context, true);
+      Navigator.pop(
+        context,
+        true,
+      );
 
       return;
     }
 
-    _registerSessionAnswer(answer);
+    _registerSessionAnswer(
+      answer,
+    );
 
-    final hasNext = _currentIndex < _sessionItems.length - 1;
+    final hasNext =
+        _currentIndex <
+        _sessionItems.length -
+            1;
 
     if (hasNext) {
-      setState(() {
-        _currentIndex++;
-        _showAnswer = false;
-        _isSubmitting = false;
-      });
+      setState(
+        () {
+          _currentIndex++;
+          _showAnswer = false;
+          _isSubmitting = false;
+        },
+      );
 
       return;
     }
 
-    setState(() {
-      _sessionCompleted = true;
-      _showAnswer = false;
-      _isSubmitting = false;
-    });
+    setState(
+      () {
+        _sessionCompleted = true;
+        _showAnswer = false;
+        _isSubmitting = false;
+      },
+    );
   }
 
-  void _registerSessionAnswer(ReviewAnswer answer) {
+  void _registerSessionAnswer(
+    ReviewAnswer answer,
+  ) {
     _sessionAnswered++;
 
-    if (answer == ReviewAnswer.good || answer == ReviewAnswer.easy) {
+    if (answer ==
+            ReviewAnswer.good ||
+        answer ==
+            ReviewAnswer.easy) {
       _sessionCorrect++;
     }
 
-    if (answer == ReviewAnswer.again) {
+    if (answer ==
+        ReviewAnswer.again) {
       _sessionWrong++;
     }
   }
@@ -190,16 +251,23 @@ class _ReviewScreenState extends State<ReviewScreen> {
   // ARCHIVE
   // ============================================================
 
-  Future<void> _archive() async {
+  Future<
+    void
+  >
+  _archive() async {
     if (_isSubmitting) {
       return;
     }
 
-    setState(() {
-      _isSubmitting = true;
-    });
+    setState(
+      () {
+        _isSubmitting = true;
+      },
+    );
 
-    await widget.controller.archiveReview(_review);
+    await widget.controller.archiveReview(
+      _review,
+    );
 
     if (!mounted) {
       return;
@@ -207,69 +275,104 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
     final error = widget.controller.errorMessage;
 
-    if (error != null) {
-      setState(() {
-        _isSubmitting = false;
-      });
+    if (error !=
+        null) {
+      setState(
+        () {
+          _isSubmitting = false;
+        },
+      );
 
-      _showMessage(error);
+      _showMessage(
+        error,
+      );
 
       widget.controller.clearMessages();
 
       return;
     }
 
-    Navigator.pop(context, true);
+    Navigator.pop(
+      context,
+      true,
+    );
   }
 
   // ============================================================
   // DELETE
   // ============================================================
 
-  Future<void> _delete() async {
+  Future<
+    void
+  >
+  _delete() async {
     if (_isSubmitting) {
       return;
     }
 
     final review = _review;
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Excluir pergunta?'),
-          content: Text(
-            'Deseja excluir permanentemente "${review.question}"?\n\n'
-            'A anotação de origem também será apagada do Cérebro e do calendário.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext, false);
+    final confirmed =
+        await showDialog<
+          bool
+        >(
+          context: context,
+          builder:
+              (
+                dialogContext,
+              ) {
+                return AlertDialog(
+                  title: const Text(
+                    'Excluir pergunta?',
+                  ),
+                  content: Text(
+                    'Deseja excluir permanentemente "${review.question}"?\n\n'
+                    'A anotação de origem também será apagada do Cérebro e do calendário.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(
+                          dialogContext,
+                          false,
+                        );
+                      },
+                      child: const Text(
+                        'Cancelar',
+                      ),
+                    ),
+                    FilledButton(
+                      onPressed: () {
+                        Navigator.pop(
+                          dialogContext,
+                          true,
+                        );
+                      },
+                      child: const Text(
+                        'Excluir',
+                      ),
+                    ),
+                  ],
+                );
               },
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(dialogContext, true);
-              },
-              child: const Text('Excluir'),
-            ),
-          ],
         );
-      },
-    );
 
-    if (!mounted || confirmed != true) {
+    if (!mounted ||
+        confirmed !=
+            true) {
       return;
     }
 
-    setState(() {
-      _isSubmitting = true;
-    });
+    setState(
+      () {
+        _isSubmitting = true;
+      },
+    );
 
     try {
-      await _deletionService.deleteReviewAndSource(review);
+      await _deletionService.deleteReviewAndSource(
+        review,
+      );
 
       if (!mounted) {
         return;
@@ -277,15 +380,22 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
       widget.controller.clearMessages();
 
-      Navigator.pop(context, true);
-    } catch (_) {
+      Navigator.pop(
+        context,
+        true,
+      );
+    } catch (
+      _
+    ) {
       if (!mounted) {
         return;
       }
 
-      setState(() {
-        _isSubmitting = false;
-      });
+      setState(
+        () {
+          _isSubmitting = false;
+        },
+      );
 
       _showMessage(
         'Não foi possível excluir a pergunta e a anotação de origem.',
@@ -297,12 +407,22 @@ class _ReviewScreenState extends State<ReviewScreen> {
   // MESSAGE
   // ============================================================
 
-  void _showMessage(String message) {
-    final messenger = ScaffoldMessenger.of(context);
+  void _showMessage(
+    String message,
+  ) {
+    final messenger = ScaffoldMessenger.of(
+      context,
+    );
 
     messenger.hideCurrentSnackBar();
 
-    messenger.showSnackBar(SnackBar(content: Text(message)));
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+        ),
+      ),
+    );
   }
 
   // ============================================================
@@ -310,44 +430,67 @@ class _ReviewScreenState extends State<ReviewScreen> {
   // ============================================================
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Scaffold(
       appBar: AppBar(
         title: Row(
           children: [
-            const Icon(Icons.psychology_alt_outlined),
-            const SizedBox(width: 10),
-            Text(_isSession ? 'Sessão de revisão' : 'Revisão'),
+            const Icon(
+              Icons.psychology_alt_outlined,
+            ),
+            const SizedBox(
+              width: 10,
+            ),
+            Text(
+              _isSession
+                  ? 'Sessão de revisão'
+                  : 'Revisão',
+            ),
           ],
         ),
         actions: [
           if (_isSubmitting)
             const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 14),
+              padding: EdgeInsets.symmetric(
+                horizontal: 14,
+              ),
               child: Center(
                 child: SizedBox(
                   width: 18,
                   height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                  ),
                 ),
               ),
             )
-          else if (!_isSession && !_sessionCompleted) ...[
+          else if (!_isSession &&
+              !_sessionCompleted) ...[
             IconButton(
               tooltip: 'Excluir pergunta',
               onPressed: _delete,
-              icon: const Icon(Icons.delete_outline_rounded),
+              icon: const Icon(
+                Icons.delete_outline_rounded,
+              ),
             ),
             IconButton(
               tooltip: 'Arquivar pergunta',
               onPressed: _archive,
-              icon: const Icon(Icons.archive_outlined),
+              icon: const Icon(
+                Icons.archive_outlined,
+              ),
             ),
           ],
-          const SizedBox(width: 6),
+          const SizedBox(
+            width: 6,
+          ),
         ],
       ),
-      body: _sessionCompleted ? _buildSessionCompleted() : _buildReviewBody(),
+      body: _sessionCompleted
+          ? _buildSessionCompleted()
+          : _buildReviewBody(),
     );
   }
 
@@ -358,30 +501,45 @@ class _ReviewScreenState extends State<ReviewScreen> {
   Widget _buildReviewBody() {
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(
+          24,
+          16,
+          24,
+          24,
+        ),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 760),
+          constraints: const BoxConstraints(
+            maxWidth: 760,
+          ),
           child: Column(
             children: [
               if (_isSession) ...[
                 _buildSessionProgress(),
-                const SizedBox(height: 18),
+                const SizedBox(
+                  height: 18,
+                ),
               ],
 
               _buildProgressInfo(),
 
-              const SizedBox(height: 18),
+              const SizedBox(
+                height: 12,
+              ),
 
               _buildQuestionCard(),
 
-              const SizedBox(height: 18),
+              const SizedBox(
+                height: 14,
+              ),
 
               if (!_showAnswer)
                 _buildShowAnswerButton()
               else ...[
                 _buildAnswerCard(),
 
-                const SizedBox(height: 22),
+                const SizedBox(
+                  height: 22,
+                ),
 
                 _buildAnswerButtons(),
               ],
@@ -398,9 +556,20 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
   Widget _buildSessionProgress() {
     final total = _sessionItems.length;
-    final current = (_currentIndex + 1).clamp(1, total);
+    final current =
+        (_currentIndex +
+                1)
+            .clamp(
+              1,
+              total,
+            );
 
-    final progress = total <= 0 ? 0.0 : current / total;
+    final progress =
+        total <=
+            0
+        ? 0.0
+        : current /
+              total;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -409,22 +578,30 @@ class _ReviewScreenState extends State<ReviewScreen> {
           children: [
             Text(
               'Pergunta $current de $total',
-              style: const TextStyle(fontWeight: FontWeight.w700),
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const Spacer(),
             Text(
               '${(progress * 100).round()}%',
-              style: Theme.of(context).textTheme.bodySmall,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall,
             ),
           ],
         ),
 
-        const SizedBox(height: 8),
+        const SizedBox(
+          height: 8,
+        ),
 
         LinearProgressIndicator(
           value: progress,
           minHeight: 7,
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(
+            999,
+          ),
         ),
       ],
     );
@@ -447,7 +624,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
           ),
         ),
 
-        const SizedBox(width: 10),
+        const SizedBox(
+          width: 10,
+        ),
 
         Expanded(
           child: _smallInfo(
@@ -457,7 +636,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
           ),
         ),
 
-        const SizedBox(width: 10),
+        const SizedBox(
+          width: 10,
+        ),
 
         Expanded(
           child: _smallInfo(
@@ -467,7 +648,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
           ),
         ),
 
-        const SizedBox(width: 10),
+        const SizedBox(
+          width: 10,
+        ),
 
         Expanded(
           child: _smallInfo(
@@ -485,23 +668,53 @@ class _ReviewScreenState extends State<ReviewScreen> {
     required String title,
     required String subtitle,
   }) {
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-        child: Column(
-          children: [
-            Icon(icon, size: 19),
+    final theme = Theme.of(
+      context,
+    );
 
-            const SizedBox(height: 6),
-
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
-
-            const SizedBox(height: 2),
-
-            Text(subtitle, style: const TextStyle(fontSize: 11)),
-          ],
+    return Container(
+      constraints: const BoxConstraints(
+        minHeight: 44,
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 8,
+      ),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(
+          12,
         ),
+        border: Border.all(
+          color: theme.dividerColor.withValues(
+            alpha: 0.55,
+          ),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 17,
+          ),
+
+          const SizedBox(
+            width: 7,
+          ),
+
+          Flexible(
+            child: Text(
+              '$title $subtitle',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -515,24 +728,42 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.all(
+        28,
+      ),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Theme.of(context).dividerColor),
+        color: Theme.of(
+          context,
+        ).colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(
+          18,
+        ),
+        border: Border.all(
+          color: Theme.of(
+            context,
+          ).dividerColor,
+        ),
       ),
       child: Column(
         children: [
-          const Icon(Icons.help_outline_rounded, size: 38),
+          const Icon(
+            Icons.help_outline_rounded,
+            size: 38,
+          ),
 
-          const SizedBox(height: 18),
+          const SizedBox(
+            height: 18,
+          ),
 
           Text(
             review.question,
             textAlign: TextAlign.center,
-            style: Theme.of(
-              context,
-            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+            style:
+                Theme.of(
+                  context,
+                ).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
           ),
         ],
       ),
@@ -551,12 +782,18 @@ class _ReviewScreenState extends State<ReviewScreen> {
         onPressed: _isSubmitting
             ? null
             : () {
-                setState(() {
-                  _showAnswer = true;
-                });
+                setState(
+                  () {
+                    _showAnswer = true;
+                  },
+                );
               },
-        icon: const Icon(Icons.visibility_outlined),
-        label: const Text('Mostrar resposta'),
+        icon: const Icon(
+          Icons.visibility_outlined,
+        ),
+        label: const Text(
+          'Mostrar resposta',
+        ),
       ),
     );
   }
@@ -570,39 +807,65 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(
+        24,
+      ),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(16),
+        color: Theme.of(
+          context,
+        ).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(
+          16,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Row(
             children: [
-              Icon(Icons.lightbulb_outline),
-              SizedBox(width: 8),
-              Text('Resposta', style: TextStyle(fontWeight: FontWeight.w700)),
+              Icon(
+                Icons.lightbulb_outline,
+              ),
+              SizedBox(
+                width: 8,
+              ),
+              Text(
+                'Resposta',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ],
           ),
 
-          const SizedBox(height: 14),
+          const SizedBox(
+            height: 14,
+          ),
 
           SelectableText(
             review.answer,
-            style: const TextStyle(fontSize: 16, height: 1.5),
+            style: const TextStyle(
+              fontSize: 16,
+              height: 1.5,
+            ),
           ),
 
           if (review.sourceNoteTitle.trim().isNotEmpty) ...[
-            const SizedBox(height: 18),
+            const SizedBox(
+              height: 18,
+            ),
 
             const Divider(),
 
-            const SizedBox(height: 6),
+            const SizedBox(
+              height: 6,
+            ),
 
             Text(
               'Origem: ${review.sourceNoteTitle}',
-              style: Theme.of(context).textTheme.bodySmall,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall,
             ),
           ],
         ],
@@ -621,10 +884,14 @@ class _ReviewScreenState extends State<ReviewScreen> {
         const Text(
           'Como foi sua lembrança?',
           textAlign: TextAlign.center,
-          style: TextStyle(fontWeight: FontWeight.w700),
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+          ),
         ),
 
-        const SizedBox(height: 12),
+        const SizedBox(
+          height: 12,
+        ),
 
         Wrap(
           spacing: 10,
@@ -674,23 +941,36 @@ class _ReviewScreenState extends State<ReviewScreen> {
         onPressed: _isSubmitting
             ? null
             : () {
-                _answer(answer);
+                _answer(
+                  answer,
+                );
               },
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon),
+            Icon(
+              icon,
+            ),
 
-            const SizedBox(width: 8),
+            const SizedBox(
+              width: 8,
+            ),
 
             Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   label,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-                Text(subtitle, style: const TextStyle(fontSize: 10)),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 10,
+                  ),
+                ),
               ],
             ),
           ],
@@ -704,39 +984,57 @@ class _ReviewScreenState extends State<ReviewScreen> {
   // ============================================================
 
   Widget _buildSessionCompleted() {
-    final neutral = _sessionAnswered - _sessionCorrect - _sessionWrong;
+    final neutral =
+        _sessionAnswered -
+        _sessionCorrect -
+        _sessionWrong;
 
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(
+          24,
+        ),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 620),
+          constraints: const BoxConstraints(
+            maxWidth: 620,
+          ),
           child: Column(
             children: [
               Container(
                 width: 76,
                 height: 76,
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primaryContainer,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   Icons.done_all_rounded,
                   size: 38,
-                  color: Theme.of(context).colorScheme.primary,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primary,
                 ),
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(
+                height: 20,
+              ),
 
               Text(
                 'Sessão concluída',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+                style:
+                    Theme.of(
+                      context,
+                    ).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
               ),
 
-              const SizedBox(height: 8),
+              const SizedBox(
+                height: 8,
+              ),
 
               Text(
                 'Você revisou $_sessionAnswered '
@@ -744,7 +1042,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
                 textAlign: TextAlign.center,
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(
+                height: 24,
+              ),
 
               Row(
                 children: [
@@ -756,7 +1056,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     ),
                   ),
 
-                  const SizedBox(width: 10),
+                  const SizedBox(
+                    width: 10,
+                  ),
 
                   Expanded(
                     child: _sessionMetric(
@@ -766,7 +1068,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     ),
                   ),
 
-                  const SizedBox(width: 10),
+                  const SizedBox(
+                    width: 10,
+                  ),
 
                   Expanded(
                     child: _sessionMetric(
@@ -778,17 +1082,26 @@ class _ReviewScreenState extends State<ReviewScreen> {
                 ],
               ),
 
-              const SizedBox(height: 26),
+              const SizedBox(
+                height: 26,
+              ),
 
               SizedBox(
                 width: double.infinity,
                 height: 48,
                 child: FilledButton.icon(
                   onPressed: () {
-                    Navigator.pop(context, true);
+                    Navigator.pop(
+                      context,
+                      true,
+                    );
                   },
-                  icon: const Icon(Icons.check_rounded),
-                  label: const Text('Concluir'),
+                  icon: const Icon(
+                    Icons.check_rounded,
+                  ),
+                  label: const Text(
+                    'Concluir',
+                  ),
                 ),
               ),
             ],
@@ -806,24 +1119,38 @@ class _ReviewScreenState extends State<ReviewScreen> {
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 16,
+        ),
         child: Column(
           children: [
-            Icon(icon),
+            Icon(
+              icon,
+            ),
 
-            const SizedBox(height: 8),
+            const SizedBox(
+              height: 8,
+            ),
 
             Text(
               '$value',
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+              ),
             ),
 
-            const SizedBox(height: 3),
+            const SizedBox(
+              height: 3,
+            ),
 
             Text(
               label,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 11),
+              style: const TextStyle(
+                fontSize: 11,
+              ),
             ),
           ],
         ),

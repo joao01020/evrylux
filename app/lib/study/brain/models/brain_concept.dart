@@ -203,11 +203,18 @@ class BrainConcept {
 
   final BrainConceptType type;
 
+  /// Define se este conhecimento pode ser usado pelo sistema de revisão.
+  ///
+  /// O padrão é false para manter compatibilidade com conhecimentos criados
+  /// antes da introdução desta preferência.
+  final bool reviewEnabled;
+
   const BrainConcept({
     required this.id,
     required this.title,
     required this.description,
     required this.type,
+    this.reviewEnabled = false,
   });
 
   // ============================================================
@@ -255,6 +262,8 @@ class BrainConcept {
       'description': description,
 
       'type': type.name,
+
+      'review_enabled': reviewEnabled,
     };
   }
 
@@ -281,7 +290,36 @@ class BrainConcept {
       type: BrainConceptTypeExtension.fromString(
         json['type']?.toString(),
       ),
+
+      reviewEnabled: parseReviewEnabled(
+        json['review_enabled'],
+      ),
     );
+  }
+
+  // ============================================================
+  // REVIEW ENABLED PARSER
+  // ============================================================
+
+  static bool parseReviewEnabled(dynamic value) {
+    if (value is bool) {
+      return value;
+    }
+
+    if (value is num) {
+      return value != 0;
+    }
+
+    switch (value?.toString().trim().toLowerCase()) {
+      case 'true':
+      case '1':
+      case 'yes':
+      case 'sim':
+        return true;
+
+      default:
+        return false;
+    }
   }
 
   // ============================================================
@@ -293,6 +331,7 @@ class BrainConcept {
     String? title,
     String? description,
     BrainConceptType? type,
+    bool? reviewEnabled,
   }) {
     return BrainConcept(
       id:
@@ -310,6 +349,10 @@ class BrainConcept {
       type:
           type ??
           this.type,
+
+      reviewEnabled:
+          reviewEnabled ??
+          this.reviewEnabled,
     );
   }
 
@@ -337,7 +380,9 @@ class BrainConcept {
         other.description ==
             description &&
         other.type ==
-            type;
+            type &&
+        other.reviewEnabled ==
+            reviewEnabled;
   }
 
   @override
@@ -347,6 +392,7 @@ class BrainConcept {
       title,
       description,
       type,
+      reviewEnabled,
     );
   }
 
@@ -360,7 +406,8 @@ class BrainConcept {
         'id: $id, '
         'title: $title, '
         'description: $description, '
-        'type: ${type.name}'
+        'type: ${type.name}, '
+        'reviewEnabled: $reviewEnabled'
         ')';
   }
 }

@@ -46,6 +46,10 @@ class _QuestionScreenState extends State<QuestionScreen> {
 
   bool _isDeleting = false;
 
+  bool _selectionMode = false;
+
+  final Set<String> _selectedReviewIds = <String>{};
+
   // ============================================================
   // INIT
   // ============================================================
@@ -309,8 +313,8 @@ class _QuestionScreenState extends State<QuestionScreen> {
         return AlertDialog(
           title: const Text('Excluir pergunta?'),
           content: Text(
-            'Deseja excluir permanentemente "${review.question}"?\n\n'
-            'A anotação de origem também será apagada do Cérebro e do calendário.',
+            'Deseja excluir "${review.question}" das revisões?\n\n'
+            'O conhecimento de origem será preservado.',
           ),
           actions: [
             TextButton(
@@ -339,7 +343,7 @@ class _QuestionScreenState extends State<QuestionScreen> {
     });
 
     try {
-      await _deletionService.deleteReviewAndSource(review);
+      await _deletionService.deleteReviewOnly(review);
 
       await _controller.loadReviews();
 
@@ -349,14 +353,209 @@ class _QuestionScreenState extends State<QuestionScreen> {
 
       _controller.clearMessages();
 
-      _showSnackBar('Pergunta e anotação de origem excluídas.');
+      _showSnackBar(
+        'Pergunta excluída. O conhecimento de origem foi preservado.',
+      );
     } catch (error) {
       if (!mounted) {
         return;
       }
 
+      _showSnackBar('Não foi possível excluir a pergunta.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isDeleting = false;
+        });
+      }
+    }
+  }
+
+  // ============================================================
+  // MULTI-SELEÇÃO
+  // ============================================================
+
+  void _enterSelectionMode(BrainReviewItem review) {
+    if (_isDeleting) {
+      return;
+    }
+
+    setState(() {
+      _selectionMode = true;
+      _selectedReviewIds.add(review.id);
+    });
+  }
+
+  void _toggleReviewSelection(BrainReviewItem review) {
+    if (_isDeleting) {
+      return;
+    }
+
+    setState(() {
+      _selectionMode = true;
+
+      if (_selectedReviewIds.contains(review.id)) {
+        _selectedReviewIds.remove(review.id);
+      } else {
+        _selectedReviewIds.add(review.id);
+      }
+
+      if (_selectedReviewIds.isEmpty) {
+        _selectionMode = false;
+      }
+    });
+  }
+
+  void _cancelSelection() {
+    if (_isDeleting) {
+      return;
+    }
+
+    setState(() {
+      _selectionMode = false;
+      _selectedReviewIds.clear();
+    });
+  }
+
+  void _selectAllVisible() {
+    if (_isDeleting) {
+      return;
+    }
+
+    final visibleIds = _currentItems.map((review) => review.id).toSet();
+
+    if (visibleIds.isEmpty) {
+      return;
+    }
+
+    final allVisibleSelected = visibleIds.every(_selectedReviewIds.contains);
+
+    setState(() {
+      _selectionMode = true;
+
+      if (allVisibleSelected) {
+        _selectedReviewIds.removeAll(visibleIds);
+
+        if (_selectedReviewIds.isEmpty) {
+          _selectionMode = false;
+        }
+      } else {
+        _selectedReviewIds.addAll(visibleIds);
+      }
+    });
+  }
+
+  Future<void> _deleteSelectedReviews() async {
+    if (_isDeleting || _selectedReviewIds.isEmpty) {
+      return;
+    }
+
+    final selected = _controller.reviews.where((review) {
+      return _selectedReviewIds.contains(review.id);
+    }).toList();
+
+    if (selected.isEmpty) {
+      _cancelSelection();
+      return;
+    }
+
+    final count = selected.length;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(
+            count == 1 ? 'Excluir pergunta?' : 'Excluir $count perguntas?',
+          ),
+          content: Text(
+            count == 1
+                ? 'A pergunta selecionada será removida da revisão. '
+                      'O conhecimento de origem será preservado.'
+                : 'As $count perguntas selecionadas serão removidas da revisão. '
+                      'Os conhecimentos de origem serão preservados.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, false);
+              },
+              child: const Text('Cancelar'),
+            ),
+            FilledButton.icon(
+              onPressed: () {
+                Navigator.pop(dialogContext, true);
+              },
+              icon: const Icon(Icons.delete_outline_rounded),
+              label: Text(count == 1 ? 'Excluir' : 'Excluir $count'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted || confirmed != true) {
+      return;
+    }
+
+    setState(() {
+      _isDeleting = true;
+    });
+
+    var deleted = 0;
+
+    try {
+      // Exclusão em lote remove SOMENTE os BrainReviewItem.
+      // Isso é intencional: uma única anotação pode originar várias
+      // perguntas automáticas e nunca deve ser apagada por uma seleção
+      // de perguntas na tela de revisão.
+      for (final review in selected) {
+        await _deletionService.deleteReviewOnly(review);
+
+        if (_controller.errorMessage != null) {
+          break;
+        }
+
+        deleted++;
+      }
+
+      await _controller.loadReviews();
+
+      if (!mounted) {
+        return;
+      }
+
+      final error = _controller.errorMessage;
+
+      _controller.clearMessages();
+
+      setState(() {
+        _selectionMode = false;
+        _selectedReviewIds.clear();
+      });
+
+      if (error != null) {
+        _showSnackBar(
+          deleted == 0
+              ? error
+              : '$deleted de $count perguntas foram excluídas. $error',
+        );
+      } else {
+        _showSnackBar(
+          deleted == 1
+              ? '1 pergunta excluída. O conhecimento de origem foi preservado.'
+              : '$deleted perguntas excluídas. Os conhecimentos de origem foram preservados.',
+        );
+      }
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
       _showSnackBar(
-        'Não foi possível excluir a pergunta e a anotação de origem.',
+        deleted == 0
+            ? 'Não foi possível excluir as perguntas selecionadas.'
+            : '$deleted de $count perguntas foram excluídas antes de ocorrer um erro.',
       );
     } finally {
       if (mounted) {
@@ -406,19 +605,45 @@ class _QuestionScreenState extends State<QuestionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Row(
-          children: [
-            Icon(Icons.psychology_alt_outlined),
-            SizedBox(width: 10),
-            Text('Revisar'),
-          ],
-        ),
+        leading: _selectionMode
+            ? IconButton(
+                tooltip: 'Cancelar seleção',
+                onPressed: _isDeleting ? null : _cancelSelection,
+                icon: const Icon(Icons.close_rounded),
+              )
+            : null,
+        title: _selectionMode
+            ? Text(
+                '${_selectedReviewIds.length} '
+                '${_selectedReviewIds.length == 1 ? 'selecionada' : 'selecionadas'}',
+              )
+            : const Row(
+                children: [
+                  Icon(Icons.psychology_alt_outlined),
+                  SizedBox(width: 10),
+                  Text('Revisar'),
+                ],
+              ),
         actions: [
-          IconButton(
-            tooltip: 'Atualizar',
-            onPressed: _controller.isLoading || _isDeleting ? null : _refresh,
-            icon: const Icon(Icons.refresh_rounded),
-          ),
+          if (_selectionMode) ...[
+            IconButton(
+              tooltip: 'Selecionar todas desta lista',
+              onPressed: _isDeleting ? null : _selectAllVisible,
+              icon: const Icon(Icons.select_all_rounded),
+            ),
+            IconButton(
+              tooltip: 'Excluir selecionadas',
+              onPressed: _isDeleting || _selectedReviewIds.isEmpty
+                  ? null
+                  : _deleteSelectedReviews,
+              icon: const Icon(Icons.delete_outline_rounded),
+            ),
+          ] else
+            IconButton(
+              tooltip: 'Atualizar',
+              onPressed: _controller.isLoading || _isDeleting ? null : _refresh,
+              icon: const Icon(Icons.refresh_rounded),
+            ),
           const SizedBox(width: 6),
         ],
       ),
@@ -441,8 +666,7 @@ class _QuestionScreenState extends State<QuestionScreen> {
 
     return Column(
       children: [
-        _buildReviewNowCard(),
-        _buildSummary(),
+        if (!_selectionMode) ...[_buildReviewNowCard(), _buildSummary()],
         _buildTabs(),
         Expanded(child: _buildList()),
       ],
@@ -458,10 +682,10 @@ class _QuestionScreenState extends State<QuestionScreen> {
     final overdue = _overdueReviews.length;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 6),
+      padding: const EdgeInsets.fromLTRB(18, 12, 18, 4),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: Theme.of(
             context,
@@ -476,18 +700,18 @@ class _QuestionScreenState extends State<QuestionScreen> {
         child: Row(
           children: [
             Container(
-              width: 48,
-              height: 48,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
                 color: Theme.of(
                   context,
                 ).colorScheme.primary.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 dueNow > 0 ? Icons.play_arrow_rounded : Icons.check_rounded,
                 color: Theme.of(context).colorScheme.primary,
-                size: 28,
+                size: 24,
               ),
             ),
 
@@ -539,48 +763,61 @@ class _QuestionScreenState extends State<QuestionScreen> {
 
   Widget _buildSummary() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 8, 18, 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: _metric(
-              label: 'Atrasadas',
-              value: _overdueReviews.length,
-              icon: Icons.notification_important_outlined,
-            ),
+      padding: const EdgeInsets.fromLTRB(18, 4, 18, 2),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.55),
           ),
-
-          const SizedBox(width: 10),
-
-          Expanded(
-            child: _metric(
-              label: 'Hoje',
-              value: _todayReviews.length,
-              icon: Icons.today_outlined,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: _metric(
+                label: 'Atrasadas',
+                value: _overdueReviews.length,
+                icon: Icons.notification_important_outlined,
+              ),
             ),
-          ),
-
-          const SizedBox(width: 10),
-
-          Expanded(
-            child: _metric(
-              label: 'Próximas',
-              value: _futureReviews.length,
-              icon: Icons.schedule_outlined,
+            _summaryDivider(),
+            Expanded(
+              child: _metric(
+                label: 'Hoje',
+                value: _todayReviews.length,
+                icon: Icons.today_outlined,
+              ),
             ),
-          ),
-
-          const SizedBox(width: 10),
-
-          Expanded(
-            child: _metric(
-              label: 'Ativas',
-              value: _controller.activeCount,
-              icon: Icons.psychology_alt_outlined,
+            _summaryDivider(),
+            Expanded(
+              child: _metric(
+                label: 'Próximas',
+                value: _futureReviews.length,
+                icon: Icons.schedule_outlined,
+              ),
             ),
-          ),
-        ],
+            _summaryDivider(),
+            Expanded(
+              child: _metric(
+                label: 'Ativas',
+                value: _controller.activeCount,
+                icon: Icons.psychology_alt_outlined,
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _summaryDivider() {
+    return Container(
+      width: 1,
+      height: 26,
+      color: Theme.of(context).dividerColor.withValues(alpha: 0.55),
     );
   }
 
@@ -593,26 +830,29 @@ class _QuestionScreenState extends State<QuestionScreen> {
     required int value,
     required IconData icon,
   }) {
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          children: [
-            Icon(icon, size: 21),
+    final theme = Theme.of(context);
 
-            const SizedBox(height: 7),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16),
 
-            Text(
-              '$value',
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+          const SizedBox(width: 6),
+
+          Flexible(
+            child: Text(
+              '$value $label',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
-
-            const SizedBox(height: 3),
-
-            Text(label, style: const TextStyle(fontSize: 12)),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -624,7 +864,7 @@ class _QuestionScreenState extends State<QuestionScreen> {
   Widget _buildTabs() {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
       child: SegmentedButton<int>(
         segments: const [
           ButtonSegment(
@@ -654,11 +894,13 @@ class _QuestionScreenState extends State<QuestionScreen> {
           ),
         ],
         selected: {_selectedTab},
-        onSelectionChanged: (values) {
-          setState(() {
-            _selectedTab = values.first;
-          });
-        },
+        onSelectionChanged: _selectionMode || _isDeleting
+            ? null
+            : (values) {
+                setState(() {
+                  _selectedTab = values.first;
+                });
+              },
       ),
     );
   }
@@ -687,7 +929,7 @@ class _QuestionScreenState extends State<QuestionScreen> {
       onRefresh: _refresh,
       child: ListView.separated(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.fromLTRB(18, 10, 18, 18),
         itemCount: items.length,
         separatorBuilder: (_, _) {
           return const SizedBox(height: 10);
@@ -714,164 +956,217 @@ class _QuestionScreenState extends State<QuestionScreen> {
           return item.id == review.id;
         });
 
+    final selected = _selectedReviewIds.contains(review.id);
+
     return Card(
       margin: EdgeInsets.zero,
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 10,
-        ),
-        leading: CircleAvatar(
-          child: Icon(
-            review.archived
-                ? Icons.archive_outlined
-                : overdue
-                ? Icons.notification_important_outlined
-                : due
-                ? Icons.notifications_active_outlined
-                : Icons.help_outline_rounded,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onLongPress: _isDeleting
+            ? null
+            : () {
+                _enterSelectionMode(review);
+              },
+        onTap: _isDeleting
+            ? null
+            : () {
+                if (_selectionMode) {
+                  _toggleReviewSelection(review);
+                  return;
+                }
+
+                if (!review.archived) {
+                  _openReview(review);
+                }
+              },
+        child: ListTile(
+          selected: selected,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 10,
           ),
-        ),
-        title: Text(
-          review.question,
-          style: const TextStyle(fontWeight: FontWeight.w700),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 6),
+          leading: _selectionMode
+              ? Checkbox(
+                  value: selected,
+                  onChanged: _isDeleting
+                      ? null
+                      : (_) {
+                          _toggleReviewSelection(review);
+                        },
+                )
+              : CircleAvatar(
+                  child: Icon(
+                    review.archived
+                        ? Icons.archive_outlined
+                        : overdue
+                        ? Icons.notification_important_outlined
+                        : due
+                        ? Icons.notifications_active_outlined
+                        : Icons.help_outline_rounded,
+                  ),
+                ),
+          title: Text(
+            review.question,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 6),
 
-            Text(
-              review.archived
-                  ? 'Arquivada'
-                  : overdue
-                  ? 'Revisão atrasada desde ${_formatDate(review.nextReviewAt)}'
-                  : due
-                  ? 'Disponível para revisar agora'
-                  : 'Próxima revisão: ${_formatDate(review.nextReviewAt)}',
-            ),
-
-            if (review.sourceNoteTitle.trim().isNotEmpty) ...[
-              const SizedBox(height: 4),
               Text(
-                'Origem: ${review.sourceNoteTitle}',
+                review.archived
+                    ? 'Arquivada'
+                    : overdue
+                    ? 'Revisão atrasada desde ${_formatDate(review.nextReviewAt)}'
+                    : due
+                    ? 'Disponível para revisar agora'
+                    : 'Próxima revisão: ${_formatDate(review.nextReviewAt)}',
+              ),
+
+              if (review.sourceNoteTitle.trim().isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Origem: ${review.sourceNoteTitle}',
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ],
+
+              const SizedBox(height: 4),
+
+              Text(
+                'Revisões: ${review.reviewCount} • '
+                'Acertos: ${review.correctCount} • '
+                'Erros: ${review.wrongCount} • '
+                'Sequência: ${review.streak}',
                 style: const TextStyle(fontSize: 12),
               ),
             ],
+          ),
+          trailing: _selectionMode
+              ? null
+              : PopupMenuButton<String>(
+                  tooltip: 'Opções',
+                  enabled: !_isDeleting,
+                  onSelected: (value) async {
+                    switch (value) {
+                      case 'review':
+                        await _openReview(review);
+                        break;
 
-            const SizedBox(height: 4),
+                      case 'select':
+                        _enterSelectionMode(review);
+                        break;
 
-            Text(
-              'Revisões: ${review.reviewCount} • '
-              'Acertos: ${review.correctCount} • '
-              'Erros: ${review.wrongCount} • '
-              'Sequência: ${review.streak}',
-              style: const TextStyle(fontSize: 12),
-            ),
-          ],
-        ),
-        onTap: review.archived || _isDeleting
-            ? null
-            : () {
-                _openReview(review);
-              },
-        trailing: PopupMenuButton<String>(
-          tooltip: 'Opções',
-          enabled: !_isDeleting,
-          onSelected: (value) async {
-            switch (value) {
-              case 'review':
-                await _openReview(review);
-                break;
+                      case 'postpone':
+                        await _postpone(review);
+                        break;
 
-              case 'postpone':
-                await _postpone(review);
-                break;
+                      case 'archive':
+                        await _archive(review);
+                        break;
 
-              case 'archive':
-                await _archive(review);
-                break;
+                      case 'restore':
+                        await _restore(review);
+                        break;
 
-              case 'restore':
-                await _restore(review);
-                break;
+                      case 'delete':
+                        await _deleteReview(review);
+                        break;
+                    }
+                  },
+                  itemBuilder: (_) {
+                    if (review.archived) {
+                      return const [
+                        PopupMenuItem(
+                          value: 'select',
+                          child: Row(
+                            children: [
+                              Icon(Icons.check_box_outlined),
+                              SizedBox(width: 10),
+                              Text('Selecionar'),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'restore',
+                          child: Row(
+                            children: [
+                              Icon(Icons.unarchive_outlined),
+                              SizedBox(width: 10),
+                              Text('Restaurar'),
+                            ],
+                          ),
+                        ),
+                        PopupMenuDivider(),
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete_outline_rounded),
+                              SizedBox(width: 10),
+                              Text('Excluir'),
+                            ],
+                          ),
+                        ),
+                      ];
+                    }
 
-              case 'delete':
-                await _deleteReview(review);
-                break;
-            }
-          },
-          itemBuilder: (_) {
-            if (review.archived) {
-              return const [
-                PopupMenuItem(
-                  value: 'restore',
-                  child: Row(
-                    children: [
-                      Icon(Icons.unarchive_outlined),
-                      SizedBox(width: 10),
-                      Text('Restaurar'),
-                    ],
-                  ),
+                    return const [
+                      PopupMenuItem(
+                        value: 'review',
+                        child: Row(
+                          children: [
+                            Icon(Icons.psychology_alt_outlined),
+                            SizedBox(width: 10),
+                            Text('Revisar'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'select',
+                        child: Row(
+                          children: [
+                            Icon(Icons.check_box_outlined),
+                            SizedBox(width: 10),
+                            Text('Selecionar'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'postpone',
+                        child: Row(
+                          children: [
+                            Icon(Icons.schedule_outlined),
+                            SizedBox(width: 10),
+                            Text('Adiar 1 dia'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'archive',
+                        child: Row(
+                          children: [
+                            Icon(Icons.archive_outlined),
+                            SizedBox(width: 10),
+                            Text('Arquivar'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuDivider(),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete_outline_rounded),
+                            SizedBox(width: 10),
+                            Text('Excluir'),
+                          ],
+                        ),
+                      ),
+                    ];
+                  },
                 ),
-                PopupMenuDivider(),
-                PopupMenuItem(
-                  value: 'delete',
-                  child: Row(
-                    children: [
-                      Icon(Icons.delete_outline_rounded),
-                      SizedBox(width: 10),
-                      Text('Excluir'),
-                    ],
-                  ),
-                ),
-              ];
-            }
-
-            return const [
-              PopupMenuItem(
-                value: 'review',
-                child: Row(
-                  children: [
-                    Icon(Icons.psychology_alt_outlined),
-                    SizedBox(width: 10),
-                    Text('Revisar'),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'postpone',
-                child: Row(
-                  children: [
-                    Icon(Icons.schedule_outlined),
-                    SizedBox(width: 10),
-                    Text('Adiar 1 dia'),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'archive',
-                child: Row(
-                  children: [
-                    Icon(Icons.archive_outlined),
-                    SizedBox(width: 10),
-                    Text('Arquivar'),
-                  ],
-                ),
-              ),
-              PopupMenuDivider(),
-              PopupMenuItem(
-                value: 'delete',
-                child: Row(
-                  children: [
-                    Icon(Icons.delete_outline_rounded),
-                    SizedBox(width: 10),
-                    Text('Excluir'),
-                  ],
-                ),
-              ),
-            ];
-          },
         ),
       ),
     );
@@ -904,7 +1199,7 @@ class _QuestionScreenState extends State<QuestionScreen> {
       case 3:
         message = 'Nenhuma pergunta em aprendizado.';
         description =
-            'Salve uma anotação como Pergunta para iniciar uma revisão.';
+            'Marque um conhecimento para revisão para gerar perguntas automaticamente.';
         break;
 
       case 4:

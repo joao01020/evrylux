@@ -672,6 +672,7 @@ class BrainStorage {
     return '''---
 id: ${concept.id}
 tipo: ${concept.type.name}
+revisao_habilitada: ${concept.reviewEnabled}
 categoria: ${concept.label}
 emoji: ${concept.emoji}
 pasta: ${concept.folderName}
@@ -809,6 +810,8 @@ ${concept.description}
 
       var type = fallbackType;
 
+      var reviewEnabled = false;
+
       final metadataExpression = RegExp(
         r'^\s*---\s*\n([\s\S]*?)\n---\s*\n?',
       );
@@ -860,6 +863,12 @@ ${concept.description}
 
             case 'tipo':
               type = BrainConceptTypeExtension.fromString(
+                value,
+              );
+              break;
+
+            case 'revisao_habilitada':
+              reviewEnabled = BrainConcept.parseReviewEnabled(
                 value,
               );
               break;
@@ -937,6 +946,7 @@ ${concept.description}
         title: title,
         description: content,
         type: type,
+        reviewEnabled: reviewEnabled,
       );
     } catch (
       error,
@@ -1672,6 +1682,7 @@ $content
           'title': concept.title,
           'description': concept.description,
           'type': concept.type.name,
+          'review_enabled': concept.reviewEnabled,
         };
       },
     ).toList();
@@ -1763,6 +1774,9 @@ $content
             description: description,
             type: BrainConceptTypeExtension.fromString(
               data['type']?.toString(),
+            ),
+            reviewEnabled: BrainConcept.parseReviewEnabled(
+              data['review_enabled'],
             ),
           ),
         );

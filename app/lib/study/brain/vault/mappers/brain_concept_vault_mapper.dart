@@ -51,6 +51,7 @@ class BrainConceptVaultMapper {
       'title': title,
       'description': description,
       'type': concept.type.name,
+      'review_enabled': concept.reviewEnabled,
       'source_note_path':
           cleanSourceNotePath == null || cleanSourceNotePath.isEmpty
           ? null
@@ -115,6 +116,9 @@ class BrainConceptVaultMapper {
       title: title,
       description: description,
       type: type,
+      reviewEnabled: BrainConcept.parseReviewEnabled(
+        data['review_enabled'],
+      ),
     );
   }
 

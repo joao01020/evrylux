@@ -6,25 +6,14 @@ import '../repositories/brain_repository.dart';
 // BRAIN REVIEW DELETION SERVICE
 // ============================================================
 //
-// FASE 10 — REVISÃO CONSOLIDADA
+// Regra atual:
 //
-// Responsabilidade única:
+// - excluir uma pergunta/revisão NÃO apaga o conhecimento de origem;
+// - excluir o conhecimento pelo módulo Brain pode remover as revisões
+//   vinculadas a ele.
 //
-// excluir uma revisão e, quando existir, também remover a origem
-// correspondente no Cérebro.
-//
-// Fluxo:
-//
-// BrainReviewDeletionService
-//        │
-//        ├── BrainRepository
-//        │     ├── remove conceitos da nota
-//        │     └── remove a nota
-//        │
-//        └── ReviewController
-//              └── remove a revisão
-//
-// A UI apenas confirma a ação e chama este serviço.
+// O método deleteReviewAndSource foi mantido apenas por compatibilidade
+// com chamadas antigas que realmente desejem apagar a origem.
 //
 // ============================================================
 
@@ -36,35 +25,51 @@ class BrainReviewDeletionService {
        _reviewController = reviewController;
 
   final BrainRepository _brainRepository;
-
   final ReviewController _reviewController;
+
+  // ============================================================
+  // DELETE REVIEW ONLY
+  // ============================================================
+
+  Future<void> deleteReviewOnly(BrainReviewItem review) async {
+    await _reviewController.deleteReview(review);
+
+    final error = _reviewController.errorMessage;
+
+    if (error != null) {
+      throw StateError(error);
+    }
+  }
+
+  // ============================================================
+  // DELETE MANY REVIEWS ONLY
+  // ============================================================
+
+  Future<void> deleteReviewsOnly(Iterable<BrainReviewItem> reviews) async {
+    for (final review in reviews) {
+      await deleteReviewOnly(review);
+    }
+  }
 
   // ============================================================
   // DELETE REVIEW + SOURCE
   // ============================================================
+  //
+  // Compatibilidade com fluxos antigos. NÃO usar na tela Revisar
+  // quando o usuário estiver apenas excluindo uma pergunta.
+  //
+  // ============================================================
 
   Future<void> deleteReviewAndSource(BrainReviewItem review) async {
     final sourceNotePath = review.sourceNotePath.trim();
-
     final conceptId = review.conceptId.trim();
-
-    // ==========================================================
-    // 1. REMOVER ORIGEM DO CÉREBRO
-    // ==========================================================
 
     if (sourceNotePath.isNotEmpty) {
       await _brainRepository.deleteConceptsByNoteId(sourceNotePath);
-
       await _brainRepository.deleteNote(sourceNotePath);
     } else if (conceptId.isNotEmpty) {
-      // Compatibilidade com revisões antigas que não possuem
-      // sourceNotePath.
       await _brainRepository.deleteConceptAndSourceNote(conceptId);
     }
-
-    // ==========================================================
-    // 2. REMOVER REVISÃO
-    // ==========================================================
 
     await _reviewController.deleteReview(review);
 

@@ -229,6 +229,7 @@ class BrainNoteVaultStore {
             'title': concept.title,
             'description': concept.description,
             'type': concept.type.name,
+            'review_enabled': concept.reviewEnabled,
           };
         })
         .toList(growable: false);
@@ -321,6 +322,9 @@ class BrainNoteVaultStore {
             title: conceptTitle,
             description: description,
             type: type,
+            reviewEnabled: BrainConcept.parseReviewEnabled(
+              map['review_enabled'],
+            ),
           ),
         );
       }

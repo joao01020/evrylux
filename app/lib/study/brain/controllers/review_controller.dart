@@ -1,8 +1,11 @@
 import 'package:flutter/foundation.dart';
 
 import '../models/brain_concept.dart';
+import '../models/brain_generated_review_question.dart';
 import '../models/brain_review_item.dart';
 import '../repositories/review_repository.dart';
+import '../services/brain_review_generation_queue.dart';
+import '../services/brain_review_question_generator.dart';
 
 // ============================================================
 // RESULTADO DA REVISÃO
@@ -41,6 +44,12 @@ class ReviewController extends ChangeNotifier {
     : _repository = repository;
 
   final ReviewRepository _repository;
+
+  static const BrainReviewGenerationQueue _generationQueue =
+      BrainReviewGenerationQueue();
+
+  static const BrainReviewQuestionGenerator _questionGenerator =
+      LocalBrainReviewQuestionGenerator();
 
   // ============================================================
   // STATE
@@ -334,6 +343,155 @@ class ReviewController extends ChangeNotifier {
     } finally {
       _setLoading(false);
     }
+  }
+
+  // ============================================================
+  // FASE 2 — FILA DE CONHECIMENTOS PARA GERAR REVISÃO
+  // ============================================================
+  //
+  // A fila é derivada do estado persistido. Não criamos uma segunda fonte
+  // de verdade: um conceito entra quando reviewEnabled == true e ainda não
+  // existe uma revisão ativa vinculada ao seu conceptId.
+  //
+  // A geração por IA será conectada na próxima fase.
+  // ============================================================
+
+  List<BrainReviewGenerationCandidate> reviewGenerationCandidates(
+    Iterable<BrainConcept> concepts,
+  ) {
+    return _generationQueue.build(
+      concepts: concepts,
+      reviews: _reviews,
+    );
+  }
+
+  bool needsGeneratedReview(BrainConcept concept) {
+    return reviewGenerationCandidates(<BrainConcept>[concept]).isNotEmpty;
+  }
+
+  int pendingGenerationCount(Iterable<BrainConcept> concepts) {
+    return reviewGenerationCandidates(concepts).length;
+  }
+
+
+  // ============================================================
+  // FASE 3 — GERAR RASCUNHOS DE REVISÃO
+  // ============================================================
+  //
+  // Gera questões somente para conceitos elegíveis da fila. Nesta fase os
+  // rascunhos ainda não são persistidos como BrainReviewItem. Isso evita
+  // misturar a geração automática com BrainConceptType.question e prepara
+  // uma fronteira limpa para o provedor de IA.
+  // ============================================================
+
+  Future<List<BrainGeneratedReviewQuestion>> generateReviewDrafts(
+    Iterable<BrainConcept> concepts,
+  ) async {
+    final candidates = reviewGenerationCandidates(concepts);
+    final result = <BrainGeneratedReviewQuestion>[];
+
+    for (final candidate in candidates) {
+      final generated = await _questionGenerator.generate(candidate);
+      result.addAll(generated);
+    }
+
+    return List<BrainGeneratedReviewQuestion>.unmodifiable(result);
+  }
+
+  Future<List<BrainGeneratedReviewQuestion>> generateReviewDraftsForConcept(
+    BrainConcept concept,
+  ) {
+    return generateReviewDrafts(<BrainConcept>[concept]);
+  }
+
+  // ============================================================
+  // FASE 4 — GERAR E PERSISTIR REVISÕES AUTOMÁTICAS
+  // ============================================================
+  //
+  // Um conhecimento marcado com reviewEnabled pode originar várias
+  // BrainReviewItem. As perguntas automáticas continuam fora de
+  // BrainConceptType.question: elas pertencem somente ao domínio Review.
+  // ============================================================
+
+  Future<List<BrainReviewItem>> generateAndSaveReviewsForConcept({
+    required BrainConcept concept,
+    required String sourceNotePath,
+    String sourceNoteTitle = '',
+    DateTime? firstReviewAt,
+  }) async {
+    await initialize();
+
+    final cleanPath = sourceNotePath.trim();
+    if (cleanPath.isEmpty) {
+      _errorMessage =
+          'Não foi possível gerar a revisão porque a anotação não possui caminho local.';
+      notifyListeners();
+      return const <BrainReviewItem>[];
+    }
+
+    // A fila impede gerar novamente para um conceito que já possui
+    // revisão ativa. Importante: geramos TODOS os rascunhos primeiro e
+    // somente depois persistimos, permitindo várias perguntas por conceito.
+    final drafts = await generateReviewDraftsForConcept(concept);
+    if (drafts.isEmpty) {
+      return const <BrainReviewItem>[];
+    }
+
+    final now = DateTime.now();
+    final dueAt = firstReviewAt ?? now;
+    final savedReviews = <BrainReviewItem>[];
+
+    for (final draft in drafts) {
+      final question = draft.question.trim();
+      final answer = draft.answer.trim();
+
+      if (question.isEmpty || answer.isEmpty) {
+        continue;
+      }
+
+      // IDs do gerador local são determinísticos por conceito + unidade.
+      // Isso também protege contra duplicação se este método for chamado
+      // novamente antes da lista local ser atualizada.
+      final alreadyExists = _reviews.any((review) => review.id == draft.id);
+      if (alreadyExists) {
+        continue;
+      }
+
+      final review = BrainReviewItem(
+        id: draft.id,
+        conceptId: concept.id,
+        question: question,
+        answer: answer,
+        sourceNotePath: cleanPath,
+        sourceNoteTitle: sourceNoteTitle.trim(),
+        createdAt: now,
+        nextReviewAt: dueAt,
+        reviewCount: 0,
+        correctCount: 0,
+        wrongCount: 0,
+        streak: 0,
+        archived: false,
+        archivedAt: null,
+        lastReviewedAt: null,
+      );
+
+      await addReview(review);
+
+      if (_errorMessage != null) {
+        break;
+      }
+
+      savedReviews.add(review);
+    }
+
+    if (savedReviews.isNotEmpty) {
+      _successMessage = savedReviews.length == 1
+          ? '1 pergunta de revisão foi criada automaticamente.'
+          : '${savedReviews.length} perguntas de revisão foram criadas automaticamente.';
+      notifyListeners();
+    }
+
+    return List<BrainReviewItem>.unmodifiable(savedReviews);
   }
 
   // ============================================================

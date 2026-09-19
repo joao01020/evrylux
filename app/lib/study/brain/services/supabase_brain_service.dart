@@ -603,6 +603,7 @@ class SupabaseBrainService {
               'title': title,
               'description': description,
               'type': concept.type.name,
+              'review_enabled': concept.reviewEnabled,
               'created_at': effectiveCreatedAt.toIso8601String(),
               'updated_at': effectiveUpdatedAt.toIso8601String(),
             },
@@ -934,6 +935,9 @@ class SupabaseBrainService {
           '',
       type: BrainConceptTypeExtension.fromString(
         json['type']?.toString(),
+      ),
+      reviewEnabled: BrainConcept.parseReviewEnabled(
+        json['review_enabled'],
       ),
     );
   }

@@ -30,6 +30,7 @@ extension _BrainScreenCreation
   _saveKnowledge({
     required BrainConceptType type,
     DateTime? firstReviewAt,
+    bool reviewEnabled = false,
     List<
           BrainSource
         >
@@ -112,6 +113,7 @@ extension _BrainScreenCreation
           title: title,
           description: content,
           type: type,
+          reviewEnabled: reviewEnabled,
         );
 
     // ==========================================================
@@ -204,6 +206,49 @@ extension _BrainScreenCreation
       );
 
       if (!mounted) {
+        return false;
+      }
+    }
+
+
+    // ==========================================================
+    // CONCEITO MARCADO → REVISÕES AUTOMÁTICAS LOCAIS
+    // ==========================================================
+    //
+    // O usuário só marca "Usar este conhecimento para revisão".
+    // O motor local separa o conteúdo, encontra afirmações revisáveis,
+    // gera perguntas abertas e persiste cada uma como BrainReviewItem.
+    // ==========================================================
+
+    if (type == BrainConceptType.concept && reviewEnabled) {
+      final sourceNotePath = _controller.selectedNote?.path.trim() ?? '';
+      final sourceNoteTitle = _controller.selectedNote?.title.trim() ?? title;
+
+      if (sourceNotePath.isEmpty) {
+        _showMessage(
+          'O conhecimento foi salvo, mas não foi possível identificar a anotação para gerar as revisões.',
+        );
+        return false;
+      }
+
+      final reviewController = dependencies.reviewController;
+      await reviewController.generateAndSaveReviewsForConcept(
+        concept: concept,
+        sourceNotePath: sourceNotePath,
+        sourceNoteTitle: sourceNoteTitle,
+        firstReviewAt: firstReviewAt ?? DateTime.now(),
+      );
+
+      if (!mounted) {
+        return false;
+      }
+
+      final reviewError = reviewController.errorMessage;
+      if (reviewError != null) {
+        _showMessage(
+          'O conhecimento foi salvo, mas as perguntas de revisão não puderam ser geradas: $reviewError',
+        );
+        reviewController.clearMessages();
         return false;
       }
     }
@@ -588,6 +633,13 @@ extension _BrainScreenCreation
     var showExample = false;
     var showWarning = false;
     var showSources = false;
+
+    // Fase inicial da revisão automática:
+    // por enquanto esta escolha pertence ao modal. A persistência em
+    // BrainConcept/BrainFile e a geração automática de questões serão
+    // conectadas na próxima etapa.
+    var useKnowledgeForReview = false;
+
     var saving = false;
 
     try {
@@ -798,6 +850,7 @@ extension _BrainScreenCreation
                           // BrainFile com todos os concepts acumulados.
                           final saved = await _saveKnowledge(
                             type: BrainConceptType.concept,
+                            reviewEnabled: useKnowledgeForReview,
                             sources:
                                 List<
                                   BrainSource
@@ -1262,6 +1315,106 @@ extension _BrainScreenCreation
                                             onRemove: removeSource,
                                           ),
                                         ],
+                                      ],
+
+                                      const SizedBox(
+                                        height: 20,
+                                      ),
+
+                                      // ==============================
+                                      // USAR PARA REVISÃO
+                                      // ==============================
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.fromLTRB(
+                                          14,
+                                          10,
+                                          12,
+                                          10,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color:
+                                              Theme.of(
+                                                dialogContext,
+                                              ).colorScheme.surfaceContainerLow.withValues(
+                                                alpha: 0.58,
+                                              ),
+                                          borderRadius: BorderRadius.circular(
+                                            14,
+                                          ),
+                                          border: Border.all(
+                                            color:
+                                                Theme.of(
+                                                  dialogContext,
+                                                ).dividerColor.withValues(
+                                                  alpha: 0.34,
+                                                ),
+                                          ),
+                                        ),
+                                        child: CheckboxListTile(
+                                          value: useKnowledgeForReview,
+                                          onChanged:
+                                              saving ||
+                                                  _controller.isSaving
+                                              ? null
+                                              : (
+                                                  value,
+                                                ) {
+                                                  setDialogState(
+                                                    () {
+                                                      useKnowledgeForReview =
+                                                          value ??
+                                                          false;
+                                                    },
+                                                  );
+                                                },
+                                          controlAffinity: ListTileControlAffinity.leading,
+                                          contentPadding: EdgeInsets.zero,
+                                          dense: true,
+                                          title: const Text(
+                                            'Usar este conhecimento para revisão',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          subtitle: const Padding(
+                                            padding: EdgeInsets.only(
+                                              top: 4,
+                                            ),
+                                            child: Text(
+                                              'Podemos criar perguntas a partir deste conteúdo para ajudar você a revisar o que aprendeu. Deixe desmarcado se não quer revisar',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                height: 1.4,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+
+                                      if (useKnowledgeForReview) ...[
+                                        const SizedBox(
+                                          height: 8,
+                                        ),
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 4,
+                                          ),
+                                          child: Row(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  'Marcado para revisão. A geração automática das perguntas será conectada ao sistema de revisão na próxima etapa.',
+                                                  style: Theme.of(
+                                                    dialogContext,
+                                                  ).textTheme.bodySmall,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                       ],
 
                                       const SizedBox(
