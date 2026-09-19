@@ -1,6 +1,11 @@
 part of '../brain_screen.dart';
 
 // Knowledge creation flow: save, review, type selection, source editing and question batches.
+// Prevents a second knowledge creation flow from reusing the same BrainController
+// while a minimized concept save is still finishing in the background.
+bool
+_brainKnowledgeSaveInProgress = false;
+
 extension _BrainScreenCreation
     on
         _BrainScreenState {
@@ -38,6 +43,12 @@ extension _BrainScreenCreation
         const <
           BrainSource
         >[],
+    void Function(
+      String status,
+      String description,
+    )?
+    onProgress,
+    bool showCompletionMessage = true,
   }) async {
     final title = _controller.titleController.text.trim();
 
@@ -120,6 +131,14 @@ extension _BrainScreenCreation
     // ADICIONAR AO ARQUIVO
     // ==========================================================
 
+    if (type ==
+        BrainConceptType.concept) {
+      onProgress?.call(
+        'Criando conceitos',
+        'Estruturando o conhecimento e seus detalhes.',
+      );
+    }
+
     if (existingConcept ==
         null) {
       await _controller.addConcept(
@@ -134,6 +153,14 @@ extension _BrainScreenCreation
     // ==========================================================
     // SALVAR OFFLINE-FIRST
     // ==========================================================
+
+    if (type ==
+        BrainConceptType.concept) {
+      onProgress?.call(
+        'Salvando no Cérebro',
+        'Persistindo o conhecimento com segurança no Brain.',
+      );
+    }
 
     final saved = await _controller.saveNote();
 
@@ -160,6 +187,18 @@ extension _BrainScreenCreation
     // uma ao BrainFile criptografado.
     //
     // ==========================================================
+
+    if (type ==
+            BrainConceptType.concept &&
+        sources.isNotEmpty) {
+      onProgress?.call(
+        'Conectando fontes',
+        sources.length ==
+                1
+            ? 'Vinculando a fonte deste conhecimento.'
+            : 'Vinculando ${sources.length} fontes a este conhecimento.',
+      );
+    }
 
     for (final source in sources) {
       final sourceSaved = await _controller.addSource(
@@ -210,7 +249,6 @@ extension _BrainScreenCreation
       }
     }
 
-
     // ==========================================================
     // CONCEITO MARCADO → REVISÕES AUTOMÁTICAS LOCAIS
     // ==========================================================
@@ -220,9 +258,20 @@ extension _BrainScreenCreation
     // gera perguntas abertas e persiste cada uma como BrainReviewItem.
     // ==========================================================
 
-    if (type == BrainConceptType.concept && reviewEnabled) {
-      final sourceNotePath = _controller.selectedNote?.path.trim() ?? '';
-      final sourceNoteTitle = _controller.selectedNote?.title.trim() ?? title;
+    if (type ==
+            BrainConceptType.concept &&
+        reviewEnabled) {
+      onProgress?.call(
+        'Preparando revisão',
+        'Criando perguntas para revisar este conhecimento.',
+      );
+
+      final sourceNotePath =
+          _controller.selectedNote?.path.trim() ??
+          '';
+      final sourceNoteTitle =
+          _controller.selectedNote?.title.trim() ??
+          title;
 
       if (sourceNotePath.isEmpty) {
         _showMessage(
@@ -236,7 +285,9 @@ extension _BrainScreenCreation
         concept: concept,
         sourceNotePath: sourceNotePath,
         sourceNoteTitle: sourceNoteTitle,
-        firstReviewAt: firstReviewAt ?? DateTime.now(),
+        firstReviewAt:
+            firstReviewAt ??
+            DateTime.now(),
       );
 
       if (!mounted) {
@@ -244,7 +295,8 @@ extension _BrainScreenCreation
       }
 
       final reviewError = reviewController.errorMessage;
-      if (reviewError != null) {
+      if (reviewError !=
+          null) {
         _showMessage(
           'O conhecimento foi salvo, mas as perguntas de revisão não puderam ser geradas: $reviewError',
         );
@@ -253,7 +305,9 @@ extension _BrainScreenCreation
       }
     }
 
-    _showControllerMessage();
+    if (showCompletionMessage) {
+      _showControllerMessage();
+    }
 
     if (!mounted) {
       return false;
@@ -576,6 +630,13 @@ extension _BrainScreenCreation
     void
   >
   _showCreateNoteDialog() async {
+    if (_brainKnowledgeSaveInProgress) {
+      _showMessage(
+        'Um conhecimento ainda está sendo salvo em segundo plano.',
+      );
+      return;
+    }
+
     if (_controller.isSaving ||
         !mounted) {
       return;
@@ -641,6 +702,59 @@ extension _BrainScreenCreation
     var useKnowledgeForReview = false;
 
     var saving = false;
+    var savingProgress = 0.0;
+    var savingStatus = 'Preparando conhecimento';
+    var savingDescription = 'Organizando o conteúdo antes de salvar.';
+    OverlayEntry? minimizedSavingOverlay;
+
+    void removeMinimizedSavingOverlay() {
+      minimizedSavingOverlay?.remove();
+      minimizedSavingOverlay = null;
+    }
+
+    void showMinimizedSavingOverlay() {
+      if (!mounted ||
+          minimizedSavingOverlay !=
+              null) {
+        return;
+      }
+
+      final overlay = Overlay.of(
+        context,
+        rootOverlay: true,
+      );
+
+      minimizedSavingOverlay = OverlayEntry(
+        builder:
+            (
+              overlayContext,
+            ) {
+              return IgnorePointer(
+                child: SafeArea(
+                  minimum: const EdgeInsets.fromLTRB(
+                    16,
+                    16,
+                    16,
+                    18,
+                  ),
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: _buildMinimizedKnowledgeSavingBar(
+                      context: overlayContext,
+                      progress: savingProgress,
+                      status: savingStatus,
+                      description: savingDescription,
+                    ),
+                  ),
+                ),
+              );
+            },
+      );
+
+      overlay.insert(
+        minimizedSavingOverlay!,
+      );
+    }
 
     try {
       await showDialog<
@@ -762,19 +876,18 @@ extension _BrainScreenCreation
                       >
                       saveConcept() async {
                         if (saving ||
-                            _controller.isSaving) {
+                            _controller.isSaving ||
+                            _brainKnowledgeSaveInProgress) {
                           return;
                         }
 
                         final title = _controller.titleController.text.trim();
-
                         final content = _controller.contentController.text.trim();
 
                         if (title.isEmpty) {
                           _showMessage(
                             'Digite um título antes de salvar.',
                           );
-
                           return;
                         }
 
@@ -782,36 +895,97 @@ extension _BrainScreenCreation
                           _showMessage(
                             'Escreva o que você aprendeu antes de salvar.',
                           );
-
                           return;
+                        }
+
+                        // Capture everything that belongs to the modal before the
+                        // first await. After this point the progress UI may be
+                        // minimized and the dialog can leave the widget tree while
+                        // the save continues safely.
+                        final example = exampleController.text.trim();
+                        final warning = warningController.text.trim();
+                        final pendingSources =
+                            List<
+                              BrainSource
+                            >.unmodifiable(
+                              sources,
+                            );
+                        final shouldPrepareReview = useKnowledgeForReview;
+
+                        final progressStages =
+                            <
+                              String
+                            >[
+                              'Preparando conhecimento',
+                              'Criando conceitos',
+                              'Salvando no Cérebro',
+                              if (pendingSources.isNotEmpty) 'Conectando fontes',
+                              if (shouldPrepareReview) 'Preparando revisão',
+                              'Criando ramificações',
+                              'Finalizando',
+                            ];
+
+                        void updateSavingProgress(
+                          String status,
+                          String description,
+                        ) {
+                          final stageIndex = progressStages.indexOf(
+                            status,
+                          );
+                          final resolvedIndex =
+                              stageIndex <
+                                  0
+                              ? 0
+                              : stageIndex;
+                          final progress =
+                              (resolvedIndex +
+                                  1) /
+                              progressStages.length;
+
+                          savingStatus = status;
+                          savingDescription = description;
+                          savingProgress =
+                              status ==
+                                  'Finalizando'
+                              ? 1.0
+                              : progress
+                                    .clamp(
+                                      0.0,
+                                      0.99,
+                                    )
+                                    .toDouble();
+
+                          if (dialogContext.mounted) {
+                            setDialogState(
+                              () {},
+                            );
+                          }
+
+                          minimizedSavingOverlay?.markNeedsBuild();
                         }
 
                         setDialogState(
                           () {
                             saving = true;
+                            savingProgress =
+                                1 /
+                                progressStages.length;
+                            savingStatus = 'Preparando conhecimento';
+                            savingDescription = 'Organizando o conteúdo antes de salvar.';
                           },
                         );
+
+                        _brainKnowledgeSaveInProgress = true;
 
                         try {
                           // ============================================
                           // DETALHES OPCIONAIS
                           // ============================================
-                          //
-                          // Não criamos nenhum modelo novo.
-                          //
-                          // Exemplo:
-                          //   BrainConceptType.example
-                          //
-                          // Ponto de atenção:
-                          //   BrainConceptType.warning
-                          //
-                          // Ambos pertencem ao mesmo BrainFile do conceito.
-                          //
-                          // ============================================
 
-                          final example = exampleController.text.trim();
-
-                          final warning = warningController.text.trim();
+                          updateSavingProgress(
+                            'Criando conceitos',
+                            'Estruturando o conhecimento e seus detalhes.',
+                          );
 
                           if (example.isNotEmpty) {
                             await _controller.addConcept(
@@ -823,8 +997,7 @@ extension _BrainScreenCreation
                               ),
                             );
 
-                            if (!mounted ||
-                                !dialogContext.mounted) {
+                            if (!mounted) {
                               return;
                             }
                           }
@@ -839,52 +1012,76 @@ extension _BrainScreenCreation
                               ),
                             );
 
-                            if (!mounted ||
-                                !dialogContext.mounted) {
+                            if (!mounted) {
                               return;
                             }
                           }
 
-                          // _saveKnowledge adiciona o BrainConcept principal
-                          // e então BrainController.saveNote() persiste o
-                          // BrainFile com todos os concepts acumulados.
+                          // _saveKnowledge performs the real offline-first save,
+                          // sources and optional review generation. Progress updates
+                          // become no-ops automatically if the user minimized.
                           final saved = await _saveKnowledge(
                             type: BrainConceptType.concept,
-                            reviewEnabled: useKnowledgeForReview,
-                            sources:
-                                List<
-                                  BrainSource
-                                >.unmodifiable(
-                                  sources,
-                                ),
+                            reviewEnabled: shouldPrepareReview,
+                            sources: pendingSources,
+                            onProgress: updateSavingProgress,
+                            showCompletionMessage: false,
                           );
 
                           if (!mounted ||
-                              !dialogContext.mounted ||
                               !saved) {
                             return;
                           }
 
-                          Navigator.of(
-                            dialogContext,
-                          ).pop();
+                          updateSavingProgress(
+                            'Criando ramificações',
+                            'Conectando este conhecimento às estruturas do seu Brain.',
+                          );
 
-                          final grew = await _syncBrainVisualKnowledge(
+                          // Keep the real visual-knowledge synchronization, but do
+                          // not force the user to wait for the growth preview
+                          // animation after the synchronization itself has finished.
+                          await _syncBrainVisualKnowledge(
                             animateGrowth: true,
                             reloadLocal: true,
                           );
 
-                          if (grew) {
-                            await Future<
-                              void
-                            >.delayed(
-                              _BrainScreenState._brainGrowthPreviewDuration,
-                            );
-                          }
-
                           if (!mounted) {
                             return;
                           }
+
+                          updateSavingProgress(
+                            'Finalizando',
+                            'Conhecimento salvo e conectado ao seu Cérebro.',
+                          );
+
+                          // Keep 100% visible briefly. When minimized, this does
+                          // not block the user because the compact progress bar is an
+                          // overlay over the normal Brain screen.
+                          await Future<
+                            void
+                          >.delayed(
+                            const Duration(
+                              milliseconds: 180,
+                            ),
+                          );
+
+                          if (!mounted) {
+                            removeMinimizedSavingOverlay();
+                            return;
+                          }
+
+                          if (dialogContext.mounted) {
+                            Navigator.of(
+                              dialogContext,
+                            ).pop();
+                          }
+
+                          removeMinimizedSavingOverlay();
+
+                          // Only now, after every real operation and 100%, expose the
+                          // normal success message/card to the user.
+                          _showControllerMessage();
 
                           _controller.createNewNote();
 
@@ -892,6 +1089,13 @@ extension _BrainScreenCreation
                             () {},
                           );
                         } finally {
+                          _brainKnowledgeSaveInProgress = false;
+
+                          if (savingProgress <
+                              1.0) {
+                            removeMinimizedSavingOverlay();
+                          }
+
                           if (dialogContext.mounted) {
                             setDialogState(
                               () {
@@ -915,519 +1119,83 @@ extension _BrainScreenCreation
                             maxWidth: 650,
                             maxHeight: 820,
                           ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // ========================================
-                              // HEADER
-                              // ========================================
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  20,
-                                  16,
-                                  12,
-                                  12,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 40,
-                                      height: 40,
-                                      decoration: BoxDecoration(
-                                        color: conceptColor.withValues(
-                                          alpha: 0.12,
-                                        ),
-                                        borderRadius: BorderRadius.circular(
-                                          12,
-                                        ),
+                          child: saving
+                              ? SizedBox(
+                                  width: 650,
+                                  height: 420,
+                                  child: Center(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 28,
                                       ),
-                                      child: Icon(
-                                        BrainConceptType.concept.icon,
-                                        color: conceptColor,
+                                      child: _buildKnowledgeSavingPanel(
+                                        context: dialogContext,
+                                        progress: savingProgress,
+                                        status: savingStatus,
+                                        description: savingDescription,
+                                        onMinimize: () {
+                                          if (!dialogContext.mounted) {
+                                            return;
+                                          }
+
+                                          showMinimizedSavingOverlay();
+
+                                          Navigator.of(
+                                            dialogContext,
+                                          ).pop();
+                                        },
                                       ),
                                     ),
-
-                                    const SizedBox(
-                                      width: 11,
-                                    ),
-
-                                    const Expanded(
-                                      child: Text(
-                                        'Novo conceito',
-                                        style: TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                                    ),
-
-                                    IconButton(
-                                      tooltip: 'Fechar',
-                                      onPressed:
-                                          saving ||
-                                              _controller.isSaving
-                                          ? null
-                                          : () {
-                                              Navigator.of(
-                                                dialogContext,
-                                              ).pop();
-                                            },
-                                      icon: const Icon(
-                                        Icons.close_rounded,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              Divider(
-                                height: 1,
-                                color:
-                                    Theme.of(
-                                      dialogContext,
-                                    ).dividerColor.withValues(
-                                      alpha: 0.45,
-                                    ),
-                              ),
-
-                              Flexible(
-                                child: SingleChildScrollView(
-                                  padding: const EdgeInsets.all(
-                                    20,
                                   ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                                    children: [
-                                      // ==============================
-                                      // TÍTULO
-                                      // ==============================
-                                      const Text(
-                                        'Título',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w700,
-                                        ),
+                                )
+                              : Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // ========================================
+                                    // HEADER
+                                    // ========================================
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        20,
+                                        16,
+                                        12,
+                                        12,
                                       ),
-
-                                      const SizedBox(
-                                        height: 7,
-                                      ),
-
-                                      TextField(
-                                        controller: _controller.titleController,
-                                        enabled:
-                                            !saving &&
-                                            !_controller.isSaving,
-                                        textInputAction: TextInputAction.next,
-                                        onSubmitted:
-                                            (
-                                              _,
-                                            ) {
-                                              _controller.contentFocusNode.requestFocus();
-                                            },
-                                        decoration: const InputDecoration(
-                                          hintText: 'Dê um nome para este conceito',
-                                          border: OutlineInputBorder(),
-                                        ),
-                                      ),
-
-                                      const SizedBox(
-                                        height: 18,
-                                      ),
-
-                                      // ==============================
-                                      // CONTEÚDO
-                                      // ==============================
-                                      const Text(
-                                        'O que você aprendeu?',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-
-                                      const SizedBox(
-                                        height: 7,
-                                      ),
-
-                                      TextField(
-                                        controller: _controller.contentController,
-                                        focusNode: _controller.contentFocusNode,
-                                        enabled:
-                                            !saving &&
-                                            !_controller.isSaving,
-                                        minLines: 5,
-                                        maxLines: 12,
-                                        keyboardType: TextInputType.multiline,
-                                        textInputAction: TextInputAction.newline,
-                                        decoration: const InputDecoration(
-                                          hintText: 'Explique com suas próprias palavras...',
-                                          alignLabelWithHint: true,
-                                          border: OutlineInputBorder(),
-                                        ),
-                                      ),
-
-                                      const SizedBox(
-                                        height: 14,
-                                      ),
-
-                                      // ==============================
-                                      // ADICIONAR DETALHES
-                                      // ==============================
-                                      if (!showDetailOptions)
-                                        Align(
-                                          alignment: Alignment.centerLeft,
-                                          child: TextButton.icon(
-                                            onPressed:
-                                                saving ||
-                                                    _controller.isSaving
-                                                ? null
-                                                : () {
-                                                    setDialogState(
-                                                      () {
-                                                        showDetailOptions = true;
-                                                      },
-                                                    );
-                                                  },
-                                            icon: const Icon(
-                                              Icons.add_rounded,
-                                            ),
-                                            label: const Text(
-                                              'Adicionar detalhes',
-                                            ),
-                                          ),
-                                        )
-                                      else ...[
-                                        Container(
-                                          width: double.infinity,
-                                          padding: const EdgeInsets.all(
-                                            12,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color:
-                                                Theme.of(
-                                                  dialogContext,
-                                                ).colorScheme.surfaceContainerLow.withValues(
-                                                  alpha: 0.55,
-                                                ),
-                                            borderRadius: BorderRadius.circular(
-                                              14,
-                                            ),
-                                            border: Border.all(
-                                              color:
-                                                  Theme.of(
-                                                    dialogContext,
-                                                  ).dividerColor.withValues(
-                                                    alpha: 0.35,
-                                                  ),
-                                            ),
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              const Text(
-                                                'Detalhes opcionais',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                              ),
-
-                                              const SizedBox(
-                                                height: 10,
-                                              ),
-
-                                              Wrap(
-                                                spacing: 8,
-                                                runSpacing: 8,
-                                                children: [
-                                                  if (!showExample)
-                                                    OutlinedButton.icon(
-                                                      onPressed: saving
-                                                          ? null
-                                                          : () {
-                                                              setDialogState(
-                                                                () {
-                                                                  showExample = true;
-                                                                },
-                                                              );
-                                                            },
-                                                      icon: const Icon(
-                                                        Icons.add_rounded,
-                                                        size: 18,
-                                                      ),
-                                                      label: const Text(
-                                                        'Exemplo',
-                                                      ),
-                                                    ),
-
-                                                  if (!showWarning)
-                                                    OutlinedButton.icon(
-                                                      onPressed: saving
-                                                          ? null
-                                                          : () {
-                                                              setDialogState(
-                                                                () {
-                                                                  showWarning = true;
-                                                                },
-                                                              );
-                                                            },
-                                                      icon: const Icon(
-                                                        Icons.add_rounded,
-                                                        size: 18,
-                                                      ),
-                                                      label: const Text(
-                                                        'Ponto de atenção',
-                                                      ),
-                                                    ),
-
-                                                  if (!showSources)
-                                                    OutlinedButton.icon(
-                                                      onPressed: saving
-                                                          ? null
-                                                          : () async {
-                                                              setDialogState(
-                                                                () {
-                                                                  showSources = true;
-                                                                },
-                                                              );
-
-                                                              await addSource();
-                                                            },
-                                                      icon: const Icon(
-                                                        Icons.add_rounded,
-                                                        size: 18,
-                                                      ),
-                                                      label: const Text(
-                                                        'Fonte',
-                                                      ),
-                                                    ),
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-
-                                        // ============================
-                                        // EXEMPLO
-                                        // ============================
-                                        if (showExample) ...[
-                                          const SizedBox(
-                                            height: 14,
-                                          ),
-
-                                          TextField(
-                                            controller: exampleController,
-                                            enabled:
-                                                !saving &&
-                                                !_controller.isSaving,
-                                            minLines: 2,
-                                            maxLines: 6,
-                                            decoration: InputDecoration(
-                                              labelText: 'Exemplo',
-                                              hintText: 'Adicione uma aplicação, situação prática ou código...',
-                                              alignLabelWithHint: true,
-                                              prefixIcon: Icon(
-                                                BrainConceptType.example.icon,
-                                                color: BrainConceptType.example.color,
-                                              ),
-                                              suffixIcon: IconButton(
-                                                tooltip: 'Remover exemplo',
-                                                onPressed: saving
-                                                    ? null
-                                                    : () {
-                                                        setDialogState(
-                                                          () {
-                                                            showExample = false;
-                                                            exampleController.clear();
-                                                          },
-                                                        );
-                                                      },
-                                                icon: const Icon(
-                                                  Icons.close_rounded,
-                                                ),
-                                              ),
-                                              border: const OutlineInputBorder(),
-                                            ),
-                                          ),
-                                        ],
-
-                                        // ============================
-                                        // PONTO DE ATENÇÃO
-                                        // ============================
-                                        if (showWarning) ...[
-                                          const SizedBox(
-                                            height: 14,
-                                          ),
-
-                                          TextField(
-                                            controller: warningController,
-                                            enabled:
-                                                !saving &&
-                                                !_controller.isSaving,
-                                            minLines: 2,
-                                            maxLines: 6,
-                                            decoration: InputDecoration(
-                                              labelText: 'Ponto de atenção',
-                                              hintText: 'Registre um cuidado, exceção ou erro importante...',
-                                              alignLabelWithHint: true,
-                                              prefixIcon: Icon(
-                                                BrainConceptType.warning.icon,
-                                                color: BrainConceptType.warning.color,
-                                              ),
-                                              suffixIcon: IconButton(
-                                                tooltip: 'Remover ponto de atenção',
-                                                onPressed: saving
-                                                    ? null
-                                                    : () {
-                                                        setDialogState(
-                                                          () {
-                                                            showWarning = false;
-                                                            warningController.clear();
-                                                          },
-                                                        );
-                                                      },
-                                                icon: const Icon(
-                                                  Icons.close_rounded,
-                                                ),
-                                              ),
-                                              border: const OutlineInputBorder(),
-                                            ),
-                                          ),
-                                        ],
-
-                                        // ============================
-                                        // FONTES
-                                        // ============================
-                                        if (showSources) ...[
-                                          const SizedBox(
-                                            height: 14,
-                                          ),
-
-                                          _buildPendingSourcesEditor(
-                                            context: dialogContext,
-                                            sources: sources,
-                                            enabled:
-                                                !saving &&
-                                                !_controller.isSaving,
-                                            onAdd: addSource,
-                                            onEdit: editSource,
-                                            onRemove: removeSource,
-                                          ),
-                                        ],
-                                      ],
-
-                                      const SizedBox(
-                                        height: 20,
-                                      ),
-
-                                      // ==============================
-                                      // USAR PARA REVISÃO
-                                      // ==============================
-                                      Container(
-                                        width: double.infinity,
-                                        padding: const EdgeInsets.fromLTRB(
-                                          14,
-                                          10,
-                                          12,
-                                          10,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color:
-                                              Theme.of(
-                                                dialogContext,
-                                              ).colorScheme.surfaceContainerLow.withValues(
-                                                alpha: 0.58,
-                                              ),
-                                          borderRadius: BorderRadius.circular(
-                                            14,
-                                          ),
-                                          border: Border.all(
-                                            color:
-                                                Theme.of(
-                                                  dialogContext,
-                                                ).dividerColor.withValues(
-                                                  alpha: 0.34,
-                                                ),
-                                          ),
-                                        ),
-                                        child: CheckboxListTile(
-                                          value: useKnowledgeForReview,
-                                          onChanged:
-                                              saving ||
-                                                  _controller.isSaving
-                                              ? null
-                                              : (
-                                                  value,
-                                                ) {
-                                                  setDialogState(
-                                                    () {
-                                                      useKnowledgeForReview =
-                                                          value ??
-                                                          false;
-                                                    },
-                                                  );
-                                                },
-                                          controlAffinity: ListTileControlAffinity.leading,
-                                          contentPadding: EdgeInsets.zero,
-                                          dense: true,
-                                          title: const Text(
-                                            'Usar este conhecimento para revisão',
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                          subtitle: const Padding(
-                                            padding: EdgeInsets.only(
-                                              top: 4,
-                                            ),
-                                            child: Text(
-                                              'Podemos criar perguntas a partir deste conteúdo para ajudar você a revisar o que aprendeu. Deixe desmarcado se não quer revisar',
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                height: 1.4,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-
-                                      if (useKnowledgeForReview) ...[
-                                        const SizedBox(
-                                          height: 8,
-                                        ),
-                                        Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 4,
-                                          ),
-                                          child: Row(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Expanded(
-                                                child: Text(
-                                                  'Marcado para revisão. A geração automática das perguntas será conectada ao sistema de revisão na próxima etapa.',
-                                                  style: Theme.of(
-                                                    dialogContext,
-                                                  ).textTheme.bodySmall,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-
-                                      const SizedBox(
-                                        height: 22,
-                                      ),
-
-                                      // ==============================
-                                      // ACTIONS
-                                      // ==============================
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.end,
+                                      child: Row(
                                         children: [
-                                          TextButton(
+                                          Container(
+                                            width: 40,
+                                            height: 40,
+                                            decoration: BoxDecoration(
+                                              color: conceptColor.withValues(
+                                                alpha: 0.12,
+                                              ),
+                                              borderRadius: BorderRadius.circular(
+                                                12,
+                                              ),
+                                            ),
+                                            child: Icon(
+                                              BrainConceptType.concept.icon,
+                                              color: conceptColor,
+                                            ),
+                                          ),
+
+                                          const SizedBox(
+                                            width: 11,
+                                          ),
+
+                                          const Expanded(
+                                            child: Text(
+                                              'Novo conceito',
+                                              style: TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                          ),
+
+                                          IconButton(
+                                            tooltip: 'Fechar',
                                             onPressed:
                                                 saving ||
                                                     _controller.isSaving
@@ -1437,43 +1205,508 @@ extension _BrainScreenCreation
                                                       dialogContext,
                                                     ).pop();
                                                   },
-                                            child: const Text(
-                                              'Cancelar',
+                                            icon: const Icon(
+                                              Icons.close_rounded,
                                             ),
-                                          ),
-
-                                          const SizedBox(
-                                            width: 8,
-                                          ),
-
-                                          FilledButton(
-                                            onPressed:
-                                                saving ||
-                                                    _controller.isSaving
-                                                ? null
-                                                : saveConcept,
-                                            child:
-                                                saving ||
-                                                    _controller.isSaving
-                                                ? const SizedBox(
-                                                    width: 18,
-                                                    height: 18,
-                                                    child: CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                    ),
-                                                  )
-                                                : const Text(
-                                                    'Salvar',
-                                                  ),
                                           ),
                                         ],
                                       ),
-                                    ],
-                                  ),
+                                    ),
+
+                                    Divider(
+                                      height: 1,
+                                      color:
+                                          Theme.of(
+                                            dialogContext,
+                                          ).dividerColor.withValues(
+                                            alpha: 0.45,
+                                          ),
+                                    ),
+
+                                    Flexible(
+                                      child: SingleChildScrollView(
+                                        padding: const EdgeInsets.all(
+                                          20,
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                                          children: [
+                                            // ==============================
+                                            // TÍTULO
+                                            // ==============================
+                                            const Text(
+                                              'Título',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+
+                                            const SizedBox(
+                                              height: 7,
+                                            ),
+
+                                            TextField(
+                                              controller: _controller.titleController,
+                                              enabled:
+                                                  !saving &&
+                                                  !_controller.isSaving,
+                                              textInputAction: TextInputAction.next,
+                                              onSubmitted:
+                                                  (
+                                                    _,
+                                                  ) {
+                                                    _controller.contentFocusNode.requestFocus();
+                                                  },
+                                              decoration: const InputDecoration(
+                                                hintText: 'Dê um nome para este conceito',
+                                                border: OutlineInputBorder(),
+                                              ),
+                                            ),
+
+                                            const SizedBox(
+                                              height: 18,
+                                            ),
+
+                                            // ==============================
+                                            // CONTEÚDO
+                                            // ==============================
+                                            const Text(
+                                              'O que você aprendeu?',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+
+                                            const SizedBox(
+                                              height: 7,
+                                            ),
+
+                                            TextField(
+                                              controller: _controller.contentController,
+                                              focusNode: _controller.contentFocusNode,
+                                              enabled:
+                                                  !saving &&
+                                                  !_controller.isSaving,
+                                              minLines: 5,
+                                              maxLines: 12,
+                                              keyboardType: TextInputType.multiline,
+                                              textInputAction: TextInputAction.newline,
+                                              decoration: const InputDecoration(
+                                                hintText: 'Explique com suas próprias palavras...',
+                                                alignLabelWithHint: true,
+                                                border: OutlineInputBorder(),
+                                              ),
+                                            ),
+
+                                            const SizedBox(
+                                              height: 14,
+                                            ),
+
+                                            // ==============================
+                                            // ADICIONAR DETALHES
+                                            // ==============================
+                                            if (!showDetailOptions)
+                                              Align(
+                                                alignment: Alignment.centerLeft,
+                                                child: TextButton.icon(
+                                                  onPressed:
+                                                      saving ||
+                                                          _controller.isSaving
+                                                      ? null
+                                                      : () {
+                                                          setDialogState(
+                                                            () {
+                                                              showDetailOptions = true;
+                                                            },
+                                                          );
+                                                        },
+                                                  icon: const Icon(
+                                                    Icons.add_rounded,
+                                                  ),
+                                                  label: const Text(
+                                                    'Adicionar detalhes',
+                                                  ),
+                                                ),
+                                              )
+                                            else ...[
+                                              Container(
+                                                width: double.infinity,
+                                                padding: const EdgeInsets.all(
+                                                  12,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color:
+                                                      Theme.of(
+                                                        dialogContext,
+                                                      ).colorScheme.surfaceContainerLow.withValues(
+                                                        alpha: 0.55,
+                                                      ),
+                                                  borderRadius: BorderRadius.circular(
+                                                    14,
+                                                  ),
+                                                  border: Border.all(
+                                                    color:
+                                                        Theme.of(
+                                                          dialogContext,
+                                                        ).dividerColor.withValues(
+                                                          alpha: 0.35,
+                                                        ),
+                                                  ),
+                                                ),
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    const Text(
+                                                      'Detalhes opcionais',
+                                                      style: TextStyle(
+                                                        fontSize: 12,
+                                                        fontWeight: FontWeight.w700,
+                                                      ),
+                                                    ),
+
+                                                    const SizedBox(
+                                                      height: 10,
+                                                    ),
+
+                                                    Wrap(
+                                                      spacing: 8,
+                                                      runSpacing: 8,
+                                                      children: [
+                                                        if (!showExample)
+                                                          OutlinedButton.icon(
+                                                            onPressed: saving
+                                                                ? null
+                                                                : () {
+                                                                    setDialogState(
+                                                                      () {
+                                                                        showExample = true;
+                                                                      },
+                                                                    );
+                                                                  },
+                                                            icon: const Icon(
+                                                              Icons.add_rounded,
+                                                              size: 18,
+                                                            ),
+                                                            label: const Text(
+                                                              'Exemplo',
+                                                            ),
+                                                          ),
+
+                                                        if (!showWarning)
+                                                          OutlinedButton.icon(
+                                                            onPressed: saving
+                                                                ? null
+                                                                : () {
+                                                                    setDialogState(
+                                                                      () {
+                                                                        showWarning = true;
+                                                                      },
+                                                                    );
+                                                                  },
+                                                            icon: const Icon(
+                                                              Icons.add_rounded,
+                                                              size: 18,
+                                                            ),
+                                                            label: const Text(
+                                                              'Ponto de atenção',
+                                                            ),
+                                                          ),
+
+                                                        if (!showSources)
+                                                          OutlinedButton.icon(
+                                                            onPressed: saving
+                                                                ? null
+                                                                : () async {
+                                                                    setDialogState(
+                                                                      () {
+                                                                        showSources = true;
+                                                                      },
+                                                                    );
+
+                                                                    await addSource();
+                                                                  },
+                                                            icon: const Icon(
+                                                              Icons.add_rounded,
+                                                              size: 18,
+                                                            ),
+                                                            label: const Text(
+                                                              'Fonte',
+                                                            ),
+                                                          ),
+                                                      ],
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+
+                                              // ============================
+                                              // EXEMPLO
+                                              // ============================
+                                              if (showExample) ...[
+                                                const SizedBox(
+                                                  height: 14,
+                                                ),
+
+                                                TextField(
+                                                  controller: exampleController,
+                                                  enabled:
+                                                      !saving &&
+                                                      !_controller.isSaving,
+                                                  minLines: 2,
+                                                  maxLines: 6,
+                                                  decoration: InputDecoration(
+                                                    labelText: 'Exemplo',
+                                                    hintText: 'Adicione uma aplicação, situação prática ou código...',
+                                                    alignLabelWithHint: true,
+                                                    prefixIcon: Icon(
+                                                      BrainConceptType.example.icon,
+                                                      color: BrainConceptType.example.color,
+                                                    ),
+                                                    suffixIcon: IconButton(
+                                                      tooltip: 'Remover exemplo',
+                                                      onPressed: saving
+                                                          ? null
+                                                          : () {
+                                                              setDialogState(
+                                                                () {
+                                                                  showExample = false;
+                                                                  exampleController.clear();
+                                                                },
+                                                              );
+                                                            },
+                                                      icon: const Icon(
+                                                        Icons.close_rounded,
+                                                      ),
+                                                    ),
+                                                    border: const OutlineInputBorder(),
+                                                  ),
+                                                ),
+                                              ],
+
+                                              // ============================
+                                              // PONTO DE ATENÇÃO
+                                              // ============================
+                                              if (showWarning) ...[
+                                                const SizedBox(
+                                                  height: 14,
+                                                ),
+
+                                                TextField(
+                                                  controller: warningController,
+                                                  enabled:
+                                                      !saving &&
+                                                      !_controller.isSaving,
+                                                  minLines: 2,
+                                                  maxLines: 6,
+                                                  decoration: InputDecoration(
+                                                    labelText: 'Ponto de atenção',
+                                                    hintText: 'Registre um cuidado, exceção ou erro importante...',
+                                                    alignLabelWithHint: true,
+                                                    prefixIcon: Icon(
+                                                      BrainConceptType.warning.icon,
+                                                      color: BrainConceptType.warning.color,
+                                                    ),
+                                                    suffixIcon: IconButton(
+                                                      tooltip: 'Remover ponto de atenção',
+                                                      onPressed: saving
+                                                          ? null
+                                                          : () {
+                                                              setDialogState(
+                                                                () {
+                                                                  showWarning = false;
+                                                                  warningController.clear();
+                                                                },
+                                                              );
+                                                            },
+                                                      icon: const Icon(
+                                                        Icons.close_rounded,
+                                                      ),
+                                                    ),
+                                                    border: const OutlineInputBorder(),
+                                                  ),
+                                                ),
+                                              ],
+
+                                              // ============================
+                                              // FONTES
+                                              // ============================
+                                              if (showSources) ...[
+                                                const SizedBox(
+                                                  height: 14,
+                                                ),
+
+                                                _buildPendingSourcesEditor(
+                                                  context: dialogContext,
+                                                  sources: sources,
+                                                  enabled:
+                                                      !saving &&
+                                                      !_controller.isSaving,
+                                                  onAdd: addSource,
+                                                  onEdit: editSource,
+                                                  onRemove: removeSource,
+                                                ),
+                                              ],
+                                            ],
+
+                                            const SizedBox(
+                                              height: 20,
+                                            ),
+
+                                            // ==============================
+                                            // USAR PARA REVISÃO
+                                            // ==============================
+                                            Container(
+                                              width: double.infinity,
+                                              padding: const EdgeInsets.fromLTRB(
+                                                14,
+                                                10,
+                                                12,
+                                                10,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color:
+                                                    Theme.of(
+                                                      dialogContext,
+                                                    ).colorScheme.surfaceContainerLow.withValues(
+                                                      alpha: 0.58,
+                                                    ),
+                                                borderRadius: BorderRadius.circular(
+                                                  14,
+                                                ),
+                                                border: Border.all(
+                                                  color:
+                                                      Theme.of(
+                                                        dialogContext,
+                                                      ).dividerColor.withValues(
+                                                        alpha: 0.34,
+                                                      ),
+                                                ),
+                                              ),
+                                              child: CheckboxListTile(
+                                                value: useKnowledgeForReview,
+                                                onChanged:
+                                                    saving ||
+                                                        _controller.isSaving
+                                                    ? null
+                                                    : (
+                                                        value,
+                                                      ) {
+                                                        setDialogState(
+                                                          () {
+                                                            useKnowledgeForReview =
+                                                                value ??
+                                                                false;
+                                                          },
+                                                        );
+                                                      },
+                                                controlAffinity: ListTileControlAffinity.leading,
+                                                contentPadding: EdgeInsets.zero,
+                                                dense: true,
+                                                title: const Text(
+                                                  'Usar este conhecimento para revisão',
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                ),
+                                                subtitle: const Padding(
+                                                  padding: EdgeInsets.only(
+                                                    top: 4,
+                                                  ),
+                                                  child: Text(
+                                                    'Podemos criar perguntas a partir deste conteúdo para ajudar você a revisar o que aprendeu. Deixe desmarcado se não quer revisar',
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      height: 1.4,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+
+                                            if (useKnowledgeForReview) ...[
+                                              const SizedBox(
+                                                height: 8,
+                                              ),
+                                              Padding(
+                                                padding: const EdgeInsets.symmetric(
+                                                  horizontal: 4,
+                                                ),
+                                                child: Row(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Expanded(
+                                                      child: Text(
+                                                        'Marcado para revisão. A geração automática das perguntas será conectada ao sistema de revisão na próxima etapa.',
+                                                        style: Theme.of(
+                                                          dialogContext,
+                                                        ).textTheme.bodySmall,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+
+                                            const SizedBox(
+                                              height: 22,
+                                            ),
+
+                                            // ==============================
+                                            // ACTIONS
+                                            // ==============================
+                                            Row(
+                                              mainAxisAlignment: MainAxisAlignment.end,
+                                              children: [
+                                                TextButton(
+                                                  onPressed:
+                                                      saving ||
+                                                          _controller.isSaving
+                                                      ? null
+                                                      : () {
+                                                          Navigator.of(
+                                                            dialogContext,
+                                                          ).pop();
+                                                        },
+                                                  child: const Text(
+                                                    'Cancelar',
+                                                  ),
+                                                ),
+
+                                                const SizedBox(
+                                                  width: 8,
+                                                ),
+
+                                                FilledButton(
+                                                  onPressed:
+                                                      saving ||
+                                                          _controller.isSaving
+                                                      ? null
+                                                      : saveConcept,
+                                                  child:
+                                                      saving ||
+                                                          _controller.isSaving
+                                                      ? const SizedBox(
+                                                          width: 18,
+                                                          height: 18,
+                                                          child: CircularProgressIndicator(
+                                                            strokeWidth: 2,
+                                                          ),
+                                                        )
+                                                      : const Text(
+                                                          'Salvar',
+                                                        ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            ],
-                          ),
                         ),
                       );
                     },
@@ -1495,6 +1728,264 @@ extension _BrainScreenCreation
       warningController.dispose();
     }
   }
+
+  Widget _buildKnowledgeSavingPanel({
+    required BuildContext context,
+    required double progress,
+    required String status,
+    required String description,
+    required VoidCallback onMinimize,
+  }) {
+    final theme = Theme.of(
+      context,
+    );
+    final percent =
+        (progress.clamp(
+                  0.0,
+                  1.0,
+                ) *
+                100)
+            .round();
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(
+        maxWidth: 520,
+      ),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(
+          18,
+        ),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerLow.withValues(
+            alpha: 0.58,
+          ),
+          borderRadius: BorderRadius.circular(
+            16,
+          ),
+          border: Border.all(
+            color: theme.dividerColor.withValues(
+              alpha: 0.34,
+            ),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Salvando conhecimento',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(
+              height: 14,
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(
+                      999,
+                    ),
+                    child: LinearProgressIndicator(
+                      value: progress
+                          .clamp(
+                            0.0,
+                            1.0,
+                          )
+                          .toDouble(),
+                      minHeight: 7,
+                    ),
+                  ),
+                ),
+                const SizedBox(
+                  width: 12,
+                ),
+                SizedBox(
+                  width: 42,
+                  child: Text(
+                    '$percent%',
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(
+              height: 16,
+            ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(
+                    top: 2,
+                  ),
+                  child: Icon(
+                    Icons.radio_button_checked_rounded,
+                    size: 16,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(
+                  width: 9,
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        status,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(
+                        height: 3,
+                      ),
+                      Text(
+                        description,
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(
+              height: 14,
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: onMinimize,
+                icon: const Icon(
+                  Icons.minimize_rounded,
+                  size: 18,
+                ),
+                label: const Text(
+                  'Minimizar',
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMinimizedKnowledgeSavingBar({
+    required BuildContext context,
+    required double progress,
+    required String status,
+    required String description,
+  }) {
+    final theme = Theme.of(
+      context,
+    );
+    final percent =
+        (progress.clamp(
+                  0.0,
+                  1.0,
+                ) *
+                100)
+            .round();
+
+    return Material(
+      elevation: 8,
+      borderRadius: BorderRadius.circular(
+        14,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          maxWidth: 560,
+        ),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(
+            16,
+            12,
+            16,
+            13,
+          ),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            border: Border.all(
+              color: theme.dividerColor.withValues(
+                alpha: 0.34,
+              ),
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      status,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(
+                    width: 12,
+                  ),
+                  Text(
+                    '$percent%',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(
+                height: 7,
+              ),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(
+                  999,
+                ),
+                child: LinearProgressIndicator(
+                  value: progress
+                      .clamp(
+                        0.0,
+                        1.0,
+                      )
+                      .toDouble(),
+                  minHeight: 6,
+                ),
+              ),
+              const SizedBox(
+                height: 7,
+              ),
+              Text(
+                description,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   // ============================================================
   // FONTES PENDENTES — CAPTURA
   // ============================================================
