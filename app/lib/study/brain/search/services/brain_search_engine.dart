@@ -433,38 +433,6 @@ class BrainSearchEngine {
       );
     }
 
-    // ==========================================================
-    // DATAS
-    // ==========================================================
-
-    final dates =
-        <
-          String
-        >[
-          BrainSearchNormalizer.normalize(
-            _formatSearchDate(
-              note.createdAt,
-            ),
-          ),
-          BrainSearchNormalizer.normalize(
-            _formatSearchDate(
-              note.updatedAt,
-            ),
-          ),
-          BrainSearchNormalizer.normalize(
-            _formatIsoDate(
-              note.createdAt,
-            ),
-          ),
-          BrainSearchNormalizer.normalize(
-            _formatIsoDate(
-              note.updatedAt,
-            ),
-          ),
-          note.createdAt.year.toString(),
-          note.updatedAt.year.toString(),
-        ];
-
     var total = 0;
 
     // ==========================================================
@@ -697,28 +665,6 @@ class BrainSearchEngine {
     }
 
     // ==========================================================
-    // BUSCA NUMÉRICA / DATA DIGITADA
-    // ==========================================================
-
-    final allowDateTextSearch =
-        RegExp(
-          r'\d',
-        ).hasMatch(
-          query.normalizedQuery,
-        );
-
-    if (allowDateTextSearch &&
-        dates.any(
-          (
-            value,
-          ) => value.contains(
-            query.normalizedQuery,
-          ),
-        )) {
-      total += 300;
-    }
-
-    // ==========================================================
     // TOKENS
     // ==========================================================
     //
@@ -909,26 +855,6 @@ class BrainSearchEngine {
           requireWholeToken: shortToken,
         ),
       );
-
-      // ========================================================
-      // DATAS
-      // ========================================================
-
-      if (allowDateTextSearch) {
-        for (final value in dates) {
-          tokenScore = _maxSearchScore(
-            tokenScore,
-            _scoreSearchField(
-              value: value,
-              token: token,
-              exact: 90,
-              prefix: 70,
-              contains: 50,
-              allowShortContains: true,
-            ),
-          );
-        }
-      }
 
       // ========================================================
       // TODOS OS TERMOS DEVEM SER ENCONTRADOS
@@ -1360,48 +1286,6 @@ class BrainSearchEngine {
     return '${BrainSearchNormalizer.normalize(note.topic)}|'
         '${BrainSearchNormalizer.normalize(note.title)}|'
         '${BrainSearchNormalizer.normalize(note.content)}';
-  }
-
-  // ============================================================
-  // DATE FORMAT
-  // ============================================================
-
-  String _formatSearchDate(
-    DateTime date,
-  ) {
-    final local = date.toLocal();
-
-    String two(
-      int value,
-    ) {
-      return value.toString().padLeft(
-        2,
-        '0',
-      );
-    }
-
-    return '${two(local.day)}/'
-        '${two(local.month)}/'
-        '${local.year}';
-  }
-
-  String _formatIsoDate(
-    DateTime date,
-  ) {
-    final local = date.toLocal();
-
-    String two(
-      int value,
-    ) {
-      return value.toString().padLeft(
-        2,
-        '0',
-      );
-    }
-
-    return '${local.year}-'
-        '${two(local.month)}-'
-        '${two(local.day)}';
   }
 }
 

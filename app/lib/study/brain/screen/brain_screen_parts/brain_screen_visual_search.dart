@@ -270,8 +270,55 @@ extension _BrainScreenVisualSearch
     }
 
     // ==========================================================
-    // 3. BUSCA LIVRE
+    // 3. BUSCA LIVRE — VALIDAR CRITÉRIO PESQUISÁVEL
     // ==========================================================
+    //
+    // REGRA DE NEGÓCIO:
+    //
+    // Uma consulta livre só pode ser executada quando, depois
+    // de interpretada pelo BrainSearchParser, existir pelo menos:
+    //
+    // - um termo pesquisável;
+    // - um filtro de tipo;
+    // - um filtro de data/período.
+    //
+    // Isso impede frases estruturalmente incompletas de mostrar
+    // todos os conhecimentos.
+    //
+    // Exemplos:
+    //
+    // "o que eu fiz"
+    // -> nenhum termo/tipo/data
+    // -> aguarda assunto
+    //
+    // "o que eu fiz ontem"
+    // -> possui filtro de data
+    // -> pode pesquisar
+    //
+    // "perguntas"
+    // -> possui filtro de tipo
+    // -> pode pesquisar
+    //
+    // "ESP32"
+    // -> possui termo
+    // -> pode pesquisar
+    //
+    // ==========================================================
+
+    final parsedFreeQuery = _BrainScreenState._searchParser.parse(
+      original,
+    );
+
+    final hasSearchCriteria =
+        parsedFreeQuery.hasTerms ||
+        parsedFreeQuery.hasTypeFilter ||
+        parsedFreeQuery.hasDateFilter;
+
+    if (!hasSearchCriteria) {
+      return _BrainSearchInputState.waitingSubject(
+        prefix: original,
+      );
+    }
 
     return _BrainSearchInputState.ready(
       originalQuery: original,
@@ -854,10 +901,65 @@ extension _BrainScreenVisualSearch
   // PREVIEW
   // ============================================================
 
-  String _previewContent(
-    String content,
+  String _normalizeSearchHighlightText(
+    String value,
   ) {
-    final clean = content
+    var normalized = value.toLowerCase().trim();
+
+    const replacements =
+        <
+          String,
+          String
+        >{
+          'á': 'a',
+          'à': 'a',
+          'â': 'a',
+          'ã': 'a',
+          'ä': 'a',
+          'é': 'e',
+          'è': 'e',
+          'ê': 'e',
+          'ë': 'e',
+          'í': 'i',
+          'ì': 'i',
+          'î': 'i',
+          'ï': 'i',
+          'ó': 'o',
+          'ò': 'o',
+          'ô': 'o',
+          'õ': 'o',
+          'ö': 'o',
+          'ú': 'u',
+          'ù': 'u',
+          'û': 'u',
+          'ü': 'u',
+          'ç': 'c',
+        };
+
+    replacements.forEach(
+      (
+        source,
+        target,
+      ) {
+        normalized = normalized.replaceAll(
+          source,
+          target,
+        );
+      },
+    );
+
+    return normalized.replaceAll(
+      RegExp(
+        r'\s+',
+      ),
+      ' ',
+    );
+  }
+
+  String _cleanSearchPreviewText(
+    String value,
+  ) {
+    return value
         .replaceAll(
           RegExp(
             r'\s+',
@@ -865,13 +967,542 @@ extension _BrainScreenVisualSearch
           ' ',
         )
         .trim();
+  }
 
+  List<
+    String
+  >
+  _currentSearchHighlightTerms() {
+    final committed = _committedSearchQuery.trim();
+
+    if (committed.isEmpty) {
+      return const <
+        String
+      >[];
+    }
+
+    final inputState = _brainSearchInputState(
+      committed,
+    );
+
+    if (!inputState.canSearch) {
+      return const <
+        String
+      >[];
+    }
+
+    final parsed = _BrainScreenState._searchParser.parse(
+      inputState.effectiveQuery,
+    );
+
+    final uniqueTerms =
+        <
+          String
+        >[];
+    final normalizedTerms =
+        <
+          String
+        >{};
+
+    for (final term in parsed.terms) {
+      final clean = term.trim();
+
+      if (clean.isEmpty) {
+        continue;
+      }
+
+      final normalized = _normalizeSearchHighlightText(
+        clean,
+      );
+
+      if (normalized.isEmpty ||
+          normalizedTerms.contains(
+            normalized,
+          )) {
+        continue;
+      }
+
+      normalizedTerms.add(
+        normalized,
+      );
+
+      uniqueTerms.add(
+        clean,
+      );
+    }
+
+    uniqueTerms.sort(
+      (
+        a,
+        b,
+      ) => b.length.compareTo(
+        a.length,
+      ),
+    );
+
+    return uniqueTerms;
+  }
+
+  String _previewContentForSearch(
+    String content, {
+    int maxLength = 210,
+  }) {
+    final clean = _cleanSearchPreviewText(
+      content,
+    );
+
+    if (clean.isEmpty) {
+      return '';
+    }
+
+    final terms = _currentSearchHighlightTerms();
+
+    if (terms.isEmpty) {
+      return _truncateSearchPreview(
+        clean,
+        maxLength: maxLength,
+      );
+    }
+
+    final normalizedContent = _normalizeSearchHighlightText(
+      clean,
+    );
+
+    int? bestStart;
+    int? bestEnd;
+
+    for (final term in terms) {
+      final normalizedTerm = _normalizeSearchHighlightText(
+        term,
+      );
+
+      if (normalizedTerm.isEmpty) {
+        continue;
+      }
+
+      final index = normalizedContent.indexOf(
+        normalizedTerm,
+      );
+
+      if (index <
+          0) {
+        continue;
+      }
+
+      if (bestStart ==
+              null ||
+          index <
+              bestStart) {
+        bestStart = index;
+        bestEnd =
+            index +
+            normalizedTerm.length;
+      }
+    }
+
+    if (bestStart ==
+        null) {
+      return _truncateSearchPreview(
+        clean,
+        maxLength: maxLength,
+      );
+    }
+
+    final safeMatchStart = bestStart.clamp(
+      0,
+      clean.length,
+    );
+
+    final safeMatchEnd =
+        (bestEnd ??
+                bestStart)
+            .clamp(
+              safeMatchStart,
+              clean.length,
+            );
+
+    final beforeBudget =
+        (maxLength *
+                0.38)
+            .round();
+
+    var start =
+        safeMatchStart -
+        beforeBudget;
+
+    if (start <
+        0) {
+      start = 0;
+    }
+
+    var end =
+        start +
+        maxLength;
+
+    if (end <
+        safeMatchEnd) {
+      end = safeMatchEnd;
+    }
+
+    if (end >
+        clean.length) {
+      end = clean.length;
+      start =
+          end -
+          maxLength;
+
+      if (start <
+          0) {
+        start = 0;
+      }
+    }
+
+    start = _moveSearchPreviewStartToWord(
+      clean,
+      start,
+    );
+
+    end = _moveSearchPreviewEndToWord(
+      clean,
+      end,
+    );
+
+    final snippet = clean
+        .substring(
+          start,
+          end,
+        )
+        .trim();
+
+    final prefix =
+        start >
+            0
+        ? '...'
+        : '';
+
+    final suffix =
+        end <
+            clean.length
+        ? '...'
+        : '';
+
+    return '$prefix$snippet$suffix';
+  }
+
+  String _truncateSearchPreview(
+    String clean, {
+    required int maxLength,
+  }) {
     if (clean.length <=
-        180) {
+        maxLength) {
       return clean;
     }
 
-    return '${clean.substring(0, 180)}...';
+    var end = maxLength;
+
+    end = _moveSearchPreviewEndToWord(
+      clean,
+      end,
+    );
+
+    return '${clean.substring(0, end).trim()}...';
+  }
+
+  int _moveSearchPreviewStartToWord(
+    String text,
+    int start,
+  ) {
+    if (start <=
+            0 ||
+        start >=
+            text.length) {
+      return start.clamp(
+        0,
+        text.length,
+      );
+    }
+
+    var index = start;
+
+    while (index <
+            text.length &&
+        !_isSearchPreviewBoundary(
+          text[index],
+        )) {
+      index++;
+    }
+
+    while (index <
+            text.length &&
+        _isSearchPreviewBoundary(
+          text[index],
+        )) {
+      index++;
+    }
+
+    return index.clamp(
+      0,
+      text.length,
+    );
+  }
+
+  int _moveSearchPreviewEndToWord(
+    String text,
+    int end,
+  ) {
+    if (end <=
+        0) {
+      return 0;
+    }
+
+    if (end >=
+        text.length) {
+      return text.length;
+    }
+
+    var index = end;
+
+    while (index >
+            0 &&
+        !_isSearchPreviewBoundary(
+          text[index -
+              1],
+        )) {
+      index--;
+    }
+
+    if (index <=
+        0) {
+      return end.clamp(
+        0,
+        text.length,
+      );
+    }
+
+    return index.clamp(
+      0,
+      text.length,
+    );
+  }
+
+  bool _isSearchPreviewBoundary(
+    String character,
+  ) {
+    return RegExp(
+      r'\s',
+    ).hasMatch(
+      character,
+    );
+  }
+
+  Widget _buildHighlightedSearchText({
+    required BuildContext context,
+    required String text,
+    TextStyle? style,
+    int? maxLines,
+    TextOverflow overflow = TextOverflow.clip,
+  }) {
+    final terms = _currentSearchHighlightTerms();
+
+    if (text.isEmpty ||
+        terms.isEmpty) {
+      return Text(
+        text,
+        maxLines: maxLines,
+        overflow: overflow,
+        style: style,
+      );
+    }
+
+    final spans = _buildSearchHighlightSpans(
+      context: context,
+      text: text,
+      terms: terms,
+      baseStyle: style,
+    );
+
+    return Text.rich(
+      TextSpan(
+        style: style,
+        children: spans,
+      ),
+      maxLines: maxLines,
+      overflow: overflow,
+    );
+  }
+
+  List<
+    InlineSpan
+  >
+  _buildSearchHighlightSpans({
+    required BuildContext context,
+    required String text,
+    required List<
+      String
+    >
+    terms,
+    TextStyle? baseStyle,
+  }) {
+    final matches =
+        <
+          _BrainSearchHighlightMatch
+        >[];
+
+    for (final term in terms) {
+      final normalizedTerm = _normalizeSearchHighlightText(
+        term,
+      );
+
+      if (normalizedTerm.isEmpty) {
+        continue;
+      }
+
+      final expression = RegExp(
+        RegExp.escape(
+          term,
+        ),
+        caseSensitive: false,
+      );
+
+      for (final match in expression.allMatches(
+        text,
+      )) {
+        matches.add(
+          _BrainSearchHighlightMatch(
+            start: match.start,
+            end: match.end,
+          ),
+        );
+      }
+    }
+
+    if (matches.isEmpty) {
+      return <
+        InlineSpan
+      >[
+        TextSpan(
+          text: text,
+          style: baseStyle,
+        ),
+      ];
+    }
+
+    matches.sort(
+      (
+        a,
+        b,
+      ) {
+        final byStart = a.start.compareTo(
+          b.start,
+        );
+
+        if (byStart !=
+            0) {
+          return byStart;
+        }
+
+        return b.end.compareTo(
+          a.end,
+        );
+      },
+    );
+
+    final merged =
+        <
+          _BrainSearchHighlightMatch
+        >[];
+
+    for (final match in matches) {
+      if (merged.isEmpty) {
+        merged.add(
+          match,
+        );
+        continue;
+      }
+
+      final previous = merged.last;
+
+      if (match.start <
+          previous.end) {
+        if (match.end >
+            previous.end) {
+          merged[merged.length -
+              1] = _BrainSearchHighlightMatch(
+            start: previous.start,
+            end: match.end,
+          );
+        }
+
+        continue;
+      }
+
+      merged.add(
+        match,
+      );
+    }
+
+    final colorScheme = Theme.of(
+      context,
+    ).colorScheme;
+
+    final highlightStyle =
+        baseStyle?.copyWith(
+          backgroundColor: colorScheme.primaryContainer,
+          color: colorScheme.onPrimaryContainer,
+          fontWeight: FontWeight.w700,
+        ) ??
+        TextStyle(
+          backgroundColor: colorScheme.primaryContainer,
+          color: colorScheme.onPrimaryContainer,
+          fontWeight: FontWeight.w700,
+        );
+
+    final spans =
+        <
+          InlineSpan
+        >[];
+    var cursor = 0;
+
+    for (final match in merged) {
+      if (match.start >
+          cursor) {
+        spans.add(
+          TextSpan(
+            text: text.substring(
+              cursor,
+              match.start,
+            ),
+            style: baseStyle,
+          ),
+        );
+      }
+
+      spans.add(
+        TextSpan(
+          text: text.substring(
+            match.start,
+            match.end,
+          ),
+          style: highlightStyle,
+        ),
+      );
+
+      cursor = match.end;
+    }
+
+    if (cursor <
+        text.length) {
+      spans.add(
+        TextSpan(
+          text: text.substring(
+            cursor,
+          ),
+          style: baseStyle,
+        ),
+      );
+    }
+
+    return spans;
   }
 
   // ============================================================
@@ -903,6 +1534,7 @@ extension _BrainScreenVisualSearch
                 ) {
                   return BrainNoteScreen(
                     note: noteToOpen,
+                    initialSearchTerms: _currentSearchHighlightTerms(),
                   );
                 },
           ),
@@ -1678,8 +2310,11 @@ extension _BrainScreenVisualSearch
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      note.title,
+                    _buildHighlightedSearchText(
+                      context: context,
+                      text: note.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style:
                           Theme.of(
                             context,
@@ -1713,8 +2348,9 @@ extension _BrainScreenVisualSearch
                       const SizedBox(
                         height: 8,
                       ),
-                      Text(
-                        _previewContent(
+                      _buildHighlightedSearchText(
+                        context: context,
+                        text: _previewContentForSearch(
                           note.content,
                         ),
                         maxLines: 2,
@@ -1780,6 +2416,20 @@ extension _BrainScreenVisualSearch
       ],
     );
   }
+}
+
+// ============================================================
+// MATCH DE DESTAQUE DA PESQUISA
+// ============================================================
+
+class _BrainSearchHighlightMatch {
+  const _BrainSearchHighlightMatch({
+    required this.start,
+    required this.end,
+  });
+
+  final int start;
+  final int end;
 }
 
 // ============================================================
