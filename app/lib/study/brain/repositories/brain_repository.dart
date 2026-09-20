@@ -27,7 +27,7 @@ import '../vault/stores/brain_note_vault_store.dart';
 //  ↓
 // BrainRepository
 //  ↓
-// BrainStorage local mirror + Vault criptografado
+// Vault criptografado local (BrainStorage apenas para legado/migração)
 //  ↓
 // BrainSyncQueueService
 //  ↓
@@ -83,7 +83,9 @@ class BrainRepository {
     BrainNoteVaultStore? noteVaultStore,
     BrainConceptVaultStore? conceptVaultStore,
     BrainSyncQueueService? brainSyncQueueService,
-  }) : _remote = remote ?? SupabaseBrainService(),
+  }) : _remote =
+           remote ??
+           SupabaseBrainService(),
        _local = local,
        _legacySyncQueue = syncQueue,
        _legacySyncService = syncService,
@@ -122,7 +124,10 @@ class BrainRepository {
 
   final BrainSyncQueueService? _brainSyncQueueService;
 
-  Future<void>? _legacyPlaintextMigrationFuture;
+  Future<
+    void
+  >?
+  _legacyPlaintextMigrationFuture;
 
   // ============================================================
   // SYNC ENTITY TYPES
@@ -176,7 +181,13 @@ class BrainRepository {
   //
   // ============================================================
 
-  Future<Map<String, dynamic>> saveNote({
+  Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  saveNote({
     String? id,
     required String topic,
     required String title,
@@ -187,32 +198,50 @@ class BrainRepository {
     await _ensureLegacyPlaintextMigrated();
 
     final rawTopic = topic.trim();
-    final cleanTopic = rawTopic.isEmpty ? 'Sem tema' : rawTopic;
+    final cleanTopic = rawTopic.isEmpty
+        ? 'Sem tema'
+        : rawTopic;
     final cleanTitle = title.trim();
     final cleanContent = content.trim();
 
     if (cleanTitle.isEmpty) {
-      throw const FormatException('Informe o título da anotação.');
+      throw const FormatException(
+        'Informe o título da anotação.',
+      );
     }
 
     if (cleanContent.isEmpty) {
-      throw const FormatException('Escreva algum conteúdo.');
+      throw const FormatException(
+        'Escreva algum conteúdo.',
+      );
     }
 
-    final cleanId = id?.trim() ?? '';
+    final cleanId =
+        id?.trim() ??
+        '';
 
     BrainFile? previousNote;
 
     if (cleanId.isNotEmpty) {
-      previousNote = await _findVaultNoteByAnyId(cleanId);
+      previousNote = await _findVaultNoteByAnyId(
+        cleanId,
+      );
 
-      if (previousNote == null) {
-        final legacyPath = _localPathFromId(cleanId);
+      if (previousNote ==
+          null) {
+        final legacyPath = _localPathFromId(
+          cleanId,
+        );
 
-        if (legacyPath != null) {
+        if (legacyPath !=
+            null) {
           try {
-            previousNote = await _local.openNote(legacyPath);
-          } catch (_) {
+            previousNote = await _local.openNote(
+              legacyPath,
+            );
+          } catch (
+            _
+          ) {
             previousNote = null;
           }
         }
@@ -221,9 +250,14 @@ class BrainRepository {
 
     final now = DateTime.now().toLocal();
 
-    final notePath = previousNote?.path.trim().isNotEmpty == true
+    final notePath =
+        previousNote?.path.trim().isNotEmpty ==
+            true
         ? previousNote!.path.trim()
-        : cleanId.isNotEmpty && !_looksLikeUuid(cleanId)
+        : cleanId.isNotEmpty &&
+              !_looksLikeUuid(
+                cleanId,
+              )
         ? cleanId
         : _newVaultNotePath();
 
@@ -232,15 +266,28 @@ class BrainRepository {
       title: cleanTitle,
       path: notePath,
       content: cleanContent,
-      concepts: previousNote?.concepts ?? const <BrainConcept>[],
-      sources: previousNote?.sources ?? const <BrainSource>[],
-      createdAt: previousNote?.createdAt ?? now,
+      concepts:
+          previousNote?.concepts ??
+          const <
+            BrainConcept
+          >[],
+      sources:
+          previousNote?.sources ??
+          const <
+            BrainSource
+          >[],
+      createdAt:
+          previousNote?.createdAt ??
+          now,
       updatedAt: now,
     );
 
     final userId = currentUserId?.trim();
 
-    final legacyRemoteId = userId == null || userId.isEmpty
+    final legacyRemoteId =
+        userId ==
+                null ||
+            userId.isEmpty
         ? null
         : _resolveRemoteNoteId(
             userId: userId,
@@ -253,19 +300,29 @@ class BrainRepository {
       legacyRemoteId: legacyRemoteId,
     );
 
-    await _brainSyncQueueService?.enqueueObject(encryptedObject);
+    await _brainSyncQueueService?.enqueueObject(
+      encryptedObject,
+    );
 
-    final verified = await store.getNoteByPath(note.path);
+    final verified = await store.getNoteByPath(
+      note.path,
+    );
 
-    if (verified == null ||
-        verified.title.trim() != note.title.trim() ||
-        verified.content != note.content) {
+    if (verified ==
+            null ||
+        verified.title.trim() !=
+            note.title.trim() ||
+        verified.content !=
+            note.content) {
       throw StateError(
         'A nota foi gravada no Vault, mas a verificação de integridade falhou.',
       );
     }
 
-    await _deletePlaintextMirrorIfPresent(previousNote ?? note);
+    await _deletePlaintextMirrorIfPresent(
+      previousNote ??
+          note,
+    );
 
     debugPrint(
       '[BRAIN REPOSITORY] '
@@ -273,7 +330,11 @@ class BrainRepository {
       '${encryptedObject.header.objectId}',
     );
 
-    return _noteToRow(verified, remoteId: legacyRemoteId, userId: userId);
+    return _noteToRow(
+      verified,
+      remoteId: legacyRemoteId,
+      userId: userId,
+    );
   }
 
   // ============================================================
@@ -286,7 +347,15 @@ class BrainRepository {
   //
   // ============================================================
 
-  Future<List<Map<String, dynamic>>> loadNotes() async {
+  Future<
+    List<
+      Map<
+        String,
+        dynamic
+      >
+    >
+  >
+  loadNotes() async {
     final store = _requireNoteVaultStore();
 
     await _ensureLegacyPlaintextMigrated();
@@ -296,21 +365,45 @@ class BrainRepository {
     final userId = currentUserId?.trim();
 
     return notes
-        .map((note) {
-          final remoteId = userId == null || userId.isEmpty
-              ? null
-              : _remoteNoteId(userId: userId, localPath: note.path);
+        .map(
+          (
+            note,
+          ) {
+            final remoteId =
+                userId ==
+                        null ||
+                    userId.isEmpty
+                ? null
+                : _remoteNoteId(
+                    userId: userId,
+                    localPath: note.path,
+                  );
 
-          return _noteToRow(note, remoteId: remoteId, userId: userId);
-        })
-        .toList(growable: false);
+            return _noteToRow(
+              note,
+              remoteId: remoteId,
+              userId: userId,
+            );
+          },
+        )
+        .toList(
+          growable: false,
+        );
   }
 
   // ============================================================
   // GET NOTE
   // ============================================================
 
-  Future<Map<String, dynamic>?> getNote(String id) async {
+  Future<
+    Map<
+      String,
+      dynamic
+    >?
+  >
+  getNote(
+    String id,
+  ) async {
     final cleanId = id.trim();
 
     if (cleanId.isEmpty) {
@@ -319,26 +412,44 @@ class BrainRepository {
 
     await _ensureLegacyPlaintextMigrated();
 
-    final note = await _findVaultNoteByAnyId(cleanId);
+    final note = await _findVaultNoteByAnyId(
+      cleanId,
+    );
 
-    if (note == null) {
+    if (note ==
+        null) {
       return null;
     }
 
     final userId = currentUserId?.trim();
 
-    final remoteId = userId == null || userId.isEmpty
+    final remoteId =
+        userId ==
+                null ||
+            userId.isEmpty
         ? null
-        : _remoteNoteId(userId: userId, localPath: note.path);
+        : _remoteNoteId(
+            userId: userId,
+            localPath: note.path,
+          );
 
-    return _noteToRow(note, remoteId: remoteId, userId: userId);
+    return _noteToRow(
+      note,
+      remoteId: remoteId,
+      userId: userId,
+    );
   }
 
   // ============================================================
   // DELETE NOTE — TOMBSTONE E2EE
   // ============================================================
 
-  Future<void> deleteNote(String id) async {
+  Future<
+    void
+  >
+  deleteNote(
+    String id,
+  ) async {
     final cleanId = id.trim();
 
     if (cleanId.isEmpty) {
@@ -352,74 +463,134 @@ class BrainRepository {
     await _ensureLegacyPlaintextMigrated();
 
     final userId = currentUserId?.trim();
-    final target = await _findVaultNoteByAnyId(cleanId);
+    final target = await _findVaultNoteByAnyId(
+      cleanId,
+    );
 
-    if (target == null) {
-      if (_looksLikeUuid(cleanId)) {
-        final tombstone = await store.deleteNoteByLegacyRemoteId(cleanId);
+    if (target ==
+        null) {
+      if (_looksLikeUuid(
+        cleanId,
+      )) {
+        final tombstone = await store.deleteNoteByLegacyRemoteId(
+          cleanId,
+        );
 
-        if (tombstone != null) {
-          await _brainSyncQueueService?.enqueueObject(tombstone);
+        if (tombstone !=
+            null) {
+          await _brainSyncQueueService?.enqueueObject(
+            tombstone,
+          );
         }
 
-        await _deleteLegacyRemoteNote(cleanId);
+        await _deleteLegacyRemoteNote(
+          cleanId,
+        );
 
         return;
       }
 
-      final legacyPath = _localPathFromId(cleanId);
+      final legacyPath = _localPathFromId(
+        cleanId,
+      );
 
-      if (legacyPath != null) {
-        final file = File(legacyPath);
+      if (legacyPath !=
+          null) {
+        final file = File(
+          legacyPath,
+        );
 
         if (await file.exists()) {
           try {
-            final legacyNote = await _local.openNote(legacyPath);
-            await _local.deleteNote(legacyNote);
-          } catch (_) {
+            final legacyNote = await _local.openNote(
+              legacyPath,
+            );
+            await _local.deleteNote(
+              legacyNote,
+            );
+          } catch (
+            _
+          ) {
             await file.delete();
           }
         }
 
-        final tombstone = await store.deleteNoteByPath(legacyPath);
+        final tombstone = await store.deleteNoteByPath(
+          legacyPath,
+        );
 
-        if (tombstone != null) {
-          await _brainSyncQueueService?.enqueueObject(tombstone);
+        if (tombstone !=
+            null) {
+          await _brainSyncQueueService?.enqueueObject(
+            tombstone,
+          );
         }
 
-        if (userId != null && userId.isNotEmpty) {
+        if (userId !=
+                null &&
+            userId.isNotEmpty) {
           await _deleteLegacyRemoteNote(
-            _remoteNoteId(userId: userId, localPath: legacyPath),
+            _remoteNoteId(
+              userId: userId,
+              localPath: legacyPath,
+            ),
           );
         }
 
         return;
       }
 
-      throw StateError('Não foi possível localizar a anotação para excluir.');
-    }
-
-    final conceptIds = target.concepts
-        .map((concept) => concept.id.trim())
-        .where((conceptId) => conceptId.isNotEmpty)
-        .toSet();
-
-    final legacyRemoteIds = <String>{};
-
-    if (_looksLikeUuid(cleanId)) {
-      legacyRemoteIds.add(cleanId);
-    }
-
-    if (userId != null && userId.isNotEmpty) {
-      legacyRemoteIds.add(
-        _remoteNoteId(userId: userId, localPath: target.path),
+      throw StateError(
+        'Não foi possível localizar a anotação para excluir.',
       );
     }
 
-    final noteTombstone = await store.deleteNoteByPath(target.path);
+    final conceptIds = target.concepts
+        .map(
+          (
+            concept,
+          ) => concept.id.trim(),
+        )
+        .where(
+          (
+            conceptId,
+          ) => conceptId.isNotEmpty,
+        )
+        .toSet();
 
-    if (noteTombstone != null) {
-      await _brainSyncQueueService?.enqueueObject(noteTombstone);
+    final legacyRemoteIds =
+        <
+          String
+        >{};
+
+    if (_looksLikeUuid(
+      cleanId,
+    )) {
+      legacyRemoteIds.add(
+        cleanId,
+      );
+    }
+
+    if (userId !=
+            null &&
+        userId.isNotEmpty) {
+      legacyRemoteIds.add(
+        _remoteNoteId(
+          userId: userId,
+          localPath: target.path,
+        ),
+      );
+    }
+
+    final noteTombstone = await store.deleteNoteByPath(
+      target.path,
+    );
+
+    if (noteTombstone !=
+        null) {
+      await _brainSyncQueueService?.enqueueObject(
+        noteTombstone,
+      );
     }
 
     for (final conceptId in conceptIds) {
@@ -427,15 +598,22 @@ class BrainRepository {
         conceptId,
       );
 
-      if (conceptTombstone != null) {
-        await _brainSyncQueueService?.enqueueObject(conceptTombstone);
+      if (conceptTombstone !=
+          null) {
+        await _brainSyncQueueService?.enqueueObject(
+          conceptTombstone,
+        );
       }
     }
 
-    await _deletePlaintextMirrorIfPresent(target);
+    await _deletePlaintextMirrorIfPresent(
+      target,
+    );
 
     for (final legacyRemoteId in legacyRemoteIds) {
-      await _deleteLegacyRemoteNote(legacyRemoteId);
+      await _deleteLegacyRemoteNote(
+        legacyRemoteId,
+      );
     }
 
     debugPrint(
@@ -462,16 +640,25 @@ class BrainRepository {
   //
   // ============================================================
 
-  Future<void> _deleteLegacyRemoteNote(String remoteId) async {
+  Future<
+    void
+  >
+  _deleteLegacyRemoteNote(
+    String remoteId,
+  ) async {
     final cleanRemoteId = remoteId.trim();
 
-    if (cleanRemoteId.isEmpty || !_looksLikeUuid(cleanRemoteId)) {
+    if (cleanRemoteId.isEmpty ||
+        !_looksLikeUuid(
+          cleanRemoteId,
+        )) {
       return;
     }
 
     final queue = _legacySyncQueue;
 
-    if (queue != null) {
+    if (queue !=
+        null) {
       await queue.enqueue(
         entityType: noteEntityType,
         entityId: cleanRemoteId,
@@ -499,14 +686,18 @@ class BrainRepository {
     }
 
     try {
-      await _remote.deleteNote(cleanRemoteId);
+      await _remote.deleteNote(
+        cleanRemoteId,
+      );
 
       debugPrint(
         '[BRAIN REPOSITORY] '
         'brain_notes legado removido diretamente: '
         '$cleanRemoteId',
       );
-    } catch (error) {
+    } catch (
+      error
+    ) {
       // Não propagamos:
       //
       // a exclusão local + tombstone E2EE já foi concluída.
@@ -523,91 +714,269 @@ class BrainRepository {
   // SAVE CONCEPT — VAULT / E2EE
   // ============================================================
 
-  Future<Map<String, dynamic>> saveConcept({
+  Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  saveConcept({
     required BrainConcept concept,
     String? noteId,
   }) async {
+    final results = await saveConceptsBatch(
+      concepts:
+          <
+            BrainConcept
+          >[
+            concept,
+          ],
+      noteId: noteId,
+    );
+
+    return results.first;
+  }
+
+  // ============================================================
+  // SAVE CONCEPTS BATCH — VAULT / E2EE
+  // ============================================================
+  //
+  // Otimização do caminho crítico de salvamento:
+  //
+  // Antes, BrainController chamava saveConcept() para cada item.
+  // Cada chamada:
+  //
+  // - procurava a mesma nota no Vault;
+  // - regravava a mesma nota;
+  // - relia a nota para validar integridade;
+  // - só então persistia o conceito.
+  //
+  // Para um conhecimento com conceito principal + exemplo + atenção,
+  // isso repetia a operação criptográfica da nota várias vezes.
+  //
+  // Agora o lote:
+  //
+  // 1. localiza a nota uma única vez;
+  // 2. incorpora todos os conceitos em memória;
+  // 3. grava/valida a nota criptografada uma única vez;
+  // 4. grava cada BrainConcept como objeto E2EE;
+  // 5. relê cada conceito e valida conteúdo antes de concluir.
+  //
+  // A otimização reduz I/O e criptografia repetidos sem remover
+  // nenhuma verificação de integridade.
+  //
+  // ============================================================
+
+  Future<
+    List<
+      Map<
+        String,
+        dynamic
+      >
+    >
+  >
+  saveConceptsBatch({
+    required Iterable<
+      BrainConcept
+    >
+    concepts,
+    String? noteId,
+  }) async {
     await _ensureLegacyPlaintextMigrated();
+
+    final pending = concepts.toList(
+      growable: false,
+    );
+
+    if (pending.isEmpty) {
+      return const <
+        Map<
+          String,
+          dynamic
+        >
+      >[];
+    }
 
     final cleanNoteId = noteId?.trim();
 
     BrainFile? note;
 
-    if (cleanNoteId != null && cleanNoteId.isNotEmpty) {
-      note = await _findVaultNoteByAnyId(cleanNoteId);
+    if (cleanNoteId !=
+            null &&
+        cleanNoteId.isNotEmpty) {
+      note = await _findVaultNoteByAnyId(
+        cleanNoteId,
+      );
     }
 
-    BrainFile? updatedNote;
+    BrainFile? updatedNote = note;
 
-    if (note != null) {
-      final concepts = List<BrainConcept>.from(note.concepts);
+    if (note !=
+        null) {
+      final mergedConcepts =
+          List<
+            BrainConcept
+          >.from(
+            note.concepts,
+          );
 
-      final existingIndex = concepts.indexWhere(
-        (item) => item.id == concept.id,
-      );
+      for (final concept in pending) {
+        final existingIndex = mergedConcepts.indexWhere(
+          (
+            item,
+          ) =>
+              item.id ==
+              concept.id,
+        );
 
-      if (existingIndex >= 0) {
-        concepts[existingIndex] = concept;
-      } else {
-        concepts.add(concept);
+        if (existingIndex >=
+            0) {
+          mergedConcepts[existingIndex] = concept;
+        } else {
+          mergedConcepts.add(
+            concept,
+          );
+        }
       }
 
       updatedNote = note.copyWith(
-        concepts: concepts,
+        concepts: mergedConcepts,
         updatedAt: DateTime.now().toLocal(),
       );
 
-      await _saveEncryptedNoteAndVerify(updatedNote);
+      // Uma única gravação + leitura de verificação para a nota.
+      updatedNote = await _saveEncryptedNoteAndVerify(
+        updatedNote,
+      );
     }
 
-    final encryptedConcept = await _conceptVaultStore?.saveConcept(
-      concept: concept,
-      sourceNotePath: updatedNote?.path ?? note?.path ?? cleanNoteId,
+    final result =
+        <
+          Map<
+            String,
+            dynamic
+          >
+        >[];
+
+    for (final concept in pending) {
+      final encryptedConcept = await _conceptVaultStore?.saveConcept(
+        concept: concept,
+        sourceNotePath:
+            updatedNote?.path ??
+            note?.path ??
+            cleanNoteId,
+      );
+
+      if (encryptedConcept ==
+          null) {
+        throw StateError(
+          'BrainConceptVaultStore não está disponível para salvar '
+          'o conhecimento ${concept.id}.',
+        );
+      }
+
+      await _brainSyncQueueService?.enqueueObject(
+        encryptedConcept,
+      );
+
+      // A mensagem de "integridade validada" da UI só deve ocorrer
+      // depois que o objeto puder ser lido novamente do Vault.
+      final verifiedConcept = await _conceptVaultStore!.getConcept(
+        concept.id,
+      );
+
+      if (verifiedConcept ==
+              null ||
+          !_sameConceptContent(
+            concept,
+            verifiedConcept,
+          )) {
+        throw StateError(
+          'O conhecimento ${concept.id} foi gravado no Vault, '
+          'mas a verificação de integridade falhou.',
+        );
+      }
+
+      result.add(
+        <
+          String,
+          dynamic
+        >{
+          'id': concept.id,
+          'note_id':
+              updatedNote?.path ??
+              note?.path ??
+              cleanNoteId,
+          'title': concept.title,
+          'description': concept.description,
+          'type': concept.type.name,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        },
+      );
+    }
+
+    return List<
+      Map<
+        String,
+        dynamic
+      >
+    >.unmodifiable(
+      result,
     );
-
-    if (encryptedConcept != null) {
-      await _brainSyncQueueService?.enqueueObject(encryptedConcept);
-    }
-
-    return <String, dynamic>{
-      'id': concept.id,
-      'note_id': updatedNote?.path ?? note?.path ?? cleanNoteId,
-      'title': concept.title,
-      'description': concept.description,
-      'type': concept.type.name,
-      'updated_at': DateTime.now().toUtc().toIso8601String(),
-    };
   }
 
   // ============================================================
   // LOAD CONCEPTS
   // ============================================================
 
-  Future<List<BrainConcept>> loadConcepts() {
+  Future<
+    List<
+      BrainConcept
+    >
+  >
+  loadConcepts() {
     final store = _conceptVaultStore;
 
-    if (store != null) {
+    if (store !=
+        null) {
       return store.loadConcepts();
     }
 
     return _local.loadAllConcepts();
   }
 
-  Future<List<BrainConcept>> loadConceptsByType(BrainConceptType type) {
+  Future<
+    List<
+      BrainConcept
+    >
+  >
+  loadConceptsByType(
+    BrainConceptType type,
+  ) {
     final store = _conceptVaultStore;
 
-    if (store != null) {
-      return store.loadConceptsByType(type);
+    if (store !=
+        null) {
+      return store.loadConceptsByType(
+        type,
+      );
     }
 
-    return _local.loadConceptsByType(type);
+    return _local.loadConceptsByType(
+      type,
+    );
   }
 
   // ============================================================
   // GET CONCEPT
   // ============================================================
 
-  Future<BrainConcept?> getConcept(String id) async {
+  Future<
+    BrainConcept?
+  >
+  getConcept(
+    String id,
+  ) async {
     final cleanId = id.trim();
 
     if (cleanId.isEmpty) {
@@ -616,10 +985,14 @@ class BrainRepository {
 
     final store = _conceptVaultStore;
 
-    if (store != null) {
-      final fromVault = await store.getConcept(cleanId);
+    if (store !=
+        null) {
+      final fromVault = await store.getConcept(
+        cleanId,
+      );
 
-      if (fromVault != null) {
+      if (fromVault !=
+          null) {
         return fromVault;
       }
     }
@@ -627,7 +1000,8 @@ class BrainRepository {
     final concepts = await _local.loadAllConcepts();
 
     for (final concept in concepts) {
-      if (concept.id == cleanId) {
+      if (concept.id ==
+          cleanId) {
         return concept;
       }
     }
@@ -665,7 +1039,12 @@ class BrainRepository {
   //
   // ============================================================
 
-  Future<void> deleteConceptAndSourceNote(String id) async {
+  Future<
+    void
+  >
+  deleteConceptAndSourceNote(
+    String id,
+  ) async {
     final cleanId = id.trim();
 
     if (cleanId.isEmpty) {
@@ -681,7 +1060,11 @@ class BrainRepository {
 
     for (final note in notes) {
       final containsConcept = note.concepts.any(
-        (concept) => concept.id == cleanId,
+        (
+          concept,
+        ) =>
+            concept.id ==
+            cleanId,
       );
 
       if (containsConcept) {
@@ -690,18 +1073,30 @@ class BrainRepository {
       }
     }
 
-    if (sourceNote == null) {
-      await deleteConcept(cleanId);
+    if (sourceNote ==
+        null) {
+      await deleteConcept(
+        cleanId,
+      );
       return;
     }
 
-    await deleteConceptsByNoteId(sourceNote.path);
-    await deleteNote(sourceNote.path);
+    await deleteConceptsByNoteId(
+      sourceNote.path,
+    );
+    await deleteNote(
+      sourceNote.path,
+    );
 
     final remaining = await store.loadNotes();
 
     final stillExists = remaining.any(
-      (note) => _samePath(note.path, sourceNote!.path),
+      (
+        note,
+      ) => _samePath(
+        note.path,
+        sourceNote!.path,
+      ),
     );
 
     if (stillExists) {
@@ -720,7 +1115,12 @@ class BrainRepository {
   // DELETE CONCEPT — TOMBSTONE E2EE
   // ============================================================
 
-  Future<void> deleteConcept(String id) async {
+  Future<
+    void
+  >
+  deleteConcept(
+    String id,
+  ) async {
     final cleanId = id.trim();
 
     if (cleanId.isEmpty) {
@@ -733,28 +1133,49 @@ class BrainRepository {
     final notes = await noteStore.loadNotes();
 
     for (final note in notes) {
-      final contains = note.concepts.any((concept) => concept.id == cleanId);
+      final contains = note.concepts.any(
+        (
+          concept,
+        ) =>
+            concept.id ==
+            cleanId,
+      );
 
       if (!contains) {
         continue;
       }
 
       final updatedConcepts = note.concepts
-          .where((concept) => concept.id != cleanId)
-          .toList(growable: false);
+          .where(
+            (
+              concept,
+            ) =>
+                concept.id !=
+                cleanId,
+          )
+          .toList(
+            growable: false,
+          );
 
       final updatedNote = note.copyWith(
         concepts: updatedConcepts,
         updatedAt: DateTime.now().toLocal(),
       );
 
-      await _saveEncryptedNoteAndVerify(updatedNote);
+      await _saveEncryptedNoteAndVerify(
+        updatedNote,
+      );
     }
 
-    final tombstone = await _conceptVaultStore?.deleteConcept(cleanId);
+    final tombstone = await _conceptVaultStore?.deleteConcept(
+      cleanId,
+    );
 
-    if (tombstone != null) {
-      await _brainSyncQueueService?.enqueueObject(tombstone);
+    if (tombstone !=
+        null) {
+      await _brainSyncQueueService?.enqueueObject(
+        tombstone,
+      );
     }
   }
 
@@ -762,7 +1183,12 @@ class BrainRepository {
   // DELETE CONCEPTS BY NOTE
   // ============================================================
 
-  Future<void> deleteConceptsByNoteId(String noteId) async {
+  Future<
+    void
+  >
+  deleteConceptsByNoteId(
+    String noteId,
+  ) async {
     final cleanNoteId = noteId.trim();
 
     if (cleanNoteId.isEmpty) {
@@ -771,29 +1197,52 @@ class BrainRepository {
 
     await _ensureLegacyPlaintextMigrated();
 
-    final note = await _findVaultNoteByAnyId(cleanNoteId);
+    final note = await _findVaultNoteByAnyId(
+      cleanNoteId,
+    );
 
-    if (note == null) {
+    if (note ==
+        null) {
       return;
     }
 
     final conceptIds = note.concepts
-        .map((concept) => concept.id.trim())
-        .where((conceptId) => conceptId.isNotEmpty)
-        .toList(growable: false);
+        .map(
+          (
+            concept,
+          ) => concept.id.trim(),
+        )
+        .where(
+          (
+            conceptId,
+          ) => conceptId.isNotEmpty,
+        )
+        .toList(
+          growable: false,
+        );
 
     final updatedNote = note.copyWith(
-      concepts: const <BrainConcept>[],
+      concepts:
+          const <
+            BrainConcept
+          >[],
       updatedAt: DateTime.now().toLocal(),
     );
 
-    await _saveEncryptedNoteAndVerify(updatedNote);
+    await _saveEncryptedNoteAndVerify(
+      updatedNote,
+    );
 
     for (final conceptId in conceptIds) {
-      final tombstone = await _conceptVaultStore?.deleteConcept(conceptId);
+      final tombstone = await _conceptVaultStore?.deleteConcept(
+        conceptId,
+      );
 
-      if (tombstone != null) {
-        await _brainSyncQueueService?.enqueueObject(tombstone);
+      if (tombstone !=
+          null) {
+        await _brainSyncQueueService?.enqueueObject(
+          tombstone,
+        );
       }
     }
   }
@@ -815,39 +1264,69 @@ class BrainRepository {
   //
   // ============================================================
 
-  Future<List<BrainSource>> getSourcesByNote(String noteId) async {
-    final note = await _findNoteWithSources(noteId);
+  Future<
+    List<
+      BrainSource
+    >
+  >
+  getSourcesByNote(
+    String noteId,
+  ) async {
+    final note = await _findNoteWithSources(
+      noteId,
+    );
 
-    if (note == null) {
-      return const <BrainSource>[];
+    if (note ==
+        null) {
+      return const <
+        BrainSource
+      >[];
     }
 
-    return List<BrainSource>.unmodifiable(note.sources);
+    return List<
+      BrainSource
+    >.unmodifiable(
+      note.sources,
+    );
   }
 
   // ============================================================
   // ADD SOURCE TO NOTE
   // ============================================================
 
-  Future<BrainFile> addSourceToNote({
+  Future<
+    BrainFile
+  >
+  addSourceToNote({
     required String noteId,
     required BrainSource source,
   }) async {
     if (!source.isValid) {
-      throw const FormatException('A fonte informada é inválida.');
+      throw const FormatException(
+        'A fonte informada é inválida.',
+      );
     }
 
-    final note = await _requireNoteWithSources(noteId);
+    final note = await _requireNoteWithSources(
+      noteId,
+    );
 
-    final updatedNote = note.addSource(source);
+    final updatedNote = note.addSource(
+      source,
+    );
 
     // Se addSource detectou duplicação, não criamos uma nova
     // versão criptografada desnecessariamente.
-    if (identical(updatedNote, note)) {
+    if (identical(
+      updatedNote,
+      note,
+    )) {
       return note;
     }
 
-    await _persistSourceUpdatedNote(updatedNote);
+    await _persistSourceUpdatedNote(
+      updatedNote,
+    );
 
     return updatedNote;
   }
@@ -856,25 +1335,40 @@ class BrainRepository {
   // UPDATE SOURCE IN NOTE
   // ============================================================
 
-  Future<BrainFile> updateSourceInNote({
+  Future<
+    BrainFile
+  >
+  updateSourceInNote({
     required String noteId,
     required BrainSource source,
   }) async {
     if (!source.isValid) {
-      throw const FormatException('A fonte informada é inválida.');
+      throw const FormatException(
+        'A fonte informada é inválida.',
+      );
     }
 
-    final note = await _requireNoteWithSources(noteId);
+    final note = await _requireNoteWithSources(
+      noteId,
+    );
 
-    if (!note.hasSourceId(source.id)) {
-      throw StateError('A fonte não existe nesta anotação.');
+    if (!note.hasSourceId(
+      source.id,
+    )) {
+      throw StateError(
+        'A fonte não existe nesta anotação.',
+      );
     }
 
     final updatedSource = source.touch();
 
-    final updatedNote = note.updateSource(updatedSource);
+    final updatedNote = note.updateSource(
+      updatedSource,
+    );
 
-    await _persistSourceUpdatedNote(updatedNote);
+    await _persistSourceUpdatedNote(
+      updatedNote,
+    );
 
     return updatedNote;
   }
@@ -883,7 +1377,10 @@ class BrainRepository {
   // REMOVE SOURCE FROM NOTE
   // ============================================================
 
-  Future<BrainFile> removeSourceFromNote({
+  Future<
+    BrainFile
+  >
+  removeSourceFromNote({
     required String noteId,
     required String sourceId,
   }) async {
@@ -895,15 +1392,23 @@ class BrainRepository {
       );
     }
 
-    final note = await _requireNoteWithSources(noteId);
+    final note = await _requireNoteWithSources(
+      noteId,
+    );
 
-    if (!note.hasSourceId(cleanSourceId)) {
+    if (!note.hasSourceId(
+      cleanSourceId,
+    )) {
       return note;
     }
 
-    final updatedNote = note.removeSourceById(cleanSourceId);
+    final updatedNote = note.removeSourceById(
+      cleanSourceId,
+    );
 
-    await _persistSourceUpdatedNote(updatedNote);
+    await _persistSourceUpdatedNote(
+      updatedNote,
+    );
 
     return updatedNote;
   }
@@ -912,8 +1417,15 @@ class BrainRepository {
   // CLEAR SOURCES FROM NOTE
   // ============================================================
 
-  Future<BrainFile> clearSourcesFromNote(String noteId) async {
-    final note = await _requireNoteWithSources(noteId);
+  Future<
+    BrainFile
+  >
+  clearSourcesFromNote(
+    String noteId,
+  ) async {
+    final note = await _requireNoteWithSources(
+      noteId,
+    );
 
     if (!note.hasSources) {
       return note;
@@ -921,7 +1433,9 @@ class BrainRepository {
 
     final updatedNote = note.clearSources();
 
-    await _persistSourceUpdatedNote(updatedNote);
+    await _persistSourceUpdatedNote(
+      updatedNote,
+    );
 
     return updatedNote;
   }
@@ -930,11 +1444,21 @@ class BrainRepository {
   // REQUIRE NOTE WITH SOURCES
   // ============================================================
 
-  Future<BrainFile> _requireNoteWithSources(String noteId) async {
-    final note = await _findNoteWithSources(noteId);
+  Future<
+    BrainFile
+  >
+  _requireNoteWithSources(
+    String noteId,
+  ) async {
+    final note = await _findNoteWithSources(
+      noteId,
+    );
 
-    if (note == null) {
-      throw StateError('Não foi possível localizar a anotação.');
+    if (note ==
+        null) {
+      throw StateError(
+        'Não foi possível localizar a anotação.',
+      );
     }
 
     return note;
@@ -951,7 +1475,12 @@ class BrainRepository {
   //
   // ============================================================
 
-  Future<BrainFile?> _findNoteWithSources(String noteId) async {
+  Future<
+    BrainFile?
+  >
+  _findNoteWithSources(
+    String noteId,
+  ) async {
     final cleanId = noteId.trim();
 
     if (cleanId.isEmpty) {
@@ -960,7 +1489,9 @@ class BrainRepository {
 
     await _ensureLegacyPlaintextMigrated();
 
-    return _findVaultNoteByAnyId(cleanId);
+    return _findVaultNoteByAnyId(
+      cleanId,
+    );
   }
 
   // ============================================================
@@ -977,9 +1508,16 @@ class BrainRepository {
   //
   // ============================================================
 
-  Future<void> _persistSourceUpdatedNote(BrainFile note) async {
+  Future<
+    void
+  >
+  _persistSourceUpdatedNote(
+    BrainFile note,
+  ) async {
     await _saveEncryptedNoteAndVerify(
-      note.copyWith(updatedAt: DateTime.now().toLocal()),
+      note.copyWith(
+        updatedAt: DateTime.now().toLocal(),
+      ),
     );
   }
 
@@ -987,20 +1525,48 @@ class BrainRepository {
   // SHORTCUTS
   // ============================================================
 
-  Future<List<BrainConcept>> loadOnlyConcepts() {
-    return loadConceptsByType(BrainConceptType.concept);
+  Future<
+    List<
+      BrainConcept
+    >
+  >
+  loadOnlyConcepts() {
+    return loadConceptsByType(
+      BrainConceptType.concept,
+    );
   }
 
-  Future<List<BrainConcept>> loadQuestions() {
-    return loadConceptsByType(BrainConceptType.question);
+  Future<
+    List<
+      BrainConcept
+    >
+  >
+  loadQuestions() {
+    return loadConceptsByType(
+      BrainConceptType.question,
+    );
   }
 
-  Future<List<BrainConcept>> loadExamples() {
-    return loadConceptsByType(BrainConceptType.example);
+  Future<
+    List<
+      BrainConcept
+    >
+  >
+  loadExamples() {
+    return loadConceptsByType(
+      BrainConceptType.example,
+    );
   }
 
-  Future<List<BrainConcept>> loadWarnings() {
-    return loadConceptsByType(BrainConceptType.warning);
+  Future<
+    List<
+      BrainConcept
+    >
+  >
+  loadWarnings() {
+    return loadConceptsByType(
+      BrainConceptType.warning,
+    );
   }
 
   // ============================================================
@@ -1020,7 +1586,15 @@ class BrainRepository {
   //
   // ============================================================
 
-  Future<List<Map<String, dynamic>>> loadRemoteNotes() {
+  Future<
+    List<
+      Map<
+        String,
+        dynamic
+      >
+    >
+  >
+  loadRemoteNotes() {
     return _remote.loadNotes();
   }
 
@@ -1046,10 +1620,16 @@ class BrainRepository {
   //
   // ============================================================
 
-  Future<BrainFile> _hydrateSourcesFromVault(BrainFile note) async {
+  Future<
+    BrainFile
+  >
+  _hydrateSourcesFromVault(
+    BrainFile note,
+  ) async {
     final store = _noteVaultStore;
 
-    if (store == null) {
+    if (store ==
+        null) {
       return note;
     }
 
@@ -1060,14 +1640,21 @@ class BrainRepository {
     }
 
     try {
-      final vaultNote = await store.getNoteByPath(path);
+      final vaultNote = await store.getNoteByPath(
+        path,
+      );
 
-      if (vaultNote == null) {
+      if (vaultNote ==
+          null) {
         return note;
       }
 
-      return note.copyWith(sources: vaultNote.sources);
-    } catch (error) {
+      return note.copyWith(
+        sources: vaultNote.sources,
+      );
+    } catch (
+      error
+    ) {
       debugPrint(
         '[BRAIN REPOSITORY] '
         'Não foi possível hidratar fontes do Vault: $error',
@@ -1084,7 +1671,8 @@ class BrainRepository {
   BrainNoteVaultStore _requireNoteVaultStore() {
     final store = _noteVaultStore;
 
-    if (store == null) {
+    if (store ==
+        null) {
       throw StateError(
         'BrainNoteVaultStore não está disponível. '
         'O Brain não pode salvar conteúdo sensível sem o Vault.',
@@ -1107,7 +1695,10 @@ class BrainRepository {
   //
   // ============================================================
 
-  Future<void> migrateLegacyPlaintextIfNeeded() {
+  Future<
+    void
+  >
+  migrateLegacyPlaintextIfNeeded() {
     return _ensureLegacyPlaintextMigrated();
   }
 
@@ -1115,18 +1706,29 @@ class BrainRepository {
   // INTERNAL LEGACY PLAINTEXT MIGRATION
   // ============================================================
 
-  Future<void> _ensureLegacyPlaintextMigrated() {
+  Future<
+    void
+  >
+  _ensureLegacyPlaintextMigrated() {
     return _legacyPlaintextMigrationFuture ??= _migrateLegacyPlaintextNotes();
   }
 
-  Future<void> _migrateLegacyPlaintextNotes() async {
+  Future<
+    void
+  >
+  _migrateLegacyPlaintextNotes() async {
     final store = _requireNoteVaultStore();
 
-    List<BrainFile> legacyNotes;
+    List<
+      BrainFile
+    >
+    legacyNotes;
 
     try {
       legacyNotes = await _local.loadNotes();
-    } catch (error) {
+    } catch (
+      error
+    ) {
       debugPrint(
         '[BRAIN SECURITY] '
         'Falha ao enumerar mirror legado: $error',
@@ -1154,18 +1756,30 @@ class BrainRepository {
 
       BrainFile secureNote = legacyNote;
 
-      final existing = await store.getNoteByPath(path);
+      final existing = await store.getNoteByPath(
+        path,
+      );
 
-      if (existing == null) {
-        final encrypted = await store.saveNote(legacyNote);
+      if (existing ==
+          null) {
+        final encrypted = await store.saveNote(
+          legacyNote,
+        );
 
-        await _brainSyncQueueService?.enqueueObject(encrypted);
+        await _brainSyncQueueService?.enqueueObject(
+          encrypted,
+        );
 
-        final verified = await store.getNoteByPath(path);
+        final verified = await store.getNoteByPath(
+          path,
+        );
 
-        if (verified == null ||
-            verified.title.trim() != legacyNote.title.trim() ||
-            verified.content != legacyNote.content) {
+        if (verified ==
+                null ||
+            verified.title.trim() !=
+                legacyNote.title.trim() ||
+            verified.content !=
+                legacyNote.content) {
           throw StateError(
             'Migração segura falhou para $path. '
             'O plaintext foi preservado.',
@@ -1183,12 +1797,17 @@ class BrainRepository {
           sourceNotePath: secureNote.path,
         );
 
-        if (encryptedConcept != null) {
-          await _brainSyncQueueService?.enqueueObject(encryptedConcept);
+        if (encryptedConcept !=
+            null) {
+          await _brainSyncQueueService?.enqueueObject(
+            encryptedConcept,
+          );
         }
       }
 
-      await _deletePlaintextMirrorIfPresent(legacyNote);
+      await _deletePlaintextMirrorIfPresent(
+        legacyNote,
+      );
     }
 
     await _migrateLegacyPlaintextConcepts();
@@ -1222,10 +1841,14 @@ class BrainRepository {
   //
   // ============================================================
 
-  Future<void> _migrateLegacyPlaintextConcepts() async {
+  Future<
+    void
+  >
+  _migrateLegacyPlaintextConcepts() async {
     final store = _conceptVaultStore;
 
-    if (store == null) {
+    if (store ==
+        null) {
       throw StateError(
         'BrainConceptVaultStore não está disponível. '
         'Os conceitos legados não podem ser removidos com segurança.',
@@ -1237,18 +1860,26 @@ class BrainRepository {
     var removed = 0;
 
     for (final type in BrainConceptType.values) {
-      final legacyConcepts = await _local.loadConceptsByType(type);
+      final legacyConcepts = await _local.loadConceptsByType(
+        type,
+      );
 
       if (legacyConcepts.isEmpty) {
         continue;
       }
 
-      final byId = <String, BrainConcept>{
-        for (final concept in legacyConcepts)
-          if (concept.id.trim().isNotEmpty) concept.id.trim(): concept,
-      };
+      final byId =
+          <
+            String,
+            BrainConcept
+          >{
+            for (final concept in legacyConcepts)
+              if (concept.id.trim().isNotEmpty) concept.id.trim(): concept,
+          };
 
-      final directory = await _local.getConceptTypeDirectory(type);
+      final directory = await _local.getConceptTypeDirectory(
+        type,
+      );
 
       if (!await directory.exists()) {
         continue;
@@ -1258,14 +1889,21 @@ class BrainRepository {
         recursive: false,
         followLinks: false,
       )) {
-        if (entity is! File || !entity.path.toLowerCase().endsWith('.md')) {
+        if (entity
+                is! File ||
+            !entity.path.toLowerCase().endsWith(
+              '.md',
+            )) {
           continue;
         }
 
         discovered++;
 
         final markdown = await entity.readAsString();
-        final legacyId = _legacyConceptMetadataValue(markdown, 'id').trim();
+        final legacyId = _legacyConceptMetadataValue(
+          markdown,
+          'id',
+        ).trim();
 
         if (legacyId.isEmpty) {
           debugPrint(
@@ -1278,7 +1916,8 @@ class BrainRepository {
 
         final legacyConcept = byId[legacyId];
 
-        if (legacyConcept == null) {
+        if (legacyConcept ==
+            null) {
           debugPrint(
             '[BRAIN SECURITY] '
             'Não foi possível reconstruir o conceito $legacyId; '
@@ -1287,23 +1926,37 @@ class BrainRepository {
           continue;
         }
 
-        var verified = await store.getConcept(legacyId);
+        var verified = await store.getConcept(
+          legacyId,
+        );
 
-        if (verified == null) {
-          final sourceNotePath = _legacyConceptSourceNotePath(markdown);
+        if (verified ==
+            null) {
+          final sourceNotePath = _legacyConceptSourceNotePath(
+            markdown,
+          );
 
           final encrypted = await store.saveConcept(
             concept: legacyConcept,
             sourceNotePath: sourceNotePath,
           );
 
-          await _brainSyncQueueService?.enqueueObject(encrypted);
+          await _brainSyncQueueService?.enqueueObject(
+            encrypted,
+          );
 
           migrated++;
-          verified = await store.getConcept(legacyId);
+          verified = await store.getConcept(
+            legacyId,
+          );
         }
 
-        if (verified == null || !_sameConceptContent(legacyConcept, verified)) {
+        if (verified ==
+                null ||
+            !_sameConceptContent(
+              legacyConcept,
+              verified,
+            )) {
           throw StateError(
             'Falha ao validar o conceito legado $legacyId no Vault. '
             'O plaintext foi preservado em ${entity.path}.',
@@ -1324,7 +1977,8 @@ class BrainRepository {
       }
     }
 
-    if (discovered > 0) {
+    if (discovered >
+        0) {
       debugPrint(
         '[BRAIN SECURITY] '
         'Conceitos legados: encontrados=$discovered, '
@@ -1333,46 +1987,91 @@ class BrainRepository {
     }
   }
 
-  String _legacyConceptMetadataValue(String markdown, String key) {
+  String _legacyConceptMetadataValue(
+    String markdown,
+    String key,
+  ) {
     var normalized = markdown;
 
-    if (normalized.startsWith('\uFEFF')) {
-      normalized = normalized.substring(1);
+    if (normalized.startsWith(
+      '\uFEFF',
+    )) {
+      normalized = normalized.substring(
+        1,
+      );
     }
 
-    normalized = normalized.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+    normalized = normalized
+        .replaceAll(
+          '\r\n',
+          '\n',
+        )
+        .replaceAll(
+          '\r',
+          '\n',
+        );
 
-    final metadataExpression = RegExp(r'^\s*---\s*\n([\s\S]*?)\n---\s*\n?');
+    final metadataExpression = RegExp(
+      r'^\s*---\s*\n([\s\S]*?)\n---\s*\n?',
+    );
 
-    final metadataMatch = metadataExpression.firstMatch(normalized);
+    final metadataMatch = metadataExpression.firstMatch(
+      normalized,
+    );
 
-    if (metadataMatch == null) {
+    if (metadataMatch ==
+        null) {
       return '';
     }
 
-    final metadata = metadataMatch.group(1) ?? '';
+    final metadata =
+        metadataMatch.group(
+          1,
+        ) ??
+        '';
 
-    for (final line in metadata.split('\n')) {
-      final separator = line.indexOf(':');
+    for (final line in metadata.split(
+      '\n',
+    )) {
+      final separator = line.indexOf(
+        ':',
+      );
 
-      if (separator <= 0) {
+      if (separator <=
+          0) {
         continue;
       }
 
-      final currentKey = line.substring(0, separator).trim();
+      final currentKey = line
+          .substring(
+            0,
+            separator,
+          )
+          .trim();
 
-      if (currentKey != key) {
+      if (currentKey !=
+          key) {
         continue;
       }
 
-      return line.substring(separator + 1).trim();
+      return line
+          .substring(
+            separator +
+                1,
+          )
+          .trim();
     }
 
     return '';
   }
 
-  String? _legacyConceptSourceNotePath(String markdown) {
-    final encoded = _legacyConceptMetadataValue(markdown, 'origem').trim();
+  String? _legacyConceptSourceNotePath(
+    String markdown,
+  ) {
+    final encoded = _legacyConceptMetadataValue(
+      markdown,
+      'origem',
+    ).trim();
 
     if (encoded.isEmpty) {
       return null;
@@ -1380,11 +2079,21 @@ class BrainRepository {
 
     try {
       final decoded = utf8
-          .decode(base64Url.decode(base64Url.normalize(encoded)))
+          .decode(
+            base64Url.decode(
+              base64Url.normalize(
+                encoded,
+              ),
+            ),
+          )
           .trim();
 
-      return decoded.isEmpty ? null : decoded;
-    } catch (error) {
+      return decoded.isEmpty
+          ? null
+          : decoded;
+    } catch (
+      error
+    ) {
       debugPrint(
         '[BRAIN SECURITY] '
         'Origem legada do conceito não pôde ser decodificada: $error',
@@ -1394,15 +2103,28 @@ class BrainRepository {
     }
   }
 
-  bool _sameConceptContent(BrainConcept first, BrainConcept second) {
-    return first.id.trim() == second.id.trim() &&
-        first.title.trim() == second.title.trim() &&
-        first.description.trim() == second.description.trim() &&
-        first.type == second.type &&
-        first.reviewEnabled == second.reviewEnabled;
+  bool _sameConceptContent(
+    BrainConcept first,
+    BrainConcept second,
+  ) {
+    return first.id.trim() ==
+            second.id.trim() &&
+        first.title.trim() ==
+            second.title.trim() &&
+        first.description.trim() ==
+            second.description.trim() &&
+        first.type ==
+            second.type &&
+        first.reviewEnabled ==
+            second.reviewEnabled;
   }
 
-  Future<BrainFile?> _findVaultNoteByAnyId(String id) async {
+  Future<
+    BrainFile?
+  >
+  _findVaultNoteByAnyId(
+    String id,
+  ) async {
     final cleanId = id.trim();
 
     if (cleanId.isEmpty) {
@@ -1411,23 +2133,29 @@ class BrainRepository {
 
     final store = _requireNoteVaultStore();
 
-    final direct = await store.getNoteByPath(cleanId);
+    final direct = await store.getNoteByPath(
+      cleanId,
+    );
 
-    if (direct != null) {
+    if (direct !=
+        null) {
       return direct;
     }
 
     final userId = currentUserId?.trim();
     final notes = await store.loadNotes();
 
-    if (userId != null && userId.isNotEmpty) {
+    if (userId !=
+            null &&
+        userId.isNotEmpty) {
       for (final note in notes) {
         final generatedRemoteId = _remoteNoteId(
           userId: userId,
           localPath: note.path,
         );
 
-        if (generatedRemoteId == cleanId) {
+        if (generatedRemoteId ==
+            cleanId) {
           return note;
         }
       }
@@ -1436,57 +2164,96 @@ class BrainRepository {
     return null;
   }
 
-  Future<BrainFile> _saveEncryptedNoteAndVerify(BrainFile note) async {
+  Future<
+    BrainFile
+  >
+  _saveEncryptedNoteAndVerify(
+    BrainFile note,
+  ) async {
     final store = _requireNoteVaultStore();
 
     final userId = currentUserId?.trim();
 
-    final legacyRemoteId = userId == null || userId.isEmpty
+    final legacyRemoteId =
+        userId ==
+                null ||
+            userId.isEmpty
         ? null
-        : _remoteNoteId(userId: userId, localPath: note.path);
+        : _remoteNoteId(
+            userId: userId,
+            localPath: note.path,
+          );
 
     final encrypted = await store.saveNote(
       note,
       legacyRemoteId: legacyRemoteId,
     );
 
-    await _brainSyncQueueService?.enqueueObject(encrypted);
+    await _brainSyncQueueService?.enqueueObject(
+      encrypted,
+    );
 
-    final verified = await store.getNoteByPath(note.path);
+    final verified = await store.getNoteByPath(
+      note.path,
+    );
 
-    if (verified == null ||
-        verified.title.trim() != note.title.trim() ||
-        verified.content != note.content) {
-      throw StateError('Falha ao verificar a nota criptografada no Vault.');
+    if (verified ==
+            null ||
+        verified.title.trim() !=
+            note.title.trim() ||
+        verified.content !=
+            note.content) {
+      throw StateError(
+        'Falha ao verificar a nota criptografada no Vault.',
+      );
     }
 
-    await _deletePlaintextMirrorIfPresent(note);
+    await _deletePlaintextMirrorIfPresent(
+      note,
+    );
 
     return verified;
   }
 
-  Future<void> _deletePlaintextMirrorIfPresent(BrainFile note) async {
+  Future<
+    void
+  >
+  _deletePlaintextMirrorIfPresent(
+    BrainFile note,
+  ) async {
     final path = note.path.trim();
 
-    if (path.isEmpty || _isVaultNotePath(path)) {
+    if (path.isEmpty ||
+        _isVaultNotePath(
+          path,
+        )) {
       return;
     }
 
-    final legacyPath = _localPathFromId(path);
+    final legacyPath = _localPathFromId(
+      path,
+    );
 
-    if (legacyPath == null) {
+    if (legacyPath ==
+        null) {
       return;
     }
 
-    final file = File(legacyPath);
+    final file = File(
+      legacyPath,
+    );
 
     if (!await file.exists()) {
       return;
     }
 
     try {
-      await _local.deleteNote(note);
-    } catch (error) {
+      await _local.deleteNote(
+        note,
+      );
+    } catch (
+      error
+    ) {
       debugPrint(
         '[BRAIN SECURITY] '
         'BrainStorage.deleteNote falhou; tentando remover o arquivo '
@@ -1517,20 +2284,31 @@ class BrainRepository {
     return 'vault://note/${_deterministicUuid(seed)}';
   }
 
-  bool _isVaultNotePath(String value) {
-    return value.trim().toLowerCase().startsWith('vault://note/');
+  bool _isVaultNotePath(
+    String value,
+  ) {
+    return value.trim().toLowerCase().startsWith(
+      'vault://note/',
+    );
   }
 
   // ============================================================
   // NOTE -> CONTROLLER ROW
   // ============================================================
 
-  Map<String, dynamic> _noteToRow(
+  Map<
+    String,
+    dynamic
+  >
+  _noteToRow(
     BrainFile note, {
     String? remoteId,
     String? userId,
   }) {
-    return <String, dynamic>{
+    return <
+      String,
+      dynamic
+    >{
       // BrainController.path recebe o caminho local.
       'id': note.path,
 
@@ -1555,10 +2333,16 @@ class BrainRepository {
       //
       // ========================================================
       'sources': note.sources
-          .map((source) {
-            return source.toJson();
-          })
-          .toList(growable: false),
+          .map(
+            (
+              source,
+            ) {
+              return source.toJson();
+            },
+          )
+          .toList(
+            growable: false,
+          ),
 
       'created_at': note.createdAt.toUtc().toIso8601String(),
 
@@ -1570,19 +2354,35 @@ class BrainRepository {
   // SAME PATH
   // ============================================================
 
-  bool _samePath(String first, String second) {
+  bool _samePath(
+    String first,
+    String second,
+  ) {
     final a = first.trim();
     final b = second.trim();
 
-    if (a.isEmpty || b.isEmpty) {
-      return a == b;
+    if (a.isEmpty ||
+        b.isEmpty) {
+      return a ==
+          b;
     }
 
-    if (_isVaultNotePath(a) || _isVaultNotePath(b)) {
-      return a == b;
+    if (_isVaultNotePath(
+          a,
+        ) ||
+        _isVaultNotePath(
+          b,
+        )) {
+      return a ==
+          b;
     }
 
-    return File(a).absolute.path == File(b).absolute.path;
+    return File(
+          a,
+        ).absolute.path ==
+        File(
+          b,
+        ).absolute.path;
   }
 
   // ============================================================
@@ -1600,24 +2400,36 @@ class BrainRepository {
   //
   // ============================================================
 
-  bool _sameNoteContent(BrainFile first, BrainFile second) {
-    return first.topic.trim() == second.topic.trim() &&
-        first.title.trim() == second.title.trim() &&
-        first.content.trim() == second.content.trim();
+  bool _sameNoteContent(
+    BrainFile first,
+    BrainFile second,
+  ) {
+    return first.topic.trim() ==
+            second.topic.trim() &&
+        first.title.trim() ==
+            second.title.trim() &&
+        first.content.trim() ==
+            second.content.trim();
   }
 
   // ============================================================
   // LOCAL PATH
   // ============================================================
 
-  String? _localPathFromId(String? value) {
+  String? _localPathFromId(
+    String? value,
+  ) {
     final clean = value?.trim();
 
-    if (clean == null || clean.isEmpty) {
+    if (clean ==
+            null ||
+        clean.isEmpty) {
       return null;
     }
 
-    if (!clean.toLowerCase().endsWith('.md')) {
+    if (!clean.toLowerCase().endsWith(
+      '.md',
+    )) {
       return null;
     }
 
@@ -1636,15 +2448,27 @@ class BrainRepository {
     final cleanOriginal = originalId?.trim();
 
     // Preserva UUID remoto antigo durante migração.
-    if (cleanOriginal != null && _looksLikeUuid(cleanOriginal)) {
+    if (cleanOriginal !=
+            null &&
+        _looksLikeUuid(
+          cleanOriginal,
+        )) {
       return cleanOriginal;
     }
 
-    return _remoteNoteId(userId: userId, localPath: localPath);
+    return _remoteNoteId(
+      userId: userId,
+      localPath: localPath,
+    );
   }
 
-  String _remoteNoteId({required String userId, required String localPath}) {
-    return _deterministicUuid('$userId|$localPath');
+  String _remoteNoteId({
+    required String userId,
+    required String localPath,
+  }) {
+    return _deterministicUuid(
+      '$userId|$localPath',
+    );
   }
 
   // ============================================================
@@ -1658,14 +2482,24 @@ class BrainRepository {
   //
   // ============================================================
 
-  String _deterministicUuid(String seed) {
-    final a = _fnv32('a|$seed');
+  String _deterministicUuid(
+    String seed,
+  ) {
+    final a = _fnv32(
+      'a|$seed',
+    );
 
-    final b = _fnv32('b|$seed');
+    final b = _fnv32(
+      'b|$seed',
+    );
 
-    final c = _fnv32('c|$seed');
+    final c = _fnv32(
+      'c|$seed',
+    );
 
-    final d = _fnv32('d|$seed');
+    final d = _fnv32(
+      'd|$seed',
+    );
 
     final hex =
         '${_hex32(a)}'
@@ -1688,37 +2522,67 @@ class BrainRepository {
         '${versioned.substring(20, 32)}';
   }
 
-  int _fnv32(String value) {
+  int _fnv32(
+    String value,
+  ) {
     var hash = 0x811C9DC5;
 
     for (final unit in value.codeUnits) {
       hash ^= unit;
 
-      hash = (hash * 0x01000193) & 0xFFFFFFFF;
+      hash =
+          (hash *
+              0x01000193) &
+          0xFFFFFFFF;
     }
 
     return hash;
   }
 
-  String _hex32(int value) {
-    return value.toRadixString(16).padLeft(8, '0');
+  String _hex32(
+    int value,
+  ) {
+    return value
+        .toRadixString(
+          16,
+        )
+        .padLeft(
+          8,
+          '0',
+        );
   }
 
-  String _variantNibble(String original) {
-    final value = int.tryParse(original, radix: 16) ?? 0;
+  String _variantNibble(
+    String original,
+  ) {
+    final value =
+        int.tryParse(
+          original,
+          radix: 16,
+        ) ??
+        0;
 
-    final variant = (value & 0x3) | 0x8;
+    final variant =
+        (value &
+            0x3) |
+        0x8;
 
-    return variant.toRadixString(16);
+    return variant.toRadixString(
+      16,
+    );
   }
 
-  bool _looksLikeUuid(String value) {
+  bool _looksLikeUuid(
+    String value,
+  ) {
     return RegExp(
       r'^[0-9a-fA-F]{8}-'
       r'[0-9a-fA-F]{4}-'
       r'[0-9a-fA-F]{4}-'
       r'[0-9a-fA-F]{4}-'
       r'[0-9a-fA-F]{12}$',
-    ).hasMatch(value.trim());
+    ).hasMatch(
+      value.trim(),
+    );
   }
 }

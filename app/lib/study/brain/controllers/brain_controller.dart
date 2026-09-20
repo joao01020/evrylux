@@ -18,11 +18,11 @@ import '../repositories/brain_repository.dart';
 //      ↓
 // BrainRepository
 //      ↓
-// BrainStorage
+// Vault criptografado local
 //      ↓
-// SyncQueue / SyncService
+// BrainSyncQueueService / E2EE
 //
-// Isso evita arquivos Markdown duplicados ou órfãos.
+// BrainStorage permanece apenas para compatibilidade/migração legada.
 //
 // ============================================================
 
@@ -155,7 +155,6 @@ class BrainController extends ChangeNotifier {
   String? get currentUserId {
     return _repository.currentUserId;
   }
-
 
   // ============================================================
   // ACCOUNT SCOPE RESET
@@ -350,7 +349,8 @@ class BrainController extends ChangeNotifier {
   // ============================================================
 
   Future<bool> saveNote({
-    String successMessage = 'Conhecimento salvo neste dispositivo ✅',
+    String successMessage =
+        'Conhecimento salvo com segurança neste dispositivo ✅',
   }) async {
     if (_isSaving) {
       return false;
@@ -412,64 +412,89 @@ class BrainController extends ChangeNotifier {
       }
 
       // ========================================================
-      // SAVE KNOWLEDGE
+      // SAVE KNOWLEDGE — BATCH VAULT / E2EE
+      // ========================================================
+      //
+      // O BrainRepository agora possui saveConceptsBatch().
+      //
+      // Em vez de reabrir, regravar e revalidar a mesma nota para
+      // cada conceito individualmente, enviamos todos os conceitos
+      // de uma única vez. O repository:
+      //
+      // - localiza a nota uma vez;
+      // - incorpora todos os conceitos;
+      // - salva/valida a nota criptografada uma vez;
+      // - persiste cada conceito como objeto E2EE;
+      // - relê e valida cada conceito antes de concluir.
+      //
       // ========================================================
 
-      for (final concept in _concepts) {
-        await _repository.saveConcept(concept: concept, noteId: noteId);
+      if (_concepts.isNotEmpty) {
+        await _repository.saveConceptsBatch(
+          concepts: _concepts,
+          noteId: noteId,
+        );
       }
 
       // ========================================================
       // IMPORTANTE: NÃO SALVAR NOVAMENTE NO BRAIN STORAGE
       // ========================================================
       //
-      // O BrainRepository já fez:
+      // O BrainRepository já persistiu e validou a nota no Vault
+      // criptografado e enfileirou a sincronização E2EE necessária.
       //
-      // BrainStorage.saveNote()
-      //      ↓
-      // arquivo .md local
-      //      ↓
-      // SyncQueue
-      //
-      // Salvar novamente aqui criava uma SEGUNDA responsabilidade
-      // de persistência e podia deixar arquivos órfãos quando
-      // metadados ou título eram alterados.
-      //
-      // O calendário lê o mesmo arquivo criado pelo repository.
+      // Salvar novamente aqui criaria uma segunda responsabilidade
+      // de persistência e aumentaria a latência sem ganho de segurança.
       //
       // ========================================================
 
       // ========================================================
-      // UPDATE LOCAL STATE
+      // UPDATE LOCAL STATE — SEM RECARREGAR O VAULT INTEIRO
+      // ========================================================
+      //
+      // Antes, após salvar e validar o conhecimento no Vault,
+      // o controller chamava _loadNotesInternal(), que relia todas
+      // as notas apenas para refletir uma única alteração.
+      //
+      // Isso aumentava bastante a latência percebida do botão Salvar.
+      //
+      // Agora atualizamos somente a nota afetada em memória. O Vault
+      // continua sendo a fonte persistente e já foi validado pelo
+      // BrainRepository antes de chegar até este ponto.
+      //
       // ========================================================
 
-      _selectedNote = BrainFile(
+      final savedNote = BrainFile(
         topic: topic,
-
         title: title,
-
-        // BrainFile.path guarda o caminho LOCAL do .md.
-        //
-        // O remote_id pertence apenas à camada de sincronização.
         path: noteId,
-
         content: content,
-
         concepts: List<BrainConcept>.from(_concepts),
-
         sources: List<BrainSource>.from(_sources),
-
         createdAt:
             _parseDate(savedRow['created_at']) ??
             _selectedNote?.createdAt ??
             DateTime.now(),
-
         updatedAt: _parseDate(savedRow['updated_at']) ?? DateTime.now(),
       );
 
-      await _loadNotesInternal();
+      _selectedNote = savedNote;
+
+      final existingIndex = _notes.indexWhere((note) {
+        return note.path.trim() == noteId;
+      });
+
+      if (existingIndex >= 0) {
+        final updatedNotes = List<BrainFile>.from(_notes);
+        updatedNotes[existingIndex] = savedNote;
+        _notes = updatedNotes;
+      } else {
+        _notes = <BrainFile>[savedNote, ..._notes];
+      }
 
       _successMessage = successMessage;
+
+      _safeNotifyListeners();
 
       return true;
     } on FormatException catch (error) {
@@ -1198,10 +1223,10 @@ class BrainController extends ChangeNotifier {
       title: row['title']?.toString().trim() ?? '',
 
       // ========================================================
-      // O BrainFile ainda possui "path" por compatibilidade
-      // com a versão antiga baseada em Markdown.
+      // BrainFile.path é mantido por compatibilidade de modelo.
       //
-      // Agora guardamos aqui o ID da linha no Supabase.
+      // O repository fornece aqui o identificador local da nota
+      // (por exemplo vault://note/...), não conteúdo plaintext.
       // ========================================================
       path: row['id']?.toString().trim() ?? '',
 

@@ -1,5 +1,107 @@
 part of '../brain_screen.dart';
 
+class _BrainPulsingProgressBar
+    extends
+        StatefulWidget {
+  const _BrainPulsingProgressBar({
+    required this.progress,
+    this.height = 7,
+  });
+
+  final double progress;
+  final double height;
+
+  @override
+  State<
+    _BrainPulsingProgressBar
+  >
+  createState() => _BrainPulsingProgressBarState();
+}
+
+class _BrainPulsingProgressBarState
+    extends
+        State<
+          _BrainPulsingProgressBar
+        >
+    with
+        SingleTickerProviderStateMixin {
+  late final AnimationController _pulseController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(
+        milliseconds: 1150,
+      ),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final theme = Theme.of(
+      context,
+    );
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(
+        999,
+      ),
+      child: AnimatedBuilder(
+        animation: _pulseController,
+        builder:
+            (
+              context,
+              child,
+            ) {
+              final value = _pulseController.value;
+              final pulse =
+                  value <=
+                      0.5
+                  ? value *
+                        2
+                  : (1 -
+                            value) *
+                        2;
+
+              return LinearProgressIndicator(
+                value: widget.progress
+                    .clamp(
+                      0.0,
+                      1.0,
+                    )
+                    .toDouble(),
+                minHeight: widget.height,
+                backgroundColor: theme.colorScheme.primary.withValues(
+                  alpha: 0.10,
+                ),
+                valueColor:
+                    AlwaysStoppedAnimation<
+                      Color
+                    >(
+                      theme.colorScheme.primary.withValues(
+                        alpha:
+                            0.72 +
+                            (pulse *
+                                0.20),
+                      ),
+                    ),
+              );
+            },
+      ),
+    );
+  }
+}
+
 // Knowledge creation flow: save, review, type selection, source editing and question batches.
 // Prevents a second knowledge creation flow from reusing the same BrainController
 // while a minimized concept save is still finishing in the background.
@@ -134,8 +236,8 @@ extension _BrainScreenCreation
     if (type ==
         BrainConceptType.concept) {
       onProgress?.call(
-        'Criando conceitos',
-        'Estruturando o conhecimento e seus detalhes.',
+        'Organizando estrutura',
+        'Preparando conceitos e detalhes antes da proteção no Vault.',
       );
     }
 
@@ -157,8 +259,8 @@ extension _BrainScreenCreation
     if (type ==
         BrainConceptType.concept) {
       onProgress?.call(
-        'Salvando no Cérebro',
-        'Persistindo o conhecimento com segurança no Brain.',
+        'Criptografando o conhecimento',
+        '',
       );
     }
 
@@ -172,6 +274,14 @@ extension _BrainScreenCreation
       _showControllerMessage();
 
       return false;
+    }
+
+    if (type ==
+        BrainConceptType.concept) {
+      onProgress?.call(
+        'Integridade validada',
+        'Seu conhecimento está criptografado e a gravação segura foi validada.',
+      );
     }
 
     // ==========================================================
@@ -912,49 +1022,40 @@ extension _BrainScreenCreation
                             );
                         final shouldPrepareReview = useKnowledgeForReview;
 
-                        final progressStages =
-                            <
-                              String
-                            >[
-                              'Preparando conhecimento',
-                              'Criando conceitos',
-                              'Salvando no Cérebro',
-                              if (pendingSources.isNotEmpty) 'Conectando fontes',
-                              if (shouldPrepareReview) 'Preparando revisão',
-                              'Criando ramificações',
-                              'Finalizando',
-                            ];
-
-                        void updateSavingProgress(
+                        // Percurso fixo + animação visual progressiva.
+                        //
+                        // A barra agora nasce em 0% e percorre visualmente o caminho
+                        // até a etapa real de criptografia. Os marcos de segurança
+                        // continuam dependentes das operações reais: "Integridade
+                        // validada" só aparece depois que o Vault confirma a leitura.
+                        double progressForStatus(
                           String status,
-                          String description,
                         ) {
-                          final stageIndex = progressStages.indexOf(
-                            status,
-                          );
-                          final resolvedIndex =
-                              stageIndex <
-                                  0
-                              ? 0
-                              : stageIndex;
-                          final progress =
-                              (resolvedIndex +
-                                  1) /
-                              progressStages.length;
+                          switch (status) {
+                            case 'Preparando conhecimento':
+                              return 0.08;
+                            case 'Organizando estrutura':
+                              return 0.22;
+                            case 'Criptografando o conhecimento':
+                              return 0.40;
+                            case 'Integridade validada':
+                              return 0.58;
+                            case 'Conectando fontes':
+                              return 0.68;
+                            case 'Preparando revisão':
+                              return 0.76;
+                            case 'Criando caminhos':
+                              return 0.88;
+                            case 'Finalizando armazenamento':
+                              return 1.0;
+                            case 'Conhecimento protegido':
+                              return 1.0;
+                            default:
+                              return savingProgress;
+                          }
+                        }
 
-                          savingStatus = status;
-                          savingDescription = description;
-                          savingProgress =
-                              status ==
-                                  'Finalizando'
-                              ? 1.0
-                              : progress
-                                    .clamp(
-                                      0.0,
-                                      0.99,
-                                    )
-                                    .toDouble();
-
+                        void rebuildSavingProgress() {
                           if (dialogContext.mounted) {
                             setDialogState(
                               () {},
@@ -964,27 +1065,152 @@ extension _BrainScreenCreation
                           minimizedSavingOverlay?.markNeedsBuild();
                         }
 
+                        void updateSavingProgress(
+                          String status,
+                          String description,
+                        ) {
+                          final target = progressForStatus(
+                            status,
+                          );
+
+                          savingStatus = status;
+                          savingDescription = description;
+
+                          // Nunca deixa a barra voltar para trás quando uma etapa
+                          // real chega enquanto a animação visual ainda está ativa.
+                          if (target >
+                              savingProgress) {
+                            savingProgress = target;
+                          }
+
+                          rebuildSavingProgress();
+                        }
+
+                        Future<
+                          void
+                        >
+                        animateSavingProgress({
+                          required double from,
+                          required double to,
+                          required Duration duration,
+                          required String status,
+                          required String description,
+                          String? stopWhenStatusChangesFrom,
+                        }) async {
+                          const frames = 18;
+                          final frameDelay = Duration(
+                            milliseconds:
+                                duration.inMilliseconds ~/
+                                frames,
+                          );
+
+                          for (
+                            var frame = 0;
+                            frame <=
+                                frames;
+                            frame++
+                          ) {
+                            if (!mounted) {
+                              return;
+                            }
+
+                            if (stopWhenStatusChangesFrom !=
+                                    null &&
+                                savingStatus !=
+                                    stopWhenStatusChangesFrom) {
+                              return;
+                            }
+
+                            final t =
+                                frame /
+                                frames;
+                            final eased =
+                                1 -
+                                (1 -
+                                        t) *
+                                    (1 -
+                                        t);
+                            final animatedValue =
+                                from +
+                                ((to -
+                                        from) *
+                                    eased);
+
+                            savingStatus = status;
+                            savingDescription = description;
+
+                            if (animatedValue >
+                                savingProgress) {
+                              savingProgress = animatedValue;
+                            }
+
+                            rebuildSavingProgress();
+
+                            if (frame <
+                                frames) {
+                              await Future<
+                                void
+                              >.delayed(
+                                frameDelay,
+                              );
+                            }
+                          }
+                        }
+
                         setDialogState(
                           () {
                             saving = true;
-                            savingProgress =
-                                1 /
-                                progressStages.length;
+                            savingProgress = 0.0;
                             savingStatus = 'Preparando conhecimento';
-                            savingDescription = 'Organizando o conteúdo antes de salvar.';
+                            savingDescription = 'Preparando o conteúdo para armazenamento seguro.';
                           },
                         );
 
                         _brainKnowledgeSaveInProgress = true;
+
+                        // Durante o percurso visual inicial, os estados reais
+                        // podem avançar mais rápido que a animação. Guardamos o marco
+                        // real mais recente e só o exibimos depois que a barra chegar
+                        // visualmente aos 40%. Assim o Vault não espera pela animação.
+                        var openingJourneyFinished = false;
+                        String? deferredStatus;
+                        String? deferredDescription;
+                        var deferredProgress = 0.0;
+
+                        final originalUpdateSavingProgress = updateSavingProgress;
+
+                        void updateSavingProgressDuringOpening(
+                          String status,
+                          String description,
+                        ) {
+                          final target = progressForStatus(
+                            status,
+                          );
+
+                          if (!openingJourneyFinished) {
+                            if (target >=
+                                deferredProgress) {
+                              deferredProgress = target;
+                              deferredStatus = status;
+                              deferredDescription = description;
+                            }
+                            return;
+                          }
+
+                          originalUpdateSavingProgress(
+                            status,
+                            description,
+                          );
+                        }
 
                         try {
                           // ============================================
                           // DETALHES OPCIONAIS
                           // ============================================
 
-                          updateSavingProgress(
-                            'Criando conceitos',
-                            'Estruturando o conhecimento e seus detalhes.',
+                          updateSavingProgressDuringOpening(
+                            'Organizando estrutura',
+                            'Organizando conceitos e detalhes com integridade.',
                           );
 
                           if (example.isNotEmpty) {
@@ -1017,32 +1243,117 @@ extension _BrainScreenCreation
                             }
                           }
 
-                          // _saveKnowledge performs the real offline-first save,
-                          // sources and optional review generation. Progress updates
-                          // become no-ops automatically if the user minimized.
-                          final saved = await _saveKnowledge(
+                          // ============================================
+                          // SAVE REAL + PERCURSO VISUAL EM PARALELO
+                          // ============================================
+                          //
+                          // O salvamento real começa AGORA. A animação abaixo não
+                          // atrasa criptografia, gravação ou validação no Vault.
+                          final saveFuture = _saveKnowledge(
                             type: BrainConceptType.concept,
                             reviewEnabled: shouldPrepareReview,
                             sources: pendingSources,
-                            onProgress: updateSavingProgress,
+                            onProgress: updateSavingProgressDuringOpening,
                             showCompletionMessage: false,
                           );
+
+                          // 0% -> 40% em ~1,4 s, apenas como percurso visual.
+                          // Enquanto isso o saveFuture continua executando.
+                          await animateSavingProgress(
+                            from: 0.0,
+                            to: 0.10,
+                            duration: const Duration(
+                              milliseconds: 350,
+                            ),
+                            status: 'Preparando conhecimento',
+                            description: 'Preparando o conteúdo para armazenamento seguro.',
+                          );
+
+                          await animateSavingProgress(
+                            from: 0.10,
+                            to: 0.22,
+                            duration: const Duration(
+                              milliseconds: 450,
+                            ),
+                            status: 'Organizando estrutura',
+                            description: 'Organizando conceitos e detalhes com integridade.',
+                          );
+
+                          await animateSavingProgress(
+                            from: 0.22,
+                            to: 0.40,
+                            duration: const Duration(
+                              milliseconds: 600,
+                            ),
+                            status: 'Criptografando o conhecimento',
+                            description: '',
+                          );
+
+                          openingJourneyFinished = true;
+
+                          // Se o Vault já avançou além dos 40% enquanto a animação
+                          // ocorria, agora mostramos o estado real mais recente.
+                          final pendingStatus = deferredStatus;
+                          final pendingDescription = deferredDescription;
+
+                          if (pendingStatus !=
+                                  null &&
+                              deferredProgress >
+                                  0.40) {
+                            originalUpdateSavingProgress(
+                              pendingStatus,
+                              pendingDescription ??
+                                  '',
+                            );
+                          } else {
+                            originalUpdateSavingProgress(
+                              'Criptografando o conhecimento',
+                              '',
+                            );
+                          }
+
+                          // Enquanto a criptografia ainda estiver ocorrendo, a barra
+                          // continua se mexendo suavemente até no máximo 55%.
+                          // Não aguardamos essa animação para concluir o save.
+                          final cryptoAnimation = animateSavingProgress(
+                            from:
+                                savingProgress <
+                                    0.40
+                                ? 0.40
+                                : savingProgress,
+                            to: 0.55,
+                            duration: const Duration(
+                              milliseconds: 1200,
+                            ),
+                            status: 'Criptografando o conhecimento',
+                            description: '',
+                            stopWhenStatusChangesFrom: 'Criptografando o conhecimento',
+                          );
+
+                          final saved = await saveFuture;
 
                           if (!mounted ||
                               !saved) {
                             return;
                           }
 
+                          // Evita warning de Future não utilizado sem bloquear o fluxo.
+                          cryptoAnimation.ignore();
+
                           updateSavingProgress(
-                            'Criando ramificações',
-                            'Conectando este conhecimento às estruturas do seu Brain.',
+                            'Criando caminhos',
+                            'Criando caminhos e conexões para organizar este conhecimento no Brain.',
                           );
 
                           // Keep the real visual-knowledge synchronization, but do
                           // not force the user to wait for the growth preview
                           // animation after the synchronization itself has finished.
                           await _syncBrainVisualKnowledge(
-                            animateGrowth: true,
+                            // A animação de crescimento não faz parte da persistência
+                            // segura e aumentava a espera percebida após o Vault já
+                            // ter confirmado o conhecimento. Mantemos a sincronização
+                            // real, mas sem bloquear o usuário com a animação.
+                            animateGrowth: false,
                             reloadLocal: true,
                           );
 
@@ -1050,19 +1361,28 @@ extension _BrainScreenCreation
                             return;
                           }
 
+                          // ==================================================
+                          // CONFIRMAÇÃO FINAL
+                          // ==================================================
+                          //
+                          // Só chegamos aqui depois de:
+                          // - persistir no Vault;
+                          // - validar integridade;
+                          // - concluir as conexões locais do Brain.
+                          //
+                          // A UI troca a barra pelo estado final com check.
                           updateSavingProgress(
-                            'Finalizando',
-                            'Conhecimento salvo e conectado ao seu Cérebro.',
+                            'Conhecimento protegido',
+                            'Seu conhecimento foi criptografado e salvo com integridade.',
                           );
 
-                          // Keep 100% visible briefly. When minimized, this does
-                          // not block the user because the compact progress bar is an
-                          // overlay over the normal Brain screen.
+                          // Mantém a confirmação visível tempo suficiente para
+                          // o usuário perceber que o processo realmente terminou.
                           await Future<
                             void
                           >.delayed(
                             const Duration(
-                              milliseconds: 180,
+                              milliseconds: 1100,
                             ),
                           );
 
@@ -1110,6 +1430,12 @@ extension _BrainScreenCreation
 
                       return Dialog(
                         clipBehavior: Clip.antiAlias,
+                        backgroundColor: saving
+                            ? Colors.transparent
+                            : null,
+                        elevation: saving
+                            ? 0
+                            : null,
                         insetPadding: const EdgeInsets.symmetric(
                           horizontal: 24,
                           vertical: 24,
@@ -1120,33 +1446,22 @@ extension _BrainScreenCreation
                             maxHeight: 820,
                           ),
                           child: saving
-                              ? SizedBox(
-                                  width: 650,
-                                  height: 420,
-                                  child: Center(
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 28,
-                                      ),
-                                      child: _buildKnowledgeSavingPanel(
-                                        context: dialogContext,
-                                        progress: savingProgress,
-                                        status: savingStatus,
-                                        description: savingDescription,
-                                        onMinimize: () {
-                                          if (!dialogContext.mounted) {
-                                            return;
-                                          }
+                              ? _buildKnowledgeSavingPanel(
+                                  context: dialogContext,
+                                  progress: savingProgress,
+                                  status: savingStatus,
+                                  description: savingDescription,
+                                  onMinimize: () {
+                                    if (!dialogContext.mounted) {
+                                      return;
+                                    }
 
-                                          showMinimizedSavingOverlay();
+                                    showMinimizedSavingOverlay();
 
-                                          Navigator.of(
-                                            dialogContext,
-                                          ).pop();
-                                        },
-                                      ),
-                                    ),
-                                  ),
+                                    Navigator.of(
+                                      dialogContext,
+                                    ).pop();
+                                  },
                                 )
                               : Column(
                                   mainAxisSize: MainAxisSize.min,
@@ -1747,14 +2062,26 @@ extension _BrainScreenCreation
                 100)
             .round();
 
+    final completed =
+        progress >=
+            1.0 &&
+        status ==
+            'Conhecimento protegido';
+
     return ConstrainedBox(
       constraints: const BoxConstraints(
         maxWidth: 520,
+        minHeight: 190,
+        maxHeight: 190,
       ),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(
-          18,
+        // Mantém a altura externa exatamente igual (190 px), mas libera
+        // alguns pixels a mais para o conteúdo interno. Com 18 px em cima
+        // e embaixo sobravam só 152 px, e o Column excedia em 2 px.
+        padding: const EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: 16,
         ),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerLow.withValues(
@@ -1769,114 +2096,193 @@ extension _BrainScreenCreation
             ),
           ),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Salvando conhecimento',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(
-              height: 14,
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(
-                      999,
+        child: completed
+            ? Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.check_circle_rounded,
+                          size: 24,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(
+                          width: 10,
+                        ),
+                        const Text(
+                          'Conhecimento protegido',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
                     ),
-                    child: LinearProgressIndicator(
-                      value: progress
-                          .clamp(
-                            0.0,
-                            1.0,
-                          )
-                          .toDouble(),
-                      minHeight: 7,
+                    const SizedBox(
+                      height: 10,
                     ),
-                  ),
+                    Text(
+                      'Seu conhecimento foi criptografado e salvo com integridade.',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ],
                 ),
-                const SizedBox(
-                  width: 12,
-                ),
-                SizedBox(
-                  width: 42,
-                  child: Text(
-                    '$percent%',
-                    textAlign: TextAlign.right,
-                    style: const TextStyle(
-                      fontSize: 12,
+              )
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Salvando conhecimento',
+                    style: TextStyle(
+                      fontSize: 16,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(
-              height: 16,
-            ),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(
-                    top: 2,
+                  const SizedBox(
+                    height: 10,
                   ),
-                  child: Icon(
-                    Icons.radio_button_checked_rounded,
-                    size: 16,
-                    color: theme.colorScheme.primary,
-                  ),
-                ),
-                const SizedBox(
-                  width: 9,
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  Row(
                     children: [
-                      Text(
-                        status,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
+                      Expanded(
+                        child: _BrainPulsingProgressBar(
+                          progress: progress,
+                          height: 7,
                         ),
                       ),
                       const SizedBox(
-                        height: 3,
+                        width: 12,
                       ),
-                      Text(
-                        description,
-                        style: theme.textTheme.bodySmall,
+                      SizedBox(
+                        width: 42,
+                        child: Text(
+                          '$percent%',
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(
-              height: 14,
-            ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: onMinimize,
-                icon: const Icon(
-                  Icons.minimize_rounded,
-                  size: 18,
-                ),
-                label: const Text(
-                  'Minimizar',
-                ),
+                  const SizedBox(
+                    height: 12,
+                  ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          top: 2,
+                        ),
+                        child: Icon(
+                          Icons.radio_button_checked_rounded,
+                          size: 16,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(
+                        width: 9,
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              status,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            if (description.trim().isNotEmpty) ...[
+                              const SizedBox(
+                                height: 3,
+                              ),
+                              Text(
+                                description,
+                                style: theme.textTheme.bodySmall,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(
+                    height: 8,
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: onMinimize,
+                        borderRadius: BorderRadius.circular(
+                          999,
+                        ),
+                        child: Ink(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary.withValues(
+                              alpha: 0.07,
+                            ),
+                            borderRadius: BorderRadius.circular(
+                              999,
+                            ),
+                            border: Border.all(
+                              color: theme.colorScheme.primary.withValues(
+                                alpha: 0.18,
+                              ),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 22,
+                                height: 22,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.primary.withValues(
+                                    alpha: 0.10,
+                                  ),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  size: 17,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
+                              const SizedBox(
+                                width: 8,
+                              ),
+                              Text(
+                                'Minimizar',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.1,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -1898,89 +2304,206 @@ extension _BrainScreenCreation
                 100)
             .round();
 
+    final completed =
+        progress >=
+            1.0 &&
+        status ==
+            'Conhecimento protegido';
+
+    final primary = theme.colorScheme.primary;
+
     return Material(
-      elevation: 8,
+      color: Colors.transparent,
+      elevation: 12,
+      shadowColor: Colors.black.withValues(
+        alpha: 0.11,
+      ),
       borderRadius: BorderRadius.circular(
-        14,
+        18,
       ),
       clipBehavior: Clip.antiAlias,
       child: ConstrainedBox(
         constraints: const BoxConstraints(
           maxWidth: 560,
+          minHeight: 96,
+          maxHeight: 96,
         ),
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.fromLTRB(
-            16,
+            14,
             12,
-            16,
-            13,
+            14,
+            12,
           ),
           decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
+            // Fundo translúcido: mantém o card legível, mas deixa o
+            // conteúdo da tela aparecer suavemente por trás dele.
+            color: theme.colorScheme.surface.withValues(
+              alpha: 0.82,
+            ),
+            borderRadius: BorderRadius.circular(
+              18,
+            ),
             border: Border.all(
-              color: theme.dividerColor.withValues(
-                alpha: 0.34,
+              color: primary.withValues(
+                alpha: 0.16,
               ),
             ),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      status,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
+          child: completed
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: primary.withValues(
+                          alpha: 0.10,
+                        ),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: primary.withValues(
+                            alpha: 0.18,
+                          ),
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.check_rounded,
+                        size: 24,
+                        color: primary,
                       ),
                     ),
-                  ),
-                  const SizedBox(
-                    width: 12,
-                  ),
-                  Text(
-                    '$percent%',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
+                    const SizedBox(
+                      width: 12,
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(
-                height: 7,
-              ),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(
-                  999,
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Conhecimento protegido',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.1,
+                            ),
+                          ),
+                          const SizedBox(
+                            height: 4,
+                          ),
+                          Text(
+                            'Seu conhecimento foi criptografado e salvo com integridade.',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                )
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 28,
+                          height: 28,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: primary.withValues(
+                              alpha: 0.07,
+                            ),
+                            borderRadius: BorderRadius.circular(
+                              9,
+                            ),
+                            border: Border.all(
+                              color: primary.withValues(
+                                alpha: 0.14,
+                              ),
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.shield_outlined,
+                            size: 16,
+                            color: primary,
+                          ),
+                        ),
+                        const SizedBox(
+                          width: 9,
+                        ),
+                        Expanded(
+                          child: Text(
+                            status,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.05,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(
+                          width: 10,
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: primary.withValues(
+                              alpha: 0.07,
+                            ),
+                            borderRadius: BorderRadius.circular(
+                              999,
+                            ),
+                            border: Border.all(
+                              color: primary.withValues(
+                                alpha: 0.14,
+                              ),
+                            ),
+                          ),
+                          child: Text(
+                            '$percent%',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: primary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(
+                      height: 9,
+                    ),
+                    _BrainPulsingProgressBar(
+                      progress: progress,
+                      height: 6,
+                    ),
+                    if (description.trim().isNotEmpty) ...[
+                      const SizedBox(
+                        height: 6,
+                      ),
+                      Text(
+                        description,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
+                  ],
                 ),
-                child: LinearProgressIndicator(
-                  value: progress
-                      .clamp(
-                        0.0,
-                        1.0,
-                      )
-                      .toDouble(),
-                  minHeight: 6,
-                ),
-              ),
-              const SizedBox(
-                height: 7,
-              ),
-              Text(
-                description,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall,
-              ),
-            ],
-          ),
         ),
       ),
     );
