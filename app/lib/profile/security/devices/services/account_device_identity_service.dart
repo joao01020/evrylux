@@ -7,22 +7,28 @@ class AccountDeviceIdentityService {
   AccountDeviceIdentityService({
     FlutterSecureStorage? storage,
     Uuid? uuid,
-  })  : _storage = storage ??
-            const FlutterSecureStorage(),
-        _uuid = uuid ??
-            const Uuid();
+  })  : _storage = storage ?? _createSecureStorage(),
+        _uuid = uuid ?? const Uuid();
 
   static const String _deviceIdKey =
       'evrylux.account.device_identity.v1';
 
   final FlutterSecureStorage _storage;
-
   final Uuid _uuid;
 
-  Future<
-    String
-  >
-  getOrCreateDeviceId() async {
+  static FlutterSecureStorage _createSecureStorage() {
+    if (Platform.isMacOS) {
+      return const FlutterSecureStorage(
+        mOptions: MacOsOptions(
+          usesDataProtectionKeychain: false,
+        ),
+      );
+    }
+
+    return const FlutterSecureStorage();
+  }
+
+  Future<String> getOrCreateDeviceId() async {
     final existing = await _storage.read(
       key: _deviceIdKey,
     );
@@ -42,10 +48,7 @@ class AccountDeviceIdentityService {
     return created;
   }
 
-  Future<
-    void
-  >
-  clear() {
+  Future<void> clear() {
     return _storage.delete(
       key: _deviceIdKey,
     );
@@ -53,7 +56,6 @@ class AccountDeviceIdentityService {
 
   String get deviceName {
     final host = Platform.localHostname.trim();
-
     final platform = platformLabel;
 
     if (host.isNotEmpty) {
