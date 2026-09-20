@@ -1599,72 +1599,6 @@ class BrainRepository {
   }
 
   // ============================================================
-  // HYDRATE SOURCES FROM VAULT
-  // ============================================================
-  //
-  // FASE 13 — FONTES DO CONHECIMENTO
-  //
-  // BrainStorage continua sendo apenas o mirror Markdown legado.
-  //
-  // Para não escrever referência/autor/observação em plaintext,
-  // sources não são persistidas nesse mirror.
-  //
-  // Ao carregar ou regravar uma nota, buscamos as sources no
-  // BrainNoteVaultStore e as recolocamos no BrainFile antes de:
-  //
-  // - devolver a nota ao controller;
-  // - atualizar o Vault;
-  // - enfileirar o objeto E2EE.
-  //
-  // Se o Vault ainda não possuir a nota, a lista local é mantida.
-  //
-  // ============================================================
-
-  Future<
-    BrainFile
-  >
-  _hydrateSourcesFromVault(
-    BrainFile note,
-  ) async {
-    final store = _noteVaultStore;
-
-    if (store ==
-        null) {
-      return note;
-    }
-
-    final path = note.path.trim();
-
-    if (path.isEmpty) {
-      return note;
-    }
-
-    try {
-      final vaultNote = await store.getNoteByPath(
-        path,
-      );
-
-      if (vaultNote ==
-          null) {
-        return note;
-      }
-
-      return note.copyWith(
-        sources: vaultNote.sources,
-      );
-    } catch (
-      error
-    ) {
-      debugPrint(
-        '[BRAIN REPOSITORY] '
-        'Não foi possível hidratar fontes do Vault: $error',
-      );
-
-      return note;
-    }
-  }
-
-  // ============================================================
   // VAULT-ONLY NOTE STORAGE
   // ============================================================
 
@@ -2383,33 +2317,6 @@ class BrainRepository {
         File(
           b,
         ).absolute.path;
-  }
-
-  // ============================================================
-  // SAME NOTE CONTENT
-  // ============================================================
-  //
-  // Usado apenas para remover duplicatas históricas geradas
-  // durante a migração para offline-first.
-  //
-  // Topic ainda participa desta comparação somente para não mudar
-  // silenciosamente a regra de limpeza de arquivos antigos.
-  //
-  // Não usa createdAt/updatedAt porque cópias antigas podem ter
-  // timestamps diferentes mesmo contendo a mesma anotação.
-  //
-  // ============================================================
-
-  bool _sameNoteContent(
-    BrainFile first,
-    BrainFile second,
-  ) {
-    return first.topic.trim() ==
-            second.topic.trim() &&
-        first.title.trim() ==
-            second.title.trim() &&
-        first.content.trim() ==
-            second.content.trim();
   }
 
   // ============================================================

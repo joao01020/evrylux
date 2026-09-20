@@ -1,7 +1,8 @@
 part of '../../profile_settings_page.dart';
 
 extension _ProfileSettingsBrainActions
-    on _ProfileSettingsPageState {
+    on
+        _ProfileSettingsPageState {
   // ============================================================
   // LOAD BRAIN SETTINGS
   // ============================================================
@@ -71,89 +72,6 @@ extension _ProfileSettingsBrainActions
         _updateProfileState(
           () {
             _loadingBrainSettings = false;
-          },
-        );
-      }
-    }
-  }
-
-  // ============================================================
-  // SWITCH BRAIN DATA MODE
-  // ============================================================
-
-  Future<
-    void
-  >
-  _setBrainCloudMode(
-    bool cloud,
-  ) async {
-    if (_switchingBrainMode) {
-      return;
-    }
-
-    _updateProfileState(
-      () {
-        _switchingBrainMode = true;
-        _message = null;
-      },
-    );
-
-    try {
-      if (cloud) {
-        if (_user ==
-            null) {
-          throw StateError(
-            'Entre na sua conta antes de ativar o modo Cloud.',
-          );
-        }
-
-        await brainDataModeController.useCloudMode();
-      } else {
-        await brainDataModeController.useLocalMode();
-      }
-
-      if (!mounted) {
-        return;
-      }
-
-      _updateProfileState(
-        () {
-          _brainCloudMode = brainDataModeController.isCloudMode;
-
-          _message = cloud
-              ? 'Modo Cloud ativado. O Cérebro continua local-first e sincroniza somente objetos criptografados.'
-              : 'Modo Local ativado. O Cérebro não realizará sincronização em nuvem.';
-
-          _messageIsError = false;
-        },
-      );
-
-      if (cloud) {
-        syncService.requestSync();
-      }
-    } catch (
-      error
-    ) {
-      debugPrint(
-        '[PROFILE SETTINGS] '
-        'Erro alterando modo do Cérebro: $error',
-      );
-
-      if (!mounted) {
-        return;
-      }
-
-      _updateProfileState(
-        () {
-          _message = 'Não foi possível alterar o modo de dados do Cérebro.';
-          _messageIsError = true;
-        },
-      );
-    } finally {
-      if (mounted) {
-        _updateProfileState(
-          () {
-            _switchingBrainMode = false;
           },
         );
       }
@@ -1585,5 +1503,4 @@ extension _ProfileSettingsBrainActions
 
     return '$day/$month/$year às $hour:$minute';
   }
-
 }

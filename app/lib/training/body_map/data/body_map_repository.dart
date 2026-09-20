@@ -191,33 +191,14 @@ class BodyMapRepository {
           user.id,
         );
 
-    final remoteRows =
-        response
-            is List
-        ? response
-        : const <
-            dynamic
-          >[];
+    final remoteRows = response;
 
     final remoteActivities =
         <
           String
         >{};
 
-    for (final raw in remoteRows) {
-      if (raw
-          is! Map) {
-        continue;
-      }
-
-      final map =
-          Map<
-            String,
-            dynamic
-          >.from(
-            raw,
-          );
-
+    for (final map in remoteRows) {
       final activity = TrainingActivityTypeExtension.fromAny(
         map['activity']?.toString(),
       );
@@ -767,7 +748,7 @@ class BodyMapRepository {
     bool
   >
   get hasData async {
-    return await count() >
+    return (await count()) >
         0;
   }
 
@@ -1150,11 +1131,10 @@ class BodyMapRepository {
       return;
     }
 
-    _seededUsers.add(
-      userId,
-    );
-
     if (_initialSchedules.isEmpty) {
+      _seededUsers.add(
+        userId,
+      );
       return;
     }
 
@@ -1164,6 +1144,9 @@ class BodyMapRepository {
 
     if (currentCount >
         0) {
+      _seededUsers.add(
+        userId,
+      );
       return;
     }
 
@@ -1176,6 +1159,12 @@ class BodyMapRepository {
         schedule,
       );
     }
+
+    // Só marcamos como concluído depois que todo o seed terminou.
+    // Se ocorrer uma exceção acima, uma próxima chamada poderá tentar novamente.
+    _seededUsers.add(
+      userId,
+    );
   }
 
   // ============================================================

@@ -4,7 +4,6 @@ import '../../../app/dependencies/app_dependencies.dart';
 
 import '../../models/training_activity_type.dart';
 import '../controllers/body_map_controller.dart';
-import '../models/body_region.dart';
 import '../models/body_region_schedule.dart';
 import '../services/body_map_service.dart';
 import 'body_map_front.dart';

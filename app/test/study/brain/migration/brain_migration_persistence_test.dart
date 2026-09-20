@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:EVRYLUX/core/storage/user_storage_scope.dart';
+// ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
 import 'package:EVRYLUX/study/brain/migration/models/brain_migration_status.dart';
@@ -100,7 +101,9 @@ main() {
           // ========================================================
 
           brainStorage = BrainStorage(
-            storageScope: UserStorageScope.fixed(userId: 'test-user'),
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+            ),
           );
 
           // ========================================================

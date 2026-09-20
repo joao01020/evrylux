@@ -43,10 +43,6 @@ class _JourneyScreenState
     0xFFFFFFFF,
   );
 
-  static const Color _surfaceSoft = Color(
-    0xFFF3F8EE,
-  );
-
   static const Color _border = Color(
     0xFFC7DFC9,
   );

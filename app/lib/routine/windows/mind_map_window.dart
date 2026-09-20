@@ -502,9 +502,7 @@ class _MindMapWindowState
         'mind_map_dock',
         {
           'block_id': widget.arguments.blockId,
-          if (blockMap !=
-              null)
-            'block': blockMap,
+          'block': ?blockMap,
         },
       );
 

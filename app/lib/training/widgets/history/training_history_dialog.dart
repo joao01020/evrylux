@@ -5,10 +5,18 @@ import 'training_history_pie_chart.dart';
 import 'training_history_records.dart';
 import 'training_history_summary.dart';
 
+// ============================================================
+// VIEW
+// ============================================================
+
 enum TrainingHistoryView {
   distribution,
   records,
 }
+
+// ============================================================
+// DIALOG
+// ============================================================
 
 class TrainingHistoryDialog
     extends
@@ -25,6 +33,7 @@ class TrainingHistoryDialog
     TrainingHistoryEntry
   >
   entries;
+
   final Future<
     void
   >
@@ -32,6 +41,7 @@ class TrainingHistoryDialog
     TrainingHistoryEntry entry,
   )?
   onEdit;
+
   final Future<
     void
   >
@@ -39,7 +49,12 @@ class TrainingHistoryDialog
     TrainingHistoryEntry entry,
   )?
   onDelete;
+
   final TrainingHistoryPeriod initialPeriod;
+
+  // ============================================================
+  // SHOW
+  // ============================================================
 
   static Future<
     void
@@ -74,12 +89,14 @@ class TrainingHistoryDialog
       builder:
           (
             _,
-          ) => TrainingHistoryDialog(
-            entries: entries,
-            onEdit: onEdit,
-            onDelete: onDelete,
-            initialPeriod: initialPeriod,
-          ),
+          ) {
+            return TrainingHistoryDialog(
+              entries: entries,
+              onEdit: onEdit,
+              onDelete: onDelete,
+              initialPeriod: initialPeriod,
+            );
+          },
     );
   }
 
@@ -87,69 +104,111 @@ class TrainingHistoryDialog
   State<
     TrainingHistoryDialog
   >
-  createState() => _TrainingHistoryDialogState();
+  createState() {
+    return _TrainingHistoryDialogState();
+  }
 }
+
+// ============================================================
+// STATE
+// ============================================================
 
 class _TrainingHistoryDialogState
     extends
         State<
           TrainingHistoryDialog
         > {
+  // ============================================================
+  // CORES
+  // ============================================================
+
   static const Color _background = Color(
     0xFFF7FBF1,
   );
+
   static const Color _surface = Color(
     0xFFFFFFFF,
   );
+
   static const Color _soft = Color(
     0xFFF3F8EE,
   );
+
   static const Color _border = Color(
     0xFFC7DFC9,
   );
+
   static const Color _primary = Color(
     0xFF3B6939,
   );
+
   static const Color _text = Color(
     0xFF172019,
   );
+
   static const Color _muted = Color(
     0xFF68746B,
   );
 
+  // ============================================================
+  // STATE
+  // ============================================================
+
   late TrainingHistoryPeriod _period;
+
   TrainingHistoryView _view = TrainingHistoryView.distribution;
+
   DateTime? _customStart;
+
   DateTime? _customEnd;
+
   String? _selectedActivity;
+
+  // ============================================================
+  // INIT
+  // ============================================================
 
   @override
   void initState() {
     super.initState();
+
     _period = widget.initialPeriod;
   }
+
+  // ============================================================
+  // ENTRADAS FILTRADAS
+  // ============================================================
 
   List<
     TrainingHistoryEntry
   >
   get _filteredEntries {
-    final now = DateTime.now();
+    final DateTime now = DateTime.now();
+
     DateTime? start;
     DateTime? end;
 
     switch (_period) {
+      // ========================================================
+      // HOJE
+      // ========================================================
+
       case TrainingHistoryPeriod.today:
         start = DateTime(
           now.year,
           now.month,
           now.day,
         );
+
         end = start.add(
           const Duration(
             days: 1,
           ),
         );
-        break;
+
+      // ========================================================
+      // ÚLTIMOS 7 DIAS
+      // ========================================================
 
       case TrainingHistoryPeriod.last7Days:
         start =
@@ -162,6 +221,7 @@ class _TrainingHistoryDialogState
                 days: 6,
               ),
             );
+
         end =
             DateTime(
               now.year,
@@ -172,7 +232,10 @@ class _TrainingHistoryDialogState
                 days: 1,
               ),
             );
-        break;
+
+      // ========================================================
+      // ÚLTIMOS 30 DIAS
+      // ========================================================
 
       case TrainingHistoryPeriod.last30Days:
         start =
@@ -185,6 +248,7 @@ class _TrainingHistoryDialogState
                 days: 29,
               ),
             );
+
         end =
             DateTime(
               now.year,
@@ -195,7 +259,10 @@ class _TrainingHistoryDialogState
                 days: 1,
               ),
             );
-        break;
+
+      // ========================================================
+      // ÚLTIMOS 90 DIAS
+      // ========================================================
 
       case TrainingHistoryPeriod.last90Days:
         start =
@@ -208,6 +275,7 @@ class _TrainingHistoryDialogState
                 days: 89,
               ),
             );
+
         end =
             DateTime(
               now.year,
@@ -218,7 +286,10 @@ class _TrainingHistoryDialogState
                 days: 1,
               ),
             );
-        break;
+
+      // ========================================================
+      // ÚLTIMOS 6 MESES
+      // ========================================================
 
       case TrainingHistoryPeriod.last6Months:
         start = DateTime(
@@ -227,12 +298,16 @@ class _TrainingHistoryDialogState
               6,
           now.day,
         );
+
         end = now.add(
           const Duration(
             days: 1,
           ),
         );
-        break;
+
+      // ========================================================
+      // ÚLTIMO ANO
+      // ========================================================
 
       case TrainingHistoryPeriod.lastYear:
         start = DateTime(
@@ -241,52 +316,68 @@ class _TrainingHistoryDialogState
           now.month,
           now.day,
         );
+
         end = now.add(
           const Duration(
             days: 1,
           ),
         );
-        break;
+
+      // ========================================================
+      // TODOS
+      // ========================================================
 
       case TrainingHistoryPeriod.all:
         break;
 
+      // ========================================================
+      // PERSONALIZADO
+      // ========================================================
+
       case TrainingHistoryPeriod.custom:
         start = _customStart;
 
-        if (_customEnd !=
+        final DateTime? customEnd = _customEnd;
+
+        if (customEnd !=
             null) {
           end =
               DateTime(
-                _customEnd!.year,
-                _customEnd!.month,
-                _customEnd!.day,
+                customEnd.year,
+                customEnd.month,
+                customEnd.day,
               ).add(
                 const Duration(
                   days: 1,
                 ),
               );
         }
-        break;
     }
 
-    final result = widget.entries
+    final List<
+      TrainingHistoryEntry
+    >
+    result = widget.entries
         .where(
           (
-            entry,
+            TrainingHistoryEntry entry,
           ) {
             if (start !=
                     null &&
                 entry.date.isBefore(
                   start,
-                ))
+                )) {
               return false;
+            }
+
             if (end !=
                     null &&
                 !entry.date.isBefore(
                   end,
-                ))
+                )) {
               return false;
+            }
+
             return true;
           },
         )
@@ -296,23 +387,29 @@ class _TrainingHistoryDialogState
 
     result.sort(
       (
-        a,
-        b,
-      ) => b.date.compareTo(
-        a.date,
-      ),
+        TrainingHistoryEntry a,
+        TrainingHistoryEntry b,
+      ) {
+        return b.date.compareTo(
+          a.date,
+        );
+      },
     );
 
     return result;
   }
 
+  // ============================================================
+  // PERÍODO PERSONALIZADO
+  // ============================================================
+
   Future<
     void
   >
   _pickCustomRange() async {
-    final now = DateTime.now();
+    final DateTime now = DateTime.now();
 
-    final range = await showDateRangePicker(
+    final DateTimeRange? range = await showDateRangePicker(
       context: context,
       firstDate: DateTime(
         2000,
@@ -333,9 +430,11 @@ class _TrainingHistoryDialogState
           : null,
     );
 
-    if (range ==
-        null)
+    if (!mounted ||
+        range ==
+            null) {
       return;
+    }
 
     setState(
       () {
@@ -347,11 +446,67 @@ class _TrainingHistoryDialogState
     );
   }
 
+  // ============================================================
+  // ALTERAR PERÍODO
+  // ============================================================
+
+  void _changePeriod(
+    TrainingHistoryPeriod period,
+  ) {
+    if (period ==
+        TrainingHistoryPeriod.custom) {
+      _pickCustomRange();
+      return;
+    }
+
+    setState(
+      () {
+        _period = period;
+        _selectedActivity = null;
+      },
+    );
+  }
+
+  // ============================================================
+  // SELECIONAR ATIVIDADE
+  // ============================================================
+
+  void _selectActivity(
+    String activity,
+  ) {
+    setState(
+      () {
+        _selectedActivity =
+            _selectedActivity ==
+                activity
+            ? null
+            : activity;
+      },
+    );
+  }
+
+  // ============================================================
+  // FECHAR
+  // ============================================================
+
+  void _close() {
+    Navigator.of(
+      context,
+    ).pop();
+  }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
+
   @override
   Widget build(
     BuildContext context,
   ) {
-    final entries = _filteredEntries;
+    final List<
+      TrainingHistoryEntry
+    >
+    entries = _filteredEntries;
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -388,11 +543,19 @@ class _TrainingHistoryDialogState
           ),
           child: Column(
             children: [
+              // ==================================================
+              // HEADER
+              // ==================================================
               _buildHeader(),
+
               const Divider(
                 height: 1,
                 color: _border,
               ),
+
+              // ==================================================
+              // CONTEÚDO
+              // ==================================================
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(
@@ -401,42 +564,44 @@ class _TrainingHistoryDialogState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      // ==================================================
+                      // RESUMO
+                      // ==================================================
                       TrainingHistorySummary(
                         entries: entries,
                       ),
+
                       const SizedBox(
                         height: 16,
                       ),
+
+                      // ==================================================
+                      // FILTRO
+                      // ==================================================
                       TrainingHistoryFilter(
                         selectedPeriod: _period,
                         customStart: _customStart,
                         customEnd: _customEnd,
-                        onChanged:
-                            (
-                              period,
-                            ) {
-                              if (period ==
-                                  TrainingHistoryPeriod.custom) {
-                                _pickCustomRange();
-                                return;
-                              }
-
-                              setState(
-                                () {
-                                  _period = period;
-                                  _selectedActivity = null;
-                                },
-                              );
-                            },
+                        onChanged: _changePeriod,
                         onCustomRangeTap: _pickCustomRange,
                       ),
+
                       const SizedBox(
                         height: 16,
                       ),
+
+                      // ==================================================
+                      // TABS
+                      // ==================================================
                       _buildTabs(),
+
                       const SizedBox(
                         height: 16,
                       ),
+
+                      // ==================================================
+                      // VISUALIZAÇÃO
+                      // ==================================================
                       AnimatedSwitcher(
                         duration: const Duration(
                           milliseconds: 180,
@@ -450,20 +615,7 @@ class _TrainingHistoryDialogState
                                 ),
                                 entries: entries,
                                 selectedActivity: _selectedActivity,
-                                onActivitySelected:
-                                    (
-                                      activity,
-                                    ) {
-                                      setState(
-                                        () {
-                                          _selectedActivity =
-                                              _selectedActivity ==
-                                                  activity
-                                              ? null
-                                              : activity;
-                                        },
-                                      );
-                                    },
+                                onActivitySelected: _selectActivity,
                               )
                             : TrainingHistoryRecords(
                                 key: ValueKey(
@@ -484,6 +636,10 @@ class _TrainingHistoryDialogState
       ),
     );
   }
+
+  // ============================================================
+  // HEADER
+  // ============================================================
 
   Widget _buildHeader() {
     return Padding(
@@ -512,9 +668,11 @@ class _TrainingHistoryDialogState
               color: _primary,
             ),
           ),
+
           const SizedBox(
             width: 12,
           ),
+
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -527,9 +685,11 @@ class _TrainingHistoryDialogState
                     fontWeight: FontWeight.w800,
                   ),
                 ),
+
                 SizedBox(
                   height: 2,
                 ),
+
                 Text(
                   'Veja a distribuição dos seus treinos por período.',
                   style: TextStyle(
@@ -541,11 +701,10 @@ class _TrainingHistoryDialogState
               ],
             ),
           ),
+
           IconButton(
             tooltip: 'Fechar',
-            onPressed: () => Navigator.of(
-              context,
-            ).pop(),
+            onPressed: _close,
             icon: const Icon(
               Icons.close_rounded,
             ),
@@ -554,6 +713,10 @@ class _TrainingHistoryDialogState
       ),
     );
   }
+
+  // ============================================================
+  // TABS
+  // ============================================================
 
   Widget _buildTabs() {
     return Container(
@@ -578,9 +741,11 @@ class _TrainingHistoryDialogState
               label: 'Distribuição',
             ),
           ),
+
           const SizedBox(
             width: 6,
           ),
+
           Expanded(
             child: _buildTab(
               value: TrainingHistoryView.records,
@@ -593,12 +758,16 @@ class _TrainingHistoryDialogState
     );
   }
 
+  // ============================================================
+  // TAB
+  // ============================================================
+
   Widget _buildTab({
     required TrainingHistoryView value,
     required IconData icon,
     required String label,
   }) {
-    final selected =
+    final bool selected =
         _view ==
         value;
 
@@ -606,9 +775,18 @@ class _TrainingHistoryDialogState
       borderRadius: BorderRadius.circular(
         9,
       ),
-      onTap: () => setState(
-        () => _view = value,
-      ),
+      onTap: () {
+        if (_view ==
+            value) {
+          return;
+        }
+
+        setState(
+          () {
+            _view = value;
+          },
+        );
+      },
       child: AnimatedContainer(
         duration: const Duration(
           milliseconds: 160,
@@ -640,9 +818,11 @@ class _TrainingHistoryDialogState
                   ? _primary
                   : _muted,
             ),
+
             const SizedBox(
               width: 7,
             ),
+
             Text(
               label,
               style: TextStyle(

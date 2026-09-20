@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+// ============================================================
+// ROUTINE TEXT EDITOR
+// ============================================================
+
 class RoutineTextEditor
     extends
         StatefulWidget {
@@ -30,7 +34,7 @@ class RoutineTextEditor
     String initialValue = '',
     int maxLines = 4,
   }) {
-    final safeMaxLines =
+    final int safeMaxLines =
         maxLines <
             1
         ? 1
@@ -52,10 +56,13 @@ class RoutineTextEditor
           (
             _,
             animation,
-            __,
+            _,
             child,
           ) {
-            final curved = CurvedAnimation(
+            final Animation<
+              double
+            >
+            curved = CurvedAnimation(
               parent: animation,
               curve: Curves.easeOutCubic,
               reverseCurve: Curves.easeInCubic,
@@ -81,8 +88,8 @@ class RoutineTextEditor
       pageBuilder:
           (
             _,
-            __,
-            ___,
+            _,
+            _,
           ) {
             return RoutineTextEditor(
               title: title,
@@ -102,6 +109,10 @@ class RoutineTextEditor
     return _RoutineTextEditorState();
   }
 }
+
+// ============================================================
+// STATE
+// ============================================================
 
 class _RoutineTextEditorState
     extends
@@ -187,10 +198,21 @@ class _RoutineTextEditorState
   // ============================================================
 
   void _save() {
-    Navigator.pop(
+    Navigator.of(
       context,
+    ).pop(
       _controller.text.trim(),
     );
+  }
+
+  // ============================================================
+  // CLOSE
+  // ============================================================
+
+  void _close() {
+    Navigator.of(
+      context,
+    ).pop();
   }
 
   // ============================================================
@@ -201,7 +223,7 @@ class _RoutineTextEditorState
   Widget build(
     BuildContext context,
   ) {
-    final minLines =
+    final int minLines =
         widget.maxLines >=
             3
         ? 3
@@ -403,11 +425,7 @@ class _RoutineTextEditorState
         // ======================================================
         IconButton(
           tooltip: 'Fechar',
-          onPressed: () {
-            Navigator.pop(
-              context,
-            );
-          },
+          onPressed: _close,
           style: IconButton.styleFrom(
             foregroundColor: _muted,
             backgroundColor: _surfaceDark,
@@ -442,11 +460,7 @@ class _RoutineTextEditorState
         // CANCELAR
         // ======================================================
         TextButton(
-          onPressed: () {
-            Navigator.pop(
-              context,
-            );
-          },
+          onPressed: _close,
           style: TextButton.styleFrom(
             foregroundColor: _muted,
             padding: const EdgeInsets.symmetric(

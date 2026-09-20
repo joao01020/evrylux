@@ -32,7 +32,7 @@ class SupabaseReviewService {
   }
 
   String _requireUserId() {
-    final userId = _requireUserId();
+    final userId = currentUserId;
 
     if (userId ==
             null ||

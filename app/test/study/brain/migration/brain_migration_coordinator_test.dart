@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:EVRYLUX/core/storage/user_storage_scope.dart';
+// ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
 import 'package:EVRYLUX/study/brain/migration/models/brain_migration_status.dart';
@@ -40,13 +41,20 @@ import 'package:EVRYLUX/study/brain/vault/storage/brain_vault_storage.dart';
 //
 // ============================================================
 
-class _FakePathProviderPlatform extends PathProviderPlatform {
-  _FakePathProviderPlatform(this.documentsPath);
+class _FakePathProviderPlatform
+    extends
+        PathProviderPlatform {
+  _FakePathProviderPlatform(
+    this.documentsPath,
+  );
 
   final String documentsPath;
 
   @override
-  Future<String?> getApplicationDocumentsPath() async {
+  Future<
+    String?
+  >
+  getApplicationDocumentsPath() async {
     return documentsPath;
   }
 }
@@ -55,786 +63,1108 @@ class _FakePathProviderPlatform extends PathProviderPlatform {
 // TESTS
 // ============================================================
 
-void main() {
+void
+main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('BrainMigrationCoordinator', () {
-    late Directory tempDirectory;
+  group(
+    'BrainMigrationCoordinator',
+    () {
+      late Directory tempDirectory;
 
-    late PathProviderPlatform originalPathProvider;
+      late PathProviderPlatform originalPathProvider;
 
-    late BrainStorage brainStorage;
+      late BrainStorage brainStorage;
 
-    late BrainVaultService vaultService;
+      late BrainVaultService vaultService;
 
-    late BrainObjectLinkService linkService;
+      late BrainObjectLinkService linkService;
 
-    late BrainMigrationValidationService validationService;
+      late BrainMigrationValidationService validationService;
 
-    late BrainLegacyMigrationService migrationService;
+      late BrainLegacyMigrationService migrationService;
 
-    late DateTime currentTime;
+      late DateTime currentTime;
 
-    // ============================================================
-    // SETUP
-    // ============================================================
+      // ============================================================
+      // SETUP
+      // ============================================================
 
-    setUp(() async {
-      // ========================================================
-      // TEMP DIRECTORY
-      // ========================================================
+      setUp(
+        () async {
+          // ========================================================
+          // TEMP DIRECTORY
+          // ========================================================
 
-      tempDirectory = await Directory.systemTemp.createTemp(
-        'evrylux_migration_coordinator_test_',
+          tempDirectory = await Directory.systemTemp.createTemp(
+            'evrylux_migration_coordinator_test_',
+          );
+
+          // ========================================================
+          // PATH PROVIDER FAKE
+          // ========================================================
+
+          originalPathProvider = PathProviderPlatform.instance;
+
+          PathProviderPlatform.instance = _FakePathProviderPlatform(
+            tempDirectory.path,
+          );
+
+          // ========================================================
+          // LEGACY STORAGE
+          // ========================================================
+
+          brainStorage = BrainStorage(
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+            ),
+          );
+
+          // ========================================================
+          // KEY SERVICE
+          // ========================================================
+
+          final keyService = BrainKeyService(
+            storage: InMemoryBrainKeyStorage(),
+          );
+
+          // ========================================================
+          // VAULT STORAGE
+          // ========================================================
+
+          final vaultStorage = BrainVaultStorage(
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+              documentsDirectoryProvider: () async => tempDirectory,
+              supportDirectoryProvider: () async => tempDirectory,
+            ),
+          );
+
+          // ========================================================
+          // VAULT SERVICE
+          // ========================================================
+
+          vaultService = BrainVaultService(
+            keyService: keyService,
+            storage: vaultStorage,
+          );
+
+          // ========================================================
+          // CLOCK
+          // ========================================================
+
+          currentTime = DateTime.utc(
+            2026,
+            9,
+            2,
+            12,
+          );
+
+          // ========================================================
+          // LINK SERVICE
+          // ========================================================
+
+          linkService = BrainObjectLinkService(
+            store: InMemoryBrainMigrationLinkStore(),
+            now: () => currentTime,
+          );
+
+          // ========================================================
+          // VALIDATION SERVICE
+          // ========================================================
+
+          validationService = BrainMigrationValidationService(
+            vaultService: vaultService,
+          );
+
+          // ========================================================
+          // MIGRATION SERVICE
+          // ========================================================
+
+          migrationService = BrainLegacyMigrationService(
+            vaultService: vaultService,
+            objectLinkService: linkService,
+            validationService: validationService,
+            now: () => currentTime,
+          );
+
+          // ========================================================
+          // CREATE VAULT
+          // ========================================================
+
+          await vaultService.createVault();
+        },
       );
 
-      // ========================================================
-      // PATH PROVIDER FAKE
-      // ========================================================
+      // ============================================================
+      // TEARDOWN
+      // ============================================================
 
-      originalPathProvider = PathProviderPlatform.instance;
+      tearDown(
+        () async {
+          PathProviderPlatform.instance = originalPathProvider;
 
-      PathProviderPlatform.instance = _FakePathProviderPlatform(
-        tempDirectory.path,
+          if (await tempDirectory.exists()) {
+            await tempDirectory.delete(
+              recursive: true,
+            );
+          }
+        },
       );
 
-      // ========================================================
-      // LEGACY STORAGE
-      // ========================================================
+      // ============================================================
+      // EMPTY PREVIEW
+      // ============================================================
 
-      brainStorage = BrainStorage(
-        storageScope: UserStorageScope.fixed(userId: 'test-user'),
+      test(
+        'preview vazio quando não existem dados legados',
+        () async {
+          final coordinator = BrainMigrationCoordinator(
+            brainStorage: brainStorage,
+            migrationService: migrationService,
+          );
+
+          final preview = await coordinator.preview();
+
+          expect(
+            preview.fileCount,
+            0,
+          );
+
+          expect(
+            preview.reviewCount,
+            0,
+          );
+
+          expect(
+            preview.total,
+            0,
+          );
+
+          expect(
+            preview.isEmpty,
+            true,
+          );
+
+          expect(
+            preview.isNotEmpty,
+            false,
+          );
+        },
       );
 
-      // ========================================================
-      // KEY SERVICE
-      // ========================================================
+      // ============================================================
+      // LEGACY NOTE
+      // ============================================================
 
-      final keyService = BrainKeyService(storage: InMemoryBrainKeyStorage());
+      test(
+        'carrega nota legada pelo BrainStorage',
+        () async {
+          final saved = await brainStorage.saveNote(
+            topic: 'Programação',
+            title: 'Ponteiros',
+            content: 'Ponteiros armazenam endereços de memória.',
+            concepts: const [],
+          );
 
-      // ========================================================
-      // VAULT STORAGE
-      // ========================================================
+          // Fase 09: novas gravações não persistem Tema. Este teste
+          // precisa representar um arquivo legado que ainda o possui.
+          final legacyFile = File(
+            saved.path,
+          );
+          final markdown = await legacyFile.readAsString();
+          expect(
+            markdown.startsWith(
+              '---\n',
+            ),
+            true,
+          );
+          await legacyFile.writeAsString(
+            markdown.replaceFirst(
+              '---\n',
+              '---\ntema: Programação\n',
+            ),
+          );
 
-      final vaultStorage = BrainVaultStorage(
-        storageScope: UserStorageScope.fixed(
-          userId: 'test-user',
-          documentsDirectoryProvider: () async => tempDirectory,
-          supportDirectoryProvider: () async => tempDirectory,
-        ),
+          final coordinator = BrainMigrationCoordinator(
+            brainStorage: brainStorage,
+            migrationService: migrationService,
+          );
+
+          final files = await coordinator.loadLegacyFiles();
+
+          expect(
+            files.length,
+            1,
+          );
+
+          expect(
+            files.first.title,
+            'Ponteiros',
+          );
+
+          expect(
+            files.first.topic,
+            'Programação',
+          );
+
+          expect(
+            files.first.content,
+            'Ponteiros armazenam endereços de memória.',
+          );
+
+          expect(
+            files.first.path,
+            isNotEmpty,
+          );
+        },
       );
 
-      // ========================================================
-      // VAULT SERVICE
-      // ========================================================
+      // ============================================================
+      // LEGACY REVIEWS
+      // ============================================================
 
-      vaultService = BrainVaultService(
-        keyService: keyService,
-        storage: vaultStorage,
+      test(
+        'carrega reviews através do reviewLoader',
+        () async {
+          final review = BrainReviewItem(
+            id: 'review-coordinator-001',
+
+            conceptId: 'concept-coordinator-001',
+
+            question: 'O que é um ponteiro?',
+
+            answer: 'Uma variável que armazena um endereço.',
+
+            sourceNotePath: '/tmp/ponteiros.md',
+
+            sourceNoteTitle: 'Ponteiros',
+
+            createdAt: DateTime(
+              2026,
+              9,
+              1,
+            ),
+
+            nextReviewAt: DateTime(
+              2026,
+              9,
+              5,
+            ),
+
+            lastReviewedAt: null,
+
+            archivedAt: null,
+
+            reviewCount: 0,
+
+            correctCount: 0,
+
+            wrongCount: 0,
+
+            streak: 0,
+
+            archived: false,
+          );
+
+          final coordinator = BrainMigrationCoordinator(
+            brainStorage: brainStorage,
+
+            migrationService: migrationService,
+
+            reviewLoader: () async => [
+              review,
+            ],
+          );
+
+          final reviews = await coordinator.loadLegacyReviews();
+
+          expect(
+            reviews.length,
+            1,
+          );
+
+          expect(
+            reviews.first.id,
+            review.id,
+          );
+
+          expect(
+            reviews.first.question,
+            review.question,
+          );
+
+          expect(
+            reviews.first.answer,
+            review.answer,
+          );
+        },
       );
 
-      // ========================================================
-      // CLOCK
-      // ========================================================
+      test(
+        'sem reviewLoader retorna lista vazia',
+        () async {
+          final coordinator = BrainMigrationCoordinator(
+            brainStorage: brainStorage,
 
-      currentTime = DateTime.utc(2026, 9, 2, 12);
+            migrationService: migrationService,
+          );
 
-      // ========================================================
-      // LINK SERVICE
-      // ========================================================
+          final reviews = await coordinator.loadLegacyReviews();
 
-      linkService = BrainObjectLinkService(
-        store: InMemoryBrainMigrationLinkStore(),
-        now: () => currentTime,
+          expect(
+            reviews,
+            isEmpty,
+          );
+        },
       );
 
-      // ========================================================
-      // VALIDATION SERVICE
-      // ========================================================
+      // ============================================================
+      // PREVIEW
+      // ============================================================
 
-      validationService = BrainMigrationValidationService(
-        vaultService: vaultService,
+      test(
+        'preview contabiliza files e reviews',
+        () async {
+          await brainStorage.saveNote(
+            topic: 'Economia',
+
+            title: 'Custo de oportunidade',
+
+            content: 'Valor da melhor alternativa abandonada.',
+
+            concepts: const [],
+          );
+
+          final review = BrainReviewItem(
+            id: 'review-preview-001',
+
+            conceptId: 'concept-preview-001',
+
+            question: 'O que é custo de oportunidade?',
+
+            answer: 'A melhor alternativa abandonada.',
+
+            sourceNotePath: '/tmp/economia.md',
+
+            sourceNoteTitle: 'Economia',
+
+            createdAt: DateTime(
+              2026,
+              9,
+              1,
+            ),
+
+            nextReviewAt: DateTime(
+              2026,
+              9,
+              5,
+            ),
+
+            lastReviewedAt: null,
+
+            archivedAt: null,
+
+            reviewCount: 0,
+
+            correctCount: 0,
+
+            wrongCount: 0,
+
+            streak: 0,
+
+            archived: false,
+          );
+
+          final coordinator = BrainMigrationCoordinator(
+            brainStorage: brainStorage,
+
+            migrationService: migrationService,
+
+            reviewLoader: () async => [
+              review,
+            ],
+          );
+
+          final preview = await coordinator.preview();
+
+          expect(
+            preview.fileCount,
+            1,
+          );
+
+          expect(
+            preview.reviewCount,
+            1,
+          );
+
+          expect(
+            preview.total,
+            2,
+          );
+
+          expect(
+            preview.isNotEmpty,
+            true,
+          );
+        },
       );
 
-      // ========================================================
-      // MIGRATION SERVICE
-      // ========================================================
+      // ============================================================
+      // RUN — FILE
+      // ============================================================
 
-      migrationService = BrainLegacyMigrationService(
-        vaultService: vaultService,
-        objectLinkService: linkService,
-        validationService: validationService,
-        now: () => currentTime,
+      test(
+        'run migra nota legada para Vault',
+        () async {
+          final saved = await brainStorage.saveNote(
+            topic: 'Segurança',
+
+            title: 'Princípio do menor privilégio',
+
+            content: 'Cada componente deve ter apenas as permissões necessárias.',
+
+            concepts: const [],
+          );
+
+          final legacyPath = saved.path;
+
+          final legacyFile = File(
+            legacyPath,
+          );
+
+          expect(
+            await legacyFile.exists(),
+            true,
+          );
+
+          final coordinator = BrainMigrationCoordinator(
+            brainStorage: brainStorage,
+
+            migrationService: migrationService,
+          );
+
+          final result = await coordinator.run();
+
+          expect(
+            result.total,
+            1,
+          );
+
+          expect(
+            result.validated,
+            1,
+          );
+
+          expect(
+            result.failed,
+            0,
+          );
+
+          expect(
+            result.allValidated,
+            true,
+          );
+
+          final objects = await vaultService.loadAllEncryptedObjects();
+
+          expect(
+            objects.length,
+            1,
+          );
+
+          // ========================================================
+          // CRITICAL GUARANTEE
+          // ========================================================
+          //
+          // A migração NÃO pode remover o legado.
+          //
+          // ========================================================
+
+          expect(
+            await legacyFile.exists(),
+            true,
+          );
+        },
       );
 
-      // ========================================================
-      // CREATE VAULT
-      // ========================================================
+      // ============================================================
+      // RUN — FILE + REVIEW
+      // ============================================================
 
-      await vaultService.createVault();
-    });
+      test(
+        'run migra file e review juntos',
+        () async {
+          final saved = await brainStorage.saveNote(
+            topic: 'C++',
 
-    // ============================================================
-    // TEARDOWN
-    // ============================================================
+            title: 'RAII',
 
-    tearDown(() async {
-      PathProviderPlatform.instance = originalPathProvider;
+            content: 'Recursos acompanham o tempo de vida dos objetos.',
 
-      if (await tempDirectory.exists()) {
-        await tempDirectory.delete(recursive: true);
-      }
-    });
+            concepts: const [],
+          );
 
-    // ============================================================
-    // EMPTY PREVIEW
-    // ============================================================
+          final review = BrainReviewItem(
+            id: 'review-run-all-001',
 
-    test('preview vazio quando não existem dados legados', () async {
-      final coordinator = BrainMigrationCoordinator(
-        brainStorage: brainStorage,
-        migrationService: migrationService,
+            conceptId: 'concept-run-all-001',
+
+            question: 'O que significa RAII?',
+
+            answer: 'Resource Acquisition Is Initialization.',
+
+            sourceNotePath: saved.path,
+
+            sourceNoteTitle: saved.title,
+
+            createdAt: DateTime(
+              2026,
+              9,
+              1,
+            ),
+
+            nextReviewAt: DateTime(
+              2026,
+              9,
+              5,
+            ),
+
+            lastReviewedAt: null,
+
+            archivedAt: null,
+
+            reviewCount: 0,
+
+            correctCount: 0,
+
+            wrongCount: 0,
+
+            streak: 0,
+
+            archived: false,
+          );
+
+          final coordinator = BrainMigrationCoordinator(
+            brainStorage: brainStorage,
+
+            migrationService: migrationService,
+
+            reviewLoader: () async => [
+              review,
+            ],
+          );
+
+          final result = await coordinator.run();
+
+          expect(
+            result.total,
+            2,
+          );
+
+          expect(
+            result.validated,
+            2,
+          );
+
+          expect(
+            result.failed,
+            0,
+          );
+
+          expect(
+            result.allValidated,
+            true,
+          );
+
+          final objects = await vaultService.loadAllEncryptedObjects();
+
+          expect(
+            objects.length,
+            2,
+          );
+        },
       );
 
-      final preview = await coordinator.preview();
+      // ============================================================
+      // RUN FILES ONLY
+      // ============================================================
 
-      expect(preview.fileCount, 0);
+      test(
+        'runFilesOnly ignora reviews',
+        () async {
+          await brainStorage.saveNote(
+            topic: 'Linux',
 
-      expect(preview.reviewCount, 0);
+            title: 'Permissões',
 
-      expect(preview.total, 0);
+            content: 'Permissões tradicionais usam owner, group e others.',
 
-      expect(preview.isEmpty, true);
+            concepts: const [],
+          );
 
-      expect(preview.isNotEmpty, false);
-    });
+          final review = BrainReviewItem(
+            id: 'review-ignore-001',
 
-    // ============================================================
-    // LEGACY NOTE
-    // ============================================================
+            conceptId: 'concept-ignore-001',
 
-    test('carrega nota legada pelo BrainStorage', () async {
-      final saved = await brainStorage.saveNote(
-        topic: 'Programação',
-        title: 'Ponteiros',
-        content: 'Ponteiros armazenam endereços de memória.',
-        concepts: const [],
+            question: 'O que é chmod?',
+
+            answer: 'Comando para alterar permissões.',
+
+            sourceNotePath: '/tmp/linux.md',
+
+            sourceNoteTitle: 'Linux',
+
+            createdAt: DateTime(
+              2026,
+              9,
+              1,
+            ),
+
+            nextReviewAt: DateTime(
+              2026,
+              9,
+              5,
+            ),
+
+            lastReviewedAt: null,
+
+            archivedAt: null,
+
+            reviewCount: 0,
+
+            correctCount: 0,
+
+            wrongCount: 0,
+
+            streak: 0,
+
+            archived: false,
+          );
+
+          final coordinator = BrainMigrationCoordinator(
+            brainStorage: brainStorage,
+
+            migrationService: migrationService,
+
+            reviewLoader: () async => [
+              review,
+            ],
+          );
+
+          final result = await coordinator.runFilesOnly();
+
+          expect(
+            result.total,
+            1,
+          );
+
+          expect(
+            result.validated,
+            1,
+          );
+
+          expect(
+            result.failed,
+            0,
+          );
+
+          final objects = await vaultService.loadAllEncryptedObjects();
+
+          expect(
+            objects.length,
+            1,
+          );
+        },
       );
 
-      // Fase 09: novas gravações não persistem Tema. Este teste
-      // precisa representar um arquivo legado que ainda o possui.
-      final legacyFile = File(saved.path);
-      final markdown = await legacyFile.readAsString();
-      expect(markdown.startsWith('---\n'), true);
-      await legacyFile.writeAsString(
-        markdown.replaceFirst('---\n', '---\ntema: Programação\n'),
+      // ============================================================
+      // RUN REVIEWS ONLY
+      // ============================================================
+
+      test(
+        'runReviewsOnly migra apenas reviews',
+        () async {
+          await brainStorage.saveNote(
+            topic: 'Não migrar',
+
+            title: 'Nota ignorada',
+
+            content: 'Esta nota não deve ser migrada neste teste.',
+
+            concepts: const [],
+          );
+
+          final review = BrainReviewItem(
+            id: 'review-only-001',
+
+            conceptId: 'concept-only-001',
+
+            question: 'Pergunta?',
+
+            answer: 'Resposta.',
+
+            sourceNotePath: '/tmp/review-only.md',
+
+            sourceNoteTitle: 'Review only',
+
+            createdAt: DateTime(
+              2026,
+              9,
+              1,
+            ),
+
+            nextReviewAt: DateTime(
+              2026,
+              9,
+              5,
+            ),
+
+            lastReviewedAt: null,
+
+            archivedAt: null,
+
+            reviewCount: 0,
+
+            correctCount: 0,
+
+            wrongCount: 0,
+
+            streak: 0,
+
+            archived: false,
+          );
+
+          final coordinator = BrainMigrationCoordinator(
+            brainStorage: brainStorage,
+
+            migrationService: migrationService,
+
+            reviewLoader: () async => [
+              review,
+            ],
+          );
+
+          final result = await coordinator.runReviewsOnly();
+
+          expect(
+            result.total,
+            1,
+          );
+
+          expect(
+            result.validated,
+            1,
+          );
+
+          expect(
+            result.failed,
+            0,
+          );
+
+          final objects = await vaultService.loadAllEncryptedObjects();
+
+          expect(
+            objects.length,
+            1,
+          );
+        },
       );
 
-      final coordinator = BrainMigrationCoordinator(
-        brainStorage: brainStorage,
-        migrationService: migrationService,
+      // ============================================================
+      // IDEMPOTENCE
+      // ============================================================
+
+      test(
+        'executar coordinator duas vezes não duplica objeto',
+        () async {
+          await brainStorage.saveNote(
+            topic: 'C++',
+
+            title: 'Smart pointers',
+
+            content: 'Smart pointers automatizam gerenciamento de ownership.',
+
+            concepts: const [],
+          );
+
+          final coordinator = BrainMigrationCoordinator(
+            brainStorage: brainStorage,
+
+            migrationService: migrationService,
+          );
+
+          final first = await coordinator.run();
+
+          final second = await coordinator.run();
+
+          expect(
+            first.validated,
+            1,
+          );
+
+          expect(
+            second.validated,
+            1,
+          );
+
+          final objects = await vaultService.loadAllEncryptedObjects();
+
+          expect(
+            objects.length,
+            1,
+          );
+        },
       );
 
-      final files = await coordinator.loadLegacyFiles();
+      // ============================================================
+      // SAFE RUN
+      // ============================================================
 
-      expect(files.length, 1);
+      test(
+        'safeRun retorna sucesso',
+        () async {
+          await brainStorage.saveNote(
+            topic: 'Teste',
 
-      expect(files.first.title, 'Ponteiros');
+            title: 'Safe run',
 
-      expect(files.first.topic, 'Programação');
+            content: 'Conteúdo.',
 
-      expect(files.first.content, 'Ponteiros armazenam endereços de memória.');
+            concepts: const [],
+          );
 
-      expect(files.first.path, isNotEmpty);
-    });
+          final coordinator = BrainMigrationCoordinator(
+            brainStorage: brainStorage,
 
-    // ============================================================
-    // LEGACY REVIEWS
-    // ============================================================
+            migrationService: migrationService,
 
-    test('carrega reviews através do reviewLoader', () async {
-      final review = BrainReviewItem(
-        id: 'review-coordinator-001',
+            now: () => currentTime,
+          );
 
-        conceptId: 'concept-coordinator-001',
+          final result = await coordinator.safeRun();
 
-        question: 'O que é um ponteiro?',
+          expect(
+            result.success,
+            true,
+          );
 
-        answer: 'Uma variável que armazena um endereço.',
+          expect(
+            result.hasError,
+            false,
+          );
 
-        sourceNotePath: '/tmp/ponteiros.md',
+          expect(
+            result.hasResult,
+            true,
+          );
 
-        sourceNoteTitle: 'Ponteiros',
+          expect(
+            result.total,
+            1,
+          );
 
-        createdAt: DateTime(2026, 9, 1),
+          expect(
+            result.validated,
+            1,
+          );
 
-        nextReviewAt: DateTime(2026, 9, 5),
+          expect(
+            result.failed,
+            0,
+          );
 
-        lastReviewedAt: null,
-
-        archivedAt: null,
-
-        reviewCount: 0,
-
-        correctCount: 0,
-
-        wrongCount: 0,
-
-        streak: 0,
-
-        archived: false,
+          expect(
+            result.overallStatus,
+            BrainMigrationStatus.validated,
+          );
+        },
       );
 
-      final coordinator = BrainMigrationCoordinator(
-        brainStorage: brainStorage,
+      // ============================================================
+      // LEGACY MUST SURVIVE
+      // ============================================================
 
-        migrationService: migrationService,
+      test(
+        'migração não remove arquivos legados',
+        () async {
+          final first = await brainStorage.saveNote(
+            topic: 'Conhecimento',
 
-        reviewLoader: () async => [review],
+            title: 'Primeira nota',
+
+            content: 'Primeiro conteúdo.',
+
+            concepts: const [],
+          );
+
+          final second = await brainStorage.saveNote(
+            topic: 'Conhecimento',
+
+            title: 'Segunda nota',
+
+            content: 'Segundo conteúdo.',
+
+            concepts: const [],
+          );
+
+          final firstFile = File(
+            first.path,
+          );
+
+          final secondFile = File(
+            second.path,
+          );
+
+          expect(
+            await firstFile.exists(),
+            true,
+          );
+
+          expect(
+            await secondFile.exists(),
+            true,
+          );
+
+          final coordinator = BrainMigrationCoordinator(
+            brainStorage: brainStorage,
+
+            migrationService: migrationService,
+          );
+
+          final result = await coordinator.run();
+
+          expect(
+            result.validated,
+            2,
+          );
+
+          expect(
+            result.failed,
+            0,
+          );
+
+          // ========================================================
+          // LEGADO PERMANECE
+          // ========================================================
+
+          expect(
+            await firstFile.exists(),
+            true,
+          );
+
+          expect(
+            await secondFile.exists(),
+            true,
+          );
+        },
       );
 
-      final reviews = await coordinator.loadLegacyReviews();
+      // ============================================================
+      // BRAIN STORAGE MUST BE NON-DESTRUCTIVE
+      // ============================================================
 
-      expect(reviews.length, 1);
+      test(
+        'abrir BrainStorage novamente não apaga nota existente',
+        () async {
+          final saved = await brainStorage.saveNote(
+            topic: 'Persistência',
 
-      expect(reviews.first.id, review.id);
+            title: 'Não apagar',
 
-      expect(reviews.first.question, review.question);
+            content: 'Este arquivo precisa sobreviver à reinicialização do storage.',
 
-      expect(reviews.first.answer, review.answer);
-    });
+            concepts: const [],
+          );
 
-    test('sem reviewLoader retorna lista vazia', () async {
-      final coordinator = BrainMigrationCoordinator(
-        brainStorage: brainStorage,
+          final file = File(
+            saved.path,
+          );
 
-        migrationService: migrationService,
+          expect(
+            await file.exists(),
+            true,
+          );
+
+          // ========================================================
+          // NOVA INSTÂNCIA
+          // ========================================================
+
+          final reopenedStorage = BrainStorage(
+            storageScope: UserStorageScope.fixed(
+              userId: 'test-user',
+            ),
+          );
+
+          final directory = await reopenedStorage.getBrainDirectory();
+
+          expect(
+            await directory.exists(),
+            true,
+          );
+
+          // ========================================================
+          // ARQUIVO CONTINUA EXISTINDO
+          // ========================================================
+
+          expect(
+            await file.exists(),
+            true,
+          );
+
+          final notes = await reopenedStorage.loadNotes();
+
+          expect(
+            notes.length,
+            1,
+          );
+
+          expect(
+            notes.first.title,
+            'Não apagar',
+          );
+        },
       );
 
-      final reviews = await coordinator.loadLegacyReviews();
+      // ============================================================
+      // EMPTY RUN
+      // ============================================================
 
-      expect(reviews, isEmpty);
-    });
+      test(
+        'run sem legado retorna resultado vazio',
+        () async {
+          final coordinator = BrainMigrationCoordinator(
+            brainStorage: brainStorage,
 
-    // ============================================================
-    // PREVIEW
-    // ============================================================
+            migrationService: migrationService,
+          );
 
-    test('preview contabiliza files e reviews', () async {
-      await brainStorage.saveNote(
-        topic: 'Economia',
+          final result = await coordinator.run();
 
-        title: 'Custo de oportunidade',
+          expect(
+            result.total,
+            0,
+          );
 
-        content: 'Valor da melhor alternativa abandonada.',
+          expect(
+            result.failed,
+            0,
+          );
 
-        concepts: const [],
+          expect(
+            result.allValidated,
+            true,
+          );
+
+          final objects = await vaultService.loadAllEncryptedObjects();
+
+          expect(
+            objects,
+            isEmpty,
+          );
+        },
       );
-
-      final review = BrainReviewItem(
-        id: 'review-preview-001',
-
-        conceptId: 'concept-preview-001',
-
-        question: 'O que é custo de oportunidade?',
-
-        answer: 'A melhor alternativa abandonada.',
-
-        sourceNotePath: '/tmp/economia.md',
-
-        sourceNoteTitle: 'Economia',
-
-        createdAt: DateTime(2026, 9, 1),
-
-        nextReviewAt: DateTime(2026, 9, 5),
-
-        lastReviewedAt: null,
-
-        archivedAt: null,
-
-        reviewCount: 0,
-
-        correctCount: 0,
-
-        wrongCount: 0,
-
-        streak: 0,
-
-        archived: false,
-      );
-
-      final coordinator = BrainMigrationCoordinator(
-        brainStorage: brainStorage,
-
-        migrationService: migrationService,
-
-        reviewLoader: () async => [review],
-      );
-
-      final preview = await coordinator.preview();
-
-      expect(preview.fileCount, 1);
-
-      expect(preview.reviewCount, 1);
-
-      expect(preview.total, 2);
-
-      expect(preview.isNotEmpty, true);
-    });
-
-    // ============================================================
-    // RUN — FILE
-    // ============================================================
-
-    test('run migra nota legada para Vault', () async {
-      final saved = await brainStorage.saveNote(
-        topic: 'Segurança',
-
-        title: 'Princípio do menor privilégio',
-
-        content: 'Cada componente deve ter apenas as permissões necessárias.',
-
-        concepts: const [],
-      );
-
-      final legacyPath = saved.path;
-
-      final legacyFile = File(legacyPath);
-
-      expect(await legacyFile.exists(), true);
-
-      final coordinator = BrainMigrationCoordinator(
-        brainStorage: brainStorage,
-
-        migrationService: migrationService,
-      );
-
-      final result = await coordinator.run();
-
-      expect(result.total, 1);
-
-      expect(result.validated, 1);
-
-      expect(result.failed, 0);
-
-      expect(result.allValidated, true);
-
-      final objects = await vaultService.loadAllEncryptedObjects();
-
-      expect(objects.length, 1);
-
-      // ========================================================
-      // CRITICAL GUARANTEE
-      // ========================================================
-      //
-      // A migração NÃO pode remover o legado.
-      //
-      // ========================================================
-
-      expect(await legacyFile.exists(), true);
-    });
-
-    // ============================================================
-    // RUN — FILE + REVIEW
-    // ============================================================
-
-    test('run migra file e review juntos', () async {
-      final saved = await brainStorage.saveNote(
-        topic: 'C++',
-
-        title: 'RAII',
-
-        content: 'Recursos acompanham o tempo de vida dos objetos.',
-
-        concepts: const [],
-      );
-
-      final review = BrainReviewItem(
-        id: 'review-run-all-001',
-
-        conceptId: 'concept-run-all-001',
-
-        question: 'O que significa RAII?',
-
-        answer: 'Resource Acquisition Is Initialization.',
-
-        sourceNotePath: saved.path,
-
-        sourceNoteTitle: saved.title,
-
-        createdAt: DateTime(2026, 9, 1),
-
-        nextReviewAt: DateTime(2026, 9, 5),
-
-        lastReviewedAt: null,
-
-        archivedAt: null,
-
-        reviewCount: 0,
-
-        correctCount: 0,
-
-        wrongCount: 0,
-
-        streak: 0,
-
-        archived: false,
-      );
-
-      final coordinator = BrainMigrationCoordinator(
-        brainStorage: brainStorage,
-
-        migrationService: migrationService,
-
-        reviewLoader: () async => [review],
-      );
-
-      final result = await coordinator.run();
-
-      expect(result.total, 2);
-
-      expect(result.validated, 2);
-
-      expect(result.failed, 0);
-
-      expect(result.allValidated, true);
-
-      final objects = await vaultService.loadAllEncryptedObjects();
-
-      expect(objects.length, 2);
-    });
-
-    // ============================================================
-    // RUN FILES ONLY
-    // ============================================================
-
-    test('runFilesOnly ignora reviews', () async {
-      await brainStorage.saveNote(
-        topic: 'Linux',
-
-        title: 'Permissões',
-
-        content: 'Permissões tradicionais usam owner, group e others.',
-
-        concepts: const [],
-      );
-
-      final review = BrainReviewItem(
-        id: 'review-ignore-001',
-
-        conceptId: 'concept-ignore-001',
-
-        question: 'O que é chmod?',
-
-        answer: 'Comando para alterar permissões.',
-
-        sourceNotePath: '/tmp/linux.md',
-
-        sourceNoteTitle: 'Linux',
-
-        createdAt: DateTime(2026, 9, 1),
-
-        nextReviewAt: DateTime(2026, 9, 5),
-
-        lastReviewedAt: null,
-
-        archivedAt: null,
-
-        reviewCount: 0,
-
-        correctCount: 0,
-
-        wrongCount: 0,
-
-        streak: 0,
-
-        archived: false,
-      );
-
-      final coordinator = BrainMigrationCoordinator(
-        brainStorage: brainStorage,
-
-        migrationService: migrationService,
-
-        reviewLoader: () async => [review],
-      );
-
-      final result = await coordinator.runFilesOnly();
-
-      expect(result.total, 1);
-
-      expect(result.validated, 1);
-
-      expect(result.failed, 0);
-
-      final objects = await vaultService.loadAllEncryptedObjects();
-
-      expect(objects.length, 1);
-    });
-
-    // ============================================================
-    // RUN REVIEWS ONLY
-    // ============================================================
-
-    test('runReviewsOnly migra apenas reviews', () async {
-      await brainStorage.saveNote(
-        topic: 'Não migrar',
-
-        title: 'Nota ignorada',
-
-        content: 'Esta nota não deve ser migrada neste teste.',
-
-        concepts: const [],
-      );
-
-      final review = BrainReviewItem(
-        id: 'review-only-001',
-
-        conceptId: 'concept-only-001',
-
-        question: 'Pergunta?',
-
-        answer: 'Resposta.',
-
-        sourceNotePath: '/tmp/review-only.md',
-
-        sourceNoteTitle: 'Review only',
-
-        createdAt: DateTime(2026, 9, 1),
-
-        nextReviewAt: DateTime(2026, 9, 5),
-
-        lastReviewedAt: null,
-
-        archivedAt: null,
-
-        reviewCount: 0,
-
-        correctCount: 0,
-
-        wrongCount: 0,
-
-        streak: 0,
-
-        archived: false,
-      );
-
-      final coordinator = BrainMigrationCoordinator(
-        brainStorage: brainStorage,
-
-        migrationService: migrationService,
-
-        reviewLoader: () async => [review],
-      );
-
-      final result = await coordinator.runReviewsOnly();
-
-      expect(result.total, 1);
-
-      expect(result.validated, 1);
-
-      expect(result.failed, 0);
-
-      final objects = await vaultService.loadAllEncryptedObjects();
-
-      expect(objects.length, 1);
-    });
-
-    // ============================================================
-    // IDEMPOTENCE
-    // ============================================================
-
-    test('executar coordinator duas vezes não duplica objeto', () async {
-      await brainStorage.saveNote(
-        topic: 'C++',
-
-        title: 'Smart pointers',
-
-        content: 'Smart pointers automatizam gerenciamento de ownership.',
-
-        concepts: const [],
-      );
-
-      final coordinator = BrainMigrationCoordinator(
-        brainStorage: brainStorage,
-
-        migrationService: migrationService,
-      );
-
-      final first = await coordinator.run();
-
-      final second = await coordinator.run();
-
-      expect(first.validated, 1);
-
-      expect(second.validated, 1);
-
-      final objects = await vaultService.loadAllEncryptedObjects();
-
-      expect(objects.length, 1);
-    });
-
-    // ============================================================
-    // SAFE RUN
-    // ============================================================
-
-    test('safeRun retorna sucesso', () async {
-      await brainStorage.saveNote(
-        topic: 'Teste',
-
-        title: 'Safe run',
-
-        content: 'Conteúdo.',
-
-        concepts: const [],
-      );
-
-      final coordinator = BrainMigrationCoordinator(
-        brainStorage: brainStorage,
-
-        migrationService: migrationService,
-
-        now: () => currentTime,
-      );
-
-      final result = await coordinator.safeRun();
-
-      expect(result.success, true);
-
-      expect(result.hasError, false);
-
-      expect(result.hasResult, true);
-
-      expect(result.total, 1);
-
-      expect(result.validated, 1);
-
-      expect(result.failed, 0);
-
-      expect(result.overallStatus, BrainMigrationStatus.validated);
-    });
-
-    // ============================================================
-    // LEGACY MUST SURVIVE
-    // ============================================================
-
-    test('migração não remove arquivos legados', () async {
-      final first = await brainStorage.saveNote(
-        topic: 'Conhecimento',
-
-        title: 'Primeira nota',
-
-        content: 'Primeiro conteúdo.',
-
-        concepts: const [],
-      );
-
-      final second = await brainStorage.saveNote(
-        topic: 'Conhecimento',
-
-        title: 'Segunda nota',
-
-        content: 'Segundo conteúdo.',
-
-        concepts: const [],
-      );
-
-      final firstFile = File(first.path);
-
-      final secondFile = File(second.path);
-
-      expect(await firstFile.exists(), true);
-
-      expect(await secondFile.exists(), true);
-
-      final coordinator = BrainMigrationCoordinator(
-        brainStorage: brainStorage,
-
-        migrationService: migrationService,
-      );
-
-      final result = await coordinator.run();
-
-      expect(result.validated, 2);
-
-      expect(result.failed, 0);
-
-      // ========================================================
-      // LEGADO PERMANECE
-      // ========================================================
-
-      expect(await firstFile.exists(), true);
-
-      expect(await secondFile.exists(), true);
-    });
-
-    // ============================================================
-    // BRAIN STORAGE MUST BE NON-DESTRUCTIVE
-    // ============================================================
-
-    test('abrir BrainStorage novamente não apaga nota existente', () async {
-      final saved = await brainStorage.saveNote(
-        topic: 'Persistência',
-
-        title: 'Não apagar',
-
-        content:
-            'Este arquivo precisa sobreviver à reinicialização do storage.',
-
-        concepts: const [],
-      );
-
-      final file = File(saved.path);
-
-      expect(await file.exists(), true);
-
-      // ========================================================
-      // NOVA INSTÂNCIA
-      // ========================================================
-
-      final reopenedStorage = BrainStorage(
-        storageScope: UserStorageScope.fixed(userId: 'test-user'),
-      );
-
-      final directory = await reopenedStorage.getBrainDirectory();
-
-      expect(await directory.exists(), true);
-
-      // ========================================================
-      // ARQUIVO CONTINUA EXISTINDO
-      // ========================================================
-
-      expect(await file.exists(), true);
-
-      final notes = await reopenedStorage.loadNotes();
-
-      expect(notes.length, 1);
-
-      expect(notes.first.title, 'Não apagar');
-    });
-
-    // ============================================================
-    // EMPTY RUN
-    // ============================================================
-
-    test('run sem legado retorna resultado vazio', () async {
-      final coordinator = BrainMigrationCoordinator(
-        brainStorage: brainStorage,
-
-        migrationService: migrationService,
-      );
-
-      final result = await coordinator.run();
-
-      expect(result.total, 0);
-
-      expect(result.failed, 0);
-
-      expect(result.allValidated, true);
-
-      final objects = await vaultService.loadAllEncryptedObjects();
-
-      expect(objects, isEmpty);
-    });
-  });
+    },
+  );
 }

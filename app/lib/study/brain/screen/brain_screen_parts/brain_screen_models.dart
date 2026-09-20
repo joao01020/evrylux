@@ -3,46 +3,106 @@ part of '../brain_screen.dart';
 // ============================================================
 // SEARCH VISUAL TARGET
 // ============================================================
+//
+// Representa um alvo encontrado pela busca dentro do cérebro
+// visual.
+//
+// O alvo pode apontar para:
+// - uma ramificação;
+// - uma conexão;
+// - ambos, dependendo do resultado da busca.
+//
+// Atualmente a busca visual resolve o alvo através da conexão.
+// Mantemos branchIndex no modelo por compatibilidade com o fluxo
+// visual existente, mas ele permanece nulo enquanto não houver
+// resolução explícita de ramificação.
+//
+// ============================================================
 
 class _BrainSearchVisualTarget {
-  const _BrainSearchVisualTarget({this.branchIndex, this.connectionIndex});
+  const _BrainSearchVisualTarget({
+    this.connectionIndex,
+  }) : branchIndex = null;
 
   final int? branchIndex;
+
   final int? connectionIndex;
+
+  bool get hasBranch =>
+      branchIndex !=
+      null;
+
+  bool get hasConnection =>
+      connectionIndex !=
+      null;
+
+  bool get isEmpty =>
+      !hasBranch &&
+      !hasConnection;
 }
 
 // ============================================================
 // RASCUNHO DE PERGUNTA
 // ============================================================
 //
-// FASE 09:
-// perguntas não dependem mais de Tema; o texto e a captura usam
-// apenas pergunta, resposta e primeira revisão.
+// Usado exclusivamente durante o fluxo de criação de perguntas.
 //
+// Cada pergunta possui seus próprios controllers para permitir
+// que várias perguntas sejam preenchidas simultaneamente antes
+// de serem enviadas individualmente ao BrainController.
 //
-// Usado somente pelo modal de criação em lote.
+// Perguntas não dependem mais de Tema.
 //
-// Cada pergunta mantém controllers próprios para permitir que
-// várias perguntas sejam preenchidas simultaneamente antes de
-// enviarmos uma por uma para o BrainController.
+// Cada rascunho contém:
+// - pergunta;
+// - resposta;
+// - fontes;
+// - configuração da primeira revisão.
 //
 // ============================================================
 
 class _QuestionDraft {
-  _QuestionDraft() : delay = _QuestionReviewDelay.oneDay;
+  _QuestionDraft({
+    _QuestionReviewDelay? delay,
+  }) : delay =
+           delay ??
+           _QuestionReviewDelay.oneDay;
 
   final TextEditingController questionController = TextEditingController();
 
   final TextEditingController answerController = TextEditingController();
 
-  final List<BrainSource> sources = <BrainSource>[];
+  final List<
+    BrainSource
+  >
+  sources =
+      <
+        BrainSource
+      >[];
 
   _QuestionReviewDelay delay;
+
+  String get question => questionController.text.trim();
+
+  String get answer => answerController.text.trim();
+
+  bool get hasQuestion => question.isNotEmpty;
+
+  bool get hasAnswer => answer.isNotEmpty;
+
+  bool get isValid => hasQuestion;
 
   void dispose() {
     questionController.dispose();
 
     answerController.dispose();
+
+    // BrainSource atualmente não possui controllers nem recursos
+    // descartáveis associados ao ciclo de vida deste draft.
+    //
+    // Portanto, não devemos limpar `sources` aqui apenas por
+    // conveniência, pois o conteúdo pode ainda estar sendo usado
+    // durante a conclusão assíncrona do salvamento.
   }
 }
 
@@ -50,10 +110,12 @@ class _QuestionDraft {
 // PRIMEIRA REVISÃO DA PERGUNTA
 // ============================================================
 //
-// Configuração individual escolhida ao criar cada pergunta.
+// Define quando a primeira revisão de uma pergunta deverá
+// acontecer.
 //
-// O ReviewController continua responsável pelos intervalos
-// seguintes após o usuário responder à revisão.
+// Essa configuração é usada somente para a primeira revisão.
+// Depois disso, o ReviewController continua responsável pelo
+// agendamento das próximas revisões.
 //
 // ============================================================
 
@@ -67,52 +129,50 @@ enum _QuestionReviewDelay {
   thirtyDays;
 
   String get label {
-    switch (this) {
-      case _QuestionReviewDelay.now:
-        return 'Agora';
-
-      case _QuestionReviewDelay.fifteenMinutes:
-        return '15 minutos';
-
-      case _QuestionReviewDelay.oneHour:
-        return '1 hora';
-
-      case _QuestionReviewDelay.oneDay:
-        return '1 dia';
-
-      case _QuestionReviewDelay.threeDays:
-        return '3 dias';
-
-      case _QuestionReviewDelay.sevenDays:
-        return '7 dias';
-
-      case _QuestionReviewDelay.thirtyDays:
-        return '30 dias';
-    }
+    return switch (this) {
+      _QuestionReviewDelay.now => 'Agora',
+      _QuestionReviewDelay.fifteenMinutes => '15 minutos',
+      _QuestionReviewDelay.oneHour => '1 hora',
+      _QuestionReviewDelay.oneDay => '1 dia',
+      _QuestionReviewDelay.threeDays => '3 dias',
+      _QuestionReviewDelay.sevenDays => '7 dias',
+      _QuestionReviewDelay.thirtyDays => '30 dias',
+    };
   }
 
   Duration get duration {
-    switch (this) {
-      case _QuestionReviewDelay.now:
-        return Duration.zero;
+    return switch (this) {
+      _QuestionReviewDelay.now => Duration.zero,
+      _QuestionReviewDelay.fifteenMinutes => const Duration(
+        minutes: 15,
+      ),
+      _QuestionReviewDelay.oneHour => const Duration(
+        hours: 1,
+      ),
+      _QuestionReviewDelay.oneDay => const Duration(
+        days: 1,
+      ),
+      _QuestionReviewDelay.threeDays => const Duration(
+        days: 3,
+      ),
+      _QuestionReviewDelay.sevenDays => const Duration(
+        days: 7,
+      ),
+      _QuestionReviewDelay.thirtyDays => const Duration(
+        days: 30,
+      ),
+    };
+  }
 
-      case _QuestionReviewDelay.fifteenMinutes:
-        return const Duration(minutes: 15);
+  DateTime scheduledAt({
+    DateTime? from,
+  }) {
+    final DateTime base =
+        from ??
+        DateTime.now();
 
-      case _QuestionReviewDelay.oneHour:
-        return const Duration(hours: 1);
-
-      case _QuestionReviewDelay.oneDay:
-        return const Duration(days: 1);
-
-      case _QuestionReviewDelay.threeDays:
-        return const Duration(days: 3);
-
-      case _QuestionReviewDelay.sevenDays:
-        return const Duration(days: 7);
-
-      case _QuestionReviewDelay.thirtyDays:
-        return const Duration(days: 30);
-    }
+    return base.add(
+      duration,
+    );
   }
 }

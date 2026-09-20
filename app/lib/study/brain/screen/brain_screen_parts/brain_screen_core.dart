@@ -12,12 +12,17 @@ part of '../brain_screen.dart';
 // - prepara o BrainVisualController;
 // - abre o modal Local / Cloud quando solicitado;
 // - mantém navegação e mensagens pertencentes à Screen.
-extension _BrainScreenCore on _BrainScreenState {
+extension _BrainScreenCore
+    on
+        _BrainScreenState {
   // ============================================================
   // INITIALIZE
   // ============================================================
 
-  Future<void> _initialize() async {
+  Future<
+    void
+  >
+  _initialize() async {
     await _experienceController.initialize();
 
     if (!mounted) {
@@ -45,17 +50,17 @@ extension _BrainScreenCore on _BrainScreenState {
   void _prepareBrainVisualFromExperience() {
     final initialization = _experienceController.initialization;
 
-    if (initialization == null) {
+    if (initialization ==
+        null) {
       return;
     }
 
     final knowledgeCount = initialization.knowledgeCount;
 
-    _brainVisualKnowledgeCount = knowledgeCount;
-
     final visualController = _brainVisualController;
 
-    if (visualController != null) {
+    if (visualController !=
+        null) {
       visualController.setKnowledgeCount(
         knowledgeCount,
       );
@@ -81,7 +86,10 @@ extension _BrainScreenCore on _BrainScreenState {
   // NASCIMENTO DO BRAIN
   // ============================================================
 
-  Future<void> _completeBrainBirth() async {
+  Future<
+    void
+  >
+  _completeBrainBirth() async {
     // O evento vem diretamente de EvolvingBrain.onBirthCompleted.
     //
     // O ExperienceController:
@@ -108,7 +116,9 @@ extension _BrainScreenCore on _BrainScreenState {
     _dataModeDialogScheduled = true;
 
     WidgetsBinding.instance.addPostFrameCallback(
-      (_) {
+      (
+        _,
+      ) {
         _dataModeDialogScheduled = false;
 
         if (!mounted ||
@@ -128,7 +138,10 @@ extension _BrainScreenCore on _BrainScreenState {
   // PRIMEIRA ESCOLHA — LOCAL / CLOUD
   // ============================================================
 
-  Future<void> _ensureFirstBrainDataModeChoice() async {
+  Future<
+    void
+  >
+  _ensureFirstBrainDataModeChoice() async {
     if (!mounted ||
         !_experienceController.needsDataModeChoice ||
         _dataModeDialogRunning) {
@@ -138,180 +151,189 @@ extension _BrainScreenCore on _BrainScreenState {
     _dataModeDialogRunning = true;
 
     try {
-      final selectedMode = await showDialog<BrainDataMode>(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) {
-          final scheme = Theme.of(
-            dialogContext,
-          ).colorScheme;
+      final selectedMode =
+          await showDialog<
+            BrainDataMode
+          >(
+            context: context,
+            barrierDismissible: false,
+            builder:
+                (
+                  dialogContext,
+                ) {
+                  final scheme = Theme.of(
+                    dialogContext,
+                  ).colorScheme;
 
-          return PopScope(
-            canPop: false,
-            child: AlertDialog(
-              title: const Text(
-                'Como você quer proteger seus dados?',
-              ),
-              content: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: 560,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(
-                        16,
+                  return PopScope(
+                    canPop: false,
+                    child: AlertDialog(
+                      title: const Text(
+                        'Como você quer proteger seus dados?',
                       ),
-                      decoration: BoxDecoration(
-                        color: scheme.primary.withValues(
-                          alpha: 0.08,
+                      content: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          maxWidth: 560,
                         ),
-                        borderRadius: BorderRadius.circular(
-                          16,
-                        ),
-                        border: Border.all(
-                          color: scheme.primary.withValues(
-                            alpha: 0.28,
-                          ),
-                        ),
-                      ),
-                      child: const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.cloud_done_outlined,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(
+                                16,
                               ),
-                              SizedBox(
-                                width: 8,
-                              ),
-                              Expanded(
-                                child: Text(
-                                  'Cloud  •  Recomendado',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w800,
+                              decoration: BoxDecoration(
+                                color: scheme.primary.withValues(
+                                  alpha: 0.08,
+                                ),
+                                borderRadius: BorderRadius.circular(
+                                  16,
+                                ),
+                                border: Border.all(
+                                  color: scheme.primary.withValues(
+                                    alpha: 0.28,
                                   ),
                                 ),
                               ),
-                            ],
-                          ),
-                          SizedBox(
-                            height: 8,
-                          ),
-                          Text(
-                            'Seus dados continuam neste dispositivo e uma '
-                            'cópia criptografada é mantida automaticamente '
-                            'na nuvem. Se trocar ou perder o computador, '
-                            'você poderá recuperar o seu Cérebro.',
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(
-                      height: 12,
-                    ),
-                    Container(
-                      padding: const EdgeInsets.all(
-                        16,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(
-                          16,
-                        ),
-                        border: Border.all(
-                          color: Theme.of(
-                            dialogContext,
-                          ).dividerColor,
-                        ),
-                      ),
-                      child: const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.laptop_rounded,
-                              ),
-                              SizedBox(
-                                width: 8,
-                              ),
-                              Expanded(
-                                child: Text(
-                                  'Somente local',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w800,
+                              child: const Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.cloud_done_outlined,
+                                      ),
+                                      SizedBox(
+                                        width: 8,
+                                      ),
+                                      Expanded(
+                                        child: Text(
+                                          'Cloud  •  Recomendado',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
+                                  SizedBox(
+                                    height: 8,
+                                  ),
+                                  Text(
+                                    'Seus dados continuam neste dispositivo e uma '
+                                    'cópia criptografada é mantida automaticamente '
+                                    'na nuvem. Se trocar ou perder o computador, '
+                                    'você poderá recuperar o seu Cérebro.',
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(
+                              height: 12,
+                            ),
+                            Container(
+                              padding: const EdgeInsets.all(
+                                16,
+                              ),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(
+                                  16,
+                                ),
+                                border: Border.all(
+                                  color: Theme.of(
+                                    dialogContext,
+                                  ).dividerColor,
                                 ),
                               ),
-                            ],
-                          ),
-                          SizedBox(
-                            height: 8,
-                          ),
-                          Text(
-                            'Seus dados ficam somente neste dispositivo. '
-                            'Nada novo do Cérebro é enviado para a nuvem '
-                            'e você será responsável por manter seus '
-                            'próprios backups.',
-                          ),
-                        ],
+                              child: const Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.laptop_rounded,
+                                      ),
+                                      SizedBox(
+                                        width: 8,
+                                      ),
+                                      Expanded(
+                                        child: Text(
+                                          'Somente local',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(
+                                    height: 8,
+                                  ),
+                                  Text(
+                                    'Seus dados ficam somente neste dispositivo. '
+                                    'Nada novo do Cérebro é enviado para a nuvem '
+                                    'e você será responsável por manter seus '
+                                    'próprios backups.',
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(
+                              height: 12,
+                            ),
+                            const Text(
+                              'Você poderá mudar isso depois em '
+                              'Perfil e configurações → Cérebro.',
+                              style: TextStyle(
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(
+                              dialogContext,
+                            ).pop(
+                              BrainDataMode.local,
+                            );
+                          },
+                          child: const Text(
+                            'Somente local',
+                          ),
+                        ),
+                        FilledButton.tonalIcon(
+                          onPressed: () {
+                            Navigator.of(
+                              dialogContext,
+                            ).pop(
+                              BrainDataMode.cloud,
+                            );
+                          },
+                          icon: const Icon(
+                            Icons.cloud_done_outlined,
+                          ),
+                          label: const Text(
+                            'Usar Cloud',
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(
-                      height: 12,
-                    ),
-                    const Text(
-                      'Você poderá mudar isso depois em '
-                      'Perfil e configurações → Cérebro.',
-                      style: TextStyle(
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(
-                      dialogContext,
-                    ).pop(
-                      BrainDataMode.local,
-                    );
-                  },
-                  child: const Text(
-                    'Somente local',
-                  ),
-                ),
-                FilledButton.tonalIcon(
-                  onPressed: () {
-                    Navigator.of(
-                      dialogContext,
-                    ).pop(
-                      BrainDataMode.cloud,
-                    );
-                  },
-                  icon: const Icon(
-                    Icons.cloud_done_outlined,
-                  ),
-                  label: const Text(
-                    'Usar Cloud',
-                  ),
-                ),
-              ],
-            ),
+                  );
+                },
           );
-        },
-      );
 
-      if (!mounted || selectedMode == null) {
+      if (!mounted ||
+          selectedMode ==
+              null) {
         return;
       }
 
-      if (selectedMode == BrainDataMode.local) {
+      if (selectedMode ==
+          BrainDataMode.local) {
         await dependencies.brainDataModeTransitionService.activateLocal();
 
         if (!mounted) {
@@ -333,8 +355,7 @@ extension _BrainScreenCore on _BrainScreenState {
         'Ativando a proteção automática na nuvem...',
       );
 
-      final result =
-          await dependencies.brainDataModeTransitionService.activateCloud();
+      final result = await dependencies.brainDataModeTransitionService.activateCloud();
 
       if (!mounted) {
         return;
@@ -349,7 +370,8 @@ extension _BrainScreenCore on _BrainScreenState {
           'Cloud ativado. Este dispositivo ainda precisa ser autorizado '
           'para concluir a proteção na nuvem.',
         );
-      } else if (result.deviceRegistrationError != null) {
+      } else if (result.deviceRegistrationError !=
+          null) {
         _showMessage(
           'Cloud ativado. A proteção será concluída automaticamente '
           'quando houver conexão.',
@@ -360,7 +382,10 @@ extension _BrainScreenCore on _BrainScreenState {
           'criptografada será mantida na nuvem.',
         );
       }
-    } catch (error, stackTrace) {
+    } catch (
+      error,
+      stackTrace
+    ) {
       debugPrint(
         '[BRAIN DATA MODE] Primeira escolha falhou: $error',
       );
@@ -395,7 +420,9 @@ extension _BrainScreenCore on _BrainScreenState {
     _experienceErrorShown = true;
 
     WidgetsBinding.instance.addPostFrameCallback(
-      (_) {
+      (
+        _,
+      ) {
         if (!mounted) {
           return;
         }
@@ -411,7 +438,10 @@ extension _BrainScreenCore on _BrainScreenState {
   // NAVEGAÇÃO
   // ============================================================
 
-  Future<void> _openTypeScreen(
+  Future<
+    void
+  >
+  _openTypeScreen(
     BrainConceptType type,
   ) async {
     final Widget screen;
@@ -438,9 +468,12 @@ extension _BrainScreenCore on _BrainScreenState {
       context,
     ).push(
       MaterialPageRoute(
-        builder: (_) {
-          return screen;
-        },
+        builder:
+            (
+              _,
+            ) {
+              return screen;
+            },
       ),
     );
 
@@ -470,7 +503,8 @@ extension _BrainScreenCore on _BrainScreenState {
 
     final success = _controller.successMessage;
 
-    if (error != null) {
+    if (error !=
+        null) {
       _showMessage(
         error,
       );
@@ -480,7 +514,8 @@ extension _BrainScreenCore on _BrainScreenState {
       return;
     }
 
-    if (success != null) {
+    if (success !=
+        null) {
       _showMessage(
         success,
       );

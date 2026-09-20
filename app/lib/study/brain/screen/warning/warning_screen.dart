@@ -325,7 +325,7 @@ class _WarningScreenState
         separatorBuilder:
             (
               _,
-              __,
+              _,
             ) {
               return const SizedBox(
                 height: 10,

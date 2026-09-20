@@ -98,7 +98,7 @@ class HistoryDialog
             separatorBuilder:
                 (
                   _,
-                  __,
+                  _,
                 ) => const SizedBox(
                   height: 9,
                 ),

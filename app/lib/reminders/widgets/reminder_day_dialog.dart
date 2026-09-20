@@ -333,7 +333,7 @@ class _ReminderDayDialogState
                         separatorBuilder:
                             (
                               _,
-                              __,
+                              _,
                             ) {
                               return const SizedBox(
                                 height: 10,
@@ -832,28 +832,26 @@ class _ReminderDayDialogState
         reminder,
       );
     } finally {
-      if (!mounted) {
-        return;
-      }
-
-      setState(
-        () {
-          _deletingIds.remove(
-            reminder.id,
-          );
-
-          if (deleted) {
-            _reminders.removeWhere(
-              (
-                item,
-              ) {
-                return item.id ==
-                    reminder.id;
-              },
+      if (mounted) {
+        setState(
+          () {
+            _deletingIds.remove(
+              reminder.id,
             );
-          }
-        },
-      );
+
+            if (deleted) {
+              _reminders.removeWhere(
+                (
+                  item,
+                ) {
+                  return item.id ==
+                      reminder.id;
+                },
+              );
+            }
+          },
+        );
+      }
     }
   }
 
@@ -932,35 +930,33 @@ class _ReminderDayDialogState
         }
       }
     } finally {
-      if (!mounted) {
-        return;
+      if (mounted) {
+        setState(
+          () {
+            _deletingExpired = false;
+
+            if (deleted) {
+              final ids = expired.map(
+                (
+                  reminder,
+                ) {
+                  return reminder.id;
+                },
+              ).toSet();
+
+              _reminders.removeWhere(
+                (
+                  reminder,
+                ) {
+                  return ids.contains(
+                    reminder.id,
+                  );
+                },
+              );
+            }
+          },
+        );
       }
-
-      setState(
-        () {
-          _deletingExpired = false;
-
-          if (deleted) {
-            final ids = expired.map(
-              (
-                reminder,
-              ) {
-                return reminder.id;
-              },
-            ).toSet();
-
-            _reminders.removeWhere(
-              (
-                reminder,
-              ) {
-                return ids.contains(
-                  reminder.id,
-                );
-              },
-            );
-          }
-        },
-      );
     }
   }
 

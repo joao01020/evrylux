@@ -46,7 +46,9 @@ import 'package:flutter/foundation.dart';
 // SUPABASE
 // ======================================================
 
-import 'package:supabase_flutter/supabase_flutter.dart' hide LocalStorage;
+import 'package:supabase_flutter/supabase_flutter.dart'
+    hide
+        LocalStorage;
 
 // ======================================================
 // CORE - STORAGE
@@ -248,7 +250,8 @@ final localStorage = LocalStorage();
 // SUPABASE
 // ======================================================
 
-SupabaseClient get supabaseClient {
+SupabaseClient
+get supabaseClient {
   return Supabase.instance.client;
 }
 
@@ -293,19 +296,26 @@ final userStorageScope = UserStorageScope(
 //
 // ======================================================
 
-const String _studyTable = 'study_data';
+const String
+_studyTable = 'study_data';
 
-const String _trainingTable = 'training_data';
+const String
+_trainingTable = 'training_data';
 
-const String _trainingPlanTable = 'training_plans';
+const String
+_trainingPlanTable = 'training_plans';
 
-const String _trainingActivityPlanTable = 'training_activity_plans';
+const String
+_trainingActivityPlanTable = 'training_activity_plans';
 
-const String _journeyTable = 'journey_history';
+const String
+_journeyTable = 'journey_history';
 
-const String _boardAttachmentTable = 'board_attachments';
+const String
+_boardAttachmentTable = 'board_attachments';
 
-const String _boardAttachmentBucket = 'board-files';
+const String
+_boardAttachmentBucket = 'board-files';
 
 // ======================================================
 // LOCAL DATABASE
@@ -318,7 +328,9 @@ final appDatabase = AppDatabase.instance;
 // ======================================================
 
 final connectivityService = ConnectivityService(
-  probeCacheDuration: const Duration(seconds: 30),
+  probeCacheDuration: const Duration(
+    seconds: 30,
+  ),
 );
 
 // ======================================================
@@ -335,13 +347,17 @@ final connectivityService = ConnectivityService(
 //
 // ======================================================
 
-final syncQueueDao = SyncQueueDao(database: appDatabase);
+final syncQueueDao = SyncQueueDao(
+  database: appDatabase,
+);
 
 // ======================================================
 // SYNC QUEUE
 // ======================================================
 
-final syncQueue = SyncQueue(dao: syncQueueDao);
+final syncQueue = SyncQueue(
+  dao: syncQueueDao,
+);
 
 // ======================================================
 // SYNC SERVICE
@@ -358,7 +374,9 @@ final syncService = SyncService(
   //
   // O fluxo normal deve acontecer via requestSync() e eventos de
   // conectividade. O timer não deve ser o motor principal do sync.
-  syncInterval: const Duration(seconds: 60),
+  syncInterval: const Duration(
+    seconds: 60,
+  ),
 
   batchSize: 50,
 );
@@ -383,9 +401,13 @@ final syncService = SyncService(
 //
 // ======================================================
 
-final brainStorage = BrainStorage(storageScope: userStorageScope);
+final brainStorage = BrainStorage(
+  storageScope: userStorageScope,
+);
 
-final supabaseBrainService = SupabaseBrainService(client: supabaseClient);
+final supabaseBrainService = SupabaseBrainService(
+  client: supabaseClient,
+);
 
 final brainRepository = BrainRepository(
   remote: supabaseBrainService,
@@ -395,7 +417,9 @@ final brainRepository = BrainRepository(
   brainSyncQueueService: brainSyncQueueService,
 );
 
-final brainController = BrainController(repository: brainRepository);
+final brainController = BrainController(
+  repository: brainRepository,
+);
 
 // ======================================================
 // BRAIN / CÉREBRO - REVIEW VAULT DEPENDENCIES
@@ -431,7 +455,9 @@ final brainController = BrainController(repository: brainRepository);
 //
 // ======================================================
 
-final reviewStorage = ReviewStorage(storageScope: userStorageScope);
+final reviewStorage = ReviewStorage(
+  storageScope: userStorageScope,
+);
 
 // ======================================================
 // BRAIN MASTER KEY STORAGE
@@ -443,7 +469,9 @@ final brainKeyStorage = BrainPlatformKeyStorage();
 // BRAIN KEY SERVICE
 // ======================================================
 
-final brainKeyService = BrainKeyService(storage: brainKeyStorage);
+final brainKeyService = BrainKeyService(
+  storage: brainKeyStorage,
+);
 
 // ======================================================
 // BRAIN VAULT STORAGE
@@ -456,7 +484,9 @@ final brainKeyService = BrainKeyService(storage: brainKeyStorage);
 //
 // ======================================================
 
-final brainVaultStorage = BrainVaultStorage(storageScope: userStorageScope);
+final brainVaultStorage = BrainVaultStorage(
+  storageScope: userStorageScope,
+);
 
 // ======================================================
 // BRAIN VAULT
@@ -493,10 +523,13 @@ final brainConceptVaultStore = BrainConceptVaultStore(
 // BRAIN DATA MODE — FASE 05
 // ======================================================
 
-String? _brainDataModeScope() {
+String?
+_brainDataModeScope() {
   final userId = supabaseClient.auth.currentUser?.id.trim();
 
-  if (userId == null || userId.isEmpty) {
+  if (userId ==
+          null ||
+      userId.isEmpty) {
     return null;
   }
 
@@ -599,7 +632,9 @@ final brainE2eeSyncCoordinator = BrainE2eeSyncCoordinator(
 
 final accountDeviceIdentityService = AccountDeviceIdentityService();
 
-final accountDeviceRepository = AccountDeviceRepository(client: supabaseClient);
+final accountDeviceRepository = AccountDeviceRepository(
+  client: supabaseClient,
+);
 
 final accountDevicePresenceService = AccountDevicePresenceService(
   client: supabaseClient,
@@ -695,7 +730,7 @@ final brainRecoveryDeviceService = BrainRecoveryDeviceService(
 // Local -> Cloud
 //   -> registra dispositivo
 //   -> faz pull quando autorizado
-//   -> backfill de TODO o Vault local
+//   -> backfill de todo o vault
 //   -> solicita sync E2EE
 //
 // Cloud -> Local
@@ -710,7 +745,8 @@ final brainDataModeTransitionService = BrainDataModeTransitionService(
   deviceAuthorizationService: brainDeviceAuthorizationService,
   syncCoordinator: brainE2eeSyncCoordinator,
   isAuthenticated: () {
-    return supabaseClient.auth.currentUser != null;
+    return supabaseClient.auth.currentUser !=
+        null;
   },
   deviceNameProvider: brainDeviceName,
   forceSync: forceSyncNow,
@@ -720,12 +756,14 @@ final brainDataModeTransitionService = BrainDataModeTransitionService(
 // BRAIN DEVICE NAME
 // ======================================================
 
-String brainDeviceName() {
+String
+brainDeviceName() {
   final host = Platform.localHostname.trim();
 
   final os = Platform.operatingSystem.trim();
 
-  if (host.isNotEmpty && os.isNotEmpty) {
+  if (host.isNotEmpty &&
+      os.isNotEmpty) {
     return '$host • $os';
   }
 
@@ -758,8 +796,13 @@ String brainDeviceName() {
 //
 // ======================================================
 
-Future<bool> _canUseBrainCloudWithAuthorizedDevice() async {
-  final isAuthenticated = supabaseClient.auth.currentUser != null;
+Future<
+  bool
+>
+_canUseBrainCloudWithAuthorizedDevice() async {
+  final isAuthenticated =
+      supabaseClient.auth.currentUser !=
+      null;
 
   final dataModeAllowsCloud = brainDataModeService.canUseCloudSync(
     isAuthenticated: isAuthenticated,
@@ -777,7 +820,9 @@ Future<bool> _canUseBrainCloudWithAuthorizedDevice() async {
       isAuthenticated: isAuthenticated,
       dataModeAllowsCloud: dataModeAllowsCloud,
     );
-  } catch (error) {
+  } catch (
+    error
+  ) {
     debugPrint(
       '[BRAIN DEVICE GATE] '
       'Cloud bloqueado: $error',
@@ -808,8 +853,13 @@ Future<bool> _canUseBrainCloudWithAuthorizedDevice() async {
 //
 // ======================================================
 
-Future<void> _bootstrapBrainAuthorizedDevice() async {
-  final isAuthenticated = supabaseClient.auth.currentUser != null;
+Future<
+  void
+>
+_bootstrapBrainAuthorizedDevice() async {
+  final isAuthenticated =
+      supabaseClient.auth.currentUser !=
+      null;
 
   final dataModeAllowsCloud = brainDataModeService.canUseCloudSync(
     isAuthenticated: isAuthenticated,
@@ -834,7 +884,9 @@ Future<void> _bootstrapBrainAuthorizedDevice() async {
       'status=${device.status.name} '
       'fingerprint=${device.keyFingerprint}',
     );
-  } catch (error) {
+  } catch (
+    error
+  ) {
     debugPrint(
       '[BRAIN DEVICE] '
       'Bootstrap remoto indisponível/bloqueado: '
@@ -860,7 +912,9 @@ final brainReviewVaultStore = BrainReviewVaultStore(
 //
 // ======================================================
 
-final supabaseReviewService = SupabaseReviewService(client: supabaseClient);
+final supabaseReviewService = SupabaseReviewService(
+  client: supabaseClient,
+);
 
 // ======================================================
 // REVIEW REPOSITORY
@@ -892,43 +946,57 @@ final reviewRepository = ReviewRepository(
 // REVIEW CONTROLLER
 // ======================================================
 
-final reviewController = ReviewController(repository: reviewRepository);
+final reviewController = ReviewController(
+  repository: reviewRepository,
+);
 
 // ======================================================
 // FINANCE LOCAL DATASOURCE
 // ======================================================
 
-final financeLocalDataSource = FinanceLocalDataSource(database: appDatabase);
+final financeLocalDataSource = FinanceLocalDataSource(
+  database: appDatabase,
+);
 
 // ======================================================
 // ROUTINE DAO
 // ======================================================
 
-final routineDao = RoutineDao(database: appDatabase);
+final routineDao = RoutineDao(
+  database: appDatabase,
+);
 
 // ======================================================
 // ROUTINE LOCAL DATASOURCE
 // ======================================================
 
-final routineLocalDataSource = RoutineMemoryDataSource(dao: routineDao);
+final routineLocalDataSource = RoutineMemoryDataSource(
+  dao: routineDao,
+);
 
 // ======================================================
 // ROUTINE REMOTE DATASOURCE
 // ======================================================
 
-final routineRemoteDataSource = RoutineRemoteDataSource(client: supabaseClient);
+final routineRemoteDataSource = RoutineRemoteDataSource(
+  client: supabaseClient,
+);
 
 // ======================================================
 // REMINDER DAO
 // ======================================================
 
-final reminderDao = ReminderDao(database: appDatabase);
+final reminderDao = ReminderDao(
+  database: appDatabase,
+);
 
 // ======================================================
 // BOARD COMMENT DAO
 // ======================================================
 
-final boardCommentDao = BoardCommentDao(database: appDatabase);
+final boardCommentDao = BoardCommentDao(
+  database: appDatabase,
+);
 
 // ======================================================
 // TRAINING ACTIVITY PLAN DAO
@@ -938,7 +1006,9 @@ final boardCommentDao = BoardCommentDao(database: appDatabase);
 //
 // ======================================================
 
-final trainingActivityPlanDao = TrainingActivityPlanDao(database: appDatabase);
+final trainingActivityPlanDao = TrainingActivityPlanDao(
+  database: appDatabase,
+);
 
 // ======================================================
 // BOARD ATTACHMENTS - OFFLINE-FIRST
@@ -960,7 +1030,9 @@ final trainingActivityPlanDao = TrainingActivityPlanDao(database: appDatabase);
 //
 // ======================================================
 
-final boardAttachmentDao = BoardAttachmentDao(database: appDatabase);
+final boardAttachmentDao = BoardAttachmentDao(
+  database: appDatabase,
+);
 
 final boardAttachmentStorage = BoardAttachmentStorage(
   storageScope: userStorageScope,
@@ -987,16 +1059,22 @@ final boardAttachmentController = BoardAttachmentController(
 // SYNC HANDLERS STATE
 // ======================================================
 
-bool _syncHandlersRegistered = false;
+bool
+_syncHandlersRegistered = false;
 
 // ======================================================
 // AUTH VALIDATION FOR QUEUED ITEMS
 // ======================================================
 
-User _requireQueueUser({required String? userId, required String entity}) {
+User
+_requireQueueUser({
+  required String? userId,
+  required String entity,
+}) {
   final currentUser = supabaseClient.auth.currentUser;
 
-  if (currentUser == null) {
+  if (currentUser ==
+      null) {
     throw StateError(
       'Usuário não autenticado durante sincronização de $entity.',
     );
@@ -1004,10 +1082,14 @@ User _requireQueueUser({required String? userId, required String entity}) {
 
   final normalizedUserId = userId?.trim();
 
-  if (normalizedUserId != null &&
+  if (normalizedUserId !=
+          null &&
       normalizedUserId.isNotEmpty &&
-      normalizedUserId != currentUser.id) {
-    throw StateError('Operação de $entity pertence a outro usuário.');
+      normalizedUserId !=
+          currentUser.id) {
+    throw StateError(
+      'Operação de $entity pertence a outro usuário.',
+    );
   }
 
   return currentUser;
@@ -1031,12 +1113,20 @@ User _requireQueueUser({required String? userId, required String entity}) {
 //
 // ======================================================
 
-Future<void> _purgeLegacyBrainQueueItems(void Function() check) async {
-  const legacyEntityTypes = <String>{
-    'brain_note',
-    'brain_concept',
-    'brain_review',
-  };
+Future<
+  void
+>
+_purgeLegacyBrainQueueItems(
+  void Function() check,
+) async {
+  const legacyEntityTypes =
+      <
+        String
+      >{
+        'brain_note',
+        'brain_concept',
+        'brain_review',
+      };
 
   final items = await syncQueue.getAll();
 
@@ -1044,17 +1134,22 @@ Future<void> _purgeLegacyBrainQueueItems(void Function() check) async {
 
   for (final item in items) {
     check();
-    if (!legacyEntityTypes.contains(item.entityType)) {
+    if (!legacyEntityTypes.contains(
+      item.entityType,
+    )) {
       continue;
     }
 
     check();
-    await syncQueue.remove(item.id);
+    await syncQueue.remove(
+      item.id,
+    );
 
     removed++;
   }
 
-  if (removed > 0) {
+  if (removed >
+      0) {
     debugPrint(
       '[BRAIN E2EE] '
       '$removed item(ns) legado(s) removido(s) da SyncQueue.',
@@ -1066,7 +1161,8 @@ Future<void> _purgeLegacyBrainQueueItems(void Function() check) async {
 // REGISTER SYNC HANDLERS
 // ======================================================
 
-void registerSyncHandlers() {
+void
+registerSyncHandlers() {
   if (_syncHandlersRegistered) {
     return;
   }
@@ -1078,48 +1174,75 @@ void registerSyncHandlers() {
   syncService.registerHandler(
     entityType: 'finance',
 
-    handler: (item) async {
-      switch (item.operation) {
-        case SyncOperation.create:
-        case SyncOperation.update:
-          final payload = Map<String, dynamic>.from(item.payload);
+    handler:
+        (
+          item,
+        ) async {
+          switch (item.operation) {
+            case SyncOperation.create:
+            case SyncOperation.update:
+              final payload =
+                  Map<
+                    String,
+                    dynamic
+                  >.from(
+                    item.payload,
+                  );
 
-          final user = _requireQueueUser(
-            userId: payload['user_id']?.toString(),
-            entity: 'finance',
-          );
+              final user = _requireQueueUser(
+                userId: payload['user_id']?.toString(),
+                entity: 'finance',
+              );
 
-          payload['user_id'] = user.id;
+              payload['user_id'] = user.id;
 
-          await supabaseClient
-              .from('finance_data')
-              .upsert(payload, onConflict: 'user_id');
+              await supabaseClient
+                  .from(
+                    'finance_data',
+                  )
+                  .upsert(
+                    payload,
+                    onConflict: 'user_id',
+                  );
 
-          await financeLocalDataSource.setSyncStatus(
-            item.entityId,
-            SyncStatus.synced,
-          );
+              await financeLocalDataSource.setSyncStatus(
+                item.entityId,
+                SyncStatus.synced,
+              );
 
-          break;
+              break;
 
-        case SyncOperation.delete:
-          final payload = Map<String, dynamic>.from(item.payload);
+            case SyncOperation.delete:
+              final payload =
+                  Map<
+                    String,
+                    dynamic
+                  >.from(
+                    item.payload,
+                  );
 
-          final user = _requireQueueUser(
-            userId: payload['user_id']?.toString(),
-            entity: 'finance',
-          );
+              final user = _requireQueueUser(
+                userId: payload['user_id']?.toString(),
+                entity: 'finance',
+              );
 
-          await supabaseClient
-              .from('finance_data')
-              .delete()
-              .eq('user_id', user.id);
+              await supabaseClient
+                  .from(
+                    'finance_data',
+                  )
+                  .delete()
+                  .eq(
+                    'user_id',
+                    user.id,
+                  );
 
-          await financeLocalDataSource.deletePermanently(item.entityId);
+              await financeLocalDataSource.deletePermanently(
+                item.entityId,
+              );
 
-          break;
-      }
-    },
+              break;
+          }
+        },
   );
 
   // ====================================================
@@ -1129,42 +1252,60 @@ void registerSyncHandlers() {
   syncService.registerHandler(
     entityType: 'routine_day',
 
-    handler: (item) async {
-      final payload = Map<String, dynamic>.from(item.payload);
+    handler:
+        (
+          item,
+        ) async {
+          final payload =
+              Map<
+                String,
+                dynamic
+              >.from(
+                item.payload,
+              );
 
-      final user = _requireQueueUser(
-        userId: payload['user_id']?.toString(),
-        entity: 'routine_day',
-      );
-
-      final userId = user.id;
-
-      routineRemoteDataSource.ensureAuthenticatedUser(userId);
-
-      switch (item.operation) {
-        case SyncOperation.create:
-        case SyncOperation.update:
-          payload['id'] = item.entityId;
-
-          payload['user_id'] = userId;
-
-          await routineRemoteDataSource.saveDay(userId: userId, data: payload);
-
-          await routineLocalDataSource.markSynced(item.entityId);
-
-          break;
-
-        case SyncOperation.delete:
-          await routineRemoteDataSource.deleteDay(
-            userId: userId,
-            dayId: item.entityId,
+          final user = _requireQueueUser(
+            userId: payload['user_id']?.toString(),
+            entity: 'routine_day',
           );
 
-          await routineDao.deletePermanently(item.entityId);
+          final userId = user.id;
 
-          break;
-      }
-    },
+          routineRemoteDataSource.ensureAuthenticatedUser(
+            userId,
+          );
+
+          switch (item.operation) {
+            case SyncOperation.create:
+            case SyncOperation.update:
+              payload['id'] = item.entityId;
+
+              payload['user_id'] = userId;
+
+              await routineRemoteDataSource.saveDay(
+                userId: userId,
+                data: payload,
+              );
+
+              await routineLocalDataSource.markSynced(
+                item.entityId,
+              );
+
+              break;
+
+            case SyncOperation.delete:
+              await routineRemoteDataSource.deleteDay(
+                userId: userId,
+                dayId: item.entityId,
+              );
+
+              await routineDao.deletePermanently(
+                item.entityId,
+              );
+
+              break;
+          }
+        },
   );
 
   // ====================================================
@@ -1174,38 +1315,52 @@ void registerSyncHandlers() {
   syncService.registerHandler(
     entityType: BoardCommentRepository.entityType,
 
-    handler: (item) async {
-      final payload = Map<String, dynamic>.from(item.payload);
+    handler:
+        (
+          item,
+        ) async {
+          final payload =
+              Map<
+                String,
+                dynamic
+              >.from(
+                item.payload,
+              );
 
-      final user = _requireQueueUser(
-        userId: payload['user_id']?.toString(),
-        entity: BoardCommentRepository.entityType,
-      );
-
-      switch (item.operation) {
-        case SyncOperation.create:
-        case SyncOperation.update:
-          await boardCommentRemoteDataSource.upsertQueued(
-            userId: user.id,
-            commentId: item.entityId,
-            payload: payload,
+          final user = _requireQueueUser(
+            userId: payload['user_id']?.toString(),
+            entity: BoardCommentRepository.entityType,
           );
 
-          await boardCommentDao.setSyncStatus(item.entityId, SyncStatus.synced);
+          switch (item.operation) {
+            case SyncOperation.create:
+            case SyncOperation.update:
+              await boardCommentRemoteDataSource.upsertQueued(
+                userId: user.id,
+                commentId: item.entityId,
+                payload: payload,
+              );
 
-          break;
+              await boardCommentDao.setSyncStatus(
+                item.entityId,
+                SyncStatus.synced,
+              );
 
-        case SyncOperation.delete:
-          await boardCommentRemoteDataSource.deleteQueued(
-            userId: user.id,
-            commentId: item.entityId,
-          );
+              break;
 
-          await boardCommentDao.deletePermanently(item.entityId);
+            case SyncOperation.delete:
+              await boardCommentRemoteDataSource.deleteQueued(
+                userId: user.id,
+                commentId: item.entityId,
+              );
 
-          break;
-      }
-    },
+              await boardCommentDao.deletePermanently(
+                item.entityId,
+              );
+
+              break;
+          }
+        },
   );
 
   // ====================================================
@@ -1215,41 +1370,68 @@ void registerSyncHandlers() {
   syncService.registerHandler(
     entityType: 'reminder',
 
-    handler: (item) async {
-      final payload = Map<String, dynamic>.from(item.payload);
+    handler:
+        (
+          item,
+        ) async {
+          final payload =
+              Map<
+                String,
+                dynamic
+              >.from(
+                item.payload,
+              );
 
-      final user = _requireQueueUser(
-        userId: payload['user_id']?.toString(),
-        entity: 'reminder',
-      );
+          final user = _requireQueueUser(
+            userId: payload['user_id']?.toString(),
+            entity: 'reminder',
+          );
 
-      switch (item.operation) {
-        case SyncOperation.create:
-        case SyncOperation.update:
-          payload['id'] = item.entityId;
+          switch (item.operation) {
+            case SyncOperation.create:
+            case SyncOperation.update:
+              payload['id'] = item.entityId;
 
-          payload['user_id'] = user.id;
+              payload['user_id'] = user.id;
 
-          await supabaseClient
-              .from('reminders')
-              .upsert(payload, onConflict: 'id');
+              await supabaseClient
+                  .from(
+                    'reminders',
+                  )
+                  .upsert(
+                    payload,
+                    onConflict: 'id',
+                  );
 
-          await reminderDao.setSyncStatus(item.entityId, SyncStatus.synced);
+              await reminderDao.setSyncStatus(
+                item.entityId,
+                SyncStatus.synced,
+              );
 
-          break;
+              break;
 
-        case SyncOperation.delete:
-          await supabaseClient
-              .from('reminders')
-              .delete()
-              .eq('id', item.entityId)
-              .eq('user_id', user.id);
+            case SyncOperation.delete:
+              await supabaseClient
+                  .from(
+                    'reminders',
+                  )
+                  .delete()
+                  .eq(
+                    'id',
+                    item.entityId,
+                  )
+                  .eq(
+                    'user_id',
+                    user.id,
+                  );
 
-          await reminderDao.deletePermanently(item.entityId);
+              await reminderDao.deletePermanently(
+                item.entityId,
+              );
 
-          break;
-      }
-    },
+              break;
+          }
+        },
   );
 
   // ====================================================
@@ -1279,130 +1461,196 @@ void registerSyncHandlers() {
   syncService.registerHandler(
     entityType: BoardAttachmentRepository.entityType,
 
-    handler: (item) async {
-      final payload = Map<String, dynamic>.from(item.payload);
-
-      final user = _requireQueueUser(
-        userId: payload['user_id']?.toString(),
-        entity: BoardAttachmentRepository.entityType,
-      );
-
-      final boardId = payload['board_id']?.toString().trim() ?? '';
-
-      final blockId = payload['block_id']?.toString().trim() ?? '';
-
-      final fileName = payload['file_name']?.toString().trim() ?? '';
-
-      switch (item.operation) {
-        case SyncOperation.create:
-        case SyncOperation.update:
-          if (boardId.isEmpty) {
-            throw StateError('Operação de board_attachment sem board_id.');
-          }
-
-          if (blockId.isEmpty) {
-            throw StateError('Operação de board_attachment sem block_id.');
-          }
-
-          if (fileName.isEmpty) {
-            throw StateError('Operação de board_attachment sem file_name.');
-          }
-
-          final localPath = payload['local_path']?.toString().trim() ?? '';
-
-          if (localPath.isEmpty) {
-            throw StateError('Operação de board_attachment sem local_path.');
-          }
-
-          final localFile = File(localPath);
-
-          if (!await localFile.exists()) {
-            throw StateError(
-              'Arquivo local do board_attachment não encontrado: '
-              '$localPath',
-            );
-          }
-
-          final rawRemotePath = payload['remote_path']?.toString().trim();
-
-          final remotePath = rawRemotePath != null && rawRemotePath.isNotEmpty
-              ? rawRemotePath
-              : '${user.id}/'
-                    '$boardId/'
-                    '${item.entityId}/'
-                    '$fileName';
-
-          final mimeType = payload['mime_type']?.toString().trim();
-
-          final bytes = await localFile.readAsBytes();
-
-          await supabaseClient.storage
-              .from(_boardAttachmentBucket)
-              .uploadBinary(
-                remotePath,
-                bytes,
-                fileOptions: FileOptions(
-                  upsert: true,
-                  contentType: mimeType != null && mimeType.isNotEmpty
-                      ? mimeType
-                      : null,
-                ),
+    handler:
+        (
+          item,
+        ) async {
+          final payload =
+              Map<
+                String,
+                dynamic
+              >.from(
+                item.payload,
               );
 
-          final remotePayload = <String, dynamic>{
-            'id': item.entityId,
-            'user_id': user.id,
-            'board_id': boardId,
-            'block_id': blockId,
-            'file_name': fileName,
-            'type': payload['type']?.toString() ?? 'unknown',
-            'remote_path': remotePath,
-            'mime_type': mimeType,
-            'size_bytes': payload['size_bytes'] ?? bytes.length,
-            'created_at':
-                payload['created_at'] ??
-                DateTime.now().toUtc().toIso8601String(),
-            'updated_at':
-                payload['updated_at'] ??
-                DateTime.now().toUtc().toIso8601String(),
-          };
-
-          await supabaseClient
-              .from(_boardAttachmentTable)
-              .upsert(remotePayload, onConflict: 'id');
-
-          await boardAttachmentDao.updateRemotePath(
-            userId: user.id,
-            id: item.entityId,
-            remotePath: remotePath,
-            syncStatus: SyncStatus.synced,
+          final user = _requireQueueUser(
+            userId: payload['user_id']?.toString(),
+            entity: BoardAttachmentRepository.entityType,
           );
 
-          break;
+          final boardId =
+              payload['board_id']?.toString().trim() ??
+              '';
 
-        case SyncOperation.delete:
-          final remotePath = payload['remote_path']?.toString().trim();
+          final blockId =
+              payload['block_id']?.toString().trim() ??
+              '';
 
-          if (remotePath != null && remotePath.isNotEmpty) {
-            await supabaseClient.storage.from(_boardAttachmentBucket).remove(
-              <String>[remotePath],
-            );
+          final fileName =
+              payload['file_name']?.toString().trim() ??
+              '';
+
+          switch (item.operation) {
+            case SyncOperation.create:
+            case SyncOperation.update:
+              if (boardId.isEmpty) {
+                throw StateError(
+                  'Operação de board_attachment sem board_id.',
+                );
+              }
+
+              if (blockId.isEmpty) {
+                throw StateError(
+                  'Operação de board_attachment sem block_id.',
+                );
+              }
+
+              if (fileName.isEmpty) {
+                throw StateError(
+                  'Operação de board_attachment sem file_name.',
+                );
+              }
+
+              final localPath =
+                  payload['local_path']?.toString().trim() ??
+                  '';
+
+              if (localPath.isEmpty) {
+                throw StateError(
+                  'Operação de board_attachment sem local_path.',
+                );
+              }
+
+              final localFile = File(
+                localPath,
+              );
+
+              if (!await localFile.exists()) {
+                throw StateError(
+                  'Arquivo local do board_attachment não encontrado: '
+                  '$localPath',
+                );
+              }
+
+              final rawRemotePath = payload['remote_path']?.toString().trim();
+
+              final remotePath =
+                  rawRemotePath !=
+                          null &&
+                      rawRemotePath.isNotEmpty
+                  ? rawRemotePath
+                  : '${user.id}/'
+                        '$boardId/'
+                        '${item.entityId}/'
+                        '$fileName';
+
+              final mimeType = payload['mime_type']?.toString().trim();
+
+              final bytes = await localFile.readAsBytes();
+
+              await supabaseClient.storage
+                  .from(
+                    _boardAttachmentBucket,
+                  )
+                  .uploadBinary(
+                    remotePath,
+                    bytes,
+                    fileOptions: FileOptions(
+                      upsert: true,
+                      contentType:
+                          mimeType !=
+                                  null &&
+                              mimeType.isNotEmpty
+                          ? mimeType
+                          : null,
+                    ),
+                  );
+
+              final remotePayload =
+                  <
+                    String,
+                    dynamic
+                  >{
+                    'id': item.entityId,
+                    'user_id': user.id,
+                    'board_id': boardId,
+                    'block_id': blockId,
+                    'file_name': fileName,
+                    'type':
+                        payload['type']?.toString() ??
+                        'unknown',
+                    'remote_path': remotePath,
+                    'mime_type': mimeType,
+                    'size_bytes':
+                        payload['size_bytes'] ??
+                        bytes.length,
+                    'created_at':
+                        payload['created_at'] ??
+                        DateTime.now().toUtc().toIso8601String(),
+                    'updated_at':
+                        payload['updated_at'] ??
+                        DateTime.now().toUtc().toIso8601String(),
+                  };
+
+              await supabaseClient
+                  .from(
+                    _boardAttachmentTable,
+                  )
+                  .upsert(
+                    remotePayload,
+                    onConflict: 'id',
+                  );
+
+              await boardAttachmentDao.updateRemotePath(
+                userId: user.id,
+                id: item.entityId,
+                remotePath: remotePath,
+                syncStatus: SyncStatus.synced,
+              );
+
+              break;
+
+            case SyncOperation.delete:
+              final remotePath = payload['remote_path']?.toString().trim();
+
+              if (remotePath !=
+                      null &&
+                  remotePath.isNotEmpty) {
+                await supabaseClient.storage
+                    .from(
+                      _boardAttachmentBucket,
+                    )
+                    .remove(
+                      <
+                        String
+                      >[
+                        remotePath,
+                      ],
+                    );
+              }
+
+              await supabaseClient
+                  .from(
+                    _boardAttachmentTable,
+                  )
+                  .delete()
+                  .eq(
+                    'id',
+                    item.entityId,
+                  )
+                  .eq(
+                    'user_id',
+                    user.id,
+                  );
+
+              await boardAttachmentDao.deletePermanently(
+                userId: user.id,
+                id: item.entityId,
+              );
+
+              break;
           }
-
-          await supabaseClient
-              .from(_boardAttachmentTable)
-              .delete()
-              .eq('id', item.entityId)
-              .eq('user_id', user.id);
-
-          await boardAttachmentDao.deletePermanently(
-            userId: user.id,
-            id: item.entityId,
-          );
-
-          break;
-      }
-    },
+        },
   );
 
   // ====================================================
@@ -1422,44 +1670,74 @@ void registerSyncHandlers() {
   syncService.registerHandler(
     entityType: 'study_day',
 
-    handler: (item) async {
-      final payload = Map<String, dynamic>.from(item.payload);
+    handler:
+        (
+          item,
+        ) async {
+          final payload =
+              Map<
+                String,
+                dynamic
+              >.from(
+                item.payload,
+              );
 
-      final user = _requireQueueUser(
-        userId: payload['user_id']?.toString(),
-        entity: 'study_day',
-      );
+          final user = _requireQueueUser(
+            userId: payload['user_id']?.toString(),
+            entity: 'study_day',
+          );
 
-      final day = payload['day']?.toString().trim();
+          final day = payload['day']?.toString().trim();
 
-      if (day == null || day.isEmpty) {
-        throw StateError('Operação de estudo sem day.');
-      }
+          if (day ==
+                  null ||
+              day.isEmpty) {
+            throw StateError(
+              'Operação de estudo sem day.',
+            );
+          }
 
-      switch (item.operation) {
-        case SyncOperation.create:
-        case SyncOperation.update:
-          await supabaseClient.from(_studyTable).upsert({
-            'user_id': user.id,
-            'day': day,
-            'minutes': payload['minutes'] ?? 0,
-            'updated_at':
-                payload['updated_at'] ??
-                DateTime.now().toUtc().toIso8601String(),
-          }, onConflict: 'user_id,day');
+          switch (item.operation) {
+            case SyncOperation.create:
+            case SyncOperation.update:
+              await supabaseClient
+                  .from(
+                    _studyTable,
+                  )
+                  .upsert(
+                    {
+                      'user_id': user.id,
+                      'day': day,
+                      'minutes':
+                          payload['minutes'] ??
+                          0,
+                      'updated_at':
+                          payload['updated_at'] ??
+                          DateTime.now().toUtc().toIso8601String(),
+                    },
+                    onConflict: 'user_id,day',
+                  );
 
-          break;
+              break;
 
-        case SyncOperation.delete:
-          await supabaseClient
-              .from(_studyTable)
-              .delete()
-              .eq('user_id', user.id)
-              .eq('day', day);
+            case SyncOperation.delete:
+              await supabaseClient
+                  .from(
+                    _studyTable,
+                  )
+                  .delete()
+                  .eq(
+                    'user_id',
+                    user.id,
+                  )
+                  .eq(
+                    'day',
+                    day,
+                  );
 
-          break;
-      }
-    },
+              break;
+          }
+        },
   );
 
   // ====================================================
@@ -1469,74 +1747,130 @@ void registerSyncHandlers() {
   syncService.registerHandler(
     entityType: 'training_day',
 
-    handler: (item) async {
-      final payload = Map<String, dynamic>.from(item.payload);
+    handler:
+        (
+          item,
+        ) async {
+          final payload =
+              Map<
+                String,
+                dynamic
+              >.from(
+                item.payload,
+              );
 
-      final user = _requireQueueUser(
-        userId: payload['user_id']?.toString(),
-        entity: 'training_day',
-      );
+          final user = _requireQueueUser(
+            userId: payload['user_id']?.toString(),
+            entity: 'training_day',
+          );
 
-      final deleteScope = payload['delete_scope']?.toString();
+          final deleteScope = payload['delete_scope']?.toString();
 
-      switch (item.operation) {
-        case SyncOperation.create:
-        case SyncOperation.update:
-          final day = payload['day']?.toString().trim();
+          switch (item.operation) {
+            case SyncOperation.create:
+            case SyncOperation.update:
+              final day = payload['day']?.toString().trim();
 
-          final date = payload['date']?.toString().trim();
+              final date = payload['date']?.toString().trim();
 
-          if (day == null || day.isEmpty || date == null || date.isEmpty) {
-            throw StateError('Operação de treino sem day/date.');
+              if (day ==
+                      null ||
+                  day.isEmpty ||
+                  date ==
+                      null ||
+                  date.isEmpty) {
+                throw StateError(
+                  'Operação de treino sem day/date.',
+                );
+              }
+
+              await supabaseClient
+                  .from(
+                    _trainingTable,
+                  )
+                  .upsert(
+                    {
+                      'user_id': user.id,
+                      'day': day,
+                      'training':
+                          payload['training']?.toString() ??
+                          '',
+                      'date': date,
+                      'updated_at':
+                          payload['updated_at'] ??
+                          DateTime.now().toUtc().toIso8601String(),
+                    },
+                    onConflict: 'user_id,day,date,training',
+                  );
+
+              break;
+
+            case SyncOperation.delete:
+              if (deleteScope ==
+                  'all') {
+                await supabaseClient
+                    .from(
+                      _trainingTable,
+                    )
+                    .delete()
+                    .eq(
+                      'user_id',
+                      user.id,
+                    );
+
+                break;
+              }
+
+              final day = payload['day']?.toString().trim();
+
+              final date = payload['date']?.toString().trim();
+
+              if (day ==
+                      null ||
+                  day.isEmpty ||
+                  date ==
+                      null ||
+                  date.isEmpty) {
+                throw StateError(
+                  'Exclusão de treino sem day/date.',
+                );
+              }
+
+              final training = payload['training']?.toString().trim();
+
+              if (training ==
+                      null ||
+                  training.isEmpty) {
+                throw StateError(
+                  'Exclusão de treino sem training.',
+                );
+              }
+
+              await supabaseClient
+                  .from(
+                    _trainingTable,
+                  )
+                  .delete()
+                  .eq(
+                    'user_id',
+                    user.id,
+                  )
+                  .eq(
+                    'day',
+                    day,
+                  )
+                  .eq(
+                    'date',
+                    date,
+                  )
+                  .eq(
+                    'training',
+                    training,
+                  );
+
+              break;
           }
-
-          await supabaseClient.from(_trainingTable).upsert({
-            'user_id': user.id,
-            'day': day,
-            'training': payload['training']?.toString() ?? '',
-            'date': date,
-            'updated_at':
-                payload['updated_at'] ??
-                DateTime.now().toUtc().toIso8601String(),
-          }, onConflict: 'user_id,day,date,training');
-
-          break;
-
-        case SyncOperation.delete:
-          if (deleteScope == 'all') {
-            await supabaseClient
-                .from(_trainingTable)
-                .delete()
-                .eq('user_id', user.id);
-
-            break;
-          }
-
-          final day = payload['day']?.toString().trim();
-
-          final date = payload['date']?.toString().trim();
-
-          if (day == null || day.isEmpty || date == null || date.isEmpty) {
-            throw StateError('Exclusão de treino sem day/date.');
-          }
-
-          final training = payload['training']?.toString().trim();
-
-          if (training == null || training.isEmpty) {
-            throw StateError('Exclusão de treino sem training.');
-          }
-
-          await supabaseClient
-              .from(_trainingTable)
-              .delete()
-              .eq('user_id', user.id)
-              .eq('day', day)
-              .eq('date', date)
-              .eq('training', training);
-
-          break;
-      }
-    },
+        },
   );
 
   // ====================================================
@@ -1546,37 +1880,64 @@ void registerSyncHandlers() {
   syncService.registerHandler(
     entityType: 'training_plan',
 
-    handler: (item) async {
-      final payload = Map<String, dynamic>.from(item.payload);
+    handler:
+        (
+          item,
+        ) async {
+          final payload =
+              Map<
+                String,
+                dynamic
+              >.from(
+                item.payload,
+              );
 
-      final user = _requireQueueUser(
-        userId: payload['user_id']?.toString(),
-        entity: 'training_plan',
-      );
+          final user = _requireQueueUser(
+            userId: payload['user_id']?.toString(),
+            entity: 'training_plan',
+          );
 
-      switch (item.operation) {
-        case SyncOperation.create:
-        case SyncOperation.update:
-          await supabaseClient.from(_trainingPlanTable).upsert({
-            'user_id': user.id,
-            'weekly_goal': payload['weekly_goal'] ?? 0,
-            'planned_weekdays': payload['planned_weekdays'] ?? const <int>[],
-            'updated_at':
-                payload['updated_at'] ??
-                DateTime.now().toUtc().toIso8601String(),
-          }, onConflict: 'user_id');
+          switch (item.operation) {
+            case SyncOperation.create:
+            case SyncOperation.update:
+              await supabaseClient
+                  .from(
+                    _trainingPlanTable,
+                  )
+                  .upsert(
+                    {
+                      'user_id': user.id,
+                      'weekly_goal':
+                          payload['weekly_goal'] ??
+                          0,
+                      'planned_weekdays':
+                          payload['planned_weekdays'] ??
+                          const <
+                            int
+                          >[],
+                      'updated_at':
+                          payload['updated_at'] ??
+                          DateTime.now().toUtc().toIso8601String(),
+                    },
+                    onConflict: 'user_id',
+                  );
 
-          break;
+              break;
 
-        case SyncOperation.delete:
-          await supabaseClient
-              .from(_trainingPlanTable)
-              .delete()
-              .eq('user_id', user.id);
+            case SyncOperation.delete:
+              await supabaseClient
+                  .from(
+                    _trainingPlanTable,
+                  )
+                  .delete()
+                  .eq(
+                    'user_id',
+                    user.id,
+                  );
 
-          break;
-      }
-    },
+              break;
+          }
+        },
   );
 
   // ====================================================
@@ -1607,74 +1968,121 @@ void registerSyncHandlers() {
   syncService.registerHandler(
     entityType: 'training_activity_plan',
 
-    handler: (item) async {
-      final payload = Map<String, dynamic>.from(item.payload);
+    handler:
+        (
+          item,
+        ) async {
+          final payload =
+              Map<
+                String,
+                dynamic
+              >.from(
+                item.payload,
+              );
 
-      final user = _requireQueueUser(
-        userId: payload['user_id']?.toString(),
-        entity: 'training_activity_plan',
-      );
-
-      final activity = payload['activity']?.toString().trim().toLowerCase();
-
-      if (activity == null || activity.isEmpty) {
-        throw StateError('Operação de plano corporal sem activity.');
-      }
-
-      switch (item.operation) {
-        case SyncOperation.create:
-        case SyncOperation.update:
-          final rawWeekdays = payload['weekdays'];
-
-          final weekdays = <int>[];
-
-          if (rawWeekdays is Iterable) {
-            for (final raw in rawWeekdays) {
-              final day = raw is int ? raw : int.tryParse(raw.toString());
-
-              if (day == null ||
-                  day < DateTime.monday ||
-                  day > DateTime.sunday) {
-                continue;
-              }
-
-              if (!weekdays.contains(day)) {
-                weekdays.add(day);
-              }
-            }
-          }
-
-          weekdays.sort();
-
-          await supabaseClient.from(_trainingActivityPlanTable).upsert({
-            'user_id': user.id,
-            'activity': activity,
-            'weekdays': weekdays,
-            'updated_at':
-                payload['updated_at'] ??
-                DateTime.now().toUtc().toIso8601String(),
-          }, onConflict: 'user_id,activity');
-
-          await trainingActivityPlanDao.setActivitySyncStatus(
-            userId: user.id,
-            activity: activity,
-            syncStatus: SyncStatus.synced,
+          final user = _requireQueueUser(
+            userId: payload['user_id']?.toString(),
+            entity: 'training_activity_plan',
           );
 
-          break;
+          final activity = payload['activity']?.toString().trim().toLowerCase();
 
-        case SyncOperation.delete:
-          await supabaseClient
-              .from(_trainingActivityPlanTable)
-              .delete()
-              .eq('user_id', user.id)
-              .eq('activity', activity);
+          if (activity ==
+                  null ||
+              activity.isEmpty) {
+            throw StateError(
+              'Operação de plano corporal sem activity.',
+            );
+          }
 
-          await trainingActivityPlanDao.deletePermanently(item.entityId);
+          switch (item.operation) {
+            case SyncOperation.create:
+            case SyncOperation.update:
+              final rawWeekdays = payload['weekdays'];
 
-          break;
-      }
-    },
+              final weekdays =
+                  <
+                    int
+                  >[];
+
+              if (rawWeekdays
+                  is Iterable) {
+                for (final raw in rawWeekdays) {
+                  final day =
+                      raw
+                          is int
+                      ? raw
+                      : int.tryParse(
+                          raw.toString(),
+                        );
+
+                  if (day ==
+                          null ||
+                      day <
+                          DateTime.monday ||
+                      day >
+                          DateTime.sunday) {
+                    continue;
+                  }
+
+                  if (!weekdays.contains(
+                    day,
+                  )) {
+                    weekdays.add(
+                      day,
+                    );
+                  }
+                }
+              }
+
+              weekdays.sort();
+
+              await supabaseClient
+                  .from(
+                    _trainingActivityPlanTable,
+                  )
+                  .upsert(
+                    {
+                      'user_id': user.id,
+                      'activity': activity,
+                      'weekdays': weekdays,
+                      'updated_at':
+                          payload['updated_at'] ??
+                          DateTime.now().toUtc().toIso8601String(),
+                    },
+                    onConflict: 'user_id,activity',
+                  );
+
+              await trainingActivityPlanDao.setActivitySyncStatus(
+                userId: user.id,
+                activity: activity,
+                syncStatus: SyncStatus.synced,
+              );
+
+              break;
+
+            case SyncOperation.delete:
+              await supabaseClient
+                  .from(
+                    _trainingActivityPlanTable,
+                  )
+                  .delete()
+                  .eq(
+                    'user_id',
+                    user.id,
+                  )
+                  .eq(
+                    'activity',
+                    activity,
+                  );
+
+              await trainingActivityPlanDao.deletePermanently(
+                item.entityId,
+              );
+
+              break;
+          }
+        },
   );
 
   // ====================================================
@@ -1718,49 +2126,60 @@ void registerSyncHandlers() {
     // - não incrementa retry.
     //
     // ==================================================
-    processingGate: (_) async {
-      return _canUseBrainCloudWithAuthorizedDevice();
-    },
+    processingGate:
+        (
+          _,
+        ) async {
+          return _canUseBrainCloudWithAuthorizedDevice();
+        },
 
-    handler: (item) async {
-      // ==================================================
-      // SEGUNDA CHECAGEM — FAIL CLOSED
-      // ==================================================
-      //
-      // O processingGate bloqueia itens pendentes antes do
-      // processamento.
-      //
-      // Rechecamos imediatamente antes do acesso remoto para
-      // reduzir a janela de mudança Cloud -> Local.
-      //
-      // ==================================================
+    handler:
+        (
+          item,
+        ) async {
+          // ==================================================
+          // SEGUNDA CHECAGEM — FAIL CLOSED
+          // ==================================================
+          //
+          // O processingGate bloqueia itens pendentes antes do
+          // processamento.
+          //
+          // Rechecamos imediatamente antes do acesso remoto para
+          // reduzir a janela de mudança Cloud -> Local.
+          //
+          // ==================================================
 
-      final canTransmit = await _canUseBrainCloudWithAuthorizedDevice();
+          final canTransmit = await _canUseBrainCloudWithAuthorizedDevice();
 
-      if (!canTransmit) {
-        throw StateError(
-          'Transmissão do Cérebro bloqueada: '
-          'modo Local, sessão ausente ou '
-          'dispositivo não autorizado.',
-        );
-      }
+          if (!canTransmit) {
+            throw StateError(
+              'Transmissão do Cérebro bloqueada: '
+              'modo Local, sessão ausente ou '
+              'dispositivo não autorizado.',
+            );
+          }
 
-      switch (item.operation) {
-        case SyncOperation.create:
-        case SyncOperation.update:
-          await brainSupabaseE2eeService.upsertQueuePayload(
-            Map<String, dynamic>.from(item.payload),
-          );
+          switch (item.operation) {
+            case SyncOperation.create:
+            case SyncOperation.update:
+              await brainSupabaseE2eeService.upsertQueuePayload(
+                Map<
+                  String,
+                  dynamic
+                >.from(
+                  item.payload,
+                ),
+              );
 
-          break;
+              break;
 
-        case SyncOperation.delete:
-          throw StateError(
-            'brain_e2ee_object não usa SyncOperation.delete. '
-            'Exclusões são tombstones versionados enviados como update.',
-          );
-      }
-    },
+            case SyncOperation.delete:
+              throw StateError(
+                'brain_e2ee_object não usa SyncOperation.delete. '
+                'Exclusões são tombstones versionados enviados como update.',
+              );
+          }
+        },
   );
 
   // ====================================================
@@ -1770,61 +2189,103 @@ void registerSyncHandlers() {
   syncService.registerHandler(
     entityType: 'journey_day',
 
-    handler: (item) async {
-      final payload = Map<String, dynamic>.from(item.payload);
+    handler:
+        (
+          item,
+        ) async {
+          final payload =
+              Map<
+                String,
+                dynamic
+              >.from(
+                item.payload,
+              );
 
-      final user = _requireQueueUser(
-        userId: payload['user_id']?.toString(),
-        entity: 'journey_day',
-      );
+          final user = _requireQueueUser(
+            userId: payload['user_id']?.toString(),
+            entity: 'journey_day',
+          );
 
-      final deleteScope = payload['delete_scope']?.toString();
+          final deleteScope = payload['delete_scope']?.toString();
 
-      switch (item.operation) {
-        case SyncOperation.create:
-        case SyncOperation.update:
-          final date = payload['date']?.toString().trim();
+          switch (item.operation) {
+            case SyncOperation.create:
+            case SyncOperation.update:
+              final date = payload['date']?.toString().trim();
 
-          if (date == null || date.isEmpty) {
-            throw StateError('Operação de jornada sem date.');
+              if (date ==
+                      null ||
+                  date.isEmpty) {
+                throw StateError(
+                  'Operação de jornada sem date.',
+                );
+              }
+
+              await supabaseClient
+                  .from(
+                    _journeyTable,
+                  )
+                  .upsert(
+                    {
+                      'user_id': user.id,
+                      'date': date,
+                      'notes':
+                          payload['notes'] ??
+                          const <
+                            String
+                          >[],
+                      'updated_at':
+                          payload['updated_at'] ??
+                          DateTime.now().toUtc().toIso8601String(),
+                    },
+                    onConflict: 'user_id,date',
+                  );
+
+              break;
+
+            case SyncOperation.delete:
+              if (deleteScope ==
+                  'all') {
+                await supabaseClient
+                    .from(
+                      _journeyTable,
+                    )
+                    .delete()
+                    .eq(
+                      'user_id',
+                      user.id,
+                    );
+
+                break;
+              }
+
+              final date = payload['date']?.toString().trim();
+
+              if (date ==
+                      null ||
+                  date.isEmpty) {
+                throw StateError(
+                  'Exclusão de jornada sem date.',
+                );
+              }
+
+              await supabaseClient
+                  .from(
+                    _journeyTable,
+                  )
+                  .delete()
+                  .eq(
+                    'user_id',
+                    user.id,
+                  )
+                  .eq(
+                    'date',
+                    date,
+                  );
+
+              break;
           }
-
-          await supabaseClient.from(_journeyTable).upsert({
-            'user_id': user.id,
-            'date': date,
-            'notes': payload['notes'] ?? const <String>[],
-            'updated_at':
-                payload['updated_at'] ??
-                DateTime.now().toUtc().toIso8601String(),
-          }, onConflict: 'user_id,date');
-
-          break;
-
-        case SyncOperation.delete:
-          if (deleteScope == 'all') {
-            await supabaseClient
-                .from(_journeyTable)
-                .delete()
-                .eq('user_id', user.id);
-
-            break;
-          }
-
-          final date = payload['date']?.toString().trim();
-
-          if (date == null || date.isEmpty) {
-            throw StateError('Exclusão de jornada sem date.');
-          }
-
-          await supabaseClient
-              .from(_journeyTable)
-              .delete()
-              .eq('user_id', user.id)
-              .eq('date', date);
-
-          break;
-      }
-    },
+        },
   );
 
   _syncHandlersRegistered = true;
@@ -1834,7 +2295,10 @@ void registerSyncHandlers() {
 // INITIALIZE OFFLINE-FIRST
 // ======================================================
 
-Future<void> initializeOfflineFirst() async {
+Future<
+  void
+>
+initializeOfflineFirst() async {
   await appDatabase.initialize();
 
   await trainingActivityPlanDao.initialize();
@@ -1860,8 +2324,11 @@ Future<void> initializeOfflineFirst() async {
 
   await brainDataModeController.initialize();
 
-  if (brainDataModeController.errorMessage != null) {
-    throw StateError(brainDataModeController.errorMessage!);
+  if (brainDataModeController.errorMessage !=
+      null) {
+    throw StateError(
+      brainDataModeController.errorMessage!,
+    );
   }
 
   // ====================================================
@@ -1892,18 +2359,38 @@ final accountStartupCoordinator = AccountStartupCoordinator(
   currentUserId: () => supabaseClient.auth.currentUser?.id,
   initialize: _initializeAuthenticatedOfflineFirst,
   stop: () => syncService.stop(),
-  onIdentityChanged: (userId) => syncService.authorizeUser(userId),
+  onIdentityChanged:
+      (
+        userId,
+      ) => syncService.authorizeUser(
+        userId,
+      ),
 );
 
-void notifyAppUserChanged(String? userId) {
-  accountStartupCoordinator.setUser(userId);
+void
+notifyAppUserChanged(
+  String? userId,
+) {
+  accountStartupCoordinator.setUser(
+    userId,
+  );
 }
 
-Future<void> initializeAuthenticatedOfflineFirst(String userId) {
-  return accountStartupCoordinator.ensure(userId);
+Future<
+  void
+>
+initializeAuthenticatedOfflineFirst(
+  String userId,
+) {
+  return accountStartupCoordinator.ensure(
+    userId,
+  );
 }
 
-Future<void> _initializeAuthenticatedOfflineFirst(
+Future<
+  void
+>
+_initializeAuthenticatedOfflineFirst(
   String userId,
   void Function() check,
 ) async {
@@ -1992,7 +2479,9 @@ Future<void> _initializeAuthenticatedOfflineFirst(
   // ====================================================
 
   check();
-  await _purgeLegacyBrainQueueItems(check);
+  await _purgeLegacyBrainQueueItems(
+    check,
+  );
   check();
 
   // ====================================================
@@ -2032,7 +2521,9 @@ Future<void> _initializeAuthenticatedOfflineFirst(
   // ====================================================
 
   check();
-  syncService.authorizeUser(userId);
+  syncService.authorizeUser(
+    userId,
+  );
   await syncService.start();
   check();
 }
@@ -2041,7 +2532,10 @@ Future<void> _initializeAuthenticatedOfflineFirst(
 // REFRESH SYNC STATUS
 // ======================================================
 
-Future<void> refreshSyncStatus() async {
+Future<
+  void
+>
+refreshSyncStatus() async {
   await syncService.refreshPendingCount();
 
   await connectivityService.checkNow();
@@ -2051,8 +2545,13 @@ Future<void> refreshSyncStatus() async {
 // FORCE SYNC
 // ======================================================
 
-Future<void> forceSyncNow() async {
-  await syncService.syncNow(checkConnection: true);
+Future<
+  void
+>
+forceSyncNow() async {
+  await syncService.syncNow(
+    checkConnection: true,
+  );
 }
 
 // ======================================================
@@ -2089,17 +2588,27 @@ final routineRepository = RoutineRepositoryImpl(
 //
 // ======================================================
 
-RoutineController createRoutineControllerForCurrentUser({String? userId}) {
+RoutineController
+createRoutineControllerForCurrentUser({
+  String? userId,
+}) {
   final injectedUserId = userId?.trim();
 
   final authenticatedUserId = supabaseClient.auth.currentUser?.id.trim();
 
-  final resolvedUserId = injectedUserId != null && injectedUserId.isNotEmpty
+  final resolvedUserId =
+      injectedUserId !=
+              null &&
+          injectedUserId.isNotEmpty
       ? injectedUserId
       : authenticatedUserId;
 
-  if (resolvedUserId == null || resolvedUserId.isEmpty) {
-    throw StateError('Não existe identidade válida para inicializar a rotina.');
+  if (resolvedUserId ==
+          null ||
+      resolvedUserId.isEmpty) {
+    throw StateError(
+      'Não existe identidade válida para inicializar a rotina.',
+    );
   }
 
   return RoutineController(
@@ -2122,21 +2631,29 @@ final financeRepository = FinanceRepository(
   syncService: syncService,
 );
 
-final financeService = FinanceService(repository: financeRepository);
+final financeService = FinanceService(
+  repository: financeRepository,
+);
 
-final financeController = FinanceController(financeService);
+final financeController = FinanceController(
+  financeService,
+);
 
 // ======================================================
 // CRYPTO REPOSITORY
 // ======================================================
 
-final cryptoRepository = CryptoRepository(storage: localStorage);
+final cryptoRepository = CryptoRepository(
+  storage: localStorage,
+);
 
 // ======================================================
 // CRYPTO SERVICE
 // ======================================================
 
-final cryptoService = CryptoService(repository: cryptoRepository);
+final cryptoService = CryptoService(
+  repository: cryptoRepository,
+);
 
 // ======================================================
 // CRYPTO PRICE SERVICE
@@ -2148,7 +2665,9 @@ final cryptoPriceService = CryptoPriceService();
 // CRYPTO CONTROLLER
 // ======================================================
 
-final cryptoController = CryptoController(service: cryptoService);
+final cryptoController = CryptoController(
+  service: cryptoService,
+);
 
 // ======================================================
 // TRAINING
@@ -2167,9 +2686,13 @@ final trainingRepository = TrainingRepository(
   syncService: syncService,
 );
 
-final trainingService = TrainingService(repository: trainingRepository);
+final trainingService = TrainingService(
+  repository: trainingRepository,
+);
 
-final trainingController = TrainingController(service: trainingService);
+final trainingController = TrainingController(
+  service: trainingService,
+);
 
 // ======================================================
 // TRAINING - BODY MAP
@@ -2207,7 +2730,9 @@ final bodyMapRepository = BodyMapRepository(
   syncService: syncService,
 );
 
-final bodyMapService = BodyMapService(repository: bodyMapRepository);
+final bodyMapService = BodyMapService(
+  repository: bodyMapRepository,
+);
 
 final bodyMapController = BodyMapController();
 
@@ -2228,14 +2753,18 @@ final studyRepository = StudyRepository(
   syncService: syncService,
 );
 
-final studyService = StudyService(repository: studyRepository);
+final studyService = StudyService(
+  repository: studyRepository,
+);
 
 final studyDayService = StudyDayService(
   repository: studyRepository,
   brainStorage: brainStorage,
 );
 
-final studyController = StudyController(service: studyService);
+final studyController = StudyController(
+  service: studyService,
+);
 
 // ======================================================
 // EVOLUTION
@@ -2251,9 +2780,13 @@ final evolutionRepository = EvolutionRepository(
   storage: localStorage,
 );
 
-final evolutionService = EvolutionService(repository: evolutionRepository);
+final evolutionService = EvolutionService(
+  repository: evolutionRepository,
+);
 
-final evolutionController = EvolutionController(service: evolutionService);
+final evolutionController = EvolutionController(
+  service: evolutionService,
+);
 
 // ======================================================
 // JOURNEY
@@ -2274,9 +2807,13 @@ final journeyRepository = JourneyRepository(
   syncService: syncService,
 );
 
-final journeyService = JourneyService(repository: journeyRepository);
+final journeyService = JourneyService(
+  repository: journeyRepository,
+);
 
-final journeyController = JourneyController(service: journeyService);
+final journeyController = JourneyController(
+  service: journeyService,
+);
 
 // ======================================================
 // ROUTINE - BOARD COMMENTS
@@ -2332,12 +2869,16 @@ final reminderRepository = ReminderRepository(
   syncService: syncService,
 );
 
-final reminderController = ReminderController(repository: reminderRepository);
+final reminderController = ReminderController(
+  repository: reminderRepository,
+);
 
 final reminderService = ReminderService(
   controller: reminderController,
 
-  checkInterval: const Duration(seconds: 30),
+  checkInterval: const Duration(
+    seconds: 30,
+  ),
 );
 
 // ======================================================

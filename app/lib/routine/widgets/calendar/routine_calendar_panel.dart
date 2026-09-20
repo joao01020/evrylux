@@ -44,9 +44,6 @@ class RoutineCalendarPanel
   static const Color _primarySoft = Color(
     0xFFBFE8B8,
   );
-  static const Color _primarySoftest = Color(
-    0xFFEAF7E7,
-  );
   static const Color _text = Color(
     0xFF172019,
   );
@@ -542,7 +539,6 @@ class _WeekDayCard
 
   static const Color _surface = RoutineCalendarPanel._surface;
   static const Color _border = RoutineCalendarPanel._border;
-  static const Color _primary = RoutineCalendarPanel._primary;
   static const Color _primarySoft = RoutineCalendarPanel._primarySoft;
   static const Color _text = RoutineCalendarPanel._text;
   static const Color _muted = RoutineCalendarPanel._muted;

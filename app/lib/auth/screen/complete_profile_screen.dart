@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import '../../profile/data/profile_repository.dart';
 import '../../profile/models/user_profile.dart';
 
+// ============================================================
+// COMPLETE PROFILE SCREEN
+// ============================================================
+
 class CompleteProfileScreen
     extends
         StatefulWidget {
@@ -20,8 +24,14 @@ class CompleteProfileScreen
   State<
     CompleteProfileScreen
   >
-  createState() => _CompleteProfileScreenState();
+  createState() {
+    return _CompleteProfileScreenState();
+  }
 }
+
+// ============================================================
+// STATE
+// ============================================================
 
 class _CompleteProfileScreenState
     extends
@@ -52,10 +62,6 @@ class _CompleteProfileScreenState
 
   static const Color _backgroundColor = Color(
     0xFFF7FBF1,
-  );
-
-  static const Color _surfaceColor = Color(
-    0xFFFFFFFF,
   );
 
   static const Color _inputColor = Color(
@@ -122,6 +128,7 @@ class _CompleteProfileScreenState
   @override
   void dispose() {
     _nameController.dispose();
+
     _nameFocusNode.dispose();
 
     super.dispose();
@@ -139,11 +146,11 @@ class _CompleteProfileScreenState
       return;
     }
 
-    final name = _normalizeName(
+    final String name = _normalizeName(
       _nameController.text,
     );
 
-    final validationError = _validateName(
+    final String? validationError = _validateName(
       name,
     );
 
@@ -230,15 +237,13 @@ class _CompleteProfileScreenState
         },
       );
     } finally {
-      if (!mounted) {
-        return;
+      if (mounted) {
+        setState(
+          () {
+            _isSaving = false;
+          },
+        );
       }
-
-      setState(
-        () {
-          _isSaving = false;
-        },
-      );
     }
   }
 
@@ -383,24 +388,32 @@ class _CompleteProfileScreenState
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _buildHeader(),
+
         const SizedBox(
           height: 34,
         ),
+
         _buildNameField(),
+
         if (_errorMessage !=
             null) ...[
           const SizedBox(
             height: 14,
           ),
+
           _buildError(),
         ],
+
         const SizedBox(
           height: 24,
         ),
+
         _buildContinueButton(),
+
         const SizedBox(
           height: 18,
         ),
+
         _buildFooter(),
       ],
     );
@@ -424,9 +437,11 @@ class _CompleteProfileScreenState
             letterSpacing: -0.6,
           ),
         ),
+
         const SizedBox(
           height: 12,
         ),
+
         Text(
           'Queremos deixar sua experiência mais pessoal.',
           style: TextStyle(
@@ -458,9 +473,11 @@ class _CompleteProfileScreenState
             fontWeight: FontWeight.w600,
           ),
         ),
+
         const SizedBox(
           height: 10,
         ),
+
         TextField(
           controller: _nameController,
           focusNode: _nameFocusNode,
@@ -595,9 +612,11 @@ class _CompleteProfileScreenState
             color: _errorColor,
             size: 19,
           ),
+
           const SizedBox(
             width: 10,
           ),
+
           Expanded(
             child: Text(
               _errorMessage ??

@@ -306,15 +306,13 @@ class _ActivityTimerState
         stackTrace: stackTrace,
       );
     } finally {
-      if (!mounted) {
-        return;
+      if (mounted) {
+        setState(
+          () {
+            saving = false;
+          },
+        );
       }
-
-      setState(
-        () {
-          saving = false;
-        },
-      );
     }
   }
 

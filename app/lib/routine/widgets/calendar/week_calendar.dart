@@ -90,7 +90,7 @@ class WeekCalendar
         separatorBuilder:
             (
               _,
-              __,
+              _,
             ) {
               return const SizedBox(
                 width: 8,

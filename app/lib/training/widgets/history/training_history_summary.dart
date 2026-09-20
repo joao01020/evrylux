@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 
 import 'training_history_records.dart';
 
+// ============================================================
+// TRAINING HISTORY SUMMARY
+// ============================================================
+
 class TrainingHistorySummary
     extends
         StatelessWidget {
@@ -15,119 +19,169 @@ class TrainingHistorySummary
   >
   entries;
 
+  // ============================================================
+  // CORES
+  // ============================================================
+
   static const Color _surface = Color(
     0xFFFFFFFF,
   );
+
   static const Color _soft = Color(
     0xFFF3F8EE,
   );
+
   static const Color _border = Color(
     0xFFC7DFC9,
   );
+
   static const Color _primary = Color(
     0xFF3B6939,
   );
+
   static const Color _text = Color(
     0xFF172019,
   );
+
   static const Color _muted = Color(
     0xFF68746B,
   );
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(
     BuildContext context,
   ) {
-    final total = entries.length;
+    final int total = entries.length;
 
-    final activeDays = entries
+    // ==========================================================
+    // DIAS ATIVOS
+    // ==========================================================
+
+    final int activeDays = entries
         .map(
           (
-            entry,
-          ) => DateTime(
-            entry.date.year,
-            entry.date.month,
-            entry.date.day,
-          ),
+            TrainingHistoryEntry entry,
+          ) {
+            return DateTime(
+              entry.date.year,
+              entry.date.month,
+              entry.date.day,
+            );
+          },
         )
         .toSet()
         .length;
 
-    final activities = entries
+    // ==========================================================
+    // ATIVIDADES ÚNICAS
+    // ==========================================================
+
+    final int activities = entries
         .map(
           (
-            entry,
-          ) => entry.activity.trim().toLowerCase(),
+            TrainingHistoryEntry entry,
+          ) {
+            return entry.activity.trim().toLowerCase();
+          },
         )
         .where(
           (
-            value,
-          ) => value.isNotEmpty,
+            String value,
+          ) {
+            return value.isNotEmpty;
+          },
         )
         .toSet()
         .length;
 
-    final minutes =
+    // ==========================================================
+    // TEMPO TOTAL
+    // ==========================================================
+
+    final int minutes =
         entries.fold<
           int
         >(
           0,
           (
-            sum,
-            entry,
-          ) =>
-              sum +
-              (entry.durationMinutes ??
-                  0),
+            int sum,
+            TrainingHistoryEntry entry,
+          ) {
+            return sum +
+                (entry.durationMinutes ??
+                    0);
+          },
         );
 
-    final cards = [
-      _SummaryCard(
-        icon: Icons.fitness_center_rounded,
-        label: 'Registros',
-        value: '$total',
-      ),
-      _SummaryCard(
-        icon: Icons.calendar_today_outlined,
-        label: 'Dias ativos',
-        value: '$activeDays',
-      ),
-      _SummaryCard(
-        icon: Icons.category_outlined,
-        label: 'Atividades',
-        value: '$activities',
-      ),
-      _SummaryCard(
-        icon: Icons.timer_outlined,
-        label: 'Tempo',
-        value: _formatMinutes(
-          minutes,
-        ),
-      ),
-    ];
+    // ==========================================================
+    // CARDS
+    // ==========================================================
+
+    final List<
+      _SummaryCard
+    >
+    cards =
+        <
+          _SummaryCard
+        >[
+          _SummaryCard(
+            icon: Icons.fitness_center_rounded,
+            label: 'Registros',
+            value: '$total',
+          ),
+          _SummaryCard(
+            icon: Icons.calendar_today_outlined,
+            label: 'Dias ativos',
+            value: '$activeDays',
+          ),
+          _SummaryCard(
+            icon: Icons.category_outlined,
+            label: 'Atividades',
+            value: '$activities',
+          ),
+          _SummaryCard(
+            icon: Icons.timer_outlined,
+            label: 'Tempo',
+            value: _formatMinutes(
+              minutes,
+            ),
+          ),
+        ];
+
+    // ==========================================================
+    // LAYOUT RESPONSIVO
+    // ==========================================================
 
     return LayoutBuilder(
       builder:
           (
-            context,
-            constraints,
+            BuildContext context,
+            BoxConstraints constraints,
           ) {
             if (constraints.maxWidth <
                 620) {
+              final double cardWidth =
+                  (constraints.maxWidth -
+                      10) /
+                  2;
+
               return Wrap(
                 spacing: 10,
                 runSpacing: 10,
                 children: cards
                     .map(
                       (
-                        card,
-                      ) => SizedBox(
-                        width:
-                            (constraints.maxWidth -
-                                10) /
-                            2,
-                        child: card,
-                      ),
+                        _SummaryCard card,
+                      ) {
+                        return SizedBox(
+                          width: cardWidth,
+                          child: card,
+                        );
+                      },
                     )
                     .toList(
                       growable: false,
@@ -138,7 +192,7 @@ class TrainingHistorySummary
             return Row(
               children: [
                 for (
-                  var i = 0;
+                  int i = 0;
                   i <
                       cards.length;
                   i++
@@ -159,29 +213,43 @@ class TrainingHistorySummary
     );
   }
 
+  // ============================================================
+  // FORMATAR MINUTOS
+  // ============================================================
+
   static String _formatMinutes(
     int minutes,
   ) {
     if (minutes <=
-        0)
+        0) {
       return '0 min';
-    if (minutes <
-        60)
-      return '$minutes min';
+    }
 
-    final hours =
+    if (minutes <
+        60) {
+      return '$minutes min';
+    }
+
+    final int hours =
         minutes ~/
         60;
-    final rest =
+
+    final int rest =
         minutes %
         60;
 
-    return rest ==
-            0
-        ? '${hours}h'
-        : '${hours}h ${rest}m';
+    if (rest ==
+        0) {
+      return '${hours}h';
+    }
+
+    return '${hours}h ${rest}m';
   }
 }
+
+// ============================================================
+// SUMMARY CARD
+// ============================================================
 
 class _SummaryCard
     extends
@@ -193,8 +261,14 @@ class _SummaryCard
   });
 
   final IconData icon;
+
   final String label;
+
   final String value;
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(
@@ -216,6 +290,9 @@ class _SummaryCard
       ),
       child: Row(
         children: [
+          // ======================================================
+          // ÍCONE
+          // ======================================================
           Container(
             width: 34,
             height: 34,
@@ -231,9 +308,14 @@ class _SummaryCard
               color: TrainingHistorySummary._primary,
             ),
           ),
+
           const SizedBox(
             width: 9,
           ),
+
+          // ======================================================
+          // INFORMAÇÕES
+          // ======================================================
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -248,9 +330,11 @@ class _SummaryCard
                     fontWeight: FontWeight.w800,
                   ),
                 ),
+
                 const SizedBox(
                   height: 2,
                 ),
+
                 Text(
                   label,
                   maxLines: 1,

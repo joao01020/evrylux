@@ -1102,9 +1102,10 @@ class _SessionsAndDevicesDialogState
   List<
     AccountDevice
   >
-  _devices = const <
-    AccountDevice
-  >[];
+  _devices =
+      const <
+        AccountDevice
+      >[];
 
   @override
   void initState() {
@@ -1129,11 +1130,9 @@ class _SessionsAndDevicesDialogState
     }
 
     try {
-      final currentDeviceId =
-          await accountDeviceIdentityService.getOrCreateDeviceId();
+      final currentDeviceId = await accountDeviceIdentityService.getOrCreateDeviceId();
 
-      final currentSessionId =
-          accountDeviceRepository.getCurrentSessionId();
+      final currentSessionId = accountDeviceRepository.getCurrentSessionId();
 
       await accountDeviceRepository.registerDevice(
         deviceId: currentDeviceId,
@@ -1172,8 +1171,7 @@ class _SessionsAndDevicesDialogState
       setState(
         () {
           _loading = false;
-          _error =
-              'Não foi possível carregar os dispositivos. Verifique sua conexão e tente novamente.';
+          _error = 'Não foi possível carregar os dispositivos. Verifique sua conexão e tente novamente.';
         },
       );
     }
@@ -1548,7 +1546,8 @@ class _SessionsAndDevicesDialogState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          _devices.length == 1
+          _devices.length ==
+                  1
               ? '1 dispositivo conectado à sua conta EVRYLUX.'
               : '${_devices.length} dispositivos conectados à sua conta EVRYLUX.',
           style: const TextStyle(
@@ -1567,8 +1566,8 @@ class _SessionsAndDevicesDialogState
             itemCount: _devices.length,
             separatorBuilder:
                 (
-                  context,
-                  index,
+                  _,
+                  _,
                 ) {
                   return const SizedBox(
                     height: 10,
@@ -1576,7 +1575,7 @@ class _SessionsAndDevicesDialogState
                 },
             itemBuilder:
                 (
-                  context,
+                  _,
                   index,
                 ) {
                   final device = _devices[index];
@@ -1649,11 +1648,11 @@ class _SessionsAndDevicesDialogState
             ),
             child: Icon(
               device.platform.toLowerCase().contains(
-                    'android',
-                  ) ||
-                  device.platform.toLowerCase().contains(
-                    'ios',
-                  )
+                        'android',
+                      ) ||
+                      device.platform.toLowerCase().contains(
+                        'ios',
+                      )
                   ? Icons.phone_android_rounded
                   : Icons.computer_rounded,
               color: _ProfileSettingsPageState._primaryDark,
@@ -1682,8 +1681,7 @@ class _SessionsAndDevicesDialogState
                       ),
                     ),
 
-                    if (isCurrent)
-                      const _CurrentSessionBadge(),
+                    if (isCurrent) const _CurrentSessionBadge(),
                   ],
                 ),
 
@@ -1787,76 +1785,6 @@ class _SessionsAndDevicesDialogState
               ),
             ),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-// ============================================================
-// DANGER ZONE HEADER
-// ============================================================
-
-class _DangerZoneHeader
-    extends
-        StatelessWidget {
-  const _DangerZoneHeader();
-
-  @override
-  Widget build(
-    BuildContext context,
-  ) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(
-        14,
-        14,
-        14,
-        12,
-      ),
-      color: const Color(
-        0xFFFFF7F5,
-      ),
-      child: const Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.warning_amber_rounded,
-            size: 20,
-            color: _ProfileSettingsPageState._danger,
-          ),
-
-          SizedBox(
-            width: 10,
-          ),
-
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Zona de risco',
-                  style: TextStyle(
-                    color: _ProfileSettingsPageState._danger,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-
-                SizedBox(
-                  height: 3,
-                ),
-
-                Text(
-                  'Ações permanentes relacionadas aos seus dados e à sua conta.',
-                  style: TextStyle(
-                    color: _ProfileSettingsPageState._muted,
-                    fontSize: 11,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );

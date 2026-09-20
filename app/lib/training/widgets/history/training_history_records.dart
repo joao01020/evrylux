@@ -141,7 +141,7 @@ class TrainingHistoryRecords
         separatorBuilder:
             (
               _,
-              __,
+              _,
             ) => const Divider(
               height: 1,
               color: _border,

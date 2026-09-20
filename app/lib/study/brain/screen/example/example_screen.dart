@@ -314,7 +314,7 @@ class _ExampleScreenState
         separatorBuilder:
             (
               _,
-              __,
+              _,
             ) {
               return const SizedBox(
                 height: 10,

@@ -59,8 +59,6 @@ extension _BrainScreenVisualSearch
       'animar=$animateGrowth',
     );
 
-    _brainVisualKnowledgeCount = currentCount;
-
     if (animateGrowth &&
         currentCount >
             previousVisualCount) {

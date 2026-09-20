@@ -11,10 +11,6 @@ class BodyMapLegend
     super.key,
   });
 
-  static const Color _text = Color(
-    0xFF172019,
-  );
-
   static const Color _muted = Color(
     0xFF68746B,
   );
@@ -43,10 +39,10 @@ class BodyMapLegend
   Widget build(
     BuildContext context,
   ) {
-    return Wrap(
+    return const Wrap(
       spacing: 8,
       runSpacing: 8,
-      children: const [
+      children: [
         _LegendItem(
           color: _available,
           label: 'Disponível',

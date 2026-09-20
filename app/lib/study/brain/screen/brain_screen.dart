@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../app/dependencies/app_dependencies.dart' as dependencies;
@@ -99,8 +98,6 @@ class _BrainScreenState
   Timer? _brainSearchPulseStopTimer;
 
   bool _brainVisualReady = false;
-
-  int _brainVisualKnowledgeCount = 0;
 
   static const Duration _brainGrowthPreviewDuration = Duration(
     milliseconds: 2050,

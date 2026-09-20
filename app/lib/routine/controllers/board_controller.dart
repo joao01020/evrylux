@@ -738,7 +738,7 @@ class BoardController
             null &&
         boardWidth >
             0) {
-      final width = this.blockWidth(
+      final width = blockWidth(
         block: block,
         boardWidth: boardWidth,
       );
