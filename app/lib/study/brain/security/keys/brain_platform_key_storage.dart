@@ -20,15 +20,25 @@ import 'brain_linux_key_storage.dart';
 //   ↓
 // Secret Service
 //
+// macOS
+//   ↓
+// BrainLinuxKeyStorage
+//   ↓
+// FlutterSecureStorage
+//   ↓
+// Keychain
+//
+// IMPORTANTE:
+//
+// O nome BrainLinuxKeyStorage foi mantido por compatibilidade,
+// mas a implementação interna já possui tratamento específico
+// para macOS.
+//
 // Futuramente:
 //
 // Windows
 //   ↓
 // DPAPI / Credential Manager
-//
-// macOS
-//   ↓
-// Keychain
 //
 // ============================================================
 //
@@ -48,27 +58,22 @@ import 'brain_linux_key_storage.dart';
 //
 // ============================================================
 
-class BrainPlatformKeyStorage
-    extends
-        BrainKeyStorage {
-  BrainPlatformKeyStorage({
-    BrainKeyStorage? linuxStorage,
-  }) : _linuxStorage =
-           linuxStorage ??
-           BrainLinuxKeyStorage();
+class BrainPlatformKeyStorage extends BrainKeyStorage {
+  BrainPlatformKeyStorage({BrainKeyStorage? linuxStorage})
+    : _platformStorage = linuxStorage ?? BrainLinuxKeyStorage();
 
   // ============================================================
   // PLATFORM STORAGE
   // ============================================================
 
-  final BrainKeyStorage _linuxStorage;
+  final BrainKeyStorage _platformStorage;
 
   // ============================================================
   // IS SUPPORTED
   // ============================================================
 
   bool get isSupported {
-    return Platform.isLinux;
+    return Platform.isLinux || Platform.isMacOS;
   }
 
   // ============================================================
@@ -76,8 +81,8 @@ class BrainPlatformKeyStorage
   // ============================================================
 
   BrainKeyStorage _resolveStorage() {
-    if (Platform.isLinux) {
-      return _linuxStorage;
+    if (Platform.isLinux || Platform.isMacOS) {
+      return _platformStorage;
     }
 
     throw UnsupportedError(
@@ -92,17 +97,11 @@ class BrainPlatformKeyStorage
   // ============================================================
 
   @override
-  Future<
-    void
-  >
-  saveKeyBundle({
+  Future<void> saveKeyBundle({
     required String vaultId,
     required BrainKeyBundle bundle,
   }) {
-    return _resolveStorage().saveKeyBundle(
-      vaultId: vaultId,
-      bundle: bundle,
-    );
+    return _resolveStorage().saveKeyBundle(vaultId: vaultId, bundle: bundle);
   }
 
   // ============================================================
@@ -110,15 +109,8 @@ class BrainPlatformKeyStorage
   // ============================================================
 
   @override
-  Future<
-    BrainKeyBundle?
-  >
-  loadKeyBundle({
-    required String vaultId,
-  }) {
-    return _resolveStorage().loadKeyBundle(
-      vaultId: vaultId,
-    );
+  Future<BrainKeyBundle?> loadKeyBundle({required String vaultId}) {
+    return _resolveStorage().loadKeyBundle(vaultId: vaultId);
   }
 
   // ============================================================
@@ -126,15 +118,8 @@ class BrainPlatformKeyStorage
   // ============================================================
 
   @override
-  Future<
-    bool
-  >
-  containsKeyBundle({
-    required String vaultId,
-  }) {
-    return _resolveStorage().containsKeyBundle(
-      vaultId: vaultId,
-    );
+  Future<bool> containsKeyBundle({required String vaultId}) {
+    return _resolveStorage().containsKeyBundle(vaultId: vaultId);
   }
 
   // ============================================================
@@ -142,14 +127,7 @@ class BrainPlatformKeyStorage
   // ============================================================
 
   @override
-  Future<
-    void
-  >
-  deleteKeyBundle({
-    required String vaultId,
-  }) {
-    return _resolveStorage().deleteKeyBundle(
-      vaultId: vaultId,
-    );
+  Future<void> deleteKeyBundle({required String vaultId}) {
+    return _resolveStorage().deleteKeyBundle(vaultId: vaultId);
   }
 }

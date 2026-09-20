@@ -11,13 +11,20 @@ import '../services/brain_review_question_generator.dart';
 // RESULTADO DA REVISÃO
 // ============================================================
 
-enum ReviewAnswer { again, hard, good, easy }
+enum ReviewAnswer {
+  again,
+  hard,
+  good,
+  easy,
+}
 
 // ============================================================
 // EXTENSÃO
 // ============================================================
 
-extension ReviewAnswerExtension on ReviewAnswer {
+extension ReviewAnswerExtension
+    on
+        ReviewAnswer {
   String get label {
     switch (this) {
       case ReviewAnswer.again:
@@ -39,17 +46,18 @@ extension ReviewAnswerExtension on ReviewAnswer {
 // CONTROLLER
 // ============================================================
 
-class ReviewController extends ChangeNotifier {
-  ReviewController({required ReviewRepository repository})
-    : _repository = repository;
+class ReviewController
+    extends
+        ChangeNotifier {
+  ReviewController({
+    required ReviewRepository repository,
+  }) : _repository = repository;
 
   final ReviewRepository _repository;
 
-  static const BrainReviewGenerationQueue _generationQueue =
-      BrainReviewGenerationQueue();
+  static const BrainReviewGenerationQueue _generationQueue = BrainReviewGenerationQueue();
 
-  static const BrainReviewQuestionGenerator _questionGenerator =
-      LocalBrainReviewQuestionGenerator();
+  static const BrainReviewQuestionGenerator _questionGenerator = LocalBrainReviewQuestionGenerator();
 
   // ============================================================
   // STATE
@@ -63,7 +71,10 @@ class ReviewController extends ChangeNotifier {
 
   String? _successMessage;
 
-  List<BrainReviewItem> _reviews = [];
+  List<
+    BrainReviewItem
+  >
+  _reviews = [];
 
   // ============================================================
   // GETTERS
@@ -85,19 +96,49 @@ class ReviewController extends ChangeNotifier {
     return _successMessage;
   }
 
-  List<BrainReviewItem> get reviews {
-    return List.unmodifiable(_reviews);
+  List<
+    BrainReviewItem
+  >
+  get reviews {
+    return List.unmodifiable(
+      _reviews,
+    );
   }
 
+  // ============================================================
+  // INITIALIZATION STATE
+  // ============================================================
+  //
+  // ReviewController é uma dependência global. Sem este controle,
+  // initialize() recarregava o repositório toda vez que uma tela ou
+  // outro fluxo pedia a inicialização.
+  //
+  // Mantemos uma única inicialização por sessão/conta e reutilizamos
+  // o estado já carregado em memória. Chamadas explícitas a
+  // loadReviews() continuam forçando uma releitura do armazenamento.
+  //
+  // ============================================================
+
+  bool _initialized = false;
+
+  Future<
+    void
+  >?
+  _initializationFuture;
 
   // ============================================================
   // ACCOUNT SCOPE RESET
   // ============================================================
 
   void resetForAccountChange() {
-    _reviews = <BrainReviewItem>[];
+    _reviews =
+        <
+          BrainReviewItem
+        >[];
     _errorMessage = null;
     _successMessage = null;
+    _initialized = false;
+    _initializationFuture = null;
     notifyListeners();
   }
 
@@ -105,40 +146,70 @@ class ReviewController extends ChangeNotifier {
   // ATIVAS
   // ============================================================
 
-  List<BrainReviewItem> get activeReviews {
-    return _reviews.where((review) {
-      return !review.archived;
-    }).toList();
+  List<
+    BrainReviewItem
+  >
+  get activeReviews {
+    return _reviews.where(
+      (
+        review,
+      ) {
+        return !review.archived;
+      },
+    ).toList();
   }
 
   // ============================================================
   // ARQUIVADAS
   // ============================================================
 
-  List<BrainReviewItem> get archivedReviews {
-    return _reviews.where((review) {
-      return review.archived;
-    }).toList();
+  List<
+    BrainReviewItem
+  >
+  get archivedReviews {
+    return _reviews.where(
+      (
+        review,
+      ) {
+        return review.archived;
+      },
+    ).toList();
   }
 
   // ============================================================
   // REVISÕES DEVIDAS
   // ============================================================
 
-  List<BrainReviewItem> get dueReviews {
+  List<
+    BrainReviewItem
+  >
+  get dueReviews {
     final now = DateTime.now();
 
-    final result = _reviews.where((review) {
-      if (review.archived) {
-        return false;
-      }
+    final result = _reviews.where(
+      (
+        review,
+      ) {
+        if (review.archived) {
+          return false;
+        }
 
-      return !review.nextReviewAt.isAfter(now);
-    }).toList();
+        return !review.nextReviewAt.isAfter(
+          now,
+        );
+      },
+    ).toList();
 
-    result.sort((first, second) {
-      return first.nextReviewAt.compareTo(second.nextReviewAt);
-    });
+    result.sort(
+      (
+        first,
+        second,
+      ) {
+        return first.nextReviewAt.compareTo(
+          second.nextReviewAt,
+        );
+      },
+    );
 
     return result;
   }
@@ -147,20 +218,36 @@ class ReviewController extends ChangeNotifier {
   // PRÓXIMAS
   // ============================================================
 
-  List<BrainReviewItem> get upcomingReviews {
+  List<
+    BrainReviewItem
+  >
+  get upcomingReviews {
     final now = DateTime.now();
 
-    final result = _reviews.where((review) {
-      if (review.archived) {
-        return false;
-      }
+    final result = _reviews.where(
+      (
+        review,
+      ) {
+        if (review.archived) {
+          return false;
+        }
 
-      return review.nextReviewAt.isAfter(now);
-    }).toList();
+        return review.nextReviewAt.isAfter(
+          now,
+        );
+      },
+    ).toList();
 
-    result.sort((first, second) {
-      return first.nextReviewAt.compareTo(second.nextReviewAt);
-    });
+    result.sort(
+      (
+        first,
+        second,
+      ) {
+        return first.nextReviewAt.compareTo(
+          second.nextReviewAt,
+        );
+      },
+    );
 
     return result;
   }
@@ -179,56 +266,114 @@ class ReviewController extends ChangeNotifier {
   //
   // ============================================================
 
-  List<BrainReviewItem> get overdueReviews {
-    final today = _startOfDay(DateTime.now());
+  List<
+    BrainReviewItem
+  >
+  get overdueReviews {
+    final today = _startOfDay(
+      DateTime.now(),
+    );
 
-    final result = _reviews.where((review) {
-      if (review.archived) {
-        return false;
-      }
+    final result = _reviews.where(
+      (
+        review,
+      ) {
+        if (review.archived) {
+          return false;
+        }
 
-      return review.nextReviewAt.toLocal().isBefore(today);
-    }).toList();
+        return review.nextReviewAt.toLocal().isBefore(
+          today,
+        );
+      },
+    ).toList();
 
-    result.sort((first, second) {
-      return first.nextReviewAt.compareTo(second.nextReviewAt);
-    });
+    result.sort(
+      (
+        first,
+        second,
+      ) {
+        return first.nextReviewAt.compareTo(
+          second.nextReviewAt,
+        );
+      },
+    );
 
     return result;
   }
 
-  List<BrainReviewItem> get todayReviews {
+  List<
+    BrainReviewItem
+  >
+  get todayReviews {
     final now = DateTime.now();
 
-    final result = _reviews.where((review) {
-      if (review.archived) {
-        return false;
-      }
+    final result = _reviews.where(
+      (
+        review,
+      ) {
+        if (review.archived) {
+          return false;
+        }
 
-      return _isSameDay(review.nextReviewAt, now);
-    }).toList();
+        return _isSameDay(
+          review.nextReviewAt,
+          now,
+        );
+      },
+    ).toList();
 
-    result.sort((first, second) {
-      return first.nextReviewAt.compareTo(second.nextReviewAt);
-    });
+    result.sort(
+      (
+        first,
+        second,
+      ) {
+        return first.nextReviewAt.compareTo(
+          second.nextReviewAt,
+        );
+      },
+    );
 
     return result;
   }
 
-  List<BrainReviewItem> get futureReviews {
-    final tomorrow = _startOfDay(DateTime.now()).add(const Duration(days: 1));
+  List<
+    BrainReviewItem
+  >
+  get futureReviews {
+    final tomorrow =
+        _startOfDay(
+          DateTime.now(),
+        ).add(
+          const Duration(
+            days: 1,
+          ),
+        );
 
-    final result = _reviews.where((review) {
-      if (review.archived) {
-        return false;
-      }
+    final result = _reviews.where(
+      (
+        review,
+      ) {
+        if (review.archived) {
+          return false;
+        }
 
-      return !review.nextReviewAt.toLocal().isBefore(tomorrow);
-    }).toList();
+        return !review.nextReviewAt.toLocal().isBefore(
+          tomorrow,
+        );
+      },
+    ).toList();
 
-    result.sort((first, second) {
-      return first.nextReviewAt.compareTo(second.nextReviewAt);
-    });
+    result.sort(
+      (
+        first,
+        second,
+      ) {
+        return first.nextReviewAt.compareTo(
+          second.nextReviewAt,
+        );
+      },
+    );
 
     return result;
   }
@@ -287,33 +432,123 @@ class ReviewController extends ChangeNotifier {
   // INICIALIZAR
   // ============================================================
 
-  Future<void> initialize() async {
-    await loadReviews();
+  Future<
+    void
+  >
+  initialize() {
+    if (_initialized) {
+      return Future<
+        void
+      >.value();
+    }
+
+    final runningInitialization = _initializationFuture;
+
+    if (runningInitialization !=
+        null) {
+      return runningInitialization;
+    }
+
+    final future = _initializeOnce();
+
+    _initializationFuture = future;
+
+    return future;
+  }
+
+  Future<
+    void
+  >
+  _initializeOnce() async {
+    try {
+      await _loadReviews(
+        showLoading: _reviews.isEmpty,
+      );
+
+      if (_errorMessage ==
+          null) {
+        _initialized = true;
+      }
+    } finally {
+      _initializationFuture = null;
+    }
   }
 
   // ============================================================
   // CARREGAR
   // ============================================================
+  //
+  // loadReviews() é um reload explícito. Diferente de initialize(),
+  // ele sempre consulta novamente o repositório, pois é usado quando
+  // a UI realmente precisa refletir alterações persistidas.
+  //
+  // ============================================================
 
-  Future<void> loadReviews() async {
-    _setLoading(true);
+  Future<
+    void
+  >
+  loadReviews() async {
+    await _loadReviews(
+      showLoading: _reviews.isEmpty,
+    );
+
+    if (_errorMessage ==
+        null) {
+      _initialized = true;
+    }
+  }
+
+  Future<
+    void
+  >
+  _loadReviews({
+    required bool showLoading,
+  }) async {
+    if (showLoading) {
+      _setLoading(
+        true,
+      );
+    }
 
     _clearError();
 
     try {
-      _reviews = await _repository.loadReviews();
+      final loadedReviews = await _repository.loadReviews();
+
+      _reviews = loadedReviews;
 
       _sortReviews();
-    } catch (error, stackTrace) {
-      debugPrint('ReviewController: erro ao carregar revisões.');
 
-      debugPrint('ReviewController: $error');
+      if (!showLoading) {
+        notifyListeners();
+      }
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        'ReviewController: erro ao carregar revisões.',
+      );
 
-      debugPrintStack(stackTrace: stackTrace);
+      debugPrint(
+        'ReviewController: $error',
+      );
+
+      debugPrintStack(
+        stackTrace: stackTrace,
+      );
 
       _errorMessage = 'Não foi possível carregar as revisões.';
+
+      if (!showLoading) {
+        notifyListeners();
+      }
     } finally {
-      _setLoading(false);
+      if (showLoading) {
+        _setLoading(
+          false,
+        );
+      }
     }
   }
 
@@ -321,8 +556,13 @@ class ReviewController extends ChangeNotifier {
   // ATUALIZAR A PARTIR DO SUPABASE
   // ============================================================
 
-  Future<void> refreshFromRemote() async {
-    _setLoading(true);
+  Future<
+    void
+  >
+  refreshFromRemote() async {
+    _setLoading(
+      true,
+    );
 
     _clearMessages();
 
@@ -332,16 +572,27 @@ class ReviewController extends ChangeNotifier {
       _sortReviews();
 
       _successMessage = 'Revisões sincronizadas.';
-    } catch (error, stackTrace) {
-      debugPrint('ReviewController: erro ao atualizar revisões do Supabase.');
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        'ReviewController: erro ao atualizar revisões do Supabase.',
+      );
 
-      debugPrint('ReviewController: $error');
+      debugPrint(
+        'ReviewController: $error',
+      );
 
-      debugPrintStack(stackTrace: stackTrace);
+      debugPrintStack(
+        stackTrace: stackTrace,
+      );
 
       _errorMessage = 'Não foi possível atualizar as revisões da nuvem.';
     } finally {
-      _setLoading(false);
+      _setLoading(
+        false,
+      );
     }
   }
 
@@ -356,8 +607,14 @@ class ReviewController extends ChangeNotifier {
   // A geração por IA será conectada na próxima fase.
   // ============================================================
 
-  List<BrainReviewGenerationCandidate> reviewGenerationCandidates(
-    Iterable<BrainConcept> concepts,
+  List<
+    BrainReviewGenerationCandidate
+  >
+  reviewGenerationCandidates(
+    Iterable<
+      BrainConcept
+    >
+    concepts,
   ) {
     return _generationQueue.build(
       concepts: concepts,
@@ -365,14 +622,28 @@ class ReviewController extends ChangeNotifier {
     );
   }
 
-  bool needsGeneratedReview(BrainConcept concept) {
-    return reviewGenerationCandidates(<BrainConcept>[concept]).isNotEmpty;
+  bool needsGeneratedReview(
+    BrainConcept concept,
+  ) {
+    return reviewGenerationCandidates(
+      <
+        BrainConcept
+      >[
+        concept,
+      ],
+    ).isNotEmpty;
   }
 
-  int pendingGenerationCount(Iterable<BrainConcept> concepts) {
-    return reviewGenerationCandidates(concepts).length;
+  int pendingGenerationCount(
+    Iterable<
+      BrainConcept
+    >
+    concepts,
+  ) {
+    return reviewGenerationCandidates(
+      concepts,
+    ).length;
   }
-
 
   // ============================================================
   // FASE 3 — GERAR RASCUNHOS DE REVISÃO
@@ -384,24 +655,56 @@ class ReviewController extends ChangeNotifier {
   // uma fronteira limpa para o provedor de IA.
   // ============================================================
 
-  Future<List<BrainGeneratedReviewQuestion>> generateReviewDrafts(
-    Iterable<BrainConcept> concepts,
+  Future<
+    List<
+      BrainGeneratedReviewQuestion
+    >
+  >
+  generateReviewDrafts(
+    Iterable<
+      BrainConcept
+    >
+    concepts,
   ) async {
-    final candidates = reviewGenerationCandidates(concepts);
-    final result = <BrainGeneratedReviewQuestion>[];
+    final candidates = reviewGenerationCandidates(
+      concepts,
+    );
+    final result =
+        <
+          BrainGeneratedReviewQuestion
+        >[];
 
     for (final candidate in candidates) {
-      final generated = await _questionGenerator.generate(candidate);
-      result.addAll(generated);
+      final generated = await _questionGenerator.generate(
+        candidate,
+      );
+      result.addAll(
+        generated,
+      );
     }
 
-    return List<BrainGeneratedReviewQuestion>.unmodifiable(result);
+    return List<
+      BrainGeneratedReviewQuestion
+    >.unmodifiable(
+      result,
+    );
   }
 
-  Future<List<BrainGeneratedReviewQuestion>> generateReviewDraftsForConcept(
+  Future<
+    List<
+      BrainGeneratedReviewQuestion
+    >
+  >
+  generateReviewDraftsForConcept(
     BrainConcept concept,
   ) {
-    return generateReviewDrafts(<BrainConcept>[concept]);
+    return generateReviewDrafts(
+      <
+        BrainConcept
+      >[
+        concept,
+      ],
+    );
   }
 
   // ============================================================
@@ -413,7 +716,12 @@ class ReviewController extends ChangeNotifier {
   // BrainConceptType.question: elas pertencem somente ao domínio Review.
   // ============================================================
 
-  Future<List<BrainReviewItem>> generateAndSaveReviewsForConcept({
+  Future<
+    List<
+      BrainReviewItem
+    >
+  >
+  generateAndSaveReviewsForConcept({
     required BrainConcept concept,
     required String sourceNotePath,
     String sourceNoteTitle = '',
@@ -423,36 +731,53 @@ class ReviewController extends ChangeNotifier {
 
     final cleanPath = sourceNotePath.trim();
     if (cleanPath.isEmpty) {
-      _errorMessage =
-          'Não foi possível gerar a revisão porque a anotação não possui caminho local.';
+      _errorMessage = 'Não foi possível gerar a revisão porque a anotação não possui caminho local.';
       notifyListeners();
-      return const <BrainReviewItem>[];
+      return const <
+        BrainReviewItem
+      >[];
     }
 
     // A fila impede gerar novamente para um conceito que já possui
     // revisão ativa. Importante: geramos TODOS os rascunhos primeiro e
     // somente depois persistimos, permitindo várias perguntas por conceito.
-    final drafts = await generateReviewDraftsForConcept(concept);
+    final drafts = await generateReviewDraftsForConcept(
+      concept,
+    );
     if (drafts.isEmpty) {
-      return const <BrainReviewItem>[];
+      return const <
+        BrainReviewItem
+      >[];
     }
 
     final now = DateTime.now();
-    final dueAt = firstReviewAt ?? now;
-    final savedReviews = <BrainReviewItem>[];
+    final dueAt =
+        firstReviewAt ??
+        now;
+    final savedReviews =
+        <
+          BrainReviewItem
+        >[];
 
     for (final draft in drafts) {
       final question = draft.question.trim();
       final answer = draft.answer.trim();
 
-      if (question.isEmpty || answer.isEmpty) {
+      if (question.isEmpty ||
+          answer.isEmpty) {
         continue;
       }
 
       // IDs do gerador local são determinísticos por conceito + unidade.
       // Isso também protege contra duplicação se este método for chamado
       // novamente antes da lista local ser atualizada.
-      final alreadyExists = _reviews.any((review) => review.id == draft.id);
+      final alreadyExists = _reviews.any(
+        (
+          review,
+        ) =>
+            review.id ==
+            draft.id,
+      );
       if (alreadyExists) {
         continue;
       }
@@ -475,37 +800,52 @@ class ReviewController extends ChangeNotifier {
         lastReviewedAt: null,
       );
 
-      await addReview(review);
+      await addReview(
+        review,
+      );
 
-      if (_errorMessage != null) {
+      if (_errorMessage !=
+          null) {
         break;
       }
 
-      savedReviews.add(review);
+      savedReviews.add(
+        review,
+      );
     }
 
     if (savedReviews.isNotEmpty) {
-      _successMessage = savedReviews.length == 1
+      _successMessage =
+          savedReviews.length ==
+              1
           ? '1 pergunta de revisão foi criada automaticamente.'
           : '${savedReviews.length} perguntas de revisão foram criadas automaticamente.';
       notifyListeners();
     }
 
-    return List<BrainReviewItem>.unmodifiable(savedReviews);
+    return List<
+      BrainReviewItem
+    >.unmodifiable(
+      savedReviews,
+    );
   }
 
   // ============================================================
   // CRIAR REVISÃO A PARTIR DE UMA PERGUNTA
   // ============================================================
 
-  Future<BrainReviewItem?> createFromConcept({
+  Future<
+    BrainReviewItem?
+  >
+  createFromConcept({
     required BrainConcept concept,
     required String answer,
     required String sourceNotePath,
     String sourceNoteTitle = '',
     DateTime? firstReviewAt,
   }) async {
-    if (concept.type != BrainConceptType.question) {
+    if (concept.type !=
+        BrainConceptType.question) {
       _errorMessage = 'Somente perguntas podem entrar no sistema de revisão.';
 
       notifyListeners();
@@ -528,17 +868,21 @@ class ReviewController extends ChangeNotifier {
     final cleanSourceNoteTitle = sourceNoteTitle.trim();
 
     if (cleanSourceNotePath.isEmpty) {
-      _errorMessage =
-          'Não foi possível criar a revisão porque a anotação de origem não possui caminho local.';
+      _errorMessage = 'Não foi possível criar a revisão porque a anotação de origem não possui caminho local.';
 
       notifyListeners();
 
       return null;
     }
 
-    final existing = _reviews.where((review) {
-      return review.conceptId == concept.id;
-    });
+    final existing = _reviews.where(
+      (
+        review,
+      ) {
+        return review.conceptId ==
+            concept.id;
+      },
+    );
 
     if (existing.isNotEmpty) {
       _errorMessage = 'Esta pergunta já está no sistema de revisão.';
@@ -565,7 +909,9 @@ class ReviewController extends ChangeNotifier {
 
       createdAt: now,
 
-      nextReviewAt: firstReviewAt ?? now,
+      nextReviewAt:
+          firstReviewAt ??
+          now,
 
       reviewCount: 0,
 
@@ -582,7 +928,9 @@ class ReviewController extends ChangeNotifier {
       lastReviewedAt: null,
     );
 
-    await addReview(review);
+    await addReview(
+      review,
+    );
 
     return review;
   }
@@ -591,37 +939,65 @@ class ReviewController extends ChangeNotifier {
   // ADICIONAR
   // ============================================================
 
-  Future<void> addReview(BrainReviewItem review) async {
-    _setSaving(true);
+  Future<
+    void
+  >
+  addReview(
+    BrainReviewItem review,
+  ) async {
+    _setSaving(
+      true,
+    );
 
     _clearMessages();
 
     try {
-      final saved = await _repository.saveReview(review);
+      final saved = await _repository.saveReview(
+        review,
+      );
 
-      final index = _reviews.indexWhere((item) {
-        return item.id == saved.id;
-      });
+      final index = _reviews.indexWhere(
+        (
+          item,
+        ) {
+          return item.id ==
+              saved.id;
+        },
+      );
 
-      if (index >= 0) {
+      if (index >=
+          0) {
         _reviews[index] = saved;
       } else {
-        _reviews.add(saved);
+        _reviews.add(
+          saved,
+        );
       }
 
       _sortReviews();
 
       _successMessage = 'Pergunta adicionada às revisões.';
-    } catch (error, stackTrace) {
-      debugPrint('ReviewController: erro ao salvar revisão.');
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        'ReviewController: erro ao salvar revisão.',
+      );
 
-      debugPrint('ReviewController: $error');
+      debugPrint(
+        'ReviewController: $error',
+      );
 
-      debugPrintStack(stackTrace: stackTrace);
+      debugPrintStack(
+        stackTrace: stackTrace,
+      );
 
       _errorMessage = 'Não foi possível salvar a revisão.';
     } finally {
-      _setSaving(false);
+      _setSaving(
+        false,
+      );
     }
   }
 
@@ -629,35 +1005,61 @@ class ReviewController extends ChangeNotifier {
   // ATUALIZAR
   // ============================================================
 
-  Future<void> updateReview(BrainReviewItem review) async {
-    _setSaving(true);
+  Future<
+    void
+  >
+  updateReview(
+    BrainReviewItem review,
+  ) async {
+    _setSaving(
+      true,
+    );
 
     _clearMessages();
 
     try {
-      final index = _reviews.indexWhere((item) {
-        return item.id == review.id;
-      });
+      final index = _reviews.indexWhere(
+        (
+          item,
+        ) {
+          return item.id ==
+              review.id;
+        },
+      );
 
-      if (index < 0) {
-        throw StateError('Revisão não encontrada.');
+      if (index <
+          0) {
+        throw StateError(
+          'Revisão não encontrada.',
+        );
       }
 
-      final saved = await _repository.saveReview(review);
+      final saved = await _repository.saveReview(
+        review,
+      );
 
       _reviews[index] = saved;
 
       _sortReviews();
 
       _successMessage = 'Revisão atualizada.';
-    } catch (error, stackTrace) {
-      debugPrint('ReviewController: erro ao atualizar revisão.');
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        'ReviewController: erro ao atualizar revisão.',
+      );
 
-      debugPrintStack(stackTrace: stackTrace);
+      debugPrintStack(
+        stackTrace: stackTrace,
+      );
 
       _errorMessage = 'Não foi possível atualizar a revisão.';
     } finally {
-      _setSaving(false);
+      _setSaving(
+        false,
+      );
     }
   }
 
@@ -665,7 +1067,10 @@ class ReviewController extends ChangeNotifier {
   // RESPONDER
   // ============================================================
 
-  Future<void> answerReview({
+  Future<
+    void
+  >
+  answerReview({
     required BrainReviewItem review,
     required ReviewAnswer answer,
   }) async {
@@ -678,31 +1083,50 @@ class ReviewController extends ChangeNotifier {
     );
 
     final isCorrect =
-        answer == ReviewAnswer.good || answer == ReviewAnswer.easy;
+        answer ==
+            ReviewAnswer.good ||
+        answer ==
+            ReviewAnswer.easy;
 
-    final isWrong = answer == ReviewAnswer.again;
+    final isWrong =
+        answer ==
+        ReviewAnswer.again;
 
     final nextStreak = isCorrect
-        ? review.streak + 1
-        : answer == ReviewAnswer.again
+        ? review.streak +
+              1
+        : answer ==
+              ReviewAnswer.again
         ? 0
         : review.streak;
 
     final updated = review.copyWith(
       nextReviewAt: nextDate,
 
-      reviewCount: review.reviewCount + 1,
+      reviewCount:
+          review.reviewCount +
+          1,
 
-      correctCount: review.correctCount + (isCorrect ? 1 : 0),
+      correctCount:
+          review.correctCount +
+          (isCorrect
+              ? 1
+              : 0),
 
-      wrongCount: review.wrongCount + (isWrong ? 1 : 0),
+      wrongCount:
+          review.wrongCount +
+          (isWrong
+              ? 1
+              : 0),
 
       streak: nextStreak,
 
       lastReviewedAt: now,
     );
 
-    await updateReview(updated);
+    await updateReview(
+      updated,
+    );
   }
 
   // ============================================================
@@ -720,28 +1144,48 @@ class ReviewController extends ChangeNotifier {
       // ========================================================
 
       case ReviewAnswer.again:
-        return now.add(const Duration(minutes: 15));
+        return now.add(
+          const Duration(
+            minutes: 15,
+          ),
+        );
 
       // ========================================================
       // DIFÍCIL
       // ========================================================
 
       case ReviewAnswer.hard:
-        return now.add(const Duration(days: 1));
+        return now.add(
+          const Duration(
+            days: 1,
+          ),
+        );
 
       // ========================================================
       // ACERTOU
       // ========================================================
 
       case ReviewAnswer.good:
-        return now.add(Duration(days: _goodInterval(review)));
+        return now.add(
+          Duration(
+            days: _goodInterval(
+              review,
+            ),
+          ),
+        );
 
       // ========================================================
       // FÁCIL
       // ========================================================
 
       case ReviewAnswer.easy:
-        return now.add(Duration(days: _easyInterval(review)));
+        return now.add(
+          Duration(
+            days: _easyInterval(
+              review,
+            ),
+          ),
+        );
     }
   }
 
@@ -749,26 +1193,33 @@ class ReviewController extends ChangeNotifier {
   // INTERVALO "ACERTEI"
   // ============================================================
 
-  int _goodInterval(BrainReviewItem review) {
+  int _goodInterval(
+    BrainReviewItem review,
+  ) {
     final streak = review.streak;
 
-    if (streak <= 0) {
+    if (streak <=
+        0) {
       return 3;
     }
 
-    if (streak == 1) {
+    if (streak ==
+        1) {
       return 7;
     }
 
-    if (streak == 2) {
+    if (streak ==
+        2) {
       return 14;
     }
 
-    if (streak == 3) {
+    if (streak ==
+        3) {
       return 30;
     }
 
-    if (streak == 4) {
+    if (streak ==
+        4) {
       return 60;
     }
 
@@ -779,22 +1230,28 @@ class ReviewController extends ChangeNotifier {
   // INTERVALO "FÁCIL"
   // ============================================================
 
-  int _easyInterval(BrainReviewItem review) {
+  int _easyInterval(
+    BrainReviewItem review,
+  ) {
     final streak = review.streak;
 
-    if (streak <= 0) {
+    if (streak <=
+        0) {
       return 7;
     }
 
-    if (streak == 1) {
+    if (streak ==
+        1) {
       return 14;
     }
 
-    if (streak == 2) {
+    if (streak ==
+        2) {
       return 30;
     }
 
-    if (streak == 3) {
+    if (streak ==
+        3) {
       return 60;
     }
 
@@ -805,10 +1262,20 @@ class ReviewController extends ChangeNotifier {
   // ARQUIVAR
   // ============================================================
 
-  Future<void> archiveReview(BrainReviewItem review) async {
-    final updated = review.copyWith(archived: true, archivedAt: DateTime.now());
+  Future<
+    void
+  >
+  archiveReview(
+    BrainReviewItem review,
+  ) async {
+    final updated = review.copyWith(
+      archived: true,
+      archivedAt: DateTime.now(),
+    );
 
-    await updateReview(updated);
+    await updateReview(
+      updated,
+    );
 
     _successMessage = 'Pergunta arquivada.';
 
@@ -819,7 +1286,12 @@ class ReviewController extends ChangeNotifier {
   // RESTAURAR
   // ============================================================
 
-  Future<void> restoreReview(BrainReviewItem review) async {
+  Future<
+    void
+  >
+  restoreReview(
+    BrainReviewItem review,
+  ) async {
     final updated = review.copyWith(
       archived: false,
 
@@ -828,7 +1300,9 @@ class ReviewController extends ChangeNotifier {
       nextReviewAt: DateTime.now(),
     );
 
-    await updateReview(updated);
+    await updateReview(
+      updated,
+    );
 
     _successMessage = 'Pergunta restaurada.';
 
@@ -839,13 +1313,24 @@ class ReviewController extends ChangeNotifier {
   // ADIAR
   // ============================================================
 
-  Future<void> postponeReview(
+  Future<
+    void
+  >
+  postponeReview(
     BrainReviewItem review, {
-    Duration duration = const Duration(days: 1),
+    Duration duration = const Duration(
+      days: 1,
+    ),
   }) async {
-    final updated = review.copyWith(nextReviewAt: DateTime.now().add(duration));
+    final updated = review.copyWith(
+      nextReviewAt: DateTime.now().add(
+        duration,
+      ),
+    );
 
-    await updateReview(updated);
+    await updateReview(
+      updated,
+    );
 
     _successMessage = 'Revisão adiada.';
 
@@ -856,39 +1341,72 @@ class ReviewController extends ChangeNotifier {
   // DEFINIR DATA MANUALMENTE
   // ============================================================
 
-  Future<void> setNextReviewDate(BrainReviewItem review, DateTime date) async {
-    final updated = review.copyWith(nextReviewAt: date);
+  Future<
+    void
+  >
+  setNextReviewDate(
+    BrainReviewItem review,
+    DateTime date,
+  ) async {
+    final updated = review.copyWith(
+      nextReviewAt: date,
+    );
 
-    await updateReview(updated);
+    await updateReview(
+      updated,
+    );
   }
 
   // ============================================================
   // EXCLUIR
   // ============================================================
 
-  Future<void> deleteReview(BrainReviewItem review) async {
-    _setSaving(true);
+  Future<
+    void
+  >
+  deleteReview(
+    BrainReviewItem review,
+  ) async {
+    _setSaving(
+      true,
+    );
 
     _clearMessages();
 
     try {
-      await _repository.deleteReview(review.id);
+      await _repository.deleteReview(
+        review.id,
+      );
 
-      _reviews.removeWhere((item) {
-        return item.id == review.id;
-      });
+      _reviews.removeWhere(
+        (
+          item,
+        ) {
+          return item.id ==
+              review.id;
+        },
+      );
 
       _sortReviews();
 
       _successMessage = 'Revisão excluída.';
-    } catch (error, stackTrace) {
-      debugPrint('ReviewController: erro ao excluir revisão.');
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        'ReviewController: erro ao excluir revisão.',
+      );
 
-      debugPrintStack(stackTrace: stackTrace);
+      debugPrintStack(
+        stackTrace: stackTrace,
+      );
 
       _errorMessage = 'Não foi possível excluir a revisão.';
     } finally {
-      _setSaving(false);
+      _setSaving(
+        false,
+      );
     }
   }
 
@@ -896,47 +1414,76 @@ class ReviewController extends ChangeNotifier {
   // EXCLUIR PELO CONCEITO
   // ============================================================
 
-  Future<void> deleteReviewByConceptId(String conceptId) async {
+  Future<
+    void
+  >
+  deleteReviewByConceptId(
+    String conceptId,
+  ) async {
     final cleanConceptId = conceptId.trim();
 
     if (cleanConceptId.isEmpty) {
       return;
     }
 
-    _setSaving(true);
+    _setSaving(
+      true,
+    );
 
     _clearMessages();
 
     try {
-      final matches = _reviews.where((review) {
-        return review.conceptId == cleanConceptId;
-      }).toList();
+      final matches = _reviews.where(
+        (
+          review,
+        ) {
+          return review.conceptId ==
+              cleanConceptId;
+        },
+      ).toList();
 
       if (matches.isEmpty) {
         _successMessage = 'Nenhuma revisão vinculada ao conceito.';
         return;
       }
 
-      await _repository.deleteReviewByConceptId(cleanConceptId);
+      await _repository.deleteReviewByConceptId(
+        cleanConceptId,
+      );
 
-      _reviews.removeWhere((review) {
-        return review.conceptId == cleanConceptId;
-      });
+      _reviews.removeWhere(
+        (
+          review,
+        ) {
+          return review.conceptId ==
+              cleanConceptId;
+        },
+      );
 
       _sortReviews();
 
       _successMessage = 'Revisão do conceito excluída.';
-    } catch (error, stackTrace) {
-      debugPrint('ReviewController: erro ao excluir revisão pelo conceito.');
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        'ReviewController: erro ao excluir revisão pelo conceito.',
+      );
 
-      debugPrint('ReviewController: $error');
+      debugPrint(
+        'ReviewController: $error',
+      );
 
-      debugPrintStack(stackTrace: stackTrace);
+      debugPrintStack(
+        stackTrace: stackTrace,
+      );
 
-      _errorMessage =
-          'Não foi possível excluir a revisão vinculada ao conceito.';
+      _errorMessage = 'Não foi possível excluir a revisão vinculada ao conceito.';
     } finally {
-      _setSaving(false);
+      _setSaving(
+        false,
+      );
     }
   }
 
@@ -944,9 +1491,12 @@ class ReviewController extends ChangeNotifier {
   // ENCONTRAR PELO ID
   // ============================================================
 
-  BrainReviewItem? findById(String id) {
+  BrainReviewItem? findById(
+    String id,
+  ) {
     for (final review in _reviews) {
-      if (review.id == id) {
+      if (review.id ==
+          id) {
         return review;
       }
     }
@@ -958,9 +1508,12 @@ class ReviewController extends ChangeNotifier {
   // ENCONTRAR PELO CONCEPT ID
   // ============================================================
 
-  BrainReviewItem? findByConceptId(String conceptId) {
+  BrainReviewItem? findByConceptId(
+    String conceptId,
+  ) {
     for (final review in _reviews) {
-      if (review.conceptId == conceptId) {
+      if (review.conceptId ==
+          conceptId) {
         return review;
       }
     }
@@ -972,7 +1525,9 @@ class ReviewController extends ChangeNotifier {
   // ENCONTRAR PELO CAMINHO DA ANOTAÇÃO DE ORIGEM
   // ============================================================
 
-  BrainReviewItem? findBySourceNotePath(String sourceNotePath) {
+  BrainReviewItem? findBySourceNotePath(
+    String sourceNotePath,
+  ) {
     final cleanPath = sourceNotePath.trim();
 
     if (cleanPath.isEmpty) {
@@ -980,7 +1535,8 @@ class ReviewController extends ChangeNotifier {
     }
 
     for (final review in _reviews) {
-      if (review.sourceNotePath.trim() == cleanPath) {
+      if (review.sourceNotePath.trim() ==
+          cleanPath) {
         return review;
       }
     }
@@ -997,49 +1553,76 @@ class ReviewController extends ChangeNotifier {
   //
   // ============================================================
 
-  Future<void> deleteReviewsBySourceNotePath(String sourceNotePath) async {
+  Future<
+    void
+  >
+  deleteReviewsBySourceNotePath(
+    String sourceNotePath,
+  ) async {
     final cleanPath = sourceNotePath.trim();
 
     if (cleanPath.isEmpty) {
       return;
     }
 
-    _setSaving(true);
+    _setSaving(
+      true,
+    );
 
     _clearMessages();
 
     try {
-      final matches = _reviews.where((review) {
-        return review.sourceNotePath.trim() == cleanPath;
-      }).toList();
+      final matches = _reviews.where(
+        (
+          review,
+        ) {
+          return review.sourceNotePath.trim() ==
+              cleanPath;
+        },
+      ).toList();
 
       if (matches.isEmpty) {
         _successMessage = 'Nenhuma revisão vinculada à anotação.';
         return;
       }
 
-      await _repository.deleteReviewsBySourceNotePath(cleanPath);
+      await _repository.deleteReviewsBySourceNotePath(
+        cleanPath,
+      );
 
-      _reviews.removeWhere((review) {
-        return review.sourceNotePath.trim() == cleanPath;
-      });
+      _reviews.removeWhere(
+        (
+          review,
+        ) {
+          return review.sourceNotePath.trim() ==
+              cleanPath;
+        },
+      );
 
       _sortReviews();
 
       _successMessage = 'Revisões vinculadas à anotação excluídas.';
-    } catch (error, stackTrace) {
+    } catch (
+      error,
+      stackTrace
+    ) {
       debugPrint(
         'ReviewController: erro ao excluir revisões da anotação de origem.',
       );
 
-      debugPrint('ReviewController: $error');
+      debugPrint(
+        'ReviewController: $error',
+      );
 
-      debugPrintStack(stackTrace: stackTrace);
+      debugPrintStack(
+        stackTrace: stackTrace,
+      );
 
-      _errorMessage =
-          'Não foi possível excluir as revisões vinculadas à anotação.';
+      _errorMessage = 'Não foi possível excluir as revisões vinculadas à anotação.';
     } finally {
-      _setSaving(false);
+      _setSaving(
+        false,
+      );
     }
   }
 
@@ -1047,18 +1630,32 @@ class ReviewController extends ChangeNotifier {
   // HELPERS DE DATA
   // ============================================================
 
-  DateTime _startOfDay(DateTime value) {
+  DateTime _startOfDay(
+    DateTime value,
+  ) {
     final local = value.toLocal();
 
-    return DateTime(local.year, local.month, local.day);
+    return DateTime(
+      local.year,
+      local.month,
+      local.day,
+    );
   }
 
-  bool _isSameDay(DateTime first, DateTime second) {
+  bool _isSameDay(
+    DateTime first,
+    DateTime second,
+  ) {
     final a = first.toLocal();
 
     final b = second.toLocal();
 
-    return a.year == b.year && a.month == b.month && a.day == b.day;
+    return a.year ==
+            b.year &&
+        a.month ==
+            b.month &&
+        a.day ==
+            b.day;
   }
 
   // ============================================================
@@ -1066,24 +1663,35 @@ class ReviewController extends ChangeNotifier {
   // ============================================================
 
   void _sortReviews() {
-    _reviews.sort((first, second) {
-      if (first.archived && !second.archived) {
-        return 1;
-      }
+    _reviews.sort(
+      (
+        first,
+        second,
+      ) {
+        if (first.archived &&
+            !second.archived) {
+          return 1;
+        }
 
-      if (!first.archived && second.archived) {
-        return -1;
-      }
+        if (!first.archived &&
+            second.archived) {
+          return -1;
+        }
 
-      return first.nextReviewAt.compareTo(second.nextReviewAt);
-    });
+        return first.nextReviewAt.compareTo(
+          second.nextReviewAt,
+        );
+      },
+    );
   }
 
   // ============================================================
   // LOADING
   // ============================================================
 
-  void _setLoading(bool value) {
+  void _setLoading(
+    bool value,
+  ) {
     _isLoading = value;
 
     notifyListeners();
@@ -1093,7 +1701,9 @@ class ReviewController extends ChangeNotifier {
   // SAVING
   // ============================================================
 
-  void _setSaving(bool value) {
+  void _setSaving(
+    bool value,
+  ) {
     _isSaving = value;
 
     notifyListeners();

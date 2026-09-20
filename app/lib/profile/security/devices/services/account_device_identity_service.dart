@@ -4,14 +4,11 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:uuid/uuid.dart';
 
 class AccountDeviceIdentityService {
-  AccountDeviceIdentityService({
-    FlutterSecureStorage? storage,
-    Uuid? uuid,
-  })  : _storage = storage ?? _createSecureStorage(),
-        _uuid = uuid ?? const Uuid();
+  AccountDeviceIdentityService({FlutterSecureStorage? storage, Uuid? uuid})
+    : _storage = storage ?? _createSecureStorage(),
+      _uuid = uuid ?? const Uuid();
 
-  static const String _deviceIdKey =
-      'evrylux.account.device_identity.v1';
+  static const String _deviceIdKey = 'evrylux.account.device_identity.v1';
 
   final FlutterSecureStorage _storage;
   final Uuid _uuid;
@@ -19,9 +16,7 @@ class AccountDeviceIdentityService {
   static FlutterSecureStorage _createSecureStorage() {
     if (Platform.isMacOS) {
       return const FlutterSecureStorage(
-        mOptions: MacOsOptions(
-          usesDataProtectionKeychain: false,
-        ),
+        mOptions: MacOsOptions(usesDataProtectionKeychain: false),
       );
     }
 
@@ -29,29 +24,21 @@ class AccountDeviceIdentityService {
   }
 
   Future<String> getOrCreateDeviceId() async {
-    final existing = await _storage.read(
-      key: _deviceIdKey,
-    );
+    final existing = await _storage.read(key: _deviceIdKey);
 
-    if (existing != null &&
-        existing.trim().isNotEmpty) {
+    if (existing != null && existing.trim().isNotEmpty) {
       return existing.trim();
     }
 
     final created = _uuid.v4();
 
-    await _storage.write(
-      key: _deviceIdKey,
-      value: created,
-    );
+    await _storage.write(key: _deviceIdKey, value: created);
 
     return created;
   }
 
   Future<void> clear() {
-    return _storage.delete(
-      key: _deviceIdKey,
-    );
+    return _storage.delete(key: _deviceIdKey);
   }
 
   String get deviceName {
