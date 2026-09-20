@@ -1,0 +1,25 @@
+<footer class="footer">
+  <div class="container footer-grid">
+    <div>
+      <div class="footer-brand">EVRYLUX</div>
+      <p>Conhecimento vivo, organizado para continuar evoluindo.</p>
+    </div>
+    <div class="links">
+      <a href="/contributors">Colaboradores</a>
+      <a href="/download">Download</a>
+      <a href="/security">Segurança</a>
+      <a href="/license">Licença</a>
+      <a href="/about">Sobre</a>
+    </div>
+  </div>
+</footer>
+
+<style>
+.footer { padding:42px 0 56px; border-top:1px solid var(--border); background:rgba(255,255,255,.35); }
+.footer-grid { display:flex; align-items:flex-start; justify-content:space-between; gap:30px; }
+.footer-brand { font-weight:850; letter-spacing:-.02em; margin-bottom:8px; }
+p { margin:0; color:var(--text-soft); }
+.links { display:flex; flex-wrap:wrap; gap:16px; }
+.links a { color:var(--text-soft); font-size:14px; }
+@media (max-width:700px){ .footer-grid{flex-direction:column;} }
+</style>

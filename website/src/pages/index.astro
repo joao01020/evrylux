@@ -1,0 +1,106 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const features = [
+  ['Conceitos', 'Transforme aprendizados em conhecimento estruturado e fácil de reencontrar.'],
+  ['Perguntas', 'Mantenha visível aquilo que ainda precisa ser entendido ou investigado.'],
+  ['Revisões', 'Retome o conteúdo importante e fortaleça o que realmente precisa permanecer.'],
+  ['Mapa do conhecimento', 'Visualize relações entre ideias, conceitos e diferentes áreas de estudo.'],
+  ['Offline-first', 'Continue trabalhando com seu conhecimento mesmo sem depender da nuvem.'],
+  ['Privacidade', 'Arquitetura pensada para proteger dados pessoais e sincronização entre dispositivos.'],
+];
+---
+
+<Layout title="EVRYLUX — Conhecimento que evolui">
+  <main>
+    <section class="hero section">
+      <div class="container hero-grid">
+        <div>
+          <div class="eyebrow">EVRYLUX Brain</div>
+          <h1 class="title">Conhecimento que continua evoluindo.</h1>
+          <p class="subtitle">
+            Organize o que você aprende, preserve perguntas importantes,
+            revise ideias e conecte conhecimento em uma estrutura viva.
+          </p>
+          <div class="button-row">
+            <a class="button button-primary" href="/download">Baixar EVRYLUX</a>
+            <a class="button button-secondary" href="/contributors">Ver colaboradores</a>
+          </div>
+        </div>
+
+        <div class="brain-card card">
+          <div class="brain-top"><span>Meu Brain</span><span class="pulse"></span></div>
+          <div class="brain-stat"><strong>127</strong><span>conceitos conectados</span></div>
+          <div class="mini-grid">
+            <div><b>18</b><span>Perguntas</span></div>
+            <div><b>32</b><span>Revisões</span></div>
+            <div><b>5</b><span>Áreas</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-tight">
+      <div class="container">
+        <div class="eyebrow">Produto</div>
+        <h2 class="section-title">Um lugar para transformar informação em conhecimento.</h2>
+        <p class="section-copy">
+          O EVRYLUX reúne conceitos, perguntas, revisões, busca e conexões
+          em uma única experiência.
+        </p>
+
+        <div class="grid grid-3 feature-grid">
+          {features.map(([title, copy]) => (
+            <article class="feature card">
+              <div class="feature-dot"></div>
+              <h3>{title}</h3>
+              <p>{copy}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container open-source card">
+        <div>
+          <div class="eyebrow">Open source</div>
+          <h2 class="section-title">Contribuições visíveis. Participação real.</h2>
+          <p class="section-copy">
+            A página de colaboradores destaca participação com base em contribuições e atividade no repositório,
+            sem criar hierarquia entre pessoas.
+          </p>
+        </div>
+        <a class="button button-primary" href="/contributors">Explorar contribuições</a>
+      </div>
+    </section>
+  </main>
+</Layout>
+
+<style>
+.hero { padding-top:110px; }
+.hero-grid { display:grid; grid-template-columns:minmax(0,1.05fr) minmax(360px,.95fr); align-items:center; gap:68px; }
+.subtitle { margin:26px 0 30px; }
+.brain-card { padding:28px; min-height:410px; position:relative; overflow:hidden; }
+.brain-card::after {
+  content:""; position:absolute; width:280px; height:280px; right:-70px; top:-80px;
+  border-radius:50%; background:rgba(159,211,149,.18);
+}
+.brain-top,.brain-stat,.mini-grid { position:relative; z-index:2; }
+.brain-top { display:flex; justify-content:space-between; font-weight:800; }
+.pulse { width:11px; height:11px; border-radius:50%; background:var(--primary-strong); box-shadow:0 0 0 8px rgba(159,211,149,.2); }
+.brain-stat { margin-top:72px; }
+.brain-stat strong { display:block; font-size:66px; letter-spacing:-.06em; }
+.brain-stat span { color:var(--text-soft); }
+.mini-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:34px; }
+.mini-grid div { padding:16px; border-radius:16px; background:rgba(255,255,255,.68); border:1px solid var(--border); }
+.mini-grid b,.mini-grid span { display:block; }
+.mini-grid span { color:var(--text-soft); font-size:12px; margin-top:4px; }
+.feature-grid { margin-top:34px; }
+.feature { padding:24px; }
+.feature h3 { margin:16px 0 8px; }
+.feature p { margin:0; color:var(--text-soft); line-height:1.65; }
+.feature-dot { width:12px; height:12px; border-radius:50%; background:var(--primary); box-shadow:0 0 0 7px var(--primary-soft); }
+.open-source { padding:36px; display:flex; align-items:end; justify-content:space-between; gap:40px; }
+@media (max-width:900px){ .hero-grid{grid-template-columns:1fr;} .open-source{align-items:flex-start; flex-direction:column;} }
+</style>

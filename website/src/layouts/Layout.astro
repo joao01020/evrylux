@@ -1,0 +1,26 @@
+---
+import '../styles/global.css';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+
+const {
+  title = 'EVRYLUX',
+  description = 'EVRYLUX transforma conceitos, perguntas, revisões e conexões em um sistema de conhecimento vivo.',
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#f7fbf4" />
+    <title>{title}</title>
+  </head>
+  <body>
+    <Header />
+    <div class="page-shell"><slot /></div>
+    <Footer />
+  </body>
+</html>

@@ -1,0 +1,36 @@
+---
+import Layout from '../layouts/Layout.astro';
+const platforms = [
+  ['Linux', 'Build para distribuições Linux'],
+  ['Windows', 'Build para Windows 64-bit'],
+  ['macOS', 'Build para macOS'],
+];
+---
+
+<Layout title="Download — EVRYLUX">
+  <main class="section">
+    <div class="container">
+      <div class="eyebrow">Download</div>
+      <h1 class="section-title">Baixe o EVRYLUX</h1>
+      <p class="section-copy">Depois esta página pode buscar automaticamente a versão mais recente no GitHub Releases.</p>
+
+      <div class="grid grid-3 cards">
+        {platforms.map(([name, copy]) => (
+          <article class="card platform">
+            <div class="platform-icon">{name.slice(0,1)}</div>
+            <h2>{name}</h2>
+            <p>{copy}</p>
+            <div class="status">Em preparação</div>
+            <button class="button button-secondary" disabled>Download</button>
+          </article>
+        ))}
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<style>
+.cards{margin-top:34px}.platform{padding:26px}.platform-icon{width:48px;height:48px;border-radius:16px;display:grid;place-items:center;background:var(--primary-soft);color:var(--primary-deep);font-weight:850}
+.platform h2{margin:18px 0 8px}.platform p{color:var(--text-soft);line-height:1.6}.status{margin:18px 0;color:var(--primary-deep);font-size:13px;font-weight:750}
+button:disabled{opacity:.55;cursor:not-allowed}
+</style>

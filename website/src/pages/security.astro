@@ -1,0 +1,29 @@
+---
+import Layout from '../layouts/Layout.astro';
+const items = [
+  ['Offline-first', 'A experiência pode funcionar localmente sem depender continuamente da nuvem.'],
+  ['E2EE', 'A arquitetura pode proteger dados sincronizados com criptografia ponta a ponta.'],
+  ['Vault', 'Dados sensíveis podem permanecer em uma camada protegida do aplicativo.'],
+  ['Dispositivos', 'A sincronização pode ser vinculada a dispositivos autorizados pelo usuário.'],
+];
+---
+
+<Layout title="Segurança — EVRYLUX">
+  <main class="section">
+    <div class="container">
+      <div class="eyebrow">Privacidade</div>
+      <h1 class="section-title">Segurança por design</h1>
+      <p class="section-copy">Princípios da arquitetura, sem promessas que dependam de auditoria ou implementação final.</p>
+
+      <div class="grid grid-2 security-grid">
+        {items.map(([title, copy]) => (
+          <article class="card security-card"><h2>{title}</h2><p>{copy}</p></article>
+        ))}
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<style>
+.security-grid{margin-top:34px}.security-card{padding:28px}.security-card h2{margin-top:0}.security-card p{color:var(--text-soft);line-height:1.7}
+</style>

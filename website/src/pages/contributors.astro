@@ -1,0 +1,561 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+import {
+  getContributors,
+} from '../lib/github';
+
+const contributors =
+  await getContributors();
+---
+
+<Layout title="Colaboradores — EVRYLUX">
+  <main class="section contributors-page">
+    <div class="container">
+      <div class="eyebrow">
+        Open source
+      </div>
+
+      <h1 class="section-title">
+        Colaboradores
+      </h1>
+
+      <p class="section-copy intro">
+        Pessoas que contribuem para o EVRYLUX através de código,
+        correções, melhorias e evolução do projeto.
+      </p>
+
+      {
+        contributors.length > 0 ? (
+          <div class="grid grid-3 contributors">
+            {
+              contributors.map(
+                (contributor) => (
+                  <article class="card contributor">
+                    <a
+                      class="profile-main-link"
+                      href={`/contributors/${contributor.login}`}
+                      aria-label={`Abrir contribuições de ${contributor.login}`}
+                    >
+                      <img
+                        class="avatar"
+                        src={contributor.avatar_url}
+                        alt={`Avatar de ${contributor.login}`}
+                        loading="lazy"
+                        width="68"
+                        height="68"
+                      />
+
+                      <div class="content">
+                        <div class="identity-row">
+                          <h2>
+                            @{contributor.login}
+                          </h2>
+
+                          <span
+                            class="internal-arrow"
+                            aria-hidden="true"
+                          >
+                            →
+                          </span>
+                        </div>
+
+                        <div class="contribution-count">
+                          <strong>
+                            {contributor.contributions}
+                          </strong>
+
+                          <span>
+                            {
+                              contributor.contributions === 1
+                                ? 'contribuição'
+                                : 'contribuições'
+                            }
+                          </span>
+                        </div>
+
+                        <div class="details-link">
+                          <span>
+                            Ver contribuições
+                          </span>
+
+                          <span
+                            class="details-arrow"
+                            aria-hidden="true"
+                          >
+                            →
+                          </span>
+                        </div>
+                      </div>
+                    </a>
+
+                    <div class="card-footer">
+                      <a
+                        class="github-profile-link"
+                        href={contributor.html_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`Abrir perfil de ${contributor.login} no GitHub`}
+                      >
+                        <span>
+                          GitHub
+                        </span>
+
+                        <span
+                          class="github-arrow"
+                          aria-hidden="true"
+                        >
+                          ↗
+                        </span>
+                      </a>
+                    </div>
+                  </article>
+                ),
+              )
+            }
+          </div>
+        ) : (
+          <div class="card empty-state">
+            <div class="empty-icon">
+              ↗
+            </div>
+
+            <div>
+              <h2>
+                Nenhum colaborador encontrado
+              </h2>
+
+              <p>
+                Assim que novas contribuições forem reconhecidas pelo GitHub,
+                elas poderão aparecer aqui automaticamente.
+              </p>
+            </div>
+          </div>
+        )
+      }
+
+      <section class="contribution-info card">
+        <div class="contribution-info-content">
+          <div class="info-label">
+            Como funciona
+          </div>
+
+          <h2>
+            As contribuições vêm do GitHub.
+          </h2>
+
+          <p>
+            O EVRYLUX usa os dados públicos do repositório para mostrar
+            colaboradores reconhecidos pelo GitHub. Ao abrir um perfil,
+            você poderá ver commits recentes, Pull Requests e Issues
+            relacionados ao projeto.
+          </p>
+        </div>
+
+        <a
+          class="button button-secondary repository-button"
+          href="https://github.com/joao01020/ghost-core"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <span>
+            Abrir repositório
+          </span>
+
+          <span aria-hidden="true">
+            ↗
+          </span>
+        </a>
+      </section>
+    </div>
+  </main>
+</Layout>
+
+<style>
+  .contributors-page {
+    padding-top: 86px;
+    padding-bottom: 96px;
+  }
+
+  .intro {
+    margin-top: 18px;
+    margin-bottom: 0;
+  }
+
+  .contributors {
+    margin-top: 40px;
+    align-items: stretch;
+  }
+
+  .contributor {
+    min-height: 340px;
+    padding: 0;
+    overflow: hidden;
+
+    display: flex;
+    flex-direction: column;
+
+    transition:
+      transform 0.2s ease,
+      border-color 0.2s ease,
+      box-shadow 0.2s ease;
+  }
+
+  .contributor:hover {
+    transform: translateY(-4px);
+
+    border-color: var(--border-strong);
+
+    box-shadow:
+      0 22px 65px rgba(
+        54,
+        92,
+        51,
+        0.11
+      );
+  }
+
+  .profile-main-link {
+    flex: 1;
+
+    padding: 28px;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 0;
+  }
+
+  .avatar {
+    width: 68px;
+    height: 68px;
+
+    flex: 0 0 auto;
+
+    object-fit: cover;
+
+    border-radius: 20px;
+
+    border: 1px solid var(--border);
+
+    background: var(--primary-soft);
+
+    box-shadow:
+      0 10px 28px rgba(
+        54,
+        92,
+        51,
+        0.08
+      );
+  }
+
+  .content {
+    flex: 1;
+
+    margin-top: 22px;
+
+    display: flex;
+    flex-direction: column;
+  }
+
+  .identity-row {
+    display: flex;
+
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 16px;
+  }
+
+  .identity-row h2 {
+    margin: 0;
+
+    min-width: 0;
+
+    overflow: hidden;
+
+    font-size: 20px;
+    line-height: 1.25;
+
+    letter-spacing: -0.02em;
+
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .internal-arrow {
+    flex: 0 0 auto;
+
+    color: var(--primary-deep);
+
+    font-size: 19px;
+    line-height: 1;
+
+    transition:
+      transform 0.2s ease;
+  }
+
+  .profile-main-link:hover
+  .internal-arrow {
+    transform: translateX(4px);
+  }
+
+  .contribution-count {
+    margin-top: 24px;
+
+    padding: 16px 17px;
+
+    display: flex;
+    align-items: baseline;
+
+    gap: 9px;
+
+    border-radius: 16px;
+
+    background: var(--surface-muted);
+
+    border: 1px solid rgba(
+      65,
+      104,
+      62,
+      0.08
+    );
+  }
+
+  .contribution-count strong {
+    color: var(--primary-deep);
+
+    font-size: 27px;
+    line-height: 1;
+
+    letter-spacing: -0.04em;
+  }
+
+  .contribution-count span {
+    color: var(--text-soft);
+
+    font-size: 13px;
+  }
+
+  .details-link {
+    margin-top: 24px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 14px;
+
+    color: var(--primary-deep);
+
+    font-size: 14px;
+    font-weight: 750;
+  }
+
+  .details-arrow {
+    flex: 0 0 auto;
+
+    font-size: 17px;
+
+    transition:
+      transform 0.2s ease;
+  }
+
+  .profile-main-link:hover
+  .details-arrow {
+    transform: translateX(4px);
+  }
+
+  .card-footer {
+    padding: 17px 28px;
+
+    display: flex;
+    align-items: center;
+
+    border-top: 1px solid rgba(
+      65,
+      104,
+      62,
+      0.09
+    );
+
+    background: rgba(
+      255,
+      255,
+      255,
+      0.45
+    );
+  }
+
+  .github-profile-link {
+    width: 100%;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: space-between;
+
+    color: var(--text-soft);
+
+    font-size: 13px;
+    font-weight: 700;
+
+    transition:
+      color 0.2s ease;
+  }
+
+  .github-profile-link:hover {
+    color: var(--primary-deep);
+  }
+
+  .github-arrow {
+    font-size: 15px;
+
+    transition:
+      transform 0.2s ease;
+  }
+
+  .github-profile-link:hover
+  .github-arrow {
+    transform:
+      translate(
+        2px,
+        -2px
+      );
+  }
+
+  .empty-state {
+    margin-top: 40px;
+
+    padding: 30px;
+
+    display: flex;
+    align-items: flex-start;
+
+    gap: 18px;
+  }
+
+  .empty-icon {
+    width: 48px;
+    height: 48px;
+
+    flex: 0 0 auto;
+
+    display: grid;
+    place-items: center;
+
+    border-radius: 16px;
+
+    background: var(--primary-soft);
+
+    color: var(--primary-deep);
+
+    font-weight: 850;
+  }
+
+  .empty-state h2 {
+    margin: 0;
+  }
+
+  .empty-state p {
+    margin: 8px 0 0;
+
+    color: var(--text-soft);
+
+    line-height: 1.7;
+  }
+
+  .contribution-info {
+    margin-top: 42px;
+
+    padding: 34px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 40px;
+  }
+
+  .contribution-info-content {
+    max-width: 760px;
+  }
+
+  .info-label {
+    margin-bottom: 10px;
+
+    color: var(--primary-deep);
+
+    font-size: 12px;
+    font-weight: 800;
+
+    letter-spacing: 0.05em;
+
+    text-transform: uppercase;
+  }
+
+  .contribution-info h2 {
+    margin: 0;
+
+    font-size: 23px;
+
+    letter-spacing: -0.025em;
+  }
+
+  .contribution-info p {
+    margin: 14px 0 0;
+
+    color: var(--text-soft);
+
+    line-height: 1.75;
+  }
+
+  .repository-button {
+    flex: 0 0 auto;
+
+    gap: 9px;
+  }
+
+  @media (max-width: 760px) {
+    .contributors-page {
+      padding-top: 64px;
+      padding-bottom: 80px;
+    }
+
+    .profile-main-link {
+      padding: 22px;
+    }
+
+    .card-footer {
+      padding:
+        15px
+        22px;
+    }
+
+    .contribution-info {
+      align-items: flex-start;
+      flex-direction: column;
+
+      padding: 28px;
+    }
+
+    .repository-button {
+      width: 100%;
+    }
+  }
+
+  @media (max-width: 520px) {
+    .empty-state {
+      flex-direction: column;
+    }
+
+    .contribution-count {
+      align-items: flex-start;
+      flex-direction: column;
+
+      gap: 5px;
+    }
+  }
+</style>

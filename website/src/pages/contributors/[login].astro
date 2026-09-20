@@ -1,0 +1,464 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+import {
+  GITHUB_OWNER,
+  GITHUB_REPO,
+  contributorCommitsUrl,
+  firstCommitLine,
+  formatGitHubDate,
+  getContributorActivity,
+  getContributors,
+  normalizeExternalUrl,
+  repositoryUrl,
+  type GitHubContributor,
+} from '../../lib/github';
+
+export async function getStaticPaths() {
+  const contributors =
+    await getContributors();
+
+  return contributors.map(
+    (contributor) => ({
+      params: {
+        login: contributor.login,
+      },
+      props: {
+        contributor,
+      },
+    }),
+  );
+}
+
+const { contributor } = Astro.props as {
+  contributor: GitHubContributor;
+};
+
+const login = contributor.login;
+
+const activity =
+  await getContributorActivity(
+    contributor,
+  );
+
+const {
+  profile,
+  commits: recentCommits,
+  pullRequests: recentPullRequests,
+  issues: recentIssues,
+  pullRequestCount,
+  issueCount,
+} = activity;
+
+const displayName =
+  profile?.name?.trim() ||
+  `@${login}`;
+
+const profileUrl =
+  profile?.html_url ||
+  contributor.html_url;
+
+const blogUrl =
+  normalizeExternalUrl(
+    profile?.blog,
+  );
+---
+
+
+<Layout
+  title={`${displayName} — Colaboradores EVRYLUX`}
+  description={`Contribuições de @${login} para o projeto EVRYLUX.`}
+>
+  <main class="contributor-page">
+    <section class="profile-section">
+      <div class="container">
+        <a class="back-link" href="/contributors">
+          <span aria-hidden="true">←</span>
+          Todos os colaboradores
+        </a>
+
+        <div class="profile-card card">
+          <div class="profile-main">
+            <img
+              class="avatar"
+              src={profile?.avatar_url || contributor.avatar_url}
+              alt={`Avatar de ${login}`}
+              width="112"
+              height="112"
+            />
+
+            <div class="identity">
+              <div class="eyebrow">Colaborador EVRYLUX</div>
+              <h1>{displayName}</h1>
+
+              <a
+                class="username"
+                href={profileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                @{login}
+                <span aria-hidden="true">↗</span>
+              </a>
+
+              {profile?.bio && <p class="bio">{profile.bio}</p>}
+
+              <div class="metadata">
+                {profile?.location && <span>{profile.location}</span>}
+
+                {blogUrl && (
+                  <a href={blogUrl} target="_blank" rel="noopener noreferrer">
+                    Site pessoal ↗
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div class="stats">
+            <div class="stat">
+              <strong>{contributor.contributions}</strong>
+              <span>contribuições</span>
+            </div>
+
+            <div class="stat">
+              <strong>{pullRequestCount}</strong>
+              <span>pull requests</span>
+            </div>
+
+            <div class="stat">
+              <strong>{issueCount}</strong>
+              <span>issues</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="activity-section">
+      <div class="container activity-grid">
+        <div class="activity-main">
+          <div class="section-heading">
+            <div>
+              <div class="eyebrow">Atividade</div>
+              <h2>Commits recentes</h2>
+            </div>
+
+            <a
+              class="github-link"
+              href={contributorCommitsUrl(login)}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Ver no GitHub ↗
+            </a>
+          </div>
+
+          {recentCommits.length > 0 ? (
+            <div class="activity-list">
+              {recentCommits.map((commit) => (
+                <a
+                  class="activity-item card"
+                  href={commit.html_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <div class="activity-icon">C</div>
+
+                  <div class="activity-content">
+                    <strong>{firstCommitLine(commit.commit.message)}</strong>
+                    <span>
+                      {formatGitHubDate(commit.commit.author?.date)} · {commit.sha.slice(0, 7)}
+                    </span>
+                  </div>
+
+                  <span class="activity-arrow" aria-hidden="true">↗</span>
+                </a>
+              ))}
+            </div>
+          ) : (
+            <div class="empty-state card">
+              <strong>Nenhum commit encontrado.</strong>
+              <p>
+                O GitHub pode levar algum tempo para associar e atualizar contribuições recentes.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <aside class="side-column">
+          <section class="side-card card">
+            <div class="side-title">
+              <span class="side-dot"></span>
+              <h2>Pull Requests</h2>
+            </div>
+
+            {recentPullRequests.length > 0 ? (
+              <div class="compact-list">
+                {recentPullRequests.map((pullRequest) => (
+                  <a
+                    href={pullRequest.html_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <div>
+                      <strong>{pullRequest.title}</strong>
+                      <span>
+                        #{pullRequest.number} · {formatGitHubDate(pullRequest.created_at)}
+                      </span>
+                    </div>
+                    <span aria-hidden="true">↗</span>
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <p class="side-empty">Nenhum Pull Request encontrado.</p>
+            )}
+          </section>
+
+          <section class="side-card card">
+            <div class="side-title">
+              <span class="side-dot"></span>
+              <h2>Issues</h2>
+            </div>
+
+            {recentIssues.length > 0 ? (
+              <div class="compact-list">
+                {recentIssues.map((issue) => (
+                  <a
+                    href={issue.html_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <div>
+                      <strong>{issue.title}</strong>
+                      <span>
+                        #{issue.number} · {formatGitHubDate(issue.created_at)}
+                      </span>
+                    </div>
+                    <span aria-hidden="true">↗</span>
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <p class="side-empty">Nenhuma Issue encontrada.</p>
+            )}
+          </section>
+
+          <a
+            class="repository-card card"
+            href={repositoryUrl()}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <div>
+              <span>Repositório</span>
+              <strong>{GITHUB_OWNER}/{GITHUB_REPO}</strong>
+            </div>
+            <span class="repository-arrow" aria-hidden="true">↗</span>
+          </a>
+        </aside>
+      </div>
+    </section>
+  </main>
+</Layout>
+
+<style>
+  .contributor-page { padding-bottom: 96px; }
+  .profile-section { padding: 64px 0 34px; }
+
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 22px;
+    color: var(--text-soft);
+    font-size: 14px;
+    font-weight: 700;
+    transition: color .2s ease, transform .2s ease;
+  }
+
+  .back-link:hover { color: var(--primary-deep); transform: translateX(-2px); }
+
+  .profile-card {
+    padding: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 36px;
+  }
+
+  .profile-main { display: flex; align-items: center; gap: 26px; min-width: 0; }
+
+  .avatar {
+    width: 112px;
+    height: 112px;
+    flex: 0 0 auto;
+    object-fit: cover;
+    border-radius: 30px;
+    border: 1px solid var(--border);
+    box-shadow: 0 14px 40px rgba(54, 92, 51, .12);
+    background: var(--primary-soft);
+  }
+
+  .identity { min-width: 0; }
+  .identity .eyebrow { margin-bottom: 12px; }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(32px, 4vw, 48px);
+    line-height: 1;
+    letter-spacing: -.045em;
+  }
+
+  .username {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 10px;
+    color: var(--primary-deep);
+    font-weight: 750;
+  }
+
+  .bio { max-width: 560px; margin: 18px 0 0; color: var(--text-soft); line-height: 1.65; }
+
+  .metadata {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px 18px;
+    margin-top: 14px;
+    color: var(--text-soft);
+    font-size: 13px;
+  }
+
+  .metadata a { color: var(--primary-deep); font-weight: 700; }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(108px, 1fr));
+    gap: 10px;
+    flex: 0 0 auto;
+  }
+
+  .stat {
+    min-height: 98px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border-radius: 18px;
+    border: 1px solid rgba(65, 104, 62, .08);
+    background: var(--surface-muted);
+  }
+
+  .stat strong { font-size: 28px; line-height: 1; color: var(--primary-deep); letter-spacing: -.04em; }
+  .stat span { margin-top: 8px; color: var(--text-soft); font-size: 12px; white-space: nowrap; }
+
+  .activity-section { padding-top: 18px; }
+
+  .activity-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(300px, .75fr);
+    gap: 22px;
+    align-items: start;
+  }
+
+  .section-heading {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 18px;
+  }
+
+  .section-heading .eyebrow { margin-bottom: 10px; }
+  .section-heading h2 { margin: 0; font-size: clamp(26px, 3vw, 36px); letter-spacing: -.035em; }
+  .github-link { color: var(--primary-deep); font-size: 13px; font-weight: 750; white-space: nowrap; }
+  .activity-list { display: grid; gap: 10px; }
+
+  .activity-item {
+    padding: 18px;
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 15px;
+    transition: transform .2s ease, border-color .2s ease;
+  }
+
+  .activity-item:hover { transform: translateY(-2px); border-color: var(--border-strong); }
+
+  .activity-icon {
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border-radius: 14px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font-size: 13px;
+    font-weight: 850;
+  }
+
+  .activity-content { min-width: 0; }
+  .activity-content strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+  .activity-content span { display: block; margin-top: 6px; color: var(--text-soft); font-size: 12px; }
+  .activity-arrow { color: var(--primary-deep); }
+  .empty-state { padding: 26px; }
+  .empty-state p { margin: 8px 0 0; color: var(--text-soft); line-height: 1.6; }
+  .side-column { display: grid; gap: 14px; }
+  .side-card { padding: 22px; }
+
+  .side-title { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .side-dot { width: 10px; height: 10px; flex: 0 0 auto; border-radius: 50%; background: var(--primary); box-shadow: 0 0 0 6px var(--primary-soft); }
+  .side-title h2 { margin: 0; font-size: 17px; letter-spacing: -.02em; }
+  .compact-list { display: grid; }
+
+  .compact-list a {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 13px 0;
+    border-top: 1px solid rgba(65, 104, 62, .09);
+  }
+
+  .compact-list a:first-child { border-top: 0; padding-top: 2px; }
+  .compact-list a:last-child { padding-bottom: 2px; }
+  .compact-list strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+  .compact-list span { display: block; margin-top: 5px; color: var(--text-soft); font-size: 11px; }
+  .compact-list > a > span { margin: 0; color: var(--primary-deep); font-size: 14px; }
+  .side-empty { margin: 0; color: var(--text-soft); line-height: 1.6; font-size: 13px; }
+
+  .repository-card {
+    padding: 20px 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    transition: transform .2s ease, border-color .2s ease;
+  }
+
+  .repository-card:hover { transform: translateY(-2px); border-color: var(--border-strong); }
+  .repository-card span { display: block; color: var(--text-soft); font-size: 11px; }
+  .repository-card strong { display: block; margin-top: 5px; font-size: 14px; }
+  .repository-arrow { color: var(--primary-deep) !important; font-size: 16px !important; }
+
+  @media (max-width: 980px) {
+    .profile-card { align-items: flex-start; flex-direction: column; }
+    .stats { width: 100%; }
+    .activity-grid { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 680px) {
+    .profile-section { padding-top: 40px; }
+    .profile-card { padding: 24px; }
+    .profile-main { align-items: flex-start; flex-direction: column; }
+    .avatar { width: 90px; height: 90px; border-radius: 24px; }
+    .stats { grid-template-columns: 1fr; }
+    .stat { min-height: 80px; }
+    .section-heading { align-items: flex-start; flex-direction: column; }
+    .activity-item { grid-template-columns: 40px minmax(0, 1fr) auto; padding: 15px; }
+    .activity-icon { width: 40px; height: 40px; }
+  }
+</style>

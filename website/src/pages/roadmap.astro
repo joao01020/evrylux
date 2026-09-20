@@ -1,0 +1,36 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const groups = [
+  { title: 'Disponível / em uso', items: ['Conceitos', 'Perguntas', 'Revisões', 'Busca', 'Estrutura visual do Brain'] },
+  { title: 'Em desenvolvimento', items: ['Mapa do conhecimento', 'Sincronização entre dispositivos', 'Fluxos de colaboração'] },
+  { title: 'Planejado', items: ['Compartilhamento de conhecimento', 'Recursos de comunidade', 'Expansão multiplataforma'] },
+];
+---
+
+<Layout title="Roadmap — EVRYLUX">
+  <main class="section">
+    <div class="container">
+      <div class="eyebrow">Evolução</div>
+      <h1 class="section-title">Roadmap</h1>
+      <p class="section-copy">Uma visão simples do que já existe, do que está sendo desenvolvido e do que pode vir depois.</p>
+
+      <div class="grid grid-3 roadmap">
+        {groups.map((group) => (
+          <section class="card lane">
+            <h2>{group.title}</h2>
+            <div class="items">
+              {group.items.map((item) => <div class="item"><span></span>{item}</div>)}
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<style>
+.roadmap{margin-top:34px}.lane{padding:26px}.lane h2{margin-top:0;font-size:19px}.items{display:grid;gap:12px;margin-top:20px}
+.item{display:flex;align-items:center;gap:10px;padding:14px;border-radius:14px;background:var(--surface-muted);color:var(--text-soft)}
+.item span{width:9px;height:9px;border-radius:50%;background:var(--primary);flex:0 0 auto}
+</style>
