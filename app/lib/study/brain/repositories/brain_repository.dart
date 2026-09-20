@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -121,6 +122,8 @@ class BrainRepository {
 
   final BrainSyncQueueService? _brainSyncQueueService;
 
+  Future<void>? _legacyPlaintextMigrationFuture;
+
   // ============================================================
   // SYNC ENTITY TYPES
   // ============================================================
@@ -179,24 +182,12 @@ class BrainRepository {
     required String title,
     required String content,
   }) async {
-    // ==========================================================
-    // FASE 09 — TOPIC LEGADO
-    // ==========================================================
-    //
-    // Topic vazio é válido.
-    //
-    // "Sem tema" existe somente como ponte para:
-    //
-    // - BrainStorage Markdown legado;
-    // - BrainFile, que ainda possui o campo topic;
-    // - leitura/migração de dados antigos.
-    //
-    // ==========================================================
+    final store = _requireNoteVaultStore();
+
+    await _ensureLegacyPlaintextMigrated();
 
     final rawTopic = topic.trim();
-
     final cleanTopic = rawTopic.isEmpty ? 'Sem tema' : rawTopic;
-
     final cleanTitle = title.trim();
     final cleanContent = content.trim();
 
@@ -208,31 +199,43 @@ class BrainRepository {
       throw const FormatException('Escreva algum conteúdo.');
     }
 
-    final existingLocalPath = _localPathFromId(id);
+    final cleanId = id?.trim() ?? '';
 
     BrainFile? previousNote;
 
-    if (existingLocalPath != null) {
-      try {
-        previousNote = await _local.openNote(existingLocalPath);
-      } catch (_) {
-        previousNote = null;
+    if (cleanId.isNotEmpty) {
+      previousNote = await _findVaultNoteByAnyId(cleanId);
+
+      if (previousNote == null) {
+        final legacyPath = _localPathFromId(cleanId);
+
+        if (legacyPath != null) {
+          try {
+            previousNote = await _local.openNote(legacyPath);
+          } catch (_) {
+            previousNote = null;
+          }
+        }
       }
     }
 
-    final savedLocal = await _local.saveNote(
+    final now = DateTime.now().toLocal();
+
+    final notePath = previousNote?.path.trim().isNotEmpty == true
+        ? previousNote!.path.trim()
+        : cleanId.isNotEmpty && !_looksLikeUuid(cleanId)
+        ? cleanId
+        : _newVaultNotePath();
+
+    final note = BrainFile(
       topic: cleanTopic,
       title: cleanTitle,
+      path: notePath,
       content: cleanContent,
       concepts: previousNote?.concepts ?? const <BrainConcept>[],
-      existingPath: existingLocalPath,
-    );
-
-    final saved = await _hydrateSourcesFromVault(savedLocal);
-
-    debugPrint(
-      '[BRAIN REPOSITORY] '
-      'Nota salva no mirror local: ${saved.path}',
+      sources: previousNote?.sources ?? const <BrainSource>[],
+      createdAt: previousNote?.createdAt ?? now,
+      updatedAt: now,
     );
 
     final userId = currentUserId?.trim();
@@ -242,27 +245,35 @@ class BrainRepository {
         : _resolveRemoteNoteId(
             userId: userId,
             originalId: id,
-            localPath: saved.path,
+            localPath: note.path,
           );
 
-    final noteStore = _noteVaultStore;
+    final encryptedObject = await store.saveNote(
+      note,
+      legacyRemoteId: legacyRemoteId,
+    );
 
-    if (noteStore != null) {
-      final encryptedObject = await noteStore.saveNote(
-        saved,
-        legacyRemoteId: legacyRemoteId,
-      );
+    await _brainSyncQueueService?.enqueueObject(encryptedObject);
 
-      await _brainSyncQueueService?.enqueueObject(encryptedObject);
+    final verified = await store.getNoteByPath(note.path);
 
-      debugPrint(
-        '[BRAIN REPOSITORY] '
-        'Nota salva no Vault criptografado: '
-        '${encryptedObject.header.objectId}',
+    if (verified == null ||
+        verified.title.trim() != note.title.trim() ||
+        verified.content != note.content) {
+      throw StateError(
+        'A nota foi gravada no Vault, mas a verificação de integridade falhou.',
       );
     }
 
-    return _noteToRow(saved, remoteId: legacyRemoteId, userId: userId);
+    await _deletePlaintextMirrorIfPresent(previousNote ?? note);
+
+    debugPrint(
+      '[BRAIN REPOSITORY] '
+      'Nota salva somente no Vault criptografado: '
+      '${encryptedObject.header.objectId}',
+    );
+
+    return _noteToRow(verified, remoteId: legacyRemoteId, userId: userId);
   }
 
   // ============================================================
@@ -276,23 +287,23 @@ class BrainRepository {
   // ============================================================
 
   Future<List<Map<String, dynamic>>> loadNotes() async {
-    final localNotes = await _local.loadNotes();
+    final store = _requireNoteVaultStore();
+
+    await _ensureLegacyPlaintextMigrated();
+
+    final notes = await store.loadNotes();
 
     final userId = currentUserId?.trim();
 
-    final rows = <Map<String, dynamic>>[];
+    return notes
+        .map((note) {
+          final remoteId = userId == null || userId.isEmpty
+              ? null
+              : _remoteNoteId(userId: userId, localPath: note.path);
 
-    for (final localNote in localNotes) {
-      final note = await _hydrateSourcesFromVault(localNote);
-
-      final remoteId = userId == null || userId.isEmpty
-          ? null
-          : _remoteNoteId(userId: userId, localPath: note.path);
-
-      rows.add(_noteToRow(note, remoteId: remoteId, userId: userId));
-    }
-
-    return rows;
+          return _noteToRow(note, remoteId: remoteId, userId: userId);
+        })
+        .toList(growable: false);
   }
 
   // ============================================================
@@ -306,55 +317,21 @@ class BrainRepository {
       return null;
     }
 
-    // ==========================================================
-    // LOCAL PATH
-    // ==========================================================
+    await _ensureLegacyPlaintextMigrated();
 
-    final directPath = _localPathFromId(cleanId);
+    final note = await _findVaultNoteByAnyId(cleanId);
 
-    if (directPath != null) {
-      try {
-        final localNote = await _local.openNote(directPath);
-
-        final note = await _hydrateSourcesFromVault(localNote);
-
-        final userId = currentUserId?.trim();
-
-        final remoteId = userId == null || userId.isEmpty
-            ? null
-            : _remoteNoteId(userId: userId, localPath: note.path);
-
-        return _noteToRow(note, remoteId: remoteId, userId: userId);
-      } catch (_) {
-        return null;
-      }
+    if (note == null) {
+      return null;
     }
-
-    // ==========================================================
-    // LEGACY REMOTE ID
-    // ==========================================================
-    //
-    // Procura se algum arquivo local corresponde ao UUID remoto.
-    //
-    // ==========================================================
 
     final userId = currentUserId?.trim();
 
-    if (userId != null && userId.isNotEmpty) {
-      final notes = await _local.loadNotes();
+    final remoteId = userId == null || userId.isEmpty
+        ? null
+        : _remoteNoteId(userId: userId, localPath: note.path);
 
-      for (final localNote in notes) {
-        final note = await _hydrateSourcesFromVault(localNote);
-
-        final remoteId = _remoteNoteId(userId: userId, localPath: note.path);
-
-        if (remoteId == cleanId) {
-          return _noteToRow(note, remoteId: remoteId, userId: userId);
-        }
-      }
-    }
-
-    return null;
+    return _noteToRow(note, remoteId: remoteId, userId: userId);
   }
 
   // ============================================================
@@ -370,146 +347,62 @@ class BrainRepository {
       );
     }
 
-    final localNotes = await _local.loadNotes();
+    final store = _requireNoteVaultStore();
 
-    BrainFile? target;
-
-    final directPath = _localPathFromId(cleanId);
-
-    if (directPath != null) {
-      for (final note in localNotes) {
-        if (_samePath(note.path, directPath)) {
-          target = note;
-
-          break;
-        }
-      }
-
-      if (target == null) {
-        try {
-          target = await _local.openNote(directPath);
-        } catch (_) {
-          target = null;
-        }
-      }
-    }
+    await _ensureLegacyPlaintextMigrated();
 
     final userId = currentUserId?.trim();
-
-    if (target == null && userId != null && userId.isNotEmpty) {
-      for (final note in localNotes) {
-        final legacyId = _remoteNoteId(userId: userId, localPath: note.path);
-
-        if (legacyId == cleanId) {
-          target = note;
-
-          break;
-        }
-      }
-    }
-
-    // ==========================================================
-    // SEM NOTA LOCAL
-    // ==========================================================
-    //
-    // Ainda podemos ter:
-    //
-    // - arquivo já removido;
-    // - resultado remoto legado;
-    // - tombstone já parcialmente criado.
-    //
-    // A exclusão precisa ser idempotente.
-    //
-    // ==========================================================
+    final target = await _findVaultNoteByAnyId(cleanId);
 
     if (target == null) {
-      if (directPath != null) {
-        final file = File(directPath);
+      if (_looksLikeUuid(cleanId)) {
+        final tombstone = await store.deleteNoteByLegacyRemoteId(cleanId);
 
-        if (await file.exists()) {
-          await file.delete();
+        if (tombstone != null) {
+          await _brainSyncQueueService?.enqueueObject(tombstone);
         }
 
+        await _deleteLegacyRemoteNote(cleanId);
+
+        return;
+      }
+
+      final legacyPath = _localPathFromId(cleanId);
+
+      if (legacyPath != null) {
+        final file = File(legacyPath);
+
         if (await file.exists()) {
-          throw FileSystemException(
-            'O arquivo local continuou existindo após a exclusão.',
-            directPath,
-          );
+          try {
+            final legacyNote = await _local.openNote(legacyPath);
+            await _local.deleteNote(legacyNote);
+          } catch (_) {
+            await file.delete();
+          }
         }
 
-        final tombstone = await _noteVaultStore?.deleteNoteByPath(directPath);
+        final tombstone = await store.deleteNoteByPath(legacyPath);
 
         if (tombstone != null) {
           await _brainSyncQueueService?.enqueueObject(tombstone);
         }
 
         if (userId != null && userId.isNotEmpty) {
-          final legacyRemoteId = _remoteNoteId(
-            userId: userId,
-            localPath: directPath,
+          await _deleteLegacyRemoteNote(
+            _remoteNoteId(userId: userId, localPath: legacyPath),
           );
-
-          await _deleteLegacyRemoteNote(legacyRemoteId);
         }
 
         return;
       }
 
-      if (_looksLikeUuid(cleanId)) {
-        final tombstone = await _noteVaultStore?.deleteNoteByLegacyRemoteId(
-          cleanId,
-        );
-
-        if (tombstone != null) {
-          await _brainSyncQueueService?.enqueueObject(tombstone);
-        }
-
-        // Resultado vindo diretamente de brain_notes:
-        //
-        // mesmo sem cópia local, a exclusão precisa remover a linha
-        // legada para ela não reaparecer na próxima pesquisa.
-        await _deleteLegacyRemoteNote(cleanId);
-
-        return;
-      }
-
-      throw StateError(
-        'Não foi possível localizar a anotação local para excluir.',
-      );
+      throw StateError('Não foi possível localizar a anotação para excluir.');
     }
 
-    // ==========================================================
-    // COLETAR CÓPIAS HISTÓRICAS
-    // ==========================================================
-
-    final notesToDelete = <BrainFile>[];
-
-    for (final note in localNotes) {
-      final sameLocalPath = _samePath(note.path, target.path);
-
-      final sameHistoricalCopy = _sameNoteContent(note, target);
-
-      if (sameLocalPath || sameHistoricalCopy) {
-        if (!notesToDelete.any((item) => _samePath(item.path, note.path))) {
-          notesToDelete.add(note);
-        }
-      }
-    }
-
-    if (!notesToDelete.any((item) => _samePath(item.path, target!.path))) {
-      notesToDelete.add(target);
-    }
-
-    // ==========================================================
-    // IDs REMOTOS LEGADOS
-    // ==========================================================
-    //
-    // Precisamos calculá-los ANTES de apagar os arquivos.
-    //
-    // Também preservamos cleanId quando a exclusão começou a partir
-    // de um UUID remoto antigo.
-    //
-    // ==========================================================
+    final conceptIds = target.concepts
+        .map((concept) => concept.id.trim())
+        .where((conceptId) => conceptId.isNotEmpty)
+        .toSet();
 
     final legacyRemoteIds = <String>{};
 
@@ -518,74 +411,16 @@ class BrainRepository {
     }
 
     if (userId != null && userId.isNotEmpty) {
-      for (final note in notesToDelete) {
-        final path = note.path.trim();
-
-        if (path.isEmpty) {
-          continue;
-        }
-
-        legacyRemoteIds.add(_remoteNoteId(userId: userId, localPath: path));
-      }
-    }
-
-    // Tombstone conceitos pertencentes às cópias removidas.
-    final conceptIds = <String>{};
-
-    for (final note in notesToDelete) {
-      for (final concept in note.concepts) {
-        if (concept.id.trim().isNotEmpty) {
-          conceptIds.add(concept.id.trim());
-        }
-      }
-    }
-
-    // ==========================================================
-    // EXCLUIR LOCAL + TOMBSTONE E2EE
-    // ==========================================================
-
-    for (final note in notesToDelete) {
-      final path = note.path.trim();
-
-      if (path.isEmpty) {
-        continue;
-      }
-
-      final file = File(path);
-
-      debugPrint(
-        '[BRAIN REPOSITORY] '
-        'Excluindo arquivo local: $path',
-      );
-
-      await _local.deleteNote(note);
-
-      if (await file.exists()) {
-        await file.delete();
-      }
-
-      if (await file.exists()) {
-        throw FileSystemException(
-          'Não foi possível excluir fisicamente a anotação.',
-          path,
-        );
-      }
-
-      final noteTombstone = await _noteVaultStore?.deleteNoteByPath(path);
-
-      if (noteTombstone != null) {
-        await _brainSyncQueueService?.enqueueObject(noteTombstone);
-      }
-
-      debugPrint(
-        '[BRAIN REPOSITORY] '
-        'Arquivo local removido: $path',
+      legacyRemoteIds.add(
+        _remoteNoteId(userId: userId, localPath: target.path),
       );
     }
 
-    // ==========================================================
-    // TOMBSTONES DOS CONCEITOS
-    // ==========================================================
+    final noteTombstone = await store.deleteNoteByPath(target.path);
+
+    if (noteTombstone != null) {
+      await _brainSyncQueueService?.enqueueObject(noteTombstone);
+    }
 
     for (final conceptId in conceptIds) {
       final conceptTombstone = await _conceptVaultStore?.deleteConcept(
@@ -597,23 +432,7 @@ class BrainRepository {
       }
     }
 
-    // ==========================================================
-    // LIMPAR BRAIN_NOTES LEGADO
-    // ==========================================================
-    //
-    // Isso existe enquanto BrainScreen ainda consulta brain_notes.
-    //
-    // Sem esta etapa, a nota some do armazenamento local, mas volta
-    // a aparecer na pesquisa remota e pode ser recriada localmente
-    // quando o usuário clica no resultado.
-    //
-    // A exclusão local JÁ terminou. Portanto falha de rede aqui não
-    // desfaz a exclusão local.
-    //
-    // Se a fila legada estiver configurada, o DELETE fica pendente
-    // e será transmitido quando a conexão voltar.
-    //
-    // ==========================================================
+    await _deletePlaintextMirrorIfPresent(target);
 
     for (final legacyRemoteId in legacyRemoteIds) {
       await _deleteLegacyRemoteNote(legacyRemoteId);
@@ -621,7 +440,7 @@ class BrainRepository {
 
     debugPrint(
       '[BRAIN REPOSITORY] '
-      'Exclusão concluída: local + tombstone E2EE + limpeza legada.',
+      'Exclusão concluída no Vault criptografado.',
     );
   }
 
@@ -708,20 +527,14 @@ class BrainRepository {
     required BrainConcept concept,
     String? noteId,
   }) async {
+    await _ensureLegacyPlaintextMigrated();
+
     final cleanNoteId = noteId?.trim();
 
     BrainFile? note;
 
     if (cleanNoteId != null && cleanNoteId.isNotEmpty) {
-      final localPath = _localPathFromId(cleanNoteId);
-
-      if (localPath != null) {
-        try {
-          note = await _local.openNote(localPath);
-        } catch (_) {
-          note = null;
-        }
-      }
+      note = await _findVaultNoteByAnyId(cleanNoteId);
     }
 
     BrainFile? updatedNote;
@@ -739,30 +552,12 @@ class BrainRepository {
         concepts.add(concept);
       }
 
-      final updatedLocalNote = await _local.saveNote(
-        topic: note.topic,
-        title: note.title,
-        content: note.content,
+      updatedNote = note.copyWith(
         concepts: concepts,
-        existingPath: note.path,
+        updatedAt: DateTime.now().toLocal(),
       );
 
-      updatedNote = await _hydrateSourcesFromVault(updatedLocalNote);
-
-      final userId = currentUserId?.trim();
-
-      final legacyRemoteId = userId == null || userId.isEmpty
-          ? null
-          : _remoteNoteId(userId: userId, localPath: updatedNote.path);
-
-      final encryptedNote = await _noteVaultStore?.saveNote(
-        updatedNote,
-        legacyRemoteId: legacyRemoteId,
-      );
-
-      if (encryptedNote != null) {
-        await _brainSyncQueueService?.enqueueObject(encryptedNote);
-      }
+      await _saveEncryptedNoteAndVerify(updatedNote);
     }
 
     final encryptedConcept = await _conceptVaultStore?.saveConcept(
@@ -877,11 +672,10 @@ class BrainRepository {
       return;
     }
 
-    // ==========================================================
-    // LOCALIZAR ANOTAÇÃO DE ORIGEM ANTES DE ALTERAR CONCEITOS
-    // ==========================================================
+    await _ensureLegacyPlaintextMigrated();
 
-    final notes = await _local.loadNotes();
+    final store = _requireNoteVaultStore();
+    final notes = await store.loadNotes();
 
     BrainFile? sourceNote;
 
@@ -890,74 +684,24 @@ class BrainRepository {
         (concept) => concept.id == cleanId,
       );
 
-      if (!containsConcept) {
-        continue;
+      if (containsConcept) {
+        sourceNote = note;
+        break;
       }
-
-      sourceNote = note;
-
-      break;
     }
-
-    // ==========================================================
-    // SEM NOTA DE ORIGEM
-    // ==========================================================
-    //
-    // Pode acontecer com conceito legado/orfão.
-    //
-    // Nesse caso apagamos somente o conceito.
-    //
-    // ==========================================================
 
     if (sourceNote == null) {
       await deleteConcept(cleanId);
-
       return;
     }
 
-    final sourcePath = sourceNote.path.trim();
+    await deleteConceptsByNoteId(sourceNote.path);
+    await deleteNote(sourceNote.path);
 
-    if (sourcePath.isEmpty) {
-      throw StateError(
-        'A anotação de origem não possui um caminho local válido.',
-      );
-    }
-
-    debugPrint('[BRAIN REPOSITORY] Exclusão em cascata iniciada.');
-
-    debugPrint('[BRAIN REPOSITORY] Conceito: $cleanId');
-
-    debugPrint('[BRAIN REPOSITORY] Nota de origem: $sourcePath');
-
-    // ==========================================================
-    // 1. EXCLUIR TODAS AS CLASSIFICAÇÕES DA NOTA
-    // ==========================================================
-    //
-    // Isso limpa os arquivos de _concepts e registra DELETE para
-    // cada classificação na SyncQueue.
-    //
-    // ==========================================================
-
-    await deleteConceptsByNoteId(sourcePath);
-
-    // ==========================================================
-    // 2. EXCLUIR A ANOTAÇÃO FÍSICA
-    // ==========================================================
-    //
-    // deleteNote() já confirma File.exists() antes de concluir.
-    //
-    // ==========================================================
-
-    await deleteNote(sourcePath);
-
-    // ==========================================================
-    // 3. CONFIRMAÇÃO FINAL
-    // ==========================================================
-
-    final remaining = await _local.loadNotes();
+    final remaining = await store.loadNotes();
 
     final stillExists = remaining.any(
-      (note) => _samePath(note.path, sourcePath),
+      (note) => _samePath(note.path, sourceNote!.path),
     );
 
     if (stillExists) {
@@ -966,7 +710,10 @@ class BrainRepository {
       );
     }
 
-    debugPrint('[BRAIN REPOSITORY] Exclusão em cascata concluída.');
+    debugPrint(
+      '[BRAIN REPOSITORY] '
+      'Exclusão em cascata concluída no Vault.',
+    );
   }
 
   // ============================================================
@@ -980,7 +727,10 @@ class BrainRepository {
       return;
     }
 
-    final notes = await _local.loadNotes();
+    await _ensureLegacyPlaintextMigrated();
+
+    final noteStore = _requireNoteVaultStore();
+    final notes = await noteStore.loadNotes();
 
     for (final note in notes) {
       final contains = note.concepts.any((concept) => concept.id == cleanId);
@@ -991,32 +741,14 @@ class BrainRepository {
 
       final updatedConcepts = note.concepts
           .where((concept) => concept.id != cleanId)
-          .toList();
+          .toList(growable: false);
 
-      final updatedLocalNote = await _local.saveNote(
-        topic: note.topic,
-        title: note.title,
-        content: note.content,
+      final updatedNote = note.copyWith(
         concepts: updatedConcepts,
-        existingPath: note.path,
+        updatedAt: DateTime.now().toLocal(),
       );
 
-      final updatedNote = await _hydrateSourcesFromVault(updatedLocalNote);
-
-      final userId = currentUserId?.trim();
-
-      final legacyRemoteId = userId == null || userId.isEmpty
-          ? null
-          : _remoteNoteId(userId: userId, localPath: updatedNote.path);
-
-      final encryptedNote = await _noteVaultStore?.saveNote(
-        updatedNote,
-        legacyRemoteId: legacyRemoteId,
-      );
-
-      if (encryptedNote != null) {
-        await _brainSyncQueueService?.enqueueObject(encryptedNote);
-      }
+      await _saveEncryptedNoteAndVerify(updatedNote);
     }
 
     final tombstone = await _conceptVaultStore?.deleteConcept(cleanId);
@@ -1037,19 +769,9 @@ class BrainRepository {
       return;
     }
 
-    final localPath = _localPathFromId(cleanNoteId);
+    await _ensureLegacyPlaintextMigrated();
 
-    if (localPath == null) {
-      return;
-    }
-
-    BrainFile? note;
-
-    try {
-      note = await _local.openNote(localPath);
-    } catch (_) {
-      note = null;
-    }
+    final note = await _findVaultNoteByAnyId(cleanNoteId);
 
     if (note == null) {
       return;
@@ -1057,33 +779,15 @@ class BrainRepository {
 
     final conceptIds = note.concepts
         .map((concept) => concept.id.trim())
-        .where((id) => id.isNotEmpty)
+        .where((conceptId) => conceptId.isNotEmpty)
         .toList(growable: false);
 
-    final updatedLocalNote = await _local.saveNote(
-      topic: note.topic,
-      title: note.title,
-      content: note.content,
+    final updatedNote = note.copyWith(
       concepts: const <BrainConcept>[],
-      existingPath: note.path,
+      updatedAt: DateTime.now().toLocal(),
     );
 
-    final updatedNote = await _hydrateSourcesFromVault(updatedLocalNote);
-
-    final userId = currentUserId?.trim();
-
-    final legacyRemoteId = userId == null || userId.isEmpty
-        ? null
-        : _remoteNoteId(userId: userId, localPath: updatedNote.path);
-
-    final encryptedNote = await _noteVaultStore?.saveNote(
-      updatedNote,
-      legacyRemoteId: legacyRemoteId,
-    );
-
-    if (encryptedNote != null) {
-      await _brainSyncQueueService?.enqueueObject(encryptedNote);
-    }
+    await _saveEncryptedNoteAndVerify(updatedNote);
 
     for (final conceptId in conceptIds) {
       final tombstone = await _conceptVaultStore?.deleteConcept(conceptId);
@@ -1254,37 +958,9 @@ class BrainRepository {
       return null;
     }
 
-    final directPath = _localPathFromId(cleanId);
+    await _ensureLegacyPlaintextMigrated();
 
-    if (directPath != null) {
-      try {
-        final localNote = await _local.openNote(directPath);
-
-        return _hydrateSourcesFromVault(localNote);
-      } catch (_) {
-        return null;
-      }
-    }
-
-    final userId = currentUserId?.trim();
-
-    if (userId == null || userId.isEmpty) {
-      return null;
-    }
-
-    final localNotes = await _local.loadNotes();
-
-    for (final localNote in localNotes) {
-      final remoteId = _remoteNoteId(userId: userId, localPath: localNote.path);
-
-      if (remoteId != cleanId) {
-        continue;
-      }
-
-      return _hydrateSourcesFromVault(localNote);
-    }
-
-    return null;
+    return _findVaultNoteByAnyId(cleanId);
   }
 
   // ============================================================
@@ -1302,29 +978,8 @@ class BrainRepository {
   // ============================================================
 
   Future<void> _persistSourceUpdatedNote(BrainFile note) async {
-    final store = _noteVaultStore;
-
-    if (store == null) {
-      throw StateError('BrainNoteVaultStore não está disponível.');
-    }
-
-    final userId = currentUserId?.trim();
-
-    final legacyRemoteId = userId == null || userId.isEmpty
-        ? null
-        : _remoteNoteId(userId: userId, localPath: note.path);
-
-    final encryptedObject = await store.saveNote(
-      note,
-      legacyRemoteId: legacyRemoteId,
-    );
-
-    await _brainSyncQueueService?.enqueueObject(encryptedObject);
-
-    debugPrint(
-      '[BRAIN REPOSITORY] '
-      'Fontes da nota persistidas no Vault: '
-      '${encryptedObject.header.objectId}',
+    await _saveEncryptedNoteAndVerify(
+      note.copyWith(updatedAt: DateTime.now().toLocal()),
     );
   }
 
@@ -1423,6 +1078,450 @@ class BrainRepository {
   }
 
   // ============================================================
+  // VAULT-ONLY NOTE STORAGE
+  // ============================================================
+
+  BrainNoteVaultStore _requireNoteVaultStore() {
+    final store = _noteVaultStore;
+
+    if (store == null) {
+      throw StateError(
+        'BrainNoteVaultStore não está disponível. '
+        'O Brain não pode salvar conteúdo sensível sem o Vault.',
+      );
+    }
+
+    return store;
+  }
+
+  // ============================================================
+  // PUBLIC LEGACY PLAINTEXT MIGRATION
+  // ============================================================
+  //
+  // Chamado pelo startup da aplicação para garantir que:
+  //
+  // - notas Markdown legadas sejam migradas para o Vault;
+  // - conceitos Markdown em legacy/_concepts sejam migrados;
+  // - cada conceito seja validado no Vault antes da exclusão;
+  // - nenhum plaintext seja removido quando a validação falhar.
+  //
+  // ============================================================
+
+  Future<void> migrateLegacyPlaintextIfNeeded() {
+    return _ensureLegacyPlaintextMigrated();
+  }
+
+  // ============================================================
+  // INTERNAL LEGACY PLAINTEXT MIGRATION
+  // ============================================================
+
+  Future<void> _ensureLegacyPlaintextMigrated() {
+    return _legacyPlaintextMigrationFuture ??= _migrateLegacyPlaintextNotes();
+  }
+
+  Future<void> _migrateLegacyPlaintextNotes() async {
+    final store = _requireNoteVaultStore();
+
+    List<BrainFile> legacyNotes;
+
+    try {
+      legacyNotes = await _local.loadNotes();
+    } catch (error) {
+      debugPrint(
+        '[BRAIN SECURITY] '
+        'Falha ao enumerar mirror legado: $error',
+      );
+
+      rethrow;
+    }
+
+    if (legacyNotes.isEmpty) {
+      await _migrateLegacyPlaintextConcepts();
+      return;
+    }
+
+    debugPrint(
+      '[BRAIN SECURITY] '
+      'Migrando ${legacyNotes.length} nota(s) plaintext para o Vault.',
+    );
+
+    for (final legacyNote in legacyNotes) {
+      final path = legacyNote.path.trim();
+
+      if (path.isEmpty) {
+        continue;
+      }
+
+      BrainFile secureNote = legacyNote;
+
+      final existing = await store.getNoteByPath(path);
+
+      if (existing == null) {
+        final encrypted = await store.saveNote(legacyNote);
+
+        await _brainSyncQueueService?.enqueueObject(encrypted);
+
+        final verified = await store.getNoteByPath(path);
+
+        if (verified == null ||
+            verified.title.trim() != legacyNote.title.trim() ||
+            verified.content != legacyNote.content) {
+          throw StateError(
+            'Migração segura falhou para $path. '
+            'O plaintext foi preservado.',
+          );
+        }
+
+        secureNote = verified;
+      } else {
+        secureNote = existing;
+      }
+
+      for (final concept in secureNote.concepts) {
+        final encryptedConcept = await _conceptVaultStore?.saveConcept(
+          concept: concept,
+          sourceNotePath: secureNote.path,
+        );
+
+        if (encryptedConcept != null) {
+          await _brainSyncQueueService?.enqueueObject(encryptedConcept);
+        }
+      }
+
+      await _deletePlaintextMirrorIfPresent(legacyNote);
+    }
+
+    await _migrateLegacyPlaintextConcepts();
+
+    debugPrint(
+      '[BRAIN SECURITY] '
+      'Migração plaintext -> Vault concluída.',
+    );
+  }
+
+  // ============================================================
+  // MIGRATE LEGACY PLAINTEXT CONCEPTS
+  // ============================================================
+  //
+  // Migra os espelhos Markdown antigos existentes em:
+  //
+  // legacy/_concepts/concepts
+  // legacy/_concepts/questions
+  // legacy/_concepts/examples
+  // legacy/_concepts/warnings
+  //
+  // Regra de segurança:
+  //
+  // 1. lê o BrainConcept legado;
+  // 2. grava no BrainConceptVaultStore quando necessário;
+  // 3. lê novamente do Vault;
+  // 4. valida id/title/description/type/reviewEnabled;
+  // 5. somente então remove o .md correspondente.
+  //
+  // Se qualquer validação falhar, o plaintext permanece no disco.
+  //
+  // ============================================================
+
+  Future<void> _migrateLegacyPlaintextConcepts() async {
+    final store = _conceptVaultStore;
+
+    if (store == null) {
+      throw StateError(
+        'BrainConceptVaultStore não está disponível. '
+        'Os conceitos legados não podem ser removidos com segurança.',
+      );
+    }
+
+    var discovered = 0;
+    var migrated = 0;
+    var removed = 0;
+
+    for (final type in BrainConceptType.values) {
+      final legacyConcepts = await _local.loadConceptsByType(type);
+
+      if (legacyConcepts.isEmpty) {
+        continue;
+      }
+
+      final byId = <String, BrainConcept>{
+        for (final concept in legacyConcepts)
+          if (concept.id.trim().isNotEmpty) concept.id.trim(): concept,
+      };
+
+      final directory = await _local.getConceptTypeDirectory(type);
+
+      if (!await directory.exists()) {
+        continue;
+      }
+
+      await for (final entity in directory.list(
+        recursive: false,
+        followLinks: false,
+      )) {
+        if (entity is! File || !entity.path.toLowerCase().endsWith('.md')) {
+          continue;
+        }
+
+        discovered++;
+
+        final markdown = await entity.readAsString();
+        final legacyId = _legacyConceptMetadataValue(markdown, 'id').trim();
+
+        if (legacyId.isEmpty) {
+          debugPrint(
+            '[BRAIN SECURITY] '
+            'Conceito legado sem id; plaintext preservado: '
+            '${entity.path}',
+          );
+          continue;
+        }
+
+        final legacyConcept = byId[legacyId];
+
+        if (legacyConcept == null) {
+          debugPrint(
+            '[BRAIN SECURITY] '
+            'Não foi possível reconstruir o conceito $legacyId; '
+            'plaintext preservado: ${entity.path}',
+          );
+          continue;
+        }
+
+        var verified = await store.getConcept(legacyId);
+
+        if (verified == null) {
+          final sourceNotePath = _legacyConceptSourceNotePath(markdown);
+
+          final encrypted = await store.saveConcept(
+            concept: legacyConcept,
+            sourceNotePath: sourceNotePath,
+          );
+
+          await _brainSyncQueueService?.enqueueObject(encrypted);
+
+          migrated++;
+          verified = await store.getConcept(legacyId);
+        }
+
+        if (verified == null || !_sameConceptContent(legacyConcept, verified)) {
+          throw StateError(
+            'Falha ao validar o conceito legado $legacyId no Vault. '
+            'O plaintext foi preservado em ${entity.path}.',
+          );
+        }
+
+        await entity.delete();
+
+        if (await entity.exists()) {
+          throw FileSystemException(
+            'O conceito plaintext continuou existindo após '
+            'a validação segura.',
+            entity.path,
+          );
+        }
+
+        removed++;
+      }
+    }
+
+    if (discovered > 0) {
+      debugPrint(
+        '[BRAIN SECURITY] '
+        'Conceitos legados: encontrados=$discovered, '
+        'gravados_no_vault=$migrated, removidos=$removed.',
+      );
+    }
+  }
+
+  String _legacyConceptMetadataValue(String markdown, String key) {
+    var normalized = markdown;
+
+    if (normalized.startsWith('\uFEFF')) {
+      normalized = normalized.substring(1);
+    }
+
+    normalized = normalized.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+
+    final metadataExpression = RegExp(r'^\s*---\s*\n([\s\S]*?)\n---\s*\n?');
+
+    final metadataMatch = metadataExpression.firstMatch(normalized);
+
+    if (metadataMatch == null) {
+      return '';
+    }
+
+    final metadata = metadataMatch.group(1) ?? '';
+
+    for (final line in metadata.split('\n')) {
+      final separator = line.indexOf(':');
+
+      if (separator <= 0) {
+        continue;
+      }
+
+      final currentKey = line.substring(0, separator).trim();
+
+      if (currentKey != key) {
+        continue;
+      }
+
+      return line.substring(separator + 1).trim();
+    }
+
+    return '';
+  }
+
+  String? _legacyConceptSourceNotePath(String markdown) {
+    final encoded = _legacyConceptMetadataValue(markdown, 'origem').trim();
+
+    if (encoded.isEmpty) {
+      return null;
+    }
+
+    try {
+      final decoded = utf8
+          .decode(base64Url.decode(base64Url.normalize(encoded)))
+          .trim();
+
+      return decoded.isEmpty ? null : decoded;
+    } catch (error) {
+      debugPrint(
+        '[BRAIN SECURITY] '
+        'Origem legada do conceito não pôde ser decodificada: $error',
+      );
+
+      return null;
+    }
+  }
+
+  bool _sameConceptContent(BrainConcept first, BrainConcept second) {
+    return first.id.trim() == second.id.trim() &&
+        first.title.trim() == second.title.trim() &&
+        first.description.trim() == second.description.trim() &&
+        first.type == second.type &&
+        first.reviewEnabled == second.reviewEnabled;
+  }
+
+  Future<BrainFile?> _findVaultNoteByAnyId(String id) async {
+    final cleanId = id.trim();
+
+    if (cleanId.isEmpty) {
+      return null;
+    }
+
+    final store = _requireNoteVaultStore();
+
+    final direct = await store.getNoteByPath(cleanId);
+
+    if (direct != null) {
+      return direct;
+    }
+
+    final userId = currentUserId?.trim();
+    final notes = await store.loadNotes();
+
+    if (userId != null && userId.isNotEmpty) {
+      for (final note in notes) {
+        final generatedRemoteId = _remoteNoteId(
+          userId: userId,
+          localPath: note.path,
+        );
+
+        if (generatedRemoteId == cleanId) {
+          return note;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  Future<BrainFile> _saveEncryptedNoteAndVerify(BrainFile note) async {
+    final store = _requireNoteVaultStore();
+
+    final userId = currentUserId?.trim();
+
+    final legacyRemoteId = userId == null || userId.isEmpty
+        ? null
+        : _remoteNoteId(userId: userId, localPath: note.path);
+
+    final encrypted = await store.saveNote(
+      note,
+      legacyRemoteId: legacyRemoteId,
+    );
+
+    await _brainSyncQueueService?.enqueueObject(encrypted);
+
+    final verified = await store.getNoteByPath(note.path);
+
+    if (verified == null ||
+        verified.title.trim() != note.title.trim() ||
+        verified.content != note.content) {
+      throw StateError('Falha ao verificar a nota criptografada no Vault.');
+    }
+
+    await _deletePlaintextMirrorIfPresent(note);
+
+    return verified;
+  }
+
+  Future<void> _deletePlaintextMirrorIfPresent(BrainFile note) async {
+    final path = note.path.trim();
+
+    if (path.isEmpty || _isVaultNotePath(path)) {
+      return;
+    }
+
+    final legacyPath = _localPathFromId(path);
+
+    if (legacyPath == null) {
+      return;
+    }
+
+    final file = File(legacyPath);
+
+    if (!await file.exists()) {
+      return;
+    }
+
+    try {
+      await _local.deleteNote(note);
+    } catch (error) {
+      debugPrint(
+        '[BRAIN SECURITY] '
+        'BrainStorage.deleteNote falhou; tentando remover o arquivo '
+        'plaintext diretamente: $error',
+      );
+
+      if (await file.exists()) {
+        await file.delete();
+      }
+    }
+
+    if (await file.exists()) {
+      throw FileSystemException(
+        'O arquivo plaintext continuou existindo após a migração segura.',
+        legacyPath,
+      );
+    }
+  }
+
+  String _newVaultNotePath() {
+    final now = DateTime.now().toUtc();
+
+    final seed =
+        '${now.microsecondsSinceEpoch}|'
+        '${now.toIso8601String()}|'
+        '${identityHashCode(this)}';
+
+    return 'vault://note/${_deterministicUuid(seed)}';
+  }
+
+  bool _isVaultNotePath(String value) {
+    return value.trim().toLowerCase().startsWith('vault://note/');
+  }
+
+  // ============================================================
   // NOTE -> CONTROLLER ROW
   // ============================================================
 
@@ -1472,11 +1571,18 @@ class BrainRepository {
   // ============================================================
 
   bool _samePath(String first, String second) {
-    final firstPath = File(first).absolute.path;
+    final a = first.trim();
+    final b = second.trim();
 
-    final secondPath = File(second).absolute.path;
+    if (a.isEmpty || b.isEmpty) {
+      return a == b;
+    }
 
-    return firstPath == secondPath;
+    if (_isVaultNotePath(a) || _isVaultNotePath(b)) {
+      return a == b;
+    }
+
+    return File(a).absolute.path == File(b).absolute.path;
   }
 
   // ============================================================

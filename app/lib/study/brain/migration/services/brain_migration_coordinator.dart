@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import '../../models/brain_file.dart';
 import '../../models/brain_review_item.dart';
 import '../../services/brain_storage.dart';
@@ -28,13 +30,7 @@ import 'brain_legacy_migration_service.dart';
 //
 // ============================================================
 
-typedef BrainLegacyReviewLoader =
-    Future<
-      List<
-        BrainReviewItem
-      >
-    >
-    Function();
+typedef BrainLegacyReviewLoader = Future<List<BrainReviewItem>> Function();
 
 // ============================================================
 // BRAIN MIGRATION COORDINATOR
@@ -62,23 +58,34 @@ typedef BrainLegacyReviewLoader =
 //
 // IMPORTANTE:
 //
-// Este serviço NÃO:
+// O Coordinator continua sem:
+// - apagar reviews legadas;
+// - apagar backups;
+// - alterar BrainRepository;
+// - alterar ReviewRepository;
+// - alterar SyncQueue;
+// - enviar dados para Supabase.
 //
-// - apaga notas .md;
-// - apaga reviews;
-// - apaga backups;
-// - altera BrainRepository;
-// - altera ReviewRepository;
-// - altera SyncQueue;
-// - envia dados para Supabase;
-// - substitui o armazenamento legado.
+// SEGURANÇA LOCAL:
 //
-// Nesta fase ele apenas:
+// Após uma migração TOTALMENTE validada, os arquivos Markdown
+// legados podem ser removidos automaticamente para que o conteúdo
+// não permaneça em texto puro no disco.
 //
-// 1. lê;
-// 2. coordena;
-// 3. migra;
-// 4. valida.
+// A remoção só acontece quando:
+// - removeLegacyPlaintextAfterValidation == true;
+// - não existe falha;
+// - não existe item pendente;
+// - result.allValidated == true.
+//
+// Se a validação não for concluída, nenhum .md é removido.
+//
+// Fluxo:
+//
+// 1. lê legado;
+// 2. migra para o Vault criptografado;
+// 3. valida o resultado;
+// 4. remove somente os .md já protegidos, se habilitado.
 //
 // ============================================================
 
@@ -88,13 +95,13 @@ class BrainMigrationCoordinator {
     required BrainLegacyMigrationService migrationService,
     BrainLegacyReviewLoader? reviewLoader,
     DateTime Function()? now,
-  }) : _brainStorage =
-           brainStorage,
+    bool removeLegacyPlaintextAfterValidation = true,
+  }) : _brainStorage = brainStorage,
        _migrationService = migrationService,
        _reviewLoader = reviewLoader,
-       _now =
-           now ??
-           DateTime.now;
+       _now = now ?? DateTime.now,
+       _removeLegacyPlaintextAfterValidation =
+           removeLegacyPlaintextAfterValidation;
 
   // ============================================================
   // DEPENDENCIES
@@ -107,6 +114,10 @@ class BrainMigrationCoordinator {
   final BrainLegacyReviewLoader? _reviewLoader;
 
   final DateTime Function() _now;
+
+  final bool _removeLegacyPlaintextAfterValidation;
+
+  int _lastRemovedPlaintextFiles = 0;
 
   // ============================================================
   // STATE
@@ -122,51 +133,34 @@ class BrainMigrationCoordinator {
     return _running;
   }
 
+  int get lastRemovedPlaintextFiles {
+    return _lastRemovedPlaintextFiles;
+  }
+
   // ============================================================
   // LOAD LEGACY FILES
   // ============================================================
 
-  Future<
-    List<
-      BrainFile
-    >
-  >
-  loadLegacyFiles() async {
+  Future<List<BrainFile>> loadLegacyFiles() async {
     final files = await _brainStorage.loadNotes();
 
-    return List<
-      BrainFile
-    >.unmodifiable(
-      files,
-    );
+    return List<BrainFile>.unmodifiable(files);
   }
 
   // ============================================================
   // LOAD LEGACY REVIEWS
   // ============================================================
 
-  Future<
-    List<
-      BrainReviewItem
-    >
-  >
-  loadLegacyReviews() async {
+  Future<List<BrainReviewItem>> loadLegacyReviews() async {
     final loader = _reviewLoader;
 
-    if (loader ==
-        null) {
-      return const <
-        BrainReviewItem
-      >[];
+    if (loader == null) {
+      return const <BrainReviewItem>[];
     }
 
     final reviews = await loader();
 
-    return List<
-      BrainReviewItem
-    >.unmodifiable(
-      reviews,
-    );
+    return List<BrainReviewItem>.unmodifiable(reviews);
   }
 
   // ============================================================
@@ -184,28 +178,19 @@ class BrainMigrationCoordinator {
   //
   // ============================================================
 
-  Future<
-    BrainMigrationPreview
-  >
-  preview() async {
+  Future<BrainMigrationPreview> preview() async {
     final files = await loadLegacyFiles();
 
     final reviews = await loadLegacyReviews();
 
-    return BrainMigrationPreview(
-      files: files,
-      reviews: reviews,
-    );
+    return BrainMigrationPreview(files: files, reviews: reviews);
   }
 
   // ============================================================
   // RUN
   // ============================================================
 
-  Future<
-    BrainMigrationResult
-  >
-  run() async {
+  Future<BrainMigrationResult> run() async {
     _ensureNotRunning();
 
     _running = true;
@@ -215,10 +200,14 @@ class BrainMigrationCoordinator {
 
       final reviews = await loadLegacyReviews();
 
-      return await _migrationService.migrateAll(
+      final result = await _migrationService.migrateAll(
         files: files,
         reviews: reviews,
       );
+
+      await _cleanupValidatedLegacyMarkdown(files: files, result: result);
+
+      return result;
     } finally {
       _running = false;
     }
@@ -228,10 +217,7 @@ class BrainMigrationCoordinator {
   // RUN FILES ONLY
   // ============================================================
 
-  Future<
-    BrainMigrationResult
-  >
-  runFilesOnly() async {
+  Future<BrainMigrationResult> runFilesOnly() async {
     _ensureNotRunning();
 
     _running = true;
@@ -239,13 +225,14 @@ class BrainMigrationCoordinator {
     try {
       final files = await loadLegacyFiles();
 
-      return await _migrationService.migrateAll(
+      final result = await _migrationService.migrateAll(
         files: files,
-        reviews:
-            const <
-              BrainReviewItem
-            >[],
+        reviews: const <BrainReviewItem>[],
       );
+
+      await _cleanupValidatedLegacyMarkdown(files: files, result: result);
+
+      return result;
     } finally {
       _running = false;
     }
@@ -255,10 +242,7 @@ class BrainMigrationCoordinator {
   // RUN REVIEWS ONLY
   // ============================================================
 
-  Future<
-    BrainMigrationResult
-  >
-  runReviewsOnly() async {
+  Future<BrainMigrationResult> runReviewsOnly() async {
     _ensureNotRunning();
 
     _running = true;
@@ -267,10 +251,7 @@ class BrainMigrationCoordinator {
       final reviews = await loadLegacyReviews();
 
       return await _migrationService.migrateAll(
-        files:
-            const <
-              BrainFile
-            >[],
+        files: const <BrainFile>[],
         reviews: reviews,
       );
     } finally {
@@ -289,21 +270,14 @@ class BrainMigrationCoordinator {
   //
   // ============================================================
 
-  Future<
-    BrainMigrationCoordinatorResult
-  >
-  safeRun() async {
+  Future<BrainMigrationCoordinatorResult> safeRun() async {
     final startedAt = _now().toUtc();
 
     try {
       final result = await run();
 
-      return BrainMigrationCoordinatorResult.success(
-        result: result,
-      );
-    } catch (
-      error
-    ) {
+      return BrainMigrationCoordinatorResult.success(result: result);
+    } catch (error) {
       final finishedAt = _now().toUtc();
 
       return BrainMigrationCoordinatorResult.failure(
@@ -312,6 +286,74 @@ class BrainMigrationCoordinator {
         error: error,
       );
     }
+  }
+
+  // ============================================================
+  // CLEANUP VALIDATED LEGACY MARKDOWN
+  // ============================================================
+  //
+  // Remove somente arquivos .md depois que a migração completa
+  // foi validada pelo serviço de migração.
+  //
+  // Esta etapa existe para impedir que o conteúdo continue
+  // legível diretamente pelo Dolphin/Finder/Explorer depois de
+  // já existir uma cópia criptografada no Vault.
+  //
+  // ============================================================
+
+  Future<void> _cleanupValidatedLegacyMarkdown({
+    required List<BrainFile> files,
+    required BrainMigrationResult result,
+  }) async {
+    _lastRemovedPlaintextFiles = 0;
+
+    if (!_removeLegacyPlaintextAfterValidation) {
+      return;
+    }
+
+    if (files.isEmpty) {
+      return;
+    }
+
+    // Fail closed:
+    // qualquer falha ou pendência mantém o plaintext intacto.
+    if (result.failed > 0 || result.pending > 0 || !result.allValidated) {
+      return;
+    }
+
+    var removed = 0;
+
+    for (final brainFile in files) {
+      final path = brainFile.path.trim();
+
+      if (path.isEmpty) {
+        continue;
+      }
+
+      // O Coordinator só limpa o formato legado conhecido.
+      if (!path.toLowerCase().endsWith('.md')) {
+        continue;
+      }
+
+      final file = File(path);
+
+      if (!await file.exists()) {
+        continue;
+      }
+
+      await file.delete();
+
+      if (await file.exists()) {
+        throw FileSystemException(
+          'O Markdown legado continuou existindo após a remoção segura.',
+          path,
+        );
+      }
+
+      removed++;
+    }
+
+    _lastRemovedPlaintextFiles = removed;
   }
 
   // ============================================================
@@ -337,40 +379,18 @@ class BrainMigrationCoordinator {
 
 class BrainMigrationPreview {
   BrainMigrationPreview({
-    required List<
-      BrainFile
-    >
-    files,
-    required List<
-      BrainReviewItem
-    >
-    reviews,
-  }) : files =
-           List<
-             BrainFile
-           >.unmodifiable(
-             files,
-           ),
-       reviews =
-           List<
-             BrainReviewItem
-           >.unmodifiable(
-             reviews,
-           );
+    required List<BrainFile> files,
+    required List<BrainReviewItem> reviews,
+  }) : files = List<BrainFile>.unmodifiable(files),
+       reviews = List<BrainReviewItem>.unmodifiable(reviews);
 
   // ============================================================
   // DATA
   // ============================================================
 
-  final List<
-    BrainFile
-  >
-  files;
+  final List<BrainFile> files;
 
-  final List<
-    BrainReviewItem
-  >
-  reviews;
+  final List<BrainReviewItem> reviews;
 
   // ============================================================
   // COUNTS
@@ -385,8 +405,7 @@ class BrainMigrationPreview {
   }
 
   int get total {
-    return fileCount +
-        reviewCount;
+    return fileCount + reviewCount;
   }
 
   // ============================================================
@@ -394,8 +413,7 @@ class BrainMigrationPreview {
   // ============================================================
 
   bool get isEmpty {
-    return total ==
-        0;
+    return total == 0;
   }
 
   bool get isNotEmpty {
@@ -475,8 +493,7 @@ class BrainMigrationCoordinatorResult {
   }
 
   bool get hasResult {
-    return result !=
-        null;
+    return result != null;
   }
 
   bool get hasFailures {
@@ -486,8 +503,7 @@ class BrainMigrationCoordinatorResult {
       return true;
     }
 
-    if (migrationResult ==
-        null) {
+    if (migrationResult == null) {
       return false;
     }
 
@@ -497,8 +513,7 @@ class BrainMigrationCoordinatorResult {
   bool get allValidated {
     final migrationResult = result;
 
-    if (migrationResult ==
-        null) {
+    if (migrationResult == null) {
       return false;
     }
 
@@ -506,33 +521,27 @@ class BrainMigrationCoordinatorResult {
   }
 
   int get total {
-    return result?.total ??
-        0;
+    return result?.total ?? 0;
   }
 
   int get validated {
-    return result?.validated ??
-        0;
+    return result?.validated ?? 0;
   }
 
   int get migrated {
-    return result?.migrated ??
-        0;
+    return result?.migrated ?? 0;
   }
 
   int get failed {
-    return result?.failed ??
-        0;
+    return result?.failed ?? 0;
   }
 
   int get pending {
-    return result?.pending ??
-        0;
+    return result?.pending ?? 0;
   }
 
   int get skipped {
-    return result?.skipped ??
-        0;
+    return result?.skipped ?? 0;
   }
 
   // ============================================================
@@ -544,16 +553,11 @@ class BrainMigrationCoordinatorResult {
 
     final finish = finishedAt;
 
-    if (start ==
-            null ||
-        finish ==
-            null) {
+    if (start == null || finish == null) {
       return null;
     }
 
-    return finish.difference(
-      start,
-    );
+    return finish.difference(start);
   }
 
   // ============================================================
@@ -586,13 +590,11 @@ class BrainMigrationCoordinatorResult {
 
     final migrationResult = result;
 
-    if (migrationResult ==
-        null) {
+    if (migrationResult == null) {
       return null;
     }
 
-    if (migrationResult.failed >
-        0) {
+    if (migrationResult.failed > 0) {
       return BrainMigrationStatus.failed;
     }
 
@@ -600,18 +602,15 @@ class BrainMigrationCoordinatorResult {
       return BrainMigrationStatus.validated;
     }
 
-    if (migrationResult.migrated >
-        0) {
+    if (migrationResult.migrated > 0) {
       return BrainMigrationStatus.migrated;
     }
 
-    if (migrationResult.pending >
-        0) {
+    if (migrationResult.pending > 0) {
       return BrainMigrationStatus.pending;
     }
 
-    if (migrationResult.skipped >
-        0) {
+    if (migrationResult.skipped > 0) {
       return BrainMigrationStatus.skipped;
     }
 

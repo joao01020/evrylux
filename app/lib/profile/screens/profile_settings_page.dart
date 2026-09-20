@@ -9,6 +9,7 @@ import '../../core/constants/app_info.dart';
 
 import '../../app/dependencies/app_dependencies.dart';
 import '../../study/brain/devices/models/brain_device_record.dart';
+import '../../study/brain/settings/storage/brain_local_path_storage.dart';
 import '../security/devices/models/account_device.dart';
 import '../data/profile_repository.dart';
 import '../models/profile_preferences.dart';
@@ -45,17 +46,9 @@ part 'settings/sections/brain_section.dart';
 part 'settings/sections/about_section.dart';
 part 'settings/widgets/profile_settings_widgets.dart';
 
-enum ProfileSettingsSection {
-  preferences,
-  telegram,
-  security,
-  brain,
-  about,
-}
+enum ProfileSettingsSection { preferences, telegram, security, brain, about }
 
-class ProfileSettingsPage
-    extends
-        StatefulWidget {
+class ProfileSettingsPage extends StatefulWidget {
   const ProfileSettingsPage({
     super.key,
     this.initialSection = ProfileSettingsSection.preferences,
@@ -64,17 +57,10 @@ class ProfileSettingsPage
   final ProfileSettingsSection initialSection;
 
   @override
-  State<
-    ProfileSettingsPage
-  >
-  createState() => _ProfileSettingsPageState();
+  State<ProfileSettingsPage> createState() => _ProfileSettingsPageState();
 }
 
-class _ProfileSettingsPageState
-    extends
-        State<
-          ProfileSettingsPage
-        > {
+class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   // ============================================================
   // DANGER ZONE
   // ============================================================
@@ -84,41 +70,23 @@ class _ProfileSettingsPageState
   // COLORS
   // ============================================================
 
-  static const Color _background = Color(
-    0xFFF7FBF1,
-  );
+  static const Color _background = Color(0xFFF7FBF1);
 
-  static const Color _surface = Color(
-    0xFFFFFFFF,
-  );
+  static const Color _surface = Color(0xFFFFFFFF);
 
-  static const Color _surfaceSoft = Color(
-    0xFFF3F8EE,
-  );
+  static const Color _surfaceSoft = Color(0xFFF3F8EE);
 
-  static const Color _border = Color(
-    0xFFC7DFC9,
-  );
+  static const Color _border = Color(0xFFC7DFC9);
 
-  static const Color _primary = Color(
-    0xFFBCF0B4,
-  );
+  static const Color _primary = Color(0xFFBCF0B4);
 
-  static const Color _primaryDark = Color(
-    0xFF3B6939,
-  );
+  static const Color _primaryDark = Color(0xFF3B6939);
 
-  static const Color _text = Color(
-    0xFF172019,
-  );
+  static const Color _text = Color(0xFF172019);
 
-  static const Color _muted = Color(
-    0xFF68746B,
-  );
+  static const Color _muted = Color(0xFF68746B);
 
-  static const Color _danger = Color(
-    0xFFB3261E,
-  );
+  static const Color _danger = Color(0xFFB3261E);
 
   // ============================================================
   // STATE
@@ -127,6 +95,8 @@ class _ProfileSettingsPageState
   late ProfileSettingsSection _section;
 
   late final ProfileRepository _profileRepository;
+
+  late final BrainLocalPathStorage _brainLocalPathStorage;
 
   bool _compactMode = false;
 
@@ -194,13 +164,7 @@ class _ProfileSettingsPageState
 
   bool _completingBrainRecovery = false;
 
-  List<
-    BrainDeviceRecord
-  >
-  _brainDevices =
-      const <
-        BrainDeviceRecord
-      >[];
+  List<BrainDeviceRecord> _brainDevices = const <BrainDeviceRecord>[];
 
   String? _message;
 
@@ -218,13 +182,13 @@ class _ProfileSettingsPageState
 
     _profileRepository = ProfileRepository();
 
-    unawaited(
-      _loadPreferences(),
+    _brainLocalPathStorage = SharedPreferencesBrainLocalPathStorage(
+      scopeProvider: () => _user?.id,
     );
 
-    unawaited(
-      _loadAccountDevicesSummary(),
-    );
+    unawaited(_loadPreferences());
+
+    unawaited(_loadAccountDevicesSummary());
 
     _loadBrainSettings();
   }
@@ -235,9 +199,7 @@ class _ProfileSettingsPageState
 
   User? get _user => Supabase.instance.client.auth.currentUser;
 
-  String get _email =>
-      _user?.email ??
-      'E-mail não disponível';
+  String get _email => _user?.email ?? 'E-mail não disponível';
 
   // ============================================================
   // STATE UPDATE GATE
@@ -253,16 +215,12 @@ class _ProfileSettingsPageState
   //
   // ============================================================
 
-  void _updateProfileState(
-    VoidCallback callback,
-  ) {
+  void _updateProfileState(VoidCallback callback) {
     if (!mounted) {
       return;
     }
 
-    setState(
-      callback,
-    );
+    setState(callback);
   }
 
   // ============================================================
@@ -281,10 +239,7 @@ class _ProfileSettingsPageState
   //
   // ============================================================
 
-  Future<
-    void
-  >
-  _loadAccountDevicesSummary() async {
+  Future<void> _loadAccountDevicesSummary() async {
     // ==========================================================
     // EVITA DUAS CARGAS AO MESMO TEMPO
     // ==========================================================
@@ -301,19 +256,14 @@ class _ProfileSettingsPageState
 
     final session = Supabase.instance.client.auth.currentSession;
 
-    if (user ==
-            null ||
-        session ==
-            null) {
-      _updateProfileState(
-        () {
-          _loadingAccountDevices = false;
+    if (user == null || session == null) {
+      _updateProfileState(() {
+        _loadingAccountDevices = false;
 
-          _activeAccountDeviceCount = 0;
+        _activeAccountDeviceCount = 0;
 
-          _accountDevicesError = null;
-        },
-      );
+        _accountDevicesError = null;
+      });
 
       return;
     }
@@ -322,13 +272,11 @@ class _ProfileSettingsPageState
     // LOADING
     // ==========================================================
 
-    _updateProfileState(
-      () {
-        _loadingAccountDevices = true;
+    _updateProfileState(() {
+      _loadingAccountDevices = true;
 
-        _accountDevicesError = null;
-      },
-    );
+      _accountDevicesError = null;
+    });
 
     try {
       // ========================================================
@@ -363,10 +311,8 @@ class _ProfileSettingsPageState
       // ACTIVE DEVICES
       // ========================================================
 
-      final List<
-        AccountDevice
-      >
-      devices = await accountDeviceRepository.listActiveDevices();
+      final List<AccountDevice> devices = await accountDeviceRepository
+          .listActiveDevices();
 
       if (!mounted) {
         return;
@@ -376,17 +322,12 @@ class _ProfileSettingsPageState
       // UPDATE REAL COUNT
       // ========================================================
 
-      _updateProfileState(
-        () {
-          _activeAccountDeviceCount = devices.length;
+      _updateProfileState(() {
+        _activeAccountDeviceCount = devices.length;
 
-          _accountDevicesError = null;
-        },
-      );
-    } catch (
-      error,
-      stackTrace
-    ) {
+        _accountDevicesError = null;
+      });
+    } catch (error, stackTrace) {
       debugPrint(
         '[PROFILE SETTINGS] '
         'Erro carregando dispositivos da conta: $error',
@@ -401,20 +342,17 @@ class _ProfileSettingsPageState
         return;
       }
 
-      _updateProfileState(
-        () {
-          _activeAccountDeviceCount = 0;
+      _updateProfileState(() {
+        _activeAccountDeviceCount = 0;
 
-          _accountDevicesError = 'Não foi possível carregar os dispositivos agora.';
-        },
-      );
+        _accountDevicesError =
+            'Não foi possível carregar os dispositivos agora.';
+      });
     } finally {
       if (mounted) {
-        _updateProfileState(
-          () {
-            _loadingAccountDevices = false;
-          },
-        );
+        _updateProfileState(() {
+          _loadingAccountDevices = false;
+        });
       }
     }
   }
@@ -424,12 +362,8 @@ class _ProfileSettingsPageState
   // ============================================================
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    return _buildProfileSettingsShell(
-      context,
-    );
+  Widget build(BuildContext context) {
+    return _buildProfileSettingsShell(context);
   }
 
   // ============================================================

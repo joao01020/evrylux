@@ -123,7 +123,6 @@ import '../../study/brain/services/supabase_review_service.dart';
 import '../../study/brain/backup/services/brain_backup_service.dart';
 
 import '../../study/brain/migration/services/brain_migration_factory.dart';
-import '../../study/brain/migration/services/brain_review_startup_migration_service.dart';
 
 import '../../study/brain/security/keys/brain_key_service.dart';
 import '../../study/brain/security/keys/brain_platform_key_storage.dart';
@@ -1958,7 +1957,7 @@ Future<void> _initializeAuthenticatedOfflineFirst(
   //      ↓
   // BrainMigrationCoordinator
   //      ↓
-  // BrainReviewStartupMigrationService
+  // Migração completa de notas + revisões
   //      ↓
   // reviews.json legado
   //      ↓
@@ -1978,12 +1977,8 @@ Future<void> _initializeAuthenticatedOfflineFirst(
     storageScope: userStorageScope,
   );
 
-  final brainReviewStartupMigrationService = BrainReviewStartupMigrationService(
-    coordinator: brainMigrationRuntime.coordinator,
-  );
-
   check();
-  await brainReviewStartupMigrationService.run();
+  await brainMigrationRuntime.coordinator.run();
   check();
 
   // ====================================================

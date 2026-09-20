@@ -27,12 +27,19 @@ import '../services/brain_vault_serializer.dart';
 // manifest.json
 // *.evobj
 //
+// IMPORTANTE SOBRE SEGURANÇA:
+//
+// - BrainVaultStorage NÃO recebe plaintext para criptografar;
+// - BrainVaultService entrega BrainVaultObject já criptografado;
+// - os arquivos .evobj persistem ciphertext/nonce/tag/metadata;
+// - a Master Key continua fora desta pasta, no Keychain/Keyring.
+//
 // IMPORTANTE:
 //
 // O armazenamento físico é obrigatoriamente isolado pela conta
 // atual através de UserStorageScope.
 //
-// Estrutura:
+// Estrutura padrão:
 //
 // Documents/
 //   evrylux/
@@ -43,6 +50,14 @@ import '../services/brain_vault_serializer.dart';
 //             manifest.json
 //             objects/
 //               *.evobj
+//
+// Quando o usuário escolhe outro local para o Brain:
+//
+// <brain-root-escolhido>/
+//   vault/
+//     manifest.json
+//     objects/
+//       *.evobj
 //
 // Portanto:
 //
@@ -59,9 +74,42 @@ class BrainVaultStorage {
     required UserStorageScope storageScope,
     BrainVaultSerializer? serializer,
     BrainVaultIdService? idService,
+
+    // ========================================================
+    // CUSTOM BRAIN ROOT PROVIDER
+    // ========================================================
+    //
+    // Retorna o ROOT FINAL do Brain escolhido pelo usuário.
+    //
+    // Exemplo:
+    //
+    // Linux:
+    // /home/joao/Documentos/EVRYLUX/Brain
+    //
+    // macOS:
+    // /Users/brenda/Documents/EVRYLUX/Brain
+    //
+    // Quando houver um caminho configurado, o Vault será:
+    //
+    // <brain-root>/vault
+    //
+    // Se não houver caminho personalizado, mantemos o diretório
+    // isolado por conta fornecido pelo UserStorageScope.
+    //
+    // ========================================================
+    Future<
+      String?
+    >
+    Function()?
+    localRootPathProvider,
   }) : _storageScope = storageScope,
-       _serializer = serializer ?? const BrainVaultSerializer(),
-       _idService = idService ?? BrainVaultIdService();
+       _serializer =
+           serializer ??
+           const BrainVaultSerializer(),
+       _idService =
+           idService ??
+           BrainVaultIdService(),
+       _localRootPathProvider = localRootPathProvider;
 
   // ============================================================
   // DEPENDENCIES
@@ -72,6 +120,12 @@ class BrainVaultStorage {
   final BrainVaultSerializer _serializer;
 
   final BrainVaultIdService _idService;
+
+  final Future<
+    String?
+  >
+  Function()?
+  _localRootPathProvider;
 
   // ============================================================
   // PATH CONSTANTS
@@ -84,25 +138,16 @@ class BrainVaultStorage {
   static const String objectExtension = '.evobj';
 
   // ============================================================
-  // INITIALIZED
+  // INITIALIZED STATE
   // ============================================================
 
   bool _initialized = false;
 
   String? _initializedUserId;
 
-  // Prevent an older asynchronous initialization from publishing stale paths.
-  int _initializationGeneration = 0;
+  String? _initializedVaultPath;
 
-  void _assertCurrentOwner() {
-    if (!_initialized ||
-        _initializedUserId == null ||
-        _initializedUserId != _storageScope.userId) {
-      throw StateError(
-        'BrainVaultStorage não foi inicializado para a conta atual.',
-      );
-    }
-  }
+  int _initializationGeneration = 0;
 
   Directory? _vaultDirectory;
 
@@ -117,15 +162,35 @@ class BrainVaultStorage {
   }
 
   // ============================================================
+  // OWNERSHIP GUARD
+  // ============================================================
+
+  void _assertCurrentOwner() {
+    if (!_initialized ||
+        _initializedUserId ==
+            null ||
+        _initializedUserId !=
+            _storageScope.userId) {
+      throw StateError(
+        'BrainVaultStorage não foi inicializado para a conta atual.',
+      );
+    }
+  }
+
+  // ============================================================
   // GETTERS
   // ============================================================
 
   Directory get vaultDirectory {
     _assertCurrentOwner();
+
     final value = _vaultDirectory;
 
-    if (value == null) {
-      throw StateError('BrainVaultStorage ainda não foi inicializado.');
+    if (value ==
+        null) {
+      throw StateError(
+        'BrainVaultStorage ainda não foi inicializado.',
+      );
     }
 
     return value;
@@ -133,66 +198,167 @@ class BrainVaultStorage {
 
   Directory get objectsDirectory {
     _assertCurrentOwner();
+
     final value = _objectsDirectory;
 
-    if (value == null) {
-      throw StateError('BrainVaultStorage ainda não foi inicializado.');
+    if (value ==
+        null) {
+      throw StateError(
+        'BrainVaultStorage ainda não foi inicializado.',
+      );
     }
 
     return value;
   }
 
   File get manifestFile {
-    return File(p.join(vaultDirectory.path, manifestFileName));
+    return File(
+      p.join(
+        vaultDirectory.path,
+        manifestFileName,
+      ),
+    );
+  }
+
+  // ============================================================
+  // RESOLVE VAULT DIRECTORY
+  // ============================================================
+  //
+  // Regra:
+  //
+  // 1. se o usuário escolheu um Brain root personalizado:
+  //      <brain-root>/vault
+  //
+  // 2. caso contrário:
+  //      UserStorageScope.vaultDirectory
+  //
+  // O caminho personalizado representa o ROOT FINAL do Brain.
+  // Portanto NÃO adicionamos EVRYLUX/Brain novamente.
+  //
+  // ============================================================
+
+  Future<
+    Directory
+  >
+  _resolveVaultDirectory() async {
+    final provider = _localRootPathProvider;
+
+    if (provider !=
+        null) {
+      final configuredPath = await provider();
+
+      final cleanPath =
+          configuredPath?.trim() ??
+          '';
+
+      if (cleanPath.isNotEmpty) {
+        final brainRoot = Directory(
+          p.normalize(
+            cleanPath,
+          ),
+        );
+
+        if (!await brainRoot.exists()) {
+          await brainRoot.create(
+            recursive: true,
+          );
+        }
+
+        return Directory(
+          p.join(
+            brainRoot.path,
+            'vault',
+          ),
+        );
+      }
+    }
+
+    return _storageScope.vaultDirectory;
   }
 
   // ============================================================
   // INITIALIZE
   // ============================================================
   //
-  // O diretório base NÃO é mais obtido diretamente através de
-  // getApplicationDocumentsDirectory().
+  // A inicialização é sensível a:
   //
-  // UserStorageScope é a única fonte do caminho físico.
+  // - usuário atual;
+  // - caminho físico atual do Brain.
   //
-  // Isso impede que duas contas autenticadas compartilhem o
-  // mesmo Vault local.
+  // Isso é importante porque o usuário pode alterar a pasta local
+  // nas Configurações sem trocar de conta.
+  //
+  // Se o root mudar, o cache anterior é invalidado e o Vault passa
+  // a apontar imediatamente para a nova localização.
   //
   // ============================================================
 
-  Future<void> initialize() async {
+  Future<
+    void
+  >
+  initialize() async {
     final requestedUserId = _storageScope.userId;
 
-    if (_initialized && _initializedUserId == requestedUserId) {
+    final requestedVault = await _resolveVaultDirectory();
+
+    final requestedVaultPath = p.normalize(
+      requestedVault.absolute.path,
+    );
+
+    if (_initialized &&
+        _initializedUserId ==
+            requestedUserId &&
+        _initializedVaultPath ==
+            requestedVaultPath) {
       return;
     }
 
-    // Invalidate cached paths before resolving a different account.
+    // Invalidate cached paths before resolving a different account/path.
     final generation = ++_initializationGeneration;
+
     _initialized = false;
     _initializedUserId = null;
+    _initializedVaultPath = null;
     _vaultDirectory = null;
     _objectsDirectory = null;
 
-    final vault = await _storageScope.vaultDirectory;
-
-    if (_initializationGeneration != generation ||
-        _storageScope.userId != requestedUserId) {
-      throw StateError('A conta mudou durante a inicialização do Vault.');
+    if (_initializationGeneration !=
+            generation ||
+        _storageScope.userId !=
+            requestedUserId) {
+      throw StateError(
+        'A conta mudou durante a inicialização do Vault.',
+      );
     }
 
-    final objects = Directory(p.join(vault.path, objectsDirectoryName));
+    final vault = Directory(
+      requestedVaultPath,
+    );
 
-    await objects.create(recursive: true);
+    final objects = Directory(
+      p.join(
+        vault.path,
+        objectsDirectoryName,
+      ),
+    );
 
-    if (_initializationGeneration != generation ||
-        _storageScope.userId != requestedUserId) {
-      throw StateError('A conta mudou durante a inicialização do Vault.');
+    await objects.create(
+      recursive: true,
+    );
+
+    if (_initializationGeneration !=
+            generation ||
+        _storageScope.userId !=
+            requestedUserId) {
+      throw StateError(
+        'A conta mudou durante a inicialização do Vault.',
+      );
     }
 
     _vaultDirectory = vault;
     _objectsDirectory = objects;
     _initializedUserId = requestedUserId;
+    _initializedVaultPath = requestedVaultPath;
     _initialized = true;
   }
 
@@ -200,7 +366,10 @@ class BrainVaultStorage {
   // HAS MANIFEST
   // ============================================================
 
-  Future<bool> hasManifest() async {
+  Future<
+    bool
+  >
+  hasManifest() async {
     await initialize();
 
     return manifestFile.exists();
@@ -210,7 +379,12 @@ class BrainVaultStorage {
   // SAVE MANIFEST
   // ============================================================
 
-  Future<void> saveManifest(BrainVaultManifest manifest) async {
+  Future<
+    void
+  >
+  saveManifest(
+    BrainVaultManifest manifest,
+  ) async {
     await initialize();
 
     manifest.validate();
@@ -225,7 +399,10 @@ class BrainVaultStorage {
   // LOAD MANIFEST
   // ============================================================
 
-  Future<BrainVaultManifest?> loadManifest() async {
+  Future<
+    BrainVaultManifest?
+  >
+  loadManifest() async {
     await initialize();
 
     final file = manifestFile;
@@ -236,44 +413,73 @@ class BrainVaultStorage {
 
     final content = await file.readAsString();
 
-    return BrainVaultManifest.fromJsonString(content);
+    return BrainVaultManifest.fromJsonString(
+      content,
+    );
   }
 
   // ============================================================
   // OBJECT FILE
   // ============================================================
 
-  File objectFile(String objectId) {
-    _assertValidObjectId(objectId);
+  File objectFile(
+    String objectId,
+  ) {
+    _assertValidObjectId(
+      objectId,
+    );
 
-    return File(p.join(objectsDirectory.path, '$objectId$objectExtension'));
+    return File(
+      p.join(
+        objectsDirectory.path,
+        '$objectId$objectExtension',
+      ),
+    );
   }
 
   // ============================================================
   // OBJECT EXISTS
   // ============================================================
 
-  Future<bool> containsObject(String objectId) async {
+  Future<
+    bool
+  >
+  containsObject(
+    String objectId,
+  ) async {
     await initialize();
 
-    return objectFile(objectId).exists();
+    return objectFile(
+      objectId,
+    ).exists();
   }
 
   // ============================================================
   // SAVE OBJECT
   // ============================================================
 
-  Future<void> saveObject(BrainVaultObject object) async {
+  Future<
+    void
+  >
+  saveObject(
+    BrainVaultObject object,
+  ) async {
     await initialize();
 
     object.validate();
 
-    _assertValidObjectId(object.header.objectId);
+    _assertValidObjectId(
+      object.header.objectId,
+    );
 
-    final content = _serializer.serializeObject(object);
+    final content = _serializer.serializeObject(
+      object,
+    );
 
     await _atomicWriteString(
-      file: objectFile(object.header.objectId),
+      file: objectFile(
+        object.header.objectId,
+      ),
       content: content,
     );
   }
@@ -282,10 +488,17 @@ class BrainVaultStorage {
   // LOAD OBJECT
   // ============================================================
 
-  Future<BrainVaultObject?> loadObject(String objectId) async {
+  Future<
+    BrainVaultObject?
+  >
+  loadObject(
+    String objectId,
+  ) async {
     await initialize();
 
-    final file = objectFile(objectId);
+    final file = objectFile(
+      objectId,
+    );
 
     if (!await file.exists()) {
       return null;
@@ -293,9 +506,12 @@ class BrainVaultStorage {
 
     final content = await file.readAsString();
 
-    final object = _serializer.deserializeObject(content);
+    final object = _serializer.deserializeObject(
+      content,
+    );
 
-    if (object.header.objectId != objectId) {
+    if (object.header.objectId !=
+        objectId) {
       throw const FormatException(
         'objectId interno não corresponde ao nome do arquivo.',
       );
@@ -308,38 +524,79 @@ class BrainVaultStorage {
   // LOAD ALL OBJECTS
   // ============================================================
 
-  Future<List<BrainVaultObject>> loadAllObjects() async {
+  Future<
+    List<
+      BrainVaultObject
+    >
+  >
+  loadAllObjects() async {
     await initialize();
 
-    final entities = await objectsDirectory.list(followLinks: false).toList();
+    final entities = await objectsDirectory
+        .list(
+          followLinks: false,
+        )
+        .toList();
 
-    final files = entities.whereType<File>().where((file) {
-      return file.path.endsWith(objectExtension);
-    }).toList();
+    final files = entities
+        .whereType<
+          File
+        >()
+        .where(
+          (
+            file,
+          ) {
+            return file.path.endsWith(
+              objectExtension,
+            );
+          },
+        )
+        .toList();
 
-    files.sort((first, second) {
-      return first.path.compareTo(second.path);
-    });
+    files.sort(
+      (
+        first,
+        second,
+      ) {
+        return first.path.compareTo(
+          second.path,
+        );
+      },
+    );
 
-    final objects = <BrainVaultObject>[];
+    final objects =
+        <
+          BrainVaultObject
+        >[];
 
     for (final file in files) {
       final content = await file.readAsString();
 
-      final object = _serializer.deserializeObject(content);
+      final object = _serializer.deserializeObject(
+        content,
+      );
 
       final expectedFileName = '${object.header.objectId}$objectExtension';
 
-      if (p.basename(file.path) != expectedFileName) {
+      if (p.basename(
+            file.path,
+          ) !=
+          expectedFileName) {
         throw FormatException(
           'Arquivo do Vault não corresponde ao objectId interno.',
         );
       }
 
-      objects.add(object);
+      objects.add(
+        object,
+      );
     }
 
-    return List<BrainVaultObject>.unmodifiable(objects);
+    return List<
+      BrainVaultObject
+    >.unmodifiable(
+      objects,
+    );
   }
 
   // ============================================================
@@ -359,10 +616,17 @@ class BrainVaultStorage {
   //
   // ============================================================
 
-  Future<void> deleteObjectFile(String objectId) async {
+  Future<
+    void
+  >
+  deleteObjectFile(
+    String objectId,
+  ) async {
     await initialize();
 
-    final file = objectFile(objectId);
+    final file = objectFile(
+      objectId,
+    );
 
     if (await file.exists()) {
       await file.delete();
@@ -373,7 +637,10 @@ class BrainVaultStorage {
   // COUNT
   // ============================================================
 
-  Future<int> countObjects() async {
+  Future<
+    int
+  >
+  countObjects() async {
     final objects = await loadAllObjects();
 
     return objects.length;
@@ -395,7 +662,10 @@ class BrainVaultStorage {
   //
   // ============================================================
 
-  Future<String> getVaultDirectoryPath() async {
+  Future<
+    String
+  >
+  getVaultDirectoryPath() async {
     await initialize();
 
     return vaultDirectory.path;
@@ -405,22 +675,33 @@ class BrainVaultStorage {
   // ATOMIC WRITE
   // ============================================================
 
-  Future<void> _atomicWriteString({
+  Future<
+    void
+  >
+  _atomicWriteString({
     required File file,
     required String content,
   }) async {
-    await file.parent.create(recursive: true);
+    await file.parent.create(
+      recursive: true,
+    );
 
-    final temp = File('${file.path}.tmp');
+    final temp = File(
+      '${file.path}.tmp',
+    );
 
     if (await temp.exists()) {
       await temp.delete();
     }
 
-    final sink = temp.openWrite(mode: FileMode.writeOnly);
+    final sink = temp.openWrite(
+      mode: FileMode.writeOnly,
+    );
 
     try {
-      sink.write(content);
+      sink.write(
+        content,
+      );
 
       await sink.flush();
     } finally {
@@ -428,13 +709,17 @@ class BrainVaultStorage {
     }
 
     try {
-      await temp.rename(file.path);
+      await temp.rename(
+        file.path,
+      );
     } on FileSystemException {
       if (await file.exists()) {
         await file.delete();
       }
 
-      await temp.rename(file.path);
+      await temp.rename(
+        file.path,
+      );
     }
   }
 
@@ -442,9 +727,15 @@ class BrainVaultStorage {
   // VALIDATE OBJECT ID
   // ============================================================
 
-  void _assertValidObjectId(String objectId) {
-    if (!_idService.isValidObjectId(objectId)) {
-      throw ArgumentError('objectId inválido para o Vault.');
+  void _assertValidObjectId(
+    String objectId,
+  ) {
+    if (!_idService.isValidObjectId(
+      objectId,
+    )) {
+      throw ArgumentError(
+        'objectId inválido para o Vault.',
+      );
     }
   }
 }

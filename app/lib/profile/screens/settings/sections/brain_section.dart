@@ -1,6 +1,8 @@
 part of '../../profile_settings_page.dart';
 
-extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
+extension _ProfileSettingsBrainSection
+    on
+        _ProfileSettingsPageState {
   // BRAIN SETTINGS
   // ============================================================
 
@@ -8,12 +10,14 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
     return _SettingsPanel(
       icon: Icons.psychology_alt_outlined,
       title: 'Cérebro',
-      subtitle:
-          'Controle onde seus conhecimentos ficam, como são protegidos e como podem ser recuperados.',
+      subtitle: 'Controle onde seus conhecimentos ficam, como são protegidos e como podem ser recuperados.',
       children: [
         _buildBrainDataModeSection(),
 
-        const Divider(height: 1, color: _ProfileSettingsPageState._border),
+        const Divider(
+          height: 1,
+          color: _ProfileSettingsPageState._border,
+        ),
 
         _buildBrainVaultSection(),
 
@@ -24,7 +28,10 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
         // existe sincronização em nuvem.
         // --------------------------------------------------------
         if (_brainCloudMode) ...[
-          const Divider(height: 1, color: _ProfileSettingsPageState._border),
+          const Divider(
+            height: 1,
+            color: _ProfileSettingsPageState._border,
+          ),
 
           _buildBrainDevicesSection(),
         ],
@@ -36,17 +43,26 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
         // assumir a responsabilidade pelos próprios arquivos.
         // --------------------------------------------------------
         if (!_brainCloudMode) ...[
-          const Divider(height: 1, color: _ProfileSettingsPageState._border),
+          const Divider(
+            height: 1,
+            color: _ProfileSettingsPageState._border,
+          ),
 
           _buildBrainBackupSection(),
         ],
 
-        const Divider(height: 1, color: _ProfileSettingsPageState._border),
+        const Divider(
+          height: 1,
+          color: _ProfileSettingsPageState._border,
+        ),
 
         _buildBrainSecuritySection(),
 
         if (_brainCloudMode) ...[
-          const Divider(height: 1, color: _ProfileSettingsPageState._border),
+          const Divider(
+            height: 1,
+            color: _ProfileSettingsPageState._border,
+          ),
 
           _buildBrainRecoverySection(),
         ],
@@ -60,7 +76,9 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
 
   Widget _buildBrainDataModeSection() {
     return Padding(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(
+        14,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -72,7 +90,9 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
                 color: _ProfileSettingsPageState._primaryDark,
               ),
 
-              SizedBox(width: 10),
+              SizedBox(
+                width: 10,
+              ),
 
               Expanded(
                 child: Column(
@@ -85,7 +105,9 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                    SizedBox(height: 2),
+                    SizedBox(
+                      height: 2,
+                    ),
                     Text(
                       'Escolha se o Cérebro fica somente neste dispositivo ou também sincroniza pela nuvem.',
                       style: TextStyle(
@@ -99,7 +121,9 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
             ],
           ),
 
-          const SizedBox(height: 14),
+          const SizedBox(
+            height: 14,
+          ),
 
           Row(
             children: [
@@ -107,28 +131,32 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
                 child: _BrainModeOption(
                   icon: Icons.laptop_rounded,
                   title: 'Local',
-                  subtitle:
-                      'Somente neste dispositivo. Você é responsável pelos seus backups.',
+                  subtitle: 'Somente neste dispositivo. Você é responsável pelos seus backups.',
                   selected: !_brainCloudMode,
                   enabled: !_switchingBrainMode,
                   onTap: () {
-                    _setBrainCloudModeManaged(false);
+                    _setBrainCloudModeManaged(
+                      false,
+                    );
                   },
                 ),
               ),
 
-              const SizedBox(width: 10),
+              const SizedBox(
+                width: 10,
+              ),
 
               Expanded(
                 child: _BrainModeOption(
                   icon: Icons.cloud_done_outlined,
                   title: 'Cloud  •  Recomendado',
-                  subtitle:
-                      'Local + cópia criptografada na nuvem. Proteção automática.',
+                  subtitle: 'Local + cópia criptografada na nuvem. Proteção automática.',
                   selected: _brainCloudMode,
                   enabled: !_switchingBrainMode,
                   onTap: () {
-                    _setBrainCloudModeManaged(true);
+                    _setBrainCloudModeManaged(
+                      true,
+                    );
                   },
                 ),
               ),
@@ -136,12 +164,19 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
           ),
 
           if (_switchingBrainMode) ...[
-            const SizedBox(height: 12),
+            const SizedBox(
+              height: 12,
+            ),
 
-            const LinearProgressIndicator(minHeight: 2),
+            const LinearProgressIndicator(
+              minHeight: 2,
+            ),
 
-            if (_brainModeProgressText != null) ...[
-              const SizedBox(height: 8),
+            if (_brainModeProgressText !=
+                null) ...[
+              const SizedBox(
+                height: 8,
+              ),
               Text(
                 _brainModeProgressText!,
                 style: const TextStyle(
@@ -152,9 +187,664 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
               ),
             ],
           ],
+
+          if (!_brainCloudMode) ...[
+            const SizedBox(
+              height: 16,
+            ),
+
+            _buildBrainLocalStorageLocation(),
+          ],
         ],
       ),
     );
+  }
+
+  // ============================================================
+  // LOCAL STORAGE LOCATION
+  // ============================================================
+
+  Widget _buildBrainLocalStorageLocation() {
+    return FutureBuilder<
+      Map<
+        String,
+        Object
+      >
+    >(
+      future: _resolveBrainLocalStorageInfo(),
+      builder:
+          (
+            context,
+            snapshot,
+          ) {
+            if (snapshot.connectionState ==
+                ConnectionState.waiting) {
+              return Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(
+                  12,
+                ),
+                decoration: BoxDecoration(
+                  color: _ProfileSettingsPageState._surfaceSoft,
+                  borderRadius: BorderRadius.circular(
+                    14,
+                  ),
+                  border: Border.all(
+                    color: _ProfileSettingsPageState._border,
+                  ),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.folder_outlined,
+                          size: 18,
+                          color: _ProfileSettingsPageState._primaryDark,
+                        ),
+                        SizedBox(
+                          width: 8,
+                        ),
+                        Expanded(
+                          child: Text(
+                            'Local de armazenamento',
+                            style: TextStyle(
+                              color: _ProfileSettingsPageState._text,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(
+                      height: 10,
+                    ),
+                    LinearProgressIndicator(
+                      minHeight: 2,
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            if (snapshot.hasError ||
+                snapshot.data ==
+                    null) {
+              return Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(
+                  12,
+                ),
+                decoration: BoxDecoration(
+                  color: _ProfileSettingsPageState._surfaceSoft,
+                  borderRadius: BorderRadius.circular(
+                    14,
+                  ),
+                  border: Border.all(
+                    color: _ProfileSettingsPageState._border,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(
+                          Icons.folder_outlined,
+                          size: 18,
+                          color: _ProfileSettingsPageState._primaryDark,
+                        ),
+                        SizedBox(
+                          width: 8,
+                        ),
+                        Expanded(
+                          child: Text(
+                            'Local de armazenamento',
+                            style: TextStyle(
+                              color: _ProfileSettingsPageState._text,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(
+                      height: 8,
+                    ),
+                    const Text(
+                      'Não foi possível identificar a pasta atual do Cérebro.',
+                      style: TextStyle(
+                        color: _ProfileSettingsPageState._muted,
+                        fontSize: 11,
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 10,
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _switchingBrainMode
+                          ? null
+                          : _chooseBrainLocalDirectory,
+                      icon: const Icon(
+                        Icons.drive_folder_upload_outlined,
+                        size: 17,
+                      ),
+                      label: const Text(
+                        'Escolher pasta',
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            final data = snapshot.data!;
+
+            final actualPath =
+                (data['path']
+                        as String?)
+                    ?.trim() ??
+                '';
+
+            final isCustom =
+                data['isCustom']
+                    as bool? ??
+                false;
+
+            final modeLabel = isCustom
+                ? 'Personalizado'
+                : 'Padrão';
+
+            return Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(
+                12,
+              ),
+              decoration: BoxDecoration(
+                color: _ProfileSettingsPageState._surfaceSoft,
+                borderRadius: BorderRadius.circular(
+                  14,
+                ),
+                border: Border.all(
+                  color: _ProfileSettingsPageState._border,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.folder_outlined,
+                        size: 18,
+                        color: _ProfileSettingsPageState._primaryDark,
+                      ),
+                      const SizedBox(
+                        width: 8,
+                      ),
+                      const Expanded(
+                        child: Text(
+                          'Local de armazenamento',
+                          style: TextStyle(
+                            color: _ProfileSettingsPageState._text,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _ProfileSettingsPageState._primary.withValues(
+                            alpha: 0.45,
+                          ),
+                          borderRadius: BorderRadius.circular(
+                            999,
+                          ),
+                          border: Border.all(
+                            color: _ProfileSettingsPageState._primaryDark.withValues(
+                              alpha: 0.16,
+                            ),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.circle,
+                              size: 7,
+                              color: _ProfileSettingsPageState._primaryDark,
+                            ),
+                            const SizedBox(
+                              width: 5,
+                            ),
+                            Text(
+                              modeLabel,
+                              style: const TextStyle(
+                                color: _ProfileSettingsPageState._primaryDark,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(
+                    height: 9,
+                  ),
+
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 11,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _ProfileSettingsPageState._surface,
+                      borderRadius: BorderRadius.circular(
+                        10,
+                      ),
+                      border: Border.all(
+                        color: _ProfileSettingsPageState._border,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.folder_open_outlined,
+                          size: 17,
+                          color: _ProfileSettingsPageState._muted,
+                        ),
+                        const SizedBox(
+                          width: 8,
+                        ),
+                        Expanded(
+                          child: SelectableText(
+                            actualPath.isEmpty
+                                ? 'Caminho indisponível'
+                                : actualPath,
+                            style: TextStyle(
+                              color: actualPath.isEmpty
+                                  ? _ProfileSettingsPageState._muted
+                                  : _ProfileSettingsPageState._text,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(
+                    height: 8,
+                  ),
+
+                  Text(
+                    isCustom
+                        ? 'Esta é a pasta personalizada escolhida para o Cérebro. '
+                              'As chaves de segurança continuam protegidas pelo sistema '
+                              'e não são salvas junto com esses arquivos.'
+                        : 'Esta é a pasta padrão usada atualmente pelo EVRYLUX. '
+                              'Você pode manter este local ou escolher outra pasta. '
+                              'As chaves de segurança continuam protegidas pelo sistema.',
+                    style: const TextStyle(
+                      color: _ProfileSettingsPageState._muted,
+                      fontSize: 10,
+                      height: 1.4,
+                    ),
+                  ),
+
+                  const SizedBox(
+                    height: 10,
+                  ),
+
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: _switchingBrainMode
+                            ? null
+                            : _chooseBrainLocalDirectory,
+                        icon: const Icon(
+                          Icons.drive_folder_upload_outlined,
+                          size: 17,
+                        ),
+                        label: Text(
+                          isCustom
+                              ? 'Alterar pasta'
+                              : 'Escolher outra pasta',
+                        ),
+                      ),
+
+                      if (actualPath.isNotEmpty)
+                        TextButton.icon(
+                          onPressed: () {
+                            _openBrainLocalDirectory(
+                              actualPath,
+                            );
+                          },
+                          icon: const Icon(
+                            Icons.open_in_new_rounded,
+                            size: 16,
+                          ),
+                          label: const Text(
+                            'Abrir pasta',
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+    );
+  }
+
+  Future<
+    Map<
+      String,
+      Object
+    >
+  >
+  _resolveBrainLocalStorageInfo() async {
+    final configuredPath =
+        (await _brainLocalPathStorage.load())?.trim() ??
+        '';
+
+    if (configuredPath.isNotEmpty) {
+      return <
+        String,
+        Object
+      >{
+        'path': configuredPath,
+        'isCustom': true,
+      };
+    }
+
+    final defaultDirectory = await brainStorage.getBrainDirectory();
+
+    return <
+      String,
+      Object
+    >{
+      'path': defaultDirectory.absolute.path,
+      'isCustom': false,
+    };
+  }
+
+  // ============================================================
+  // CHOOSE LOCAL DIRECTORY
+  // ============================================================
+
+  Future<
+    void
+  >
+  _chooseBrainLocalDirectory() async {
+    try {
+      final selectedPath = await FilePicker.getDirectoryPath(
+        dialogTitle: 'Escolha onde salvar o Cérebro',
+      );
+
+      if (selectedPath ==
+              null ||
+          selectedPath.trim().isEmpty) {
+        return;
+      }
+
+      final cleanPath = selectedPath.trim();
+
+      final targetDirectory = Directory(
+        cleanPath,
+      );
+
+      if (!await targetDirectory.exists()) {
+        await targetDirectory.create(
+          recursive: true,
+        );
+      }
+
+      // Antes de trocar a preferência, capturamos o root atual.
+      // Isso evita perder a referência para os arquivos existentes.
+      final currentDirectory = await brainStorage.getBrainDirectory();
+
+      final currentPath = currentDirectory.absolute.path;
+      final targetPath = targetDirectory.absolute.path;
+
+      if (currentPath !=
+          targetPath) {
+        await _copyBrainDirectoryContents(
+          source: currentDirectory,
+          destination: targetDirectory,
+        );
+      }
+
+      await _brainLocalPathStorage.save(
+        targetPath,
+      );
+
+      // Garante que a estrutura esperada pelo Brain seja criada
+      // imediatamente no novo local.
+      await brainStorage.getBrainDirectory();
+
+      if (!mounted) {
+        return;
+      }
+
+      _updateProfileState(
+        () {
+          _message =
+              'Local do Cérebro atualizado para:\n'
+              '$targetPath';
+          _messageIsError = false;
+        },
+      );
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        '[PROFILE SETTINGS] '
+        'Erro escolhendo pasta local do Cérebro: $error',
+      );
+
+      debugPrintStack(
+        stackTrace: stackTrace,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      _updateProfileState(
+        () {
+          _message =
+              'Não foi possível alterar o local de armazenamento '
+              'do Cérebro. $error';
+          _messageIsError = true;
+        },
+      );
+    }
+  }
+
+  // ============================================================
+  // COPY CURRENT BRAIN
+  // ============================================================
+  //
+  // Migração não destrutiva.
+  //
+  // Copiamos o conteúdo existente antes de trocar a preferência.
+  // O diretório anterior não é apagado automaticamente.
+  //
+  // ============================================================
+
+  Future<
+    void
+  >
+  _copyBrainDirectoryContents({
+    required Directory source,
+    required Directory destination,
+  }) async {
+    if (!await source.exists()) {
+      return;
+    }
+
+    if (!await destination.exists()) {
+      await destination.create(
+        recursive: true,
+      );
+    }
+
+    await for (final entity in source.list(
+      recursive: false,
+      followLinks: false,
+    )) {
+      final name = entity.uri.pathSegments
+          .where(
+            (
+              segment,
+            ) => segment.trim().isNotEmpty,
+          )
+          .last;
+
+      final destinationPath = '${destination.path}${Platform.pathSeparator}$name';
+
+      if (entity
+          is Directory) {
+        await _copyBrainDirectoryContents(
+          source: entity,
+          destination: Directory(
+            destinationPath,
+          ),
+        );
+
+        continue;
+      }
+
+      if (entity
+          is File) {
+        final destinationFile = File(
+          destinationPath,
+        );
+
+        if (!await destinationFile.parent.exists()) {
+          await destinationFile.parent.create(
+            recursive: true,
+          );
+        }
+
+        if (await destinationFile.exists()) {
+          // Nunca sobrescrevemos silenciosamente um arquivo que já
+          // exista no destino.
+          continue;
+        }
+
+        await entity.copy(
+          destinationFile.path,
+        );
+      }
+    }
+  }
+
+  // ============================================================
+  // OPEN LOCAL DIRECTORY
+  // ============================================================
+
+  Future<
+    void
+  >
+  _openBrainLocalDirectory(
+    String path,
+  ) async {
+    final cleanPath = path.trim();
+
+    if (cleanPath.isEmpty) {
+      return;
+    }
+
+    try {
+      final directory = Directory(
+        cleanPath,
+      );
+
+      if (!await directory.exists()) {
+        throw FileSystemException(
+          'A pasta configurada não existe.',
+          cleanPath,
+        );
+      }
+
+      if (Platform.isMacOS) {
+        await Process.run(
+          'open',
+          <
+            String
+          >[
+            cleanPath,
+          ],
+        );
+
+        return;
+      }
+
+      if (Platform.isLinux) {
+        await Process.run(
+          'xdg-open',
+          <
+            String
+          >[
+            cleanPath,
+          ],
+        );
+
+        return;
+      }
+
+      if (Platform.isWindows) {
+        await Process.run(
+          'explorer',
+          <
+            String
+          >[
+            cleanPath,
+          ],
+        );
+
+        return;
+      }
+
+      throw UnsupportedError(
+        'Abrir pasta ainda não é suportado nesta plataforma.',
+      );
+    } catch (
+      error
+    ) {
+      debugPrint(
+        '[PROFILE SETTINGS] '
+        'Erro abrindo pasta local do Cérebro: $error',
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      _updateProfileState(
+        () {
+          _message = 'Não foi possível abrir a pasta do Cérebro. $error';
+          _messageIsError = true;
+        },
+      );
+    }
   }
 
   // ============================================================
@@ -179,7 +869,8 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
     final keyVersion = _brainKeyVersion;
 
     final protectionReady =
-        vaultId != null &&
+        vaultId !=
+            null &&
         vaultId.trim().isNotEmpty &&
         _brainMasterKeyAvailable;
 
@@ -189,7 +880,9 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
         ? 'Proteção ativa'
         : 'Proteção precisa de atenção';
 
-    final statusGood = !_loadingBrainSettings && protectionReady;
+    final statusGood =
+        !_loadingBrainSettings &&
+        protectionReady;
 
     final keyLabel = _loadingBrainSettings
         ? 'Verificando...'
@@ -206,7 +899,9 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
         : 'Seus dados ficam protegidos neste dispositivo.';
 
     return Padding(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(
+        14,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -218,7 +913,9 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
                 color: _ProfileSettingsPageState._primaryDark,
               ),
 
-              const SizedBox(width: 10),
+              const SizedBox(
+                width: 10,
+              ),
 
               Expanded(
                 child: Column(
@@ -232,7 +929,9 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
                       ),
                     ),
 
-                    const SizedBox(height: 2),
+                    const SizedBox(
+                      height: 2,
+                    ),
 
                     Text(
                       sectionDescription,
@@ -248,19 +947,27 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
 
               IconButton(
                 tooltip: 'Atualizar status de proteção',
-                onPressed: _loadingBrainSettings ? null : _loadBrainSettings,
+                onPressed: _loadingBrainSettings
+                    ? null
+                    : _loadBrainSettings,
                 icon: _loadingBrainSettings
                     ? const SizedBox(
                         width: 17,
                         height: 17,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                        ),
                       )
-                    : const Icon(Icons.refresh_rounded),
+                    : const Icon(
+                        Icons.refresh_rounded,
+                      ),
               ),
             ],
           ),
 
-          const SizedBox(height: 14),
+          const SizedBox(
+            height: 14,
+          ),
 
           _buildBrainProtectionStatusRow(
             icon: protectionReady
@@ -271,29 +978,42 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
             good: statusGood,
           ),
 
-          const SizedBox(height: 10),
+          const SizedBox(
+            height: 10,
+          ),
 
           _buildBrainProtectionStatusRow(
             icon: Icons.key_rounded,
             label: 'Chave de segurança',
             value: keyLabel,
-            good: !_loadingBrainSettings && _brainMasterKeyAvailable,
+            good:
+                !_loadingBrainSettings &&
+                _brainMasterKeyAvailable,
           ),
 
-          const SizedBox(height: 10),
+          const SizedBox(
+            height: 10,
+          ),
 
           _buildBrainProtectionStatusRow(
             icon: _brainCloudMode
                 ? Icons.cloud_done_outlined
                 : Icons.laptop_rounded,
-            label: _brainCloudMode ? 'Proteção na nuvem' : 'Armazenamento',
+            label: _brainCloudMode
+                ? 'Proteção na nuvem'
+                : 'Armazenamento',
             value: storageLabel,
             good: true,
           ),
 
-          const SizedBox(height: 14),
+          const SizedBox(
+            height: 14,
+          ),
 
-          _buildBrainTechnicalDetails(vaultId: vaultId, keyVersion: keyVersion),
+          _buildBrainTechnicalDetails(
+            vaultId: vaultId,
+            keyVersion: keyVersion,
+          ),
         ],
       ),
     );
@@ -311,15 +1031,24 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: 10,
+      ),
       decoration: BoxDecoration(
         color: good
-            ? _ProfileSettingsPageState._primary.withValues(alpha: 0.38)
+            ? _ProfileSettingsPageState._primary.withValues(
+                alpha: 0.38,
+              )
             : _ProfileSettingsPageState._surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(
+          12,
+        ),
         border: Border.all(
           color: good
-              ? _ProfileSettingsPageState._primaryDark.withValues(alpha: 0.18)
+              ? _ProfileSettingsPageState._primaryDark.withValues(
+                  alpha: 0.18,
+                )
               : _ProfileSettingsPageState._border,
         ),
       ),
@@ -333,7 +1062,9 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
                 : _ProfileSettingsPageState._muted,
           ),
 
-          const SizedBox(width: 10),
+          const SizedBox(
+            width: 10,
+          ),
 
           SizedBox(
             width: 128,
@@ -377,17 +1108,30 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
     required String? vaultId,
     required int? keyVersion,
   }) {
-    final safeVaultId = vaultId == null || vaultId.trim().isEmpty
+    final safeVaultId =
+        vaultId ==
+                null ||
+            vaultId.trim().isEmpty
         ? 'Indisponível'
         : vaultId;
 
-    final safeKeyVersion = keyVersion?.toString() ?? '-';
+    final safeKeyVersion =
+        keyVersion?.toString() ??
+        '-';
 
     return Theme(
-      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      data:
+          Theme.of(
+            context,
+          ).copyWith(
+            dividerColor: Colors.transparent,
+          ),
       child: ExpansionTile(
         tilePadding: EdgeInsets.zero,
-        childrenPadding: const EdgeInsets.only(top: 4, bottom: 2),
+        childrenPadding: const EdgeInsets.only(
+          top: 4,
+          bottom: 2,
+        ),
         leading: const Icon(
           Icons.tune_rounded,
           size: 18,
@@ -409,25 +1153,41 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
           ),
         ),
         children: [
-          _BrainInfoRow(label: 'Vault ID', value: safeVaultId),
+          _BrainInfoRow(
+            label: 'Vault ID',
+            value: safeVaultId,
+          ),
 
-          const SizedBox(height: 8),
+          const SizedBox(
+            height: 8,
+          ),
 
-          _BrainInfoRow(label: 'Versão da chave', value: safeKeyVersion),
+          _BrainInfoRow(
+            label: 'Versão da chave',
+            value: safeKeyVersion,
+          ),
 
-          const SizedBox(height: 8),
+          const SizedBox(
+            height: 8,
+          ),
 
           _BrainInfoRow(
             label: 'Chave principal',
-            value: _brainMasterKeyAvailable ? 'Disponível' : 'Indisponível',
+            value: _brainMasterKeyAvailable
+                ? 'Disponível'
+                : 'Indisponível',
             good: _brainMasterKeyAvailable,
           ),
 
-          const SizedBox(height: 8),
+          const SizedBox(
+            height: 8,
+          ),
 
           _BrainInfoRow(
             label: 'Modo técnico',
-            value: _brainCloudMode ? 'Cloud E2EE' : 'Local',
+            value: _brainCloudMode
+                ? 'Cloud E2EE'
+                : 'Local',
             good: true,
           ),
         ],
@@ -443,114 +1203,154 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
   // BRAIN BACKUP INFO DIALOG
   // ============================================================
 
-  Future<void> _showBrainBackupInfo() async {
-    await showDialog<void>(
+  Future<
+    void
+  >
+  _showBrainBackupInfo() async {
+    await showDialog<
+      void
+    >(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: _ProfileSettingsPageState._surface,
-          surfaceTintColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: const BorderSide(color: _ProfileSettingsPageState._border),
-          ),
-          title: const Row(
-            children: [
-              Icon(
-                Icons.info_outline_rounded,
-                color: _ProfileSettingsPageState._primaryDark,
+      builder:
+          (
+            dialogContext,
+          ) {
+            return AlertDialog(
+              backgroundColor: _ProfileSettingsPageState._surface,
+              surfaceTintColor: Colors.transparent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(
+                  20,
+                ),
+                side: const BorderSide(
+                  color: _ProfileSettingsPageState._border,
+                ),
               ),
-              SizedBox(width: 10),
-              Expanded(child: Text('Seu backup do Cérebro')),
-            ],
-          ),
-          content: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
-            child: const Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'O arquivo .evbrain guarda uma cópia dos seus dados '
-                  'do Cérebro para você poder restaurá-los depois.',
-                  style: TextStyle(
-                    color: _ProfileSettingsPageState._text,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    height: 1.45,
+              title: const Row(
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    color: _ProfileSettingsPageState._primaryDark,
                   ),
+                  SizedBox(
+                    width: 10,
+                  ),
+                  Expanded(
+                    child: Text(
+                      'Seu backup do Cérebro',
+                    ),
+                  ),
+                ],
+              ),
+              content: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: 520,
                 ),
-                SizedBox(height: 16),
-                _BackupInfoStep(
-                  number: '1',
-                  title: 'Criar backup',
-                  text:
-                      'Gera um arquivo .evbrain com uma cópia dos seus '
-                      'dados do Cérebro.',
-                ),
-                SizedBox(height: 10),
-                _BackupInfoStep(
-                  number: '2',
-                  title: 'Guardar',
-                  text:
-                      'Salve o arquivo .evbrain em um local seguro, '
-                      'como outro disco ou um armazenamento de sua confiança.',
-                ),
-                SizedBox(height: 10),
-                _BackupInfoStep(
-                  number: '3',
-                  title: 'Restaurar',
-                  text:
-                      'Quando precisar, importe o arquivo .evbrain para '
-                      'recuperar os dados do seu Cérebro.',
-                ),
-                SizedBox(height: 16),
-                Row(
+                child: const Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      Icons.lock_outline_rounded,
-                      size: 18,
-                      color: _ProfileSettingsPageState._primaryDark,
-                    ),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Sua chave secreta não é incluída dentro do arquivo '
-                        'de backup.',
-                        style: TextStyle(
-                          color: _ProfileSettingsPageState._text,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          height: 1.4,
-                        ),
+                    Text(
+                      'O arquivo .evbrain guarda uma cópia dos seus dados '
+                      'do Cérebro para você poder restaurá-los depois.',
+                      style: TextStyle(
+                        color: _ProfileSettingsPageState._text,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        height: 1.45,
                       ),
                     ),
+                    SizedBox(
+                      height: 16,
+                    ),
+                    _BackupInfoStep(
+                      number: '1',
+                      title: 'Criar backup',
+                      text:
+                          'Gera um arquivo .evbrain com uma cópia dos seus '
+                          'dados do Cérebro.',
+                    ),
+                    SizedBox(
+                      height: 10,
+                    ),
+                    _BackupInfoStep(
+                      number: '2',
+                      title: 'Guardar',
+                      text:
+                          'Salve o arquivo .evbrain em um local seguro, '
+                          'como outro disco ou um armazenamento de sua confiança.',
+                    ),
+                    SizedBox(
+                      height: 10,
+                    ),
+                    _BackupInfoStep(
+                      number: '3',
+                      title: 'Restaurar',
+                      text:
+                          'Quando precisar, importe o arquivo .evbrain para '
+                          'recuperar os dados do seu Cérebro.',
+                    ),
+                    SizedBox(
+                      height: 16,
+                    ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.lock_outline_rounded,
+                          size: 18,
+                          color: _ProfileSettingsPageState._primaryDark,
+                        ),
+                        SizedBox(
+                          width: 8,
+                        ),
+                        Expanded(
+                          child: Text(
+                            'Sua chave secreta não é incluída dentro do arquivo '
+                            'de backup.',
+                            style: TextStyle(
+                              color: _ProfileSettingsPageState._text,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(
+                      height: 16,
+                    ),
+                    _BackupSecurityWarning(),
                   ],
                 ),
-                SizedBox(height: 16),
-                _BackupSecurityWarning(),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(
+                      dialogContext,
+                    ).pop();
+                  },
+                  child: const Text(
+                    'Entendi',
+                  ),
+                ),
               ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
-              child: const Text('Entendi'),
-            ),
-          ],
-        );
-      },
+            );
+          },
     );
   }
 
   Widget _buildBrainBackupSection() {
-    final busy = _importingBrainBackup || _exportingBrainBackup;
+    final busy =
+        _importingBrainBackup ||
+        _exportingBrainBackup;
 
     return Padding(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(
+        14,
+      ),
       child: Row(
         children: [
           const Icon(
@@ -559,7 +1359,9 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
             color: _ProfileSettingsPageState._primaryDark,
           ),
 
-          const SizedBox(width: 10),
+          const SizedBox(
+            width: 10,
+          ),
 
           Expanded(
             child: Column(
@@ -576,7 +1378,9 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
                       ),
                     ),
 
-                    const SizedBox(width: 4),
+                    const SizedBox(
+                      width: 4,
+                    ),
 
                     IconButton(
                       tooltip: 'Como funciona o backup',
@@ -596,7 +1400,9 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
                   ],
                 ),
 
-                const SizedBox(height: 2),
+                const SizedBox(
+                  height: 2,
+                ),
 
                 const Text(
                   'Crie uma cópia dos seus dados para restaurar quando precisar.',
@@ -609,32 +1415,58 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
             ),
           ),
 
-          const SizedBox(width: 12),
+          const SizedBox(
+            width: 12,
+          ),
 
           OutlinedButton.icon(
-            onPressed: busy ? null : _importBrainBackup,
+            onPressed: busy
+                ? null
+                : _importBrainBackup,
             icon: _importingBrainBackup
                 ? const SizedBox(
                     width: 15,
                     height: 15,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
                   )
-                : const Icon(Icons.file_open_outlined, size: 17),
-            label: Text(_importingBrainBackup ? 'Restaurando...' : 'Restaurar'),
+                : const Icon(
+                    Icons.file_open_outlined,
+                    size: 17,
+                  ),
+            label: Text(
+              _importingBrainBackup
+                  ? 'Restaurando...'
+                  : 'Restaurar',
+            ),
           ),
 
-          const SizedBox(width: 8),
+          const SizedBox(
+            width: 8,
+          ),
 
           FilledButton.tonalIcon(
-            onPressed: busy ? null : _exportBrainBackup,
+            onPressed: busy
+                ? null
+                : _exportBrainBackup,
             icon: _exportingBrainBackup
                 ? const SizedBox(
                     width: 15,
                     height: 15,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
                   )
-                : const Icon(Icons.download_outlined, size: 17),
-            label: Text(_exportingBrainBackup ? 'Criando...' : 'Criar backup'),
+                : const Icon(
+                    Icons.download_outlined,
+                    size: 17,
+                  ),
+            label: Text(
+              _exportingBrainBackup
+                  ? 'Criando...'
+                  : 'Criar backup',
+            ),
           ),
         ],
       ),
@@ -649,7 +1481,9 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
     final cloud = _brainCloudMode;
 
     return Padding(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(
+        14,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -659,7 +1493,9 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
             color: _ProfileSettingsPageState._primaryDark,
           ),
 
-          const SizedBox(width: 10),
+          const SizedBox(
+            width: 10,
+          ),
 
           Expanded(
             child: Column(
@@ -673,7 +1509,9 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
                   ),
                 ),
 
-                const SizedBox(height: 6),
+                const SizedBox(
+                  height: 6,
+                ),
 
                 Text(
                   cloud
@@ -707,96 +1545,129 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
   // RECOVERY DEVICE INFO
   // ============================================================
 
-  Future<void> _showRecoveryDeviceInfo() async {
-    await showDialog<void>(
+  Future<
+    void
+  >
+  _showRecoveryDeviceInfo() async {
+    await showDialog<
+      void
+    >(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: _ProfileSettingsPageState._surface,
-          surfaceTintColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: const BorderSide(color: _ProfileSettingsPageState._border),
-          ),
-          title: const Row(
-            children: [
-              Icon(
-                Icons.info_outline_rounded,
-                color: _ProfileSettingsPageState._primaryDark,
+      builder:
+          (
+            dialogContext,
+          ) {
+            return AlertDialog(
+              backgroundColor: _ProfileSettingsPageState._surface,
+              surfaceTintColor: Colors.transparent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(
+                  20,
+                ),
+                side: const BorderSide(
+                  color: _ProfileSettingsPageState._border,
+                ),
               ),
-              SizedBox(width: 10),
-              Expanded(child: Text('Recuperar em outro dispositivo')),
-            ],
-          ),
-          content: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
-            child: const Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Use esta opção quando quiser acessar o seu Cérebro em um novo computador.',
-                  style: TextStyle(
-                    color: _ProfileSettingsPageState._text,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    height: 1.45,
+              title: const Row(
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    color: _ProfileSettingsPageState._primaryDark,
+                  ),
+                  SizedBox(
+                    width: 10,
+                  ),
+                  Expanded(
+                    child: Text(
+                      'Recuperar em outro dispositivo',
+                    ),
+                  ),
+                ],
+              ),
+              content: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: 520,
+                ),
+                child: const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Use esta opção quando quiser acessar o seu Cérebro em um novo computador.',
+                      style: TextStyle(
+                        color: _ProfileSettingsPageState._text,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        height: 1.45,
+                      ),
+                    ),
+                    SizedBox(
+                      height: 16,
+                    ),
+                    _RecoveryInfoStep(
+                      number: '1',
+                      title: 'Solicite no novo dispositivo',
+                      text: 'No computador novo, abra o EVRYLUX e toque em "Solicitar" para pedir acesso ao seu Cérebro.',
+                    ),
+                    SizedBox(
+                      height: 10,
+                    ),
+                    _RecoveryInfoStep(
+                      number: '2',
+                      title: 'Vá até Segurança',
+                      text: 'No dispositivo que já possui acesso, abra Segurança → Sessão e dispositivos → Gerenciar.',
+                    ),
+                    SizedBox(
+                      height: 10,
+                    ),
+                    _RecoveryInfoStep(
+                      number: '3',
+                      title: 'Confira e aprove',
+                      text: 'Encontre o novo dispositivo na lista, confirme que ele é seu e aprove a solicitação.',
+                    ),
+                    SizedBox(
+                      height: 10,
+                    ),
+                    _RecoveryInfoStep(
+                      number: '4',
+                      title: 'Conclua no novo dispositivo',
+                      text: 'Volte ao computador novo e toque em "Concluir". Depois disso, ele poderá acessar o seu Cérebro.',
+                    ),
+                    SizedBox(
+                      height: 16,
+                    ),
+                    _RecoverySecurityWarning(),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(
+                      dialogContext,
+                    ).pop();
+                  },
+                  child: const Text(
+                    'Entendi',
                   ),
                 ),
-                SizedBox(height: 16),
-                _RecoveryInfoStep(
-                  number: '1',
-                  title: 'Solicite no novo dispositivo',
-                  text:
-                      'No computador novo, abra o EVRYLUX e toque em "Solicitar" para pedir acesso ao seu Cérebro.',
-                ),
-                SizedBox(height: 10),
-                _RecoveryInfoStep(
-                  number: '2',
-                  title: 'Vá até Segurança',
-                  text:
-                      'No dispositivo que já possui acesso, abra Segurança → Sessão e dispositivos → Gerenciar.',
-                ),
-                SizedBox(height: 10),
-                _RecoveryInfoStep(
-                  number: '3',
-                  title: 'Confira e aprove',
-                  text:
-                      'Encontre o novo dispositivo na lista, confirme que ele é seu e aprove a solicitação.',
-                ),
-                SizedBox(height: 10),
-                _RecoveryInfoStep(
-                  number: '4',
-                  title: 'Conclua no novo dispositivo',
-                  text:
-                      'Volte ao computador novo e toque em "Concluir". Depois disso, ele poderá acessar o seu Cérebro.',
-                ),
-                SizedBox(height: 16),
-                _RecoverySecurityWarning(),
               ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
-              child: const Text('Entendi'),
-            ),
-          ],
-        );
-      },
+            );
+          },
     );
   }
 
   Widget _buildBrainRecoverySection() {
     final alreadyHasAccess =
-        _brainVaultId != null &&
+        _brainVaultId !=
+            null &&
         _brainVaultId!.trim().isNotEmpty &&
         _brainMasterKeyAvailable;
 
     return Padding(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(
+        14,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -810,7 +1681,9 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
                 : _ProfileSettingsPageState._muted,
           ),
 
-          const SizedBox(width: 10),
+          const SizedBox(
+            width: 10,
+          ),
 
           Expanded(
             child: Column(
@@ -827,7 +1700,9 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
                       ),
                     ),
 
-                    const SizedBox(width: 4),
+                    const SizedBox(
+                      width: 4,
+                    ),
 
                     IconButton(
                       tooltip: 'Como recuperar em outro dispositivo',
@@ -847,7 +1722,9 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
                   ],
                 ),
 
-                const SizedBox(height: 2),
+                const SizedBox(
+                  height: 2,
+                ),
 
                 Text(
                   alreadyHasAccess
@@ -867,40 +1744,64 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
             ),
           ),
 
-          const SizedBox(width: 12),
+          const SizedBox(
+            width: 12,
+          ),
 
           if (!alreadyHasAccess) ...[
             OutlinedButton.icon(
-              onPressed: _requestingBrainRecovery || _completingBrainRecovery
+              onPressed:
+                  _requestingBrainRecovery ||
+                      _completingBrainRecovery
                   ? null
                   : _requestBrainRecovery,
               icon: _requestingBrainRecovery
                   ? const SizedBox(
                       width: 15,
                       height: 15,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                      ),
                     )
-                  : const Icon(Icons.add_to_home_screen_rounded, size: 17),
-              label: const Text('Solicitar'),
+                  : const Icon(
+                      Icons.add_to_home_screen_rounded,
+                      size: 17,
+                    ),
+              label: const Text(
+                'Solicitar',
+              ),
             ),
 
-            const SizedBox(width: 8),
+            const SizedBox(
+              width: 8,
+            ),
 
             FilledButton.tonalIcon(
-              onPressed: _requestingBrainRecovery || _completingBrainRecovery
+              onPressed:
+                  _requestingBrainRecovery ||
+                      _completingBrainRecovery
                   ? null
                   : _completeBrainRecovery,
               icon: _completingBrainRecovery
                   ? const SizedBox(
                       width: 15,
                       height: 15,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                      ),
                     )
-                  : const Icon(Icons.lock_open_rounded, size: 17),
-              label: const Text('Concluir'),
+                  : const Icon(
+                      Icons.lock_open_rounded,
+                      size: 17,
+                    ),
+              label: const Text(
+                'Concluir',
+              ),
             ),
           ] else
-            const _PhaseBadge(text: 'Protegido'),
+            const _PhaseBadge(
+              text: 'Protegido',
+            ),
         ],
       ),
     );
