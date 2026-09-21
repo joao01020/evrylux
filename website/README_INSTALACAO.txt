@@ -1,91 +1,89 @@
-EVRYLUX — FILA DO DEMO + EARLY EXPLORERS
+EVRYLUX — SUPORTE EM TEMPO REAL
 
 O pacote adiciona:
 
 PÚBLICO
-- Página Download atualizada
-- Linux / Windows / macOS clicáveis
-- Ao clicar, o sistema já fica selecionado
-- Formulário rápido:
-  Nome completo
-  E-mail
-  Sistema (automático)
-  Área que mais quer testar
-  Checkbox para ajudar com feedback e bugs
-- Inscrição Early Explorer
-- Mensagem de prioridade e vantagens especiais de lançamento
-- Confirmação após entrar na fila
+- nova aba "Suporte" no Header
+- nova página /support
+- usuário começa conversa sem cadastro
+- mensagens chegam ao painel administrativo
+- resposta do administrador aparece em tempo real
+- se não houver resposta administrativa após 1 minuto:
+  aparece um campo pedindo e-mail
+- o usuário pode continuar a conversa mesmo sem informar e-mail
+- a conversa é restaurada no mesmo navegador usando um token local
 
-ADMINISTRADOR
-- Notificação no Header somente para administradores
-- Badge com quantidade de novas inscrições
-- Ao clicar, abre:
-  /colab/demo
-- Tela com:
-  Total de inscritos
-  Quantos querem reportar feedback/bugs
-  Contagem Linux
-  Contagem Windows/macOS
-  Lista de usuários
-  E-mail
-  Sistema
-  Interesse
-  Early Explorer
-  Status: Aguardando / Convidado / Testando
-- Ao abrir a fila, as notificações atuais são marcadas como lidas.
+ADMIN
+- nova página /colab/support
+- somente administradores conseguem acessar
+- lista de atendimentos
+- histórico da conversa
+- responder em tempo real
+- marcar atendimento como Aberto / Encerrado
+- e-mail aparece quando o usuário fornecer
+- notificação no Header para novas mensagens enquanto o admin está logado
 
-BANCO
-- tabela public.demo_waitlist
-- RLS:
-  público só pode INSERIR
-  somente administradores podem LER/ATUALIZAR
-- e-mails da fila não ficam públicos
+SEGURANÇA
+- público NÃO recebe SELECT direto das tabelas
+- o histórico público é acessado por um token aleatório de 256 bits
+- RLS protege tickets e mensagens
+- apenas admin pode ler diretamente as tabelas
+- respostas administrativas exigem public.is_colab_admin()
 
 REQUISITO
-Este pacote pressupõe que o sistema de administradores já está instalado,
-incluindo a função Supabase:
+O sistema de administradores precisa estar instalado, incluindo:
 
 public.is_colab_admin()
 
 INSTALAÇÃO
 
-1. Entre no site:
+1. Entre no website:
 
 cd ~/Documentos/PlatformIO/Projects/ghost-core/website
 
 2. Extraia:
 
-unzip -o ~/Downloads/EVRYLUX_DEMO_WAITLIST.zip -d .
+unzip -o ~/Downloads/EVRYLUX_SUPPORT_REALTIME.zip -d .
 
-3. Abra o Supabase:
+3. No Supabase:
+
 SQL Editor -> New query
 
-Cole e execute TODO o conteúdo de:
+Cole e execute TODO o conteúdo:
 
-supabase/demo_waitlist.sql
+supabase/support_realtime.sql
 
-4. Se o Astro já estiver rodando, basta atualizar o navegador.
+4. Se o Astro já estiver rodando:
+Ctrl + Shift + R
 
-Se quiser reiniciar:
+Ou reinicie:
 
 npx astro dev stop
 npm run dev
 
-TESTAR PÚBLICO
+TESTAR USUÁRIO
 
-http://localhost:4321/download
+http://localhost:4321/support
 
-TESTAR ADMIN
+TESTAR ADMINISTRADOR
 
-Entre com sua conta de administrador e abra:
+http://localhost:4321/colab/support
 
-http://localhost:4321/colab/demo
+TESTE COMPLETO
 
-Quando um novo usuário preencher o formulário, o administrador verá
-um indicador de notificação no Header.
+1. Abra /support em uma janela anônima.
+2. Envie uma mensagem.
+3. Na sua sessão de administrador, deve aparecer a notificação "S" no Header.
+4. Abra /colab/support.
+5. Selecione a conversa e responda.
+6. A resposta deve aparecer na janela do usuário sem recarregar.
+7. Para testar o pedido de e-mail, envie uma mensagem e aguarde 60 segundos sem responder.
 
-OBSERVAÇÃO
+ARQUIVOS
 
-"Vantagens especiais" foi deixado propositalmente sem prometer
-gratuidade vitalícia, desconto específico ou quantidade fechada.
-Isso permite decidir a recompensa real mais perto do lançamento.
+src/components/Header.astro
+src/lib/support.ts
+src/pages/support.astro
+src/pages/colab/support.astro
+supabase/support_realtime.sql
+README_INSTALACAO.txt

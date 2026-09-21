@@ -1,0 +1,1019 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout
+  title="Suporte — EVRYLUX"
+  description="Converse com a equipe do EVRYLUX."
+>
+  <main class="support-page">
+    <section class="support-hero">
+      <div class="container support-layout">
+        <div class="support-copy">
+          <div class="eyebrow">
+            Suporte EVRYLUX
+          </div>
+
+          <h1>
+            Fale com a equipe.
+            <span>Sem complicação.</span>
+          </h1>
+
+          <p>
+            Envie sua dúvida, problema ou sugestão. Se houver um administrador
+            disponível, a conversa pode continuar aqui em tempo real.
+          </p>
+
+          <div class="support-points">
+            <div>
+              <span>01</span>
+
+              <div>
+                <strong>
+                  Resposta em tempo real
+                </strong>
+
+                <p>
+                  Quando um administrador responder, a mensagem aparece
+                  diretamente nesta conversa.
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <span>02</span>
+
+              <div>
+                <strong>
+                  Sem obrigar cadastro
+                </strong>
+
+                <p>
+                  Você pode começar a conversa sem criar uma conta.
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <span>03</span>
+
+              <div>
+                <strong>
+                  Retorno por e-mail
+                </strong>
+
+                <p>
+                  Se a resposta demorar, você pode deixar seu e-mail para
+                  continuarmos o atendimento depois.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <section class="support-chat">
+          <div class="chat-head">
+            <div>
+              <span class="chat-kicker">
+                Atendimento
+              </span>
+
+              <h2>
+                Suporte EVRYLUX
+              </h2>
+            </div>
+
+            <div class="chat-presence">
+              <span class="chat-presence-dot"></span>
+              Mensagens em tempo real
+            </div>
+          </div>
+
+          <div
+            id="support-messages"
+            class="chat-messages"
+            aria-live="polite"
+          >
+            <div class="system-message">
+              <strong>
+                Como podemos ajudar?
+              </strong>
+
+              <span>
+                Escreva sua mensagem abaixo para iniciar o atendimento.
+              </span>
+            </div>
+          </div>
+
+          <form
+            id="support-email-box"
+            class="support-email-box hidden"
+          >
+            <div>
+              <strong>
+                Ainda não conseguimos responder.
+              </strong>
+
+              <p>
+                Deixe seu e-mail e entraremos em contato assim que possível.
+              </p>
+            </div>
+
+            <div class="email-row">
+              <input
+                id="support-email"
+                type="email"
+                autocomplete="email"
+                maxlength="180"
+                required
+                placeholder="voce@email.com"
+              />
+
+              <button type="submit">
+                Salvar e-mail
+              </button>
+            </div>
+
+            <span
+              id="support-email-status"
+              class="support-email-status"
+            ></span>
+          </form>
+
+          <form
+            id="support-message-form"
+            class="chat-composer"
+          >
+            <textarea
+              id="support-message"
+              rows="3"
+              maxlength="2000"
+              placeholder="Escreva sua mensagem..."
+              required
+            ></textarea>
+
+            <button
+              id="support-send"
+              type="submit"
+            >
+              <span>
+                Enviar
+              </span>
+
+              <span aria-hidden="true">
+                →
+              </span>
+            </button>
+          </form>
+
+          <div class="chat-foot">
+            <span>
+              Não envie senhas, chaves ou dados financeiros.
+            </span>
+
+            <button
+              id="support-new-conversation"
+              class="hidden"
+              type="button"
+            >
+              Nova conversa
+            </button>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+</Layout>
+
+<script>
+  import {
+    createSupportTicket,
+    generateSupportToken,
+    getPublicSupportMessages,
+    openPublicSupportChannel,
+    saveSupportEmail,
+    sendPublicSupportMessage,
+    type PublicSupportMessage,
+  } from '../lib/support';
+
+  const storageKey =
+    'evrylux.support.ticket.v1';
+
+  const messagesEl =
+    document.querySelector<HTMLElement>(
+      '#support-messages',
+    );
+
+  const form =
+    document.querySelector<HTMLFormElement>(
+      '#support-message-form',
+    );
+
+  const textarea =
+    document.querySelector<HTMLTextAreaElement>(
+      '#support-message',
+    );
+
+  const sendButton =
+    document.querySelector<HTMLButtonElement>(
+      '#support-send',
+    );
+
+  const emailBox =
+    document.querySelector<HTMLFormElement>(
+      '#support-email-box',
+    );
+
+  const emailInput =
+    document.querySelector<HTMLInputElement>(
+      '#support-email',
+    );
+
+  const emailStatus =
+    document.querySelector<HTMLElement>(
+      '#support-email-status',
+    );
+
+  const newConversationButton =
+    document.querySelector<HTMLButtonElement>(
+      '#support-new-conversation',
+    );
+
+  let token:
+    string | null =
+      localStorage.getItem(
+        storageKey,
+      );
+
+  let supportConnection:
+    ReturnType<
+      typeof openPublicSupportChannel
+    > | null =
+      null;
+
+  let waitTimer:
+    number | null =
+      null;
+
+  let receivedAdminReply =
+    false;
+
+  function scrollToBottom() {
+    if (!messagesEl) {
+      return;
+    }
+
+    messagesEl.scrollTop =
+      messagesEl.scrollHeight;
+  }
+
+  function addMessage(
+    message:
+      PublicSupportMessage,
+  ) {
+    if (!messagesEl) {
+      return;
+    }
+
+    if (
+      document.getElementById(
+        `support-message-${message.id}`,
+      )
+    ) {
+      return;
+    }
+
+    const article =
+      document.createElement(
+        'article',
+      );
+
+    article.id =
+      `support-message-${message.id}`;
+
+    article.className =
+      message.sender_type ===
+      'admin'
+        ? 'chat-message admin'
+        : 'chat-message user';
+
+    const meta =
+      document.createElement(
+        'span',
+      );
+
+    meta.textContent =
+      message.sender_type ===
+      'admin'
+        ? 'Equipe EVRYLUX'
+        : 'Você';
+
+    const body =
+      document.createElement(
+        'p',
+      );
+
+    body.textContent =
+      message.body;
+
+    article.append(
+      meta,
+      body,
+    );
+
+    messagesEl.appendChild(
+      article,
+    );
+
+    if (
+      message.sender_type ===
+      'admin'
+    ) {
+      receivedAdminReply =
+        true;
+
+      if (
+        waitTimer !==
+        null
+      ) {
+        window.clearTimeout(
+          waitTimer,
+        );
+
+        waitTimer =
+          null;
+      }
+
+      emailBox?.classList.add(
+        'hidden',
+      );
+    }
+
+    scrollToBottom();
+  }
+
+  function startWaitingTimer() {
+    if (
+      waitTimer !==
+      null ||
+      receivedAdminReply
+    ) {
+      return;
+    }
+
+    waitTimer =
+      window.setTimeout(
+        () => {
+          if (
+            !receivedAdminReply
+          ) {
+            emailBox?.classList.remove(
+              'hidden',
+            );
+          }
+        },
+        60_000,
+      );
+  }
+
+  async function connect(
+    currentToken:
+      string,
+  ) {
+    if (
+      supportConnection
+    ) {
+      await supportConnection.disconnect();
+    }
+
+    supportConnection =
+      openPublicSupportChannel(
+        currentToken,
+        (
+          message,
+        ) => {
+          addMessage(
+            message,
+          );
+        },
+      );
+  }
+
+  async function restoreConversation() {
+    if (!token) {
+      return;
+    }
+
+    try {
+      const messages =
+        await getPublicSupportMessages(
+          token,
+        );
+
+      if (
+        !messages.length
+      ) {
+        localStorage.removeItem(
+          storageKey,
+        );
+
+        token =
+          null;
+
+        return;
+      }
+
+      messages.forEach(
+        (
+          message,
+        ) => {
+          addMessage(
+            message,
+          );
+        },
+      );
+
+      receivedAdminReply =
+        messages.some(
+          (
+            message,
+          ) =>
+            message.sender_type ===
+            'admin',
+        );
+
+      await connect(
+        token,
+      );
+
+      newConversationButton?.classList.remove(
+        'hidden',
+      );
+
+      if (
+        !receivedAdminReply
+      ) {
+        startWaitingTimer();
+      }
+    } catch (error) {
+      console.warn(
+        '[EVRYLUX] Não foi possível restaurar o suporte:',
+        error,
+      );
+    }
+  }
+
+  form?.addEventListener(
+    'submit',
+    async (
+      event,
+    ) => {
+      event.preventDefault();
+
+      const body =
+        textarea?.value.trim() ??
+        '';
+
+      if (!body) {
+        return;
+      }
+
+      if (sendButton) {
+        sendButton.disabled =
+          true;
+      }
+
+      try {
+        if (!token) {
+          token =
+            generateSupportToken();
+
+          await createSupportTicket(
+            token,
+            body,
+          );
+
+          localStorage.setItem(
+            storageKey,
+            token,
+          );
+
+          await connect(
+            token,
+          );
+        } else {
+          await sendPublicSupportMessage(
+            token,
+            body,
+          );
+        }
+
+        addMessage({
+          id:
+            crypto.randomUUID(),
+          sender_type:
+            'user',
+          body,
+          created_at:
+            new Date().toISOString(),
+        });
+
+        if (textarea) {
+          textarea.value =
+            '';
+        }
+
+        newConversationButton?.classList.remove(
+          'hidden',
+        );
+
+        startWaitingTimer();
+      } catch (error) {
+        console.error(
+          '[EVRYLUX] Não foi possível enviar a mensagem:',
+          error,
+        );
+      } finally {
+        if (sendButton) {
+          sendButton.disabled =
+            false;
+        }
+      }
+    },
+  );
+
+  emailBox?.addEventListener(
+    'submit',
+    async (
+      event,
+    ) => {
+      event.preventDefault();
+
+      if (
+        !token ||
+        !emailInput?.value.trim()
+      ) {
+        return;
+      }
+
+      try {
+        await saveSupportEmail(
+          token,
+          emailInput.value.trim(),
+        );
+
+        if (emailStatus) {
+          emailStatus.textContent =
+            'E-mail salvo. Entraremos em contato se necessário.';
+        }
+      } catch (error) {
+        console.error(
+          '[EVRYLUX] Não foi possível salvar o e-mail:',
+          error,
+        );
+
+        if (emailStatus) {
+          emailStatus.textContent =
+            'Não foi possível salvar o e-mail agora.';
+        }
+      }
+    },
+  );
+
+  newConversationButton?.addEventListener(
+    'click',
+    async () => {
+      if (
+        supportConnection
+      ) {
+        await supportConnection.disconnect();
+      }
+
+      localStorage.removeItem(
+        storageKey,
+      );
+
+      token =
+        null;
+
+      receivedAdminReply =
+        false;
+
+      if (
+        waitTimer !==
+        null
+      ) {
+        window.clearTimeout(
+          waitTimer,
+        );
+
+        waitTimer =
+          null;
+      }
+
+      emailBox?.classList.add(
+        'hidden',
+      );
+
+      newConversationButton.classList.add(
+        'hidden',
+      );
+
+      if (messagesEl) {
+        messagesEl.innerHTML = `
+          <div class="system-message">
+            <strong>
+              Como podemos ajudar?
+            </strong>
+
+            <span>
+              Escreva sua mensagem abaixo para iniciar o atendimento.
+            </span>
+          </div>
+        `;
+      }
+
+      textarea?.focus();
+    },
+  );
+
+  await restoreConversation();
+
+  window.addEventListener(
+    'pagehide',
+    () => {
+      void supportConnection?.disconnect();
+    },
+  );
+</script>
+
+<style is:global>
+  .hidden {
+    display: none !important;
+  }
+
+  .chat-message {
+    max-width: 82%;
+    padding: 11px 13px;
+    border-radius: 14px;
+  }
+
+  .chat-message span {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 8px;
+    font-weight: 850;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+
+  .chat-message p {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+  }
+
+  .chat-message.user {
+    margin-left: auto;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    border-bottom-right-radius: 5px;
+  }
+
+  .chat-message.admin {
+    margin-right: auto;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--text);
+    border-bottom-left-radius: 5px;
+  }
+</style>
+
+<style>
+  .support-page {
+    min-height: calc(100vh - 72px);
+  }
+
+  .support-hero {
+    padding: 86px 0 100px;
+    background:
+      radial-gradient(
+        circle at 15% 18%,
+        rgba(159,211,149,.12),
+        transparent 28%
+      );
+  }
+
+  .support-layout {
+    display: grid;
+    grid-template-columns:
+      minmax(0,.9fr)
+      minmax(440px,1.1fr);
+    align-items: center;
+    gap: 74px;
+  }
+
+  .support-copy h1 {
+    max-width: 650px;
+    margin: 20px 0 0;
+    font-size: clamp(52px,6vw,78px);
+    line-height: .95;
+    letter-spacing: -.06em;
+  }
+
+  .support-copy h1 span {
+    display: block;
+    color: var(--primary-deep);
+  }
+
+  .support-copy > p {
+    max-width: 620px;
+    margin: 24px 0 0;
+    color: var(--text-soft);
+    font-size: 17px;
+    line-height: 1.7;
+  }
+
+  .support-points {
+    margin-top: 30px;
+    display: grid;
+    gap: 9px;
+  }
+
+  .support-points > div {
+    padding: 13px;
+    display: flex;
+    gap: 12px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: rgba(255,255,255,.54);
+  }
+
+  .support-points > div > span {
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border-radius: 10px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font-size: 9px;
+    font-weight: 850;
+  }
+
+  .support-points strong {
+    font-size: 11px;
+  }
+
+  .support-points p {
+    margin: 3px 0 0;
+    color: var(--text-soft);
+    font-size: 9px;
+    line-height: 1.55;
+  }
+
+  .support-chat {
+    min-height: 600px;
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: 25px;
+    background: rgba(255,255,255,.9);
+    box-shadow: 0 24px 70px rgba(54,92,51,.09);
+  }
+
+  .chat-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .chat-kicker {
+    display: block;
+    color: var(--text-soft);
+    font-size: 8px;
+    font-weight: 850;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+
+  .chat-head h2 {
+    margin: 4px 0 0;
+    font-size: 18px;
+    letter-spacing: -.03em;
+  }
+
+  .chat-presence {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-soft);
+    font-size: 9px;
+  }
+
+  .chat-presence-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--primary-strong);
+    box-shadow: 0 0 0 5px rgba(95,157,89,.1);
+  }
+
+  .chat-messages {
+    flex: 1;
+    min-height: 300px;
+    max-height: 390px;
+    padding: 18px 2px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    overflow-y: auto;
+  }
+
+  .system-message {
+    margin: auto;
+    max-width: 330px;
+    text-align: center;
+  }
+
+  .system-message strong,
+  .system-message span {
+    display: block;
+  }
+
+  .system-message strong {
+    font-size: 14px;
+  }
+
+  .system-message span {
+    margin-top: 5px;
+    color: var(--text-soft);
+    font-size: 10px;
+    line-height: 1.55;
+  }
+
+  .support-email-box {
+    margin-bottom: 12px;
+    padding: 13px;
+    border: 1px solid rgba(95,157,89,.18);
+    border-radius: 13px;
+    background: var(--primary-soft);
+  }
+
+  .support-email-box strong {
+    font-size: 11px;
+  }
+
+  .support-email-box p {
+    margin: 3px 0 0;
+    color: var(--text-soft);
+    font-size: 9px;
+  }
+
+  .email-row {
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 7px;
+  }
+
+  .email-row input {
+    min-height: 38px;
+    padding: 0 10px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: #fff;
+    color: var(--text);
+    font: inherit;
+    font-size: 10px;
+    outline: none;
+  }
+
+  .email-row button {
+    padding: 0 11px;
+    border: 1px solid rgba(95,157,89,.18);
+    border-radius: 9px;
+    background: #fff;
+    color: var(--primary-deep);
+    font: inherit;
+    font-size: 9px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .support-email-status {
+    display: block;
+    min-height: 12px;
+    margin-top: 6px;
+    color: var(--primary-deep);
+    font-size: 8px;
+  }
+
+  .chat-composer {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 8px;
+  }
+
+  .chat-composer textarea {
+    min-height: 74px;
+    padding: 11px;
+    resize: none;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-muted);
+    color: var(--text);
+    font: inherit;
+    font-size: 12px;
+    line-height: 1.5;
+    outline: none;
+  }
+
+  .chat-composer textarea:focus {
+    border-color: rgba(95,157,89,.45);
+    box-shadow: 0 0 0 3px rgba(159,211,149,.12);
+  }
+
+  .chat-composer button {
+    min-width: 100px;
+    min-height: 44px;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    border: 1px solid rgba(95,157,89,.2);
+    border-radius: 11px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font: inherit;
+    font-size: 10px;
+    font-weight: 850;
+    cursor: pointer;
+  }
+
+  .chat-composer button:disabled {
+    opacity: .55;
+  }
+
+  .chat-foot {
+    min-height: 28px;
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .chat-foot > span {
+    color: var(--text-soft);
+    font-size: 8px;
+  }
+
+  .chat-foot button {
+    border: 0;
+    background: transparent;
+    color: var(--primary-deep);
+    font: inherit;
+    font-size: 8px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  @media (max-width: 900px) {
+    .support-layout {
+      grid-template-columns: 1fr;
+      gap: 50px;
+    }
+  }
+
+  @media (max-width: 620px) {
+    .support-hero {
+      padding-top: 60px;
+    }
+
+    .support-chat {
+      min-height: 560px;
+      padding: 16px;
+    }
+
+    .chat-composer {
+      grid-template-columns: 1fr;
+    }
+
+    .chat-composer button {
+      width: 100%;
+    }
+
+    .email-row {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

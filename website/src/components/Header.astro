@@ -4,6 +4,7 @@ const nav = [
   { label: 'Colaboradores', href: '/contributors' },
   { label: 'Download', href: '/download' },
   { label: 'Planos', href: '/plans' },
+  { label: 'Suporte', href: '/support' },
   { label: 'Roadmap', href: '/roadmap' },
   { label: 'Licença', href: '/license' },
 ];
@@ -46,14 +47,33 @@ const nav = [
 
     <div class="header-actions">
       <a
+        id="support-admin-notification"
+        class="admin-notification header-hidden"
+        href="/colab/support"
+        aria-label="Novas mensagens de suporte"
+        title="Suporte"
+      >
+        <span class="notification-icon">
+          S
+        </span>
+
+        <span
+          id="support-admin-count"
+          class="notification-count header-hidden"
+        >
+          0
+        </span>
+      </a>
+
+      <a
         id="demo-admin-notification"
-        class="demo-admin-notification header-hidden"
+        class="admin-notification header-hidden"
         href="/colab/demo"
         aria-label="Novas inscrições no demo"
         title="Fila do Demo"
       >
-        <span class="notification-bell">
-          ◉
+        <span class="notification-icon">
+          D
         </span>
 
         <span
@@ -71,8 +91,16 @@ const nav = [
         rel="noopener noreferrer"
         aria-label="GitHub do projeto EVRYLUX"
       >
-        <span>GitHub</span>
-        <span class="external-arrow" aria-hidden="true">↗</span>
+        <span>
+          GitHub
+        </span>
+
+        <span
+          class="external-arrow"
+          aria-hidden="true"
+        >
+          ↗
+        </span>
       </a>
 
       <a
@@ -110,6 +138,11 @@ const nav = [
     getUnreadDemoCount,
   } from '../lib/demo-waitlist';
 
+  import {
+    getUnreadSupportCount,
+    subscribeAdminSupportNotifications,
+  } from '../lib/support';
+
   const collaboratorAccess =
     document.querySelector<HTMLAnchorElement>(
       '#collaborator-access',
@@ -134,6 +167,22 @@ const nav = [
     document.querySelector<HTMLElement>(
       '#demo-admin-count',
     );
+
+  const supportNotification =
+    document.querySelector<HTMLAnchorElement>(
+      '#support-admin-notification',
+    );
+
+  const supportCount =
+    document.querySelector<HTMLElement>(
+      '#support-admin-count',
+    );
+
+  let supportNotifications:
+    ReturnType<
+      typeof subscribeAdminSupportNotifications
+    > | null =
+      null;
 
   function updateCollaboratorAccess(
     authenticated: boolean,
@@ -160,11 +209,6 @@ const nav = [
         'authenticated',
       );
 
-      collaboratorAccess.setAttribute(
-        'aria-label',
-        'Abrir minha área de colaborador',
-      );
-
       return;
     }
 
@@ -180,50 +224,90 @@ const nav = [
     collaboratorAccess.classList.remove(
       'authenticated',
     );
-
-    collaboratorAccess.setAttribute(
-      'aria-label',
-      'Entrar na área de colaboradores',
-    );
   }
 
-  async function loadAdminNotification() {
+  async function refreshSupportCount() {
+    if (
+      !supportNotification
+    ) {
+      return;
+    }
+
+    const count =
+      await getUnreadSupportCount();
+
+    supportNotification.classList.remove(
+      'header-hidden',
+    );
+
+    if (
+      count > 0 &&
+      supportCount
+    ) {
+      supportCount.textContent =
+        count > 99
+          ? '99+'
+          : String(
+              count,
+            );
+
+      supportCount.classList.remove(
+        'header-hidden',
+      );
+    } else {
+      supportCount?.classList.add(
+        'header-hidden',
+      );
+    }
+  }
+
+  async function loadAdminNotifications() {
     try {
       const admin =
         await isCurrentUserAdmin();
 
-      if (
-        !admin ||
-        !demoNotification
-      ) {
+      if (!admin) {
         return;
       }
 
-      demoNotification.classList.remove(
-        'header-hidden',
-      );
-
-      const count =
-        await getUnreadDemoCount();
-
       if (
-        count > 0 &&
-        demoCount
+        demoNotification
       ) {
-        demoCount.textContent =
-          count > 99
-            ? '99+'
-            : String(
-                count,
-              );
-
-        demoCount.classList.remove(
+        demoNotification.classList.remove(
           'header-hidden',
         );
+
+        const demo =
+          await getUnreadDemoCount();
+
+        if (
+          demo > 0 &&
+          demoCount
+        ) {
+          demoCount.textContent =
+            demo > 99
+              ? '99+'
+              : String(
+                  demo,
+                );
+
+          demoCount.classList.remove(
+            'header-hidden',
+          );
+        }
       }
+
+      await refreshSupportCount();
+
+      supportNotifications =
+        subscribeAdminSupportNotifications(
+          async () => {
+            await refreshSupportCount();
+          },
+        );
     } catch (error) {
       console.warn(
-        '[EVRYLUX] Não foi possível carregar notificações do demo:',
+        '[EVRYLUX] Não foi possível carregar notificações administrativas:',
         error,
       );
     }
@@ -248,7 +332,7 @@ const nav = [
       );
 
       if (authenticated) {
-        await loadAdminNotification();
+        await loadAdminNotifications();
       }
     } catch (error) {
       console.warn(
@@ -279,8 +363,15 @@ const nav = [
       );
 
       if (authenticated) {
-        await loadAdminNotification();
+        await loadAdminNotifications();
       }
+    },
+  );
+
+  window.addEventListener(
+    'pagehide',
+    () => {
+      void supportNotifications?.disconnect();
     },
   );
 </script>
@@ -305,7 +396,7 @@ const nav = [
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 22px;
+    gap: 18px;
   }
 
   .brand {
@@ -325,7 +416,6 @@ const nav = [
     overflow: hidden;
     border-radius: 11px;
     background: linear-gradient(145deg,var(--primary-soft),var(--primary));
-    box-shadow: inset 0 0 0 1px rgba(54,92,51,.06);
   }
 
   .brand-logo {
@@ -344,14 +434,14 @@ const nav = [
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    gap: 1px;
   }
 
   .nav a {
-    padding: 10px 10px;
-    border-radius: 12px;
+    padding: 10px 8px;
+    border-radius: 11px;
     color: var(--text-soft);
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 650;
     transition: color .2s ease, background .2s ease;
   }
@@ -365,29 +455,30 @@ const nav = [
     flex: 0 0 auto;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
   }
 
-  .demo-admin-notification {
+  .admin-notification {
     position: relative;
-    width: 40px;
-    height: 40px;
+    width: 38px;
+    height: 38px;
     display: grid;
     place-items: center;
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 11px;
     background: rgba(255,255,255,.72);
-    color: var(--primary-deep);
   }
 
-  .notification-bell {
+  .notification-icon {
     width: 20px;
     height: 20px;
     display: grid;
     place-items: center;
     border-radius: 7px;
     background: var(--primary-soft);
-    font-size: 9px;
+    color: var(--primary-deep);
+    font-size: 8px;
+    font-weight: 900;
   }
 
   .notification-count {
@@ -409,34 +500,23 @@ const nav = [
 
   .github {
     min-height: 42px;
-    padding: 0 12px;
+    padding: 0 10px;
     display: inline-flex;
     align-items: center;
     gap: 7px;
     border-radius: 12px;
     color: var(--primary-deep);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
-    transition: color .2s ease, background .2s ease;
-  }
-
-  .github:hover {
-    color: var(--text);
-    background: rgba(255,255,255,.72);
   }
 
   .external-arrow {
-    font-size: 14px;
-    transition: transform .2s ease;
-  }
-
-  .github:hover .external-arrow {
-    transform: translate(2px,-2px);
+    font-size: 13px;
   }
 
   .collaborator-access {
     min-height: 42px;
-    padding: 0 15px;
+    padding: 0 13px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -446,16 +526,8 @@ const nav = [
     background: rgba(255,255,255,.76);
     color: var(--text);
     box-shadow: 0 7px 22px rgba(54,92,51,.045);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 750;
-    transition: transform .2s ease, background .2s ease, border-color .2s ease, box-shadow .2s ease;
-  }
-
-  .collaborator-access:hover {
-    transform: translateY(-1px);
-    background: var(--surface-solid);
-    border-color: var(--border-strong);
-    box-shadow: 0 9px 26px rgba(54,92,51,.08);
   }
 
   .collaborator-access-icon {
@@ -472,31 +544,38 @@ const nav = [
 
   .collaborator-access.authenticated {
     background: linear-gradient(180deg,rgba(223,241,218,.9),rgba(204,232,197,.86));
-    border-color: rgba(95,157,89,.18);
     color: var(--primary-deep);
   }
 
-  .collaborator-access.authenticated .collaborator-access-icon {
-    background: var(--primary);
-    color: var(--primary-deep);
+  @media (max-width: 1180px) {
+    .brand-name {
+      display: none;
+    }
+
+    .github span:first-child {
+      display: none;
+    }
   }
 
-  @media (max-width: 1120px) {
-    .header-inner { gap: 14px; }
-    .nav { gap: 0; }
-    .nav a { padding: 10px 7px; font-size: 12px; }
-    .github span:first-child { display: none; }
-  }
-
-  @media (max-width: 920px) {
-    .nav { display: none; }
-    .header-inner { gap: 12px; }
+  @media (max-width: 980px) {
+    .nav {
+      display: none;
+    }
   }
 
   @media (max-width: 520px) {
-    .site-header { padding: 11px 0; }
-    .brand-name { display: none; }
-    .github { width: 40px; padding: 0; justify-content: center; }
-    .collaborator-access { padding: 0 12px; }
+    .site-header {
+      padding: 11px 0;
+    }
+
+    .github {
+      width: 38px;
+      padding: 0;
+      justify-content: center;
+    }
+
+    .collaborator-access {
+      padding: 0 10px;
+    }
   }
 </style>

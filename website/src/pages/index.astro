@@ -92,11 +92,6 @@ const featureIcons = ['01', '02', '03', '04', '05', '06'];
             <div class="brain-glow"></div>
 
             <div class="brain-top">
-              <div>
-                <span class="brain-kicker">Seu conhecimento</span>
-                <strong>Meu Brain</strong>
-              </div>
-
               <span class="pulse" aria-label="Ativo"></span>
             </div>
 
@@ -510,24 +505,7 @@ const featureIcons = ['01', '02', '03', '04', '05', '06'];
   .brain-top {
     display: flex;
     align-items: flex-start;
-    justify-content: space-between;
-    gap: 18px;
-  }
-
-  .brain-top strong {
-    display: block;
-    margin-top: 4px;
-    font-size: 18px;
-    letter-spacing: -.025em;
-  }
-
-  .brain-kicker {
-    display: block;
-    color: var(--text-soft);
-    font-size: 10px;
-    font-weight: 750;
-    text-transform: uppercase;
-    letter-spacing: .09em;
+    justify-content: flex-end;
   }
 
   .pulse {
