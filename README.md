@@ -1,1122 +1,945 @@
-#  GHOST CORE
+# EVRYLUX
 
-## Um companheiro físico para evolução compartilhada
+EVRYLUX é um projeto open source voltado à organização de conhecimento, evolução
+pessoal e acompanhamento de diferentes áreas da vida em uma única experiência.
 
-O GHOST CORE nasce da ideia de transformar evolução pessoal em uma experiência mais humana, simples e conectada.
+O projeto está sendo desenvolvido como um ecossistema modular. A ideia central é
+permitir que conhecimento, finanças, treino, rotina e outras áreas possam ser
+acompanhadas de forma estruturada, visual e progressiva, mantendo uma
+experiência simples para o usuário.
 
-A proposta não é criar apenas um dispositivo inteligente, mas um **companheiro físico de jornada**, representado por um pequeno fantasma que acompanha o usuário enquanto ele constrói novos hábitos e objetivos.
-
-O fantasma não precisa interpretar emoções ou substituir relações humanas.
-
-Ele representa algo mais simples:
-
-> **Uma presença visual que mostra que você está evoluindo.**
+> **Status:** em desenvolvimento ativo.
 
 ---
 
-# A ideia central
+## Visão
 
-Existem muitos aplicativos capazes de registrar hábitos.
+O EVRYLUX nasceu da ideia de transformar informações soltas em algo que continue
+evoluindo com o usuário.
 
-Existem redes sociais capazes de conectar pessoas.
+Em vez de funcionar apenas como um bloco de notas, o objetivo é criar uma
+estrutura onde seja possível registrar conceitos, perguntas, revisões, conexões,
+progresso e contexto ao longo do tempo.
 
-Existem mascotes virtuais capazes de criar interação.
+A proposta é que o sistema ajude o usuário a enxergar:
 
-Mas o GHOST busca unir esses elementos em uma experiência diferente:
-
-```
-Hardware físico
-
-+
-
-Evolução pessoal
-
-+
-
-Compromisso compartilhado
-
-+
-
-Privacidade
-```
-
-O objetivo não é criar mais uma plataforma onde pessoas mostram suas vidas.
-
-É criar um pequeno objeto que lembra:
-
-> Você está construindo algo.
+- o que aprendeu;
+- o que ainda não entendeu;
+- o que precisa revisar;
+- como diferentes conhecimentos se conectam;
+- como seu progresso evolui com o tempo;
+- como diferentes áreas da vida podem ser acompanhadas em um mesmo ecossistema.
 
 ---
 
-# Visão do Projeto
+# Ecossistema EVRYLUX
 
-Muitas pessoas possuem objetivos:
+O EVRYLUX está sendo organizado em diferentes áreas.
 
-* caminhar mais;
-* estudar;
-* treinar;
-* criar hábitos melhores;
-* desenvolver novas habilidades.
+## Brain
 
-Porém, manter consistência sozinho pode ser difícil.
+O **EVRYLUX Brain** é a área de conhecimento do projeto.
 
-O problema não é apenas saber o que fazer.
+Ele foi pensado para transformar anotações em conhecimento estruturado.
 
-Muitas pessoas já sabem.
+Entre os conceitos trabalhados atualmente estão:
 
-O desafio real é:
+- conceitos;
+- perguntas;
+- revisões;
+- busca;
+- histórico;
+- áreas de conhecimento;
+- conexões entre ideias;
+- mapa visual do conhecimento;
+- organização automática;
+- offline-first;
+- sincronização entre dispositivos;
+- proteção dos dados do usuário.
 
-> Continuar fazendo quando ninguém está vendo.
+### Conceitos
 
-O GHOST propõe uma nova abordagem:
-
-> Pessoas anônimas podem caminhar juntas em direção a um objetivo comum.
-
-Não é uma rede social tradicional.
-
-Não é sobre exposição.
-
-Não é sobre aprovação.
-
-É sobre compromisso.
-
----
-
-# O problema que o GHOST resolve
-
-Muitos aplicativos focam apenas em registrar informações:
-
-```
-Hoje caminhei.
-
-Hoje estudei.
-
-Hoje treinei.
-```
-
-Mas registrar não garante continuidade.
-
-O GHOST adiciona três elementos:
-
-```
-Objetivo pequeno
-
-+
-
-Presença física
-
-+
-
-Compromisso compartilhado
-```
-
-A ideia é criar uma sensação:
-
-> "Existe alguém caminhando comigo."
-
----
-
-# Por que um hardware?
-
-Um celular já possui aplicativos, notificações e lembretes.
-
-O diferencial do GHOST é a presença física.
-
-Um aplicativo pode ser fechado e esquecido.
-
-Um objeto físico permanece no ambiente.
+Um conceito representa algo aprendido pelo usuário.
 
 Exemplo:
 
-Você passa pela mesa.
+```text
+Título:
+Estado em Flutter
 
-Você vê:
+O que você aprendeu?
+Estado representa informações que podem mudar durante a execução
+da interface e provocar uma nova renderização.
 
-```
-👻
-
-Dia 14
-
-Desafio ativo
-```
-
-Não é uma notificação perdida.
-
-É uma presença.
-
----
-
-# Conceito principal
-
-Cada usuário possui uma identidade anônima:
-
-```
-Ghost ID:
-
-#84F92A
+Detalhes opcionais:
+- exemplo;
+- ponto de atenção;
+- fonte.
 ```
 
-Sem necessidade de expor:
+### Perguntas
 
-* nome;
-* foto;
-* informações pessoais.
-
-O usuário escolhe um objetivo:
-
-```
-Objetivo:
-
-✓ Caminhada
-
-✓ Estudos
-
-✓ Treino
-
-✓ Meditação
-
-✓ Desenvolvimento pessoal
-```
-
-A partir disso, ele pode:
-
-* seguir sozinho;
-* criar desafios;
-* convidar outra pessoa;
-* participar de uma jornada compartilhada.
-
----
-
-# Como o GHOST cria compromisso
-
-O compromisso não vem de punição.
-
-Não existe:
-
-* culpa;
-* comparação;
-* ranking agressivo.
-
-O compromisso nasce através de:
-
----
-
-## 1. Pequenos objetivos
-
-Em vez de criar metas difíceis:
-
-```
-Treinar 2 horas todos os dias
-```
-
-O sistema incentiva:
-
-```
-Caminhar 10 minutos
-
-Estudar 15 minutos
-
-Beber água hoje
-```
-
-O objetivo inicial é criar consistência.
-
----
-
-## 2. O fantasma como testemunha
-
-O fantasma funciona como uma presença constante.
-
-Ele não julga.
-
-Ele acompanha.
+Perguntas representam aquilo que ainda precisa ser entendido, investigado ou
+retomado.
 
 Exemplo:
 
-```
-Dia 1
-
-
-👻
-
-Vamos começar?
+```text
+Como o Flutter decide quais widgets precisam ser reconstruídos?
 ```
 
-Depois:
+A intenção é manter dúvidas importantes visíveis dentro do contexto do
+conhecimento do usuário.
 
-```
-Dia 7
+### Revisões
 
+O sistema de revisão permite retomar conteúdos importantes e reforçar
+conhecimentos ao longo do tempo.
 
-👻
+### Mapa do conhecimento
 
-7 dias completos.
+O Brain também possui uma proposta de visualização das relações entre conceitos,
+perguntas e áreas.
 
-Continue.
-```
-
-Após alguns dias parado:
-
-```
-👻
-
-Faz alguns dias que não caminhamos.
-
-Quer voltar hoje?
-```
-
-A intenção é lembrar, não pressionar.
+A intenção é permitir que o usuário enxergue conhecimento como uma estrutura
+conectada, e não apenas como uma lista de notas.
 
 ---
 
-## 3. Compromisso compartilhado
+## Financeiro
 
-Duas pessoas podem realizar o mesmo desafio sem conhecer a identidade uma da outra.
+A área financeira foi pensada para acompanhar metas e evolução financeira.
+
+Entre as ideias previstas:
+
+- meta financeira;
+- valor atual;
+- progresso visual;
+- valor restante;
+- histórico;
+- ritmo de economia;
+- estimativa de tempo para atingir uma meta.
 
 Exemplo:
 
-```
-DESAFIO
+```text
+Meta:
+US$ 10.000
 
-30 dias caminhando
+Atual:
+US$ 2.800
 
+Progresso:
+28%
 
-Ghost A 👻
-
-Dia 18/30
-
-✓ Caminhada realizada
-
-
-Ghost B 👻
-
-Dia 15/30
-
-✓ Caminhada realizada
-```
-
-A pessoa deixa de caminhar apenas por ela.
-
-Existe uma jornada compartilhada.
-
----
-
-# Desafios entre usuários
-
-O sistema permite criar desafios anônimos:
-
-```
-30 dias caminhando
-
-30 dias estudando
-
-30 dias treinando
-
-30 dias criando um hábito
-```
-
-Os usuários não precisam conhecer informações pessoais um do outro.
-
-A conexão acontece através do objetivo.
-
----
-
-# Conexão segura
-
-A ideia inicial evita recursos que podem gerar riscos.
-
-## Não possui:
-
-* localização exata;
-* exposição pública;
-* perfis abertos;
-* mensagens desconhecidas;
-* compartilhamento obrigatório de dados pessoais.
-
-O foco é:
-
-```
-Propósito
-
-e não
-
-Identidade.
+Restante:
+US$ 7.200
 ```
 
 ---
 
-# Pareamento através de código
+## Treino
 
-Um usuário pode gerar um convite:
+A área de treino tem como objetivo acompanhar consistência e evolução física.
 
-```
-GHOST LINK
+Entre os recursos planejados:
 
-A92-K81-Z7
-```
-
-Outra pessoa aceita:
-
-```
-Ghost A + Ghost B
-
-Desafio iniciado.
-```
-
-A conexão acontece por objetivo compartilhado.
+- registro de treino;
+- mapa semanal;
+- histórico mensal;
+- frequência;
+- rotina;
+- acompanhamento de progresso.
 
 ---
 
-# O papel do fantasma
+## Rotina
 
-O fantasma é o elemento central da experiência.
+A área de rotina foi pensada para organização pessoal e planejamento.
 
-Ele representa a jornada do usuário.
+Entre as ideias exploradas:
 
-No hardware:
-
-```
-👻
-
-Respiração
-
-Piscar
-
-Movimentos sutis
-
-Estados visuais
-```
-
-Esses pequenos comportamentos tornam o dispositivo mais natural.
-
-O objetivo não é criar uma inteligência artificial complexa.
-
-O objetivo é criar uma presença.
+- lousas;
+- quadros;
+- notas;
+- mapas mentais;
+- planejamento;
+- lembretes;
+- integração com serviços externos, como Telegram.
 
 ---
 
-# Evolução visual do fantasma
+# Site público
 
-O progresso pode ser representado fisicamente.
+O projeto possui um site público desenvolvido com **Astro**.
 
-Exemplo:
+O site apresenta:
 
-```
-Dia 1
+- produto;
+- colaboradores;
+- download;
+- planos;
+- suporte;
+- roadmap;
+- licença;
+- ecossistema EVRYLUX;
+- acesso à área interna de colaboradores.
 
+Rotas principais:
 
-👻
-
-Estado inicial
-```
-
-Depois:
-
-```
-Dia 30
-
-
-👻
-
-Novo estágio desbloqueado
-```
-
-A mudança representa a jornada construída.
-
----
-
-# Hardware
-
-O GHOST CORE utiliza um dispositivo físico baseado em ESP32.
-
-Primeira versão:
-
-```
-ESP32
-
- |
-
-TFT Display
-
- |
-
-Touch
-
- |
-
-Sistema GHOST
-```
-
-Responsabilidades:
-
-* mostrar o fantasma;
-* acompanhar hábitos;
-* receber informações;
-* sincronizar desafios.
-
----
-
-# Arquitetura planejada
-
-```
-              GHOST DEVICE
-
-                  |
-
-                ESP32
-
-                  |
-
-             Bluetooth/WiFi
-
-                  |
-
-                  APP
-
-                  |
-
-              SERVIDOR
-
-                  |
-
-          Sistema de desafios
+```text
+/
+├── /contributors
+├── /download
+├── /explore
+├── /plans
+├── /support
+├── /roadmap
+├── /license
+└── /login
 ```
 
 ---
 
-# Desenvolvimento atual
+# EVRYLUX Colab
 
-O projeto está sendo construído de forma modular.
+O projeto também possui uma área interna chamada **EVRYLUX Colab**.
 
-Estrutura:
+Ela foi criada para organizar o trabalho dos colaboradores do projeto.
 
-```
-src
+Rotas atuais:
 
-├── ghost
-│
-├── blink
-│   └── Sistema de piscar
-│
-├── breathing
-│   └── Sistema de respiração
-│
-├── phantom
-│   └── Coordenação do personagem
-│
-├── display
-│   └── Renderização na tela
-│
-└── core
-    └── Sistema principal
+```text
+/colab
+├── /profile
+├── /admins
+├── /demo
+├── /support
+└── /studio
+    ├── /roadmap
+    └── /notes
 ```
 
 ---
 
-# Filosofia de desenvolvimento
+## Dashboard
 
-O GHOST não será criado adicionando centenas de funções de uma vez.
+O dashboard interno reúne:
 
-A evolução será incremental.
+- perfil do colaborador;
+- GitHub;
+- disponibilidade;
+- habilidades;
+- acesso rápido ao Studio;
+- acesso ao roadmap interno;
+- suporte;
+- fila de interessados no demo;
+- administração;
+- colaboradores.
 
-Primeiro:
-
-```
-Fantasma parado
-```
-
-Depois:
-
-```
-Fantasma respirando
-```
-
-Depois:
-
-```
-Fantasma piscando
-```
-
-Depois:
-
-```
-Estados e comportamentos
-```
-
-Depois:
-
-```
-Sistema de hábitos
-```
-
-Depois:
-
-```
-Integração entre usuários
-```
+Alguns recursos são exibidos apenas para administradores.
 
 ---
 
-# Futuro
+## Perfis de colaboradores
 
-## Sistema de hábitos
+Cada colaborador pode possuir um perfil com informações como:
 
+```text
+display_name
+github_login
+bio
+avatar_url
+area
+skills
+availability
 ```
-✓ Água
 
-✓ Caminhada
-
-✓ Estudos
-
-✓ Treino
-
-✓ Sono
-```
+A página pública de colaboradores busca valorizar participação e contribuições
+sem criar uma hierarquia artificial entre pessoas.
 
 ---
 
-## Comunidade de objetivos
+# Studio
 
-Pessoas com objetivos semelhantes podem se conectar:
+O **Studio** é a central de trabalho interno do EVRYLUX.
 
-```
-100 pessoas estudando programação
+A intenção é concentrar ferramentas usadas para organizar o desenvolvimento do
+projeto.
 
-100 pessoas caminhando
-
-100 pessoas treinando
-```
+Atualmente o Studio inclui principalmente o roadmap interno.
 
 ---
 
-## Missões coletivas
+## Roadmap interno
 
-Exemplo:
+O roadmap interno permite organizar trabalho em diferentes estágios.
 
+Entre os dados suportados pelo modelo estão:
+
+```text
+stage
+status
+priority
+assignee
+created_by
+due_date
+notes
+progress
 ```
-Desafio global:
 
-10.000 km caminhados
+Os itens podem ser organizados em estágios como:
 
-Todos os Ghosts contribuem.
+```text
+Agora
+Próximo
+Depois
+Concluído
 ```
+
+ou estruturas equivalentes utilizadas na interface.
 
 ---
 
-# Objetivo final
+# Roadmap público
 
-Criar uma tecnologia que una:
+O EVRYLUX também possui um roadmap público.
 
-* hardware;
-* software;
-* design;
-* comportamento;
-* conexão humana.
+Ele é visível para qualquer pessoa, mas os controles de administração são
+exclusivos de usuários autenticados com papel de administrador.
 
-Um pequeno dispositivo que transforma uma intenção em uma jornada.
+Colunas atuais:
 
-> Você não precisa evoluir sozinho.
+```text
+Disponível / em uso
+Em desenvolvimento
+Planejado
+```
+
+A edição do roadmap público é protegida tanto visualmente quanto através das
+políticas do banco de dados.
 
 ---
 
-# GHOST CORE
+# Sistema de administradores
 
-**A physical companion for shared evolution.**
+O projeto possui uma tabela de papéis administrativos:
 
-👻
-
-
-
-```markdown
-# 👻 Sistema de compromisso compartilhado
-
-Uma das maiores dificuldades na criação de hábitos não é saber o que fazer.
-
-A maioria das pessoas já sabe:
-
+```text
+public.colab_user_roles
 ```
 
-Preciso estudar.
+Um usuário pode possuir, por exemplo:
 
-Preciso caminhar.
-
-Preciso treinar.
-
-Preciso melhorar minha rotina.
-
+```text
+role = admin
 ```
 
-O verdadeiro desafio é:
+A verificação administrativa é realizada através de uma função como:
 
-> Continuar fazendo quando ninguém está vendo.
-
-O GHOST CORE busca resolver esse problema através de uma combinação entre:
-
+```sql
+public.is_colab_admin()
 ```
 
-Objetivo pessoal
+Os recursos administrativos incluem, entre outros:
 
-*
-
-Presença física
-
-*
-
-Compromisso compartilhado
-
-*
-
-Privacidade
-
-```
+- roadmap público;
+- fila de demo;
+- suporte;
+- gerenciamento de administradores.
 
 ---
 
-# O problema da motivação individual
+# Demo / Early Explorers
 
-Muitos aplicativos de hábitos funcionam assim:
+O site possui uma página de download com uma fila para usuários interessados em
+testar o EVRYLUX.
 
+O fluxo permite registrar:
+
+- nome;
+- e-mail;
+- sistema operacional;
+- área de interesse;
+- disponibilidade para enviar feedback;
+- interesse em testar versões iniciais.
+
+Plataformas apresentadas:
+
+```text
+Linux
+Windows
+macOS
 ```
 
-Usuário
+Os primeiros usuários podem receber prioridade e possíveis vantagens futuras por
+contribuírem com testes e relatos de bugs.
 
-↓
-
-Define uma meta
-
-↓
-
-Registra progresso
-
-↓
-
-Continua sozinho
-
-```
-
-Porém, depois de alguns dias, muitas pessoas abandonam.
-
-O problema não é falta de informação.
-
-O problema é manter consistência.
-
-Registrar uma ação não significa criar compromisso.
+O projeto evita prometer antecipadamente benefícios específicos ou permanentes
+que ainda não foram definidos.
 
 ---
 
-# A ideia do GHOST
+# Suporte em tempo real
 
-O GHOST transforma um objetivo individual em uma jornada.
+O EVRYLUX possui uma estrutura de suporte entre usuários e administradores.
 
-O usuário não precisa expor sua identidade.
+O suporte público permite iniciar uma conversa sem exigir uma conta.
 
-Ele não precisa criar um perfil público.
+Características trabalhadas:
 
-Ele possui apenas uma identificação anônima:
+- mensagens de suporte;
+- resposta de administradores;
+- atualização em tempo real;
+- notificações administrativas;
+- histórico;
+- possibilidade de fornecer e-mail;
+- solicitação de e-mail caso uma resposta demore.
 
-```
-
-Ghost ID:
-
-#84F92A
-
-```
-
-Essa identidade representa sua jornada.
-
-Não representa quem ele é.
+A implementação utiliza Supabase e Realtime.
 
 ---
 
-# Criando um objetivo
+# Histórico do projeto
 
-O usuário escolhe um propósito:
+Está prevista uma área interna para registrar marcos e decisões importantes do
+projeto.
 
+A proposta é separar:
+
+```text
+Roadmap
+= o que pretendemos fazer
+
+Histórico
+= o que realmente aconteceu
 ```
 
-Objetivo:
+Exemplos de registros:
 
-✓ Caminhada
-
-✓ Estudos
-
-✓ Treino
-
-✓ Leitura
-
-✓ Meditação
-
-✓ Desenvolvimento pessoal
-
+```text
+Marco
+Decisão
+Mudança
+Release
+Infraestrutura
+Design
+Bug importante
 ```
 
-Depois disso ele pode:
-
-```
-
-Seguir sozinho
-
-ou
-
-Encontrar alguém com o mesmo objetivo
-
-```
+Isso permite manter memória de produto além do histórico técnico de commits do
+Git.
 
 ---
 
-# Pareamento anônimo
+# Arquitetura
 
-O sistema procura pessoas com objetivos semelhantes.
+O EVRYLUX utiliza atualmente uma combinação de tecnologias para frontend, dados,
+autenticação e desenvolvimento do aplicativo.
 
-Exemplo:
+## Website
 
-```
+- Astro
+- TypeScript
+- HTML
+- CSS
+- JavaScript
 
-Ghost A
+## Aplicativo
 
-Objetivo:
-Caminhada
+- Flutter
+- Dart
 
-Ghost B
+## Backend / dados
 
-Objetivo:
-Caminhada
+- Supabase
+- PostgreSQL
+- Supabase Auth
+- Supabase Realtime
+- Row Level Security
 
-```
+## Desenvolvimento
 
-O sistema identifica:
-
-```
-
-Objetivo compatível encontrado.
-
-```
-
-Então cria:
-
-```
-
-Ghost A 👻
-
-*
-
-Ghost B 👻
-
-Desafio iniciado.
-
-```
-
-A conexão acontece através do propósito.
-
-Não através da identidade.
+- Git
+- GitHub
+- Linux
+- VS Code
+- Docker
+- Supabase CLI
 
 ---
 
-# Como o GHOST cria compromisso?
+# Supabase
 
-O compromisso não vem através de punição.
+O EVRYLUX utiliza Supabase para diferentes partes da plataforma.
 
-Não existe:
+Entre as tabelas e estruturas utilizadas ou exploradas no projeto estão:
 
+```text
+member_profiles
+colab_user_roles
+colab_roadmap_items
+demo_waitlist
+support_tickets
+support_messages
+brain_concepts
+brain_notes
+brain_reviews
+brain_objects
+brain_devices
+brain_device_key_envelopes
+app_updates
+board_attachments
 ```
 
-Você falhou.
-
-Você perdeu.
-
-Você está atrasado.
-
-```
-
-O sistema trabalha com presença e continuidade.
-
----
-
-# 1. O fantasma como testemunha
-
-O hardware cria uma presença física.
-
-Diferente de uma notificação no celular, o GHOST permanece no ambiente.
-
-Exemplo:
-
-```
-
-
-
-Dia 12
-
-Desafio ativo
-
-Continue.
-
-```
-
-O fantasma representa:
-
-> Existe algo que estou construindo.
-
----
-
-# 2. Pequenos compromissos
-
-O GHOST não incentiva mudanças extremas.
-
-Ele trabalha com pequenas ações.
-
-Exemplo:
-
-Em vez de:
-
-```
-
-Treinar 2 horas todos os dias.
-
-```
-
-O objetivo pode ser:
-
-```
-
-10 minutos de caminhada.
-
-15 minutos estudando.
-
-1 página lida.
-
-```
-
-A prioridade é:
-
-```
-
-Consistência > Intensidade
-
-```
-
----
-
-# 3. Progresso compartilhado
-
-Quando duas pessoas participam:
-
-```
-
-DESAFIO:
-
-30 dias caminhando
-
-Ghost A
-
-Dia 18/30
-
-✓ Hoje
-
-Ghost B
-
-Dia 15/30
-
-✓ Hoje
-
-```
-
-O usuário percebe:
-
-> Existe outra pessoa construindo isso também.
-
-Não é competição.
-
-É companhia.
-
----
-
-# E se o outro usuário desistir?
-
-Esse é um ponto importante.
-
-O sistema não pode depender completamente de uma única pessoa.
-
-Se um participante parar:
-
-Exemplo:
-
-```
-
-Ghost B
-
-Última atividade:
-
-7 dias atrás
-
-```
-
-O sistema não deve criar sensação de abandono.
-
-Em vez disso:
-
-```
-
-Ghost B está pausado.
-
-Sua jornada continua.
-
-```
-
----
-
-# Sistema de continuidade
-
-A evolução não depende de uma única conexão.
-
-O GHOST funciona em ciclos.
-
-Exemplo:
-
-```
-
-Ciclo 1
-
-Ghost A + Ghost B
-
-```
-
-Caso um participante desapareça:
-
-```
-
-Ghost A
-
-continua ativo
-
-```
-
-O sistema pode:
-
-```
-
-Manter a jornada individual
-
-ou
-
-Encontrar uma nova conexão compatível
-
-```
-
-O objetivo é:
-
-> Criar apoio sem criar dependência.
+A estrutura pode evoluir ao longo do desenvolvimento.
 
 ---
 
 # Segurança e privacidade
 
-O sistema evita características comuns de redes sociais.
+O EVRYLUX está sendo projetado com foco em privacidade.
 
-Não existe:
+Entre as diretrizes de arquitetura exploradas:
 
+- offline-first;
+- criptografia ponta a ponta;
+- Vault local;
+- proteção de chaves;
+- sincronização segura;
+- Row Level Security;
+- menor exposição possível de dados;
+- separação entre permissões públicas, autenticadas e administrativas.
+
+> Nem todos os componentes de segurança descritos estão necessariamente
+> finalizados. O projeto está em desenvolvimento ativo.
+
+---
+
+# Variáveis de ambiente
+
+O website utiliza variáveis públicas para integração com Supabase.
+
+Crie um arquivo:
+
+```text
+website/.env
 ```
 
-Perfil público
+com:
 
-Seguidores
-
-Curtidas
-
-Ranking agressivo
-
-Exposição pessoal
-
-Mensagens abertas
-
+```env
+PUBLIC_SUPABASE_URL=YOUR_SUPABASE_URL
+PUBLIC_SUPABASE_PUBLISHABLE_KEY=YOUR_SUPABASE_PUBLISHABLE_KEY
 ```
 
-Também evita:
+Nunca coloque chaves secretas do Supabase no frontend.
 
-```
+Não utilize no navegador:
 
-Localização exata
-
-Dados pessoais obrigatórios
-
-Identidade real
-
-```
-
-A conexão acontece através de:
-
-```
-
-Objetivo
-
-Progresso
-
-Compromisso
-
+```text
+service_role
+SUPABASE_SECRET_KEY
 ```
 
 ---
 
-# Conexão manual
+# Executando o website
 
-Além do pareamento automático, usuários podem conectar pessoas conhecidas.
+Entre na pasta:
 
-Exemplo:
-
-Usuário gera:
-
+```bash
+cd website
 ```
 
-GHOST LINK
+Instale as dependências:
 
-A92-K81-Z7
-
+```bash
+npm install
 ```
 
-Outra pessoa aceita:
+Execute em desenvolvimento:
 
+```bash
+npm run dev
 ```
 
-Ghost A
+O servidor local normalmente ficará disponível em:
 
-*
-
-Ghost B
-
-Desafio criado.
-
+```text
+http://localhost:4321
 ```
 
----
+Para gerar a versão de produção:
 
-# Filosofia
-
-O GHOST não tenta substituir relações humanas.
-
-Ele tenta resolver um problema simples:
-
-Muitas pessoas querem evoluir, mas fazem isso sozinhas.
-
-A proposta é criar:
-
+```bash
+npm run build
 ```
 
-Uma pequena presença
+O Astro gera os arquivos estáticos em:
 
-que lembra
-
-que existe uma jornada acontecendo.
-
+```text
+website/dist/
 ```
 
 ---
 
-# GHOST CORE
+# Build atual
 
-## Não é uma rede social.
+O website é configurado como saída estática.
 
-## Não é apenas um aplicativo de hábitos.
+Exemplo de build:
 
-## É um companheiro físico para evolução compartilhada.
-
-👻
+```text
+output: static
+mode: static
 ```
+
+Rotas como login, Colab, suporte e roadmap são geradas estaticamente e utilizam
+lógica no navegador para integração com Supabase.
+
+---
+
+# Deploy
+
+O site está preparado para deploy em **Cloudflare Pages**.
+
+Configuração:
+
+```text
+Framework preset:
+Astro
+
+Build command:
+npm run build
+
+Build output directory:
+dist
+
+Root directory:
+website
+```
+
+A branch utilizada durante o desenvolvimento atual é:
+
+```text
+dev-stable
+```
+
+Variáveis necessárias no ambiente do Cloudflare:
+
+```text
+PUBLIC_SUPABASE_URL
+PUBLIC_SUPABASE_PUBLISHABLE_KEY
+```
+
+O fluxo de deploy pode funcionar automaticamente:
+
+```text
+Git push
+↓
+GitHub
+↓
+Cloudflare Pages
+↓
+Build Astro
+↓
+Deploy
+```
+
+---
+
+# Estrutura resumida do repositório
+
+A estrutura do projeto pode variar durante o desenvolvimento, mas
+conceitualmente inclui:
+
+```text
+ghost-core/
+├── LICENSE
+├── README.md
+├── website/
+│   ├── public/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── layouts/
+│   │   ├── lib/
+│   │   ├── pages/
+│   │   └── styles/
+│   ├── package.json
+│   └── astro.config.*
+│
+├── app/
+│   ├── lib/
+│   ├── assets/
+│   └── ...
+│
+├── supabase/
+│   ├── migrations/
+│   ├── backup/
+│   └── ...
+│
+└── ...
+```
+
+---
+
+# Aplicativo Flutter
+
+O aplicativo EVRYLUX está sendo desenvolvido em Flutter com foco em desktop e
+evolução futura para outras plataformas.
+
+A estrutura do Brain já passou por diferentes iterações de interface, incluindo:
+
+- dashboard;
+- criação de conceitos;
+- criação de perguntas;
+- revisão;
+- busca;
+- mapa visual;
+- armazenamento local;
+- sincronização;
+- modais de criação;
+- progresso de salvamento;
+- minimização de processos longos.
+
+A experiência está sendo refinada continuamente.
+
+---
+
+# Offline-first
+
+Offline-first é uma diretriz importante do EVRYLUX.
+
+A intenção é permitir que o usuário continue trabalhando mesmo sem conexão
+constante com a internet.
+
+O objetivo arquitetural é:
+
+```text
+dados locais
+↓
+uso offline
+↓
+sincronização quando disponível
+↓
+convergência entre dispositivos
+```
+
+---
+
+# E2EE e Vault
+
+O projeto também explora criptografia ponta a ponta e uma arquitetura de Vault
+para dados sensíveis.
+
+Entre os componentes já considerados na modelagem estão dispositivos e envelopes
+de chaves.
+
+Exemplos:
+
+```text
+brain_devices
+brain_device_key_envelopes
+```
+
+Essas áreas ainda podem sofrer mudanças enquanto a arquitetura amadurece.
+
+---
+
+# Planos
+
+O projeto possui uma proposta inicial de planos.
+
+## Free
+
+```text
+US$ 0
+1 GB de armazenamento sincronizado
+```
+
+## Essencial
+
+```text
+US$ 9 / mês
+10 GB de armazenamento sincronizado
+```
+
+## Pro
+
+```text
+US$ 29 / mês
+50 GB de armazenamento sincronizado
+```
+
+A proposta atual é que os planos compartilhem os principais módulos do
+ecossistema, diferenciando inicialmente principalmente a capacidade de
+armazenamento sincronizado.
+
+> Os preços, limites e benefícios podem mudar antes de um lançamento comercial
+> definitivo.
+
+---
+
+# Open source
+
+O EVRYLUX é um projeto open source.
+
+A intenção é permitir:
+
+- estudo;
+- contribuição;
+- modificação;
+- redistribuição;
+- uso comercial nos termos da licença;
+- colaboração pública;
+- evolução coletiva do projeto.
+
+---
+
+# Licença
+
+O EVRYLUX é distribuído sob a:
+
+**GNU Affero General Public License v3.0 — AGPL-3.0**
+
+Consulte:
+
+```text
+LICENSE
+```
+
+para o texto completo.
+
+Resumo:
+
+- uso comercial permitido;
+- modificação permitida;
+- redistribuição permitida;
+- acesso ao código-fonte conforme os termos da licença;
+- versões modificadas disponibilizadas através de rede estão sujeitas às
+  obrigações da AGPL.
+
+Este README não substitui o texto legal da licença.
+
+---
+
+# Marca EVRYLUX
+
+A licença do código-fonte e os direitos relacionados à marca são assuntos
+distintos.
+
+A AGPL-3.0 cobre o software conforme seus termos.
+
+O nome, logotipo, identidade visual e demais elementos de marca EVRYLUX não são
+automaticamente licenciados da mesma forma que o código.
+
+---
+
+# Contribuições
+
+Contribuições são bem-vindas.
+
+Um fluxo comum:
+
+```bash
+git clone https://github.com/joao01020/ghost-core.git
+cd ghost-core
+git checkout -b minha-contribuicao
+```
+
+Faça suas alterações e depois:
+
+```bash
+git add .
+git commit -m "Descrição da alteração"
+git push origin minha-contribuicao
+```
+
+Em seguida, abra um Pull Request no GitHub.
+
+Ao contribuir para o projeto, considere que o código integrado ao EVRYLUX será
+distribuído sob a licença adotada pelo projeto.
+
+---
+
+# Filosofia de colaboração
+
+O projeto busca valorizar contribuição real em vez de criar títulos artificiais.
+
+A página de colaboradores pode destacar participação com base em atividade,
+contribuições e histórico no projeto.
+
+A intenção é evitar uma estrutura de apresentação baseada em categorias como:
+
+```text
+fundador
+core
+membro secundário
+```
+
+e priorizar uma visão de colaboração baseada no que cada pessoa efetivamente
+constrói.
+
+---
+
+# Repositório
+
+GitHub:
+
+```text
+https://github.com/joao01020/ghost-core
+```
+
+---
+
+# Desenvolvimento
+
+O EVRYLUX está em desenvolvimento ativo.
+
+Isso significa que:
+
+- estruturas podem mudar;
+- APIs podem mudar;
+- interfaces podem mudar;
+- migrações podem ser necessárias;
+- recursos podem ser adicionados, removidos ou reformulados;
+- documentação será atualizada conforme o projeto amadurecer.
+
+Não considere interfaces internas atuais como APIs estáveis.
+
+---
+
+# Objetivo de longo prazo
+
+O objetivo do EVRYLUX é criar uma plataforma onde o usuário consiga acompanhar
+sua evolução de forma contínua.
+
+A ideia é que o sistema deixe de ser apenas um conjunto de ferramentas separadas
+e se torne uma estrutura capaz de conectar:
+
+```text
+Conhecimento
++
+Perguntas
++
+Revisões
++
+Finanças
++
+Treino
++
+Rotina
++
+Histórico
++
+Contexto
+```
+
+em uma experiência única.
+
+---
+
+## EVRYLUX
+
+**Conhecimento que continua evoluindo.**
