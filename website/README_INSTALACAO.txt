@@ -1,47 +1,91 @@
-EVRYLUX — ATUALIZAÇÃO DOS PLANOS
+EVRYLUX — FILA DO DEMO + EARLY EXPLORERS
 
-NOVOS LIMITES
+O pacote adiciona:
 
-FREE
-US$ 0
-1 GB de armazenamento sincronizado
+PÚBLICO
+- Página Download atualizada
+- Linux / Windows / macOS clicáveis
+- Ao clicar, o sistema já fica selecionado
+- Formulário rápido:
+  Nome completo
+  E-mail
+  Sistema (automático)
+  Área que mais quer testar
+  Checkbox para ajudar com feedback e bugs
+- Inscrição Early Explorer
+- Mensagem de prioridade e vantagens especiais de lançamento
+- Confirmação após entrar na fila
 
-ESSENCIAL
-US$ 9 / mês
-10 GB de armazenamento sincronizado
+ADMINISTRADOR
+- Notificação no Header somente para administradores
+- Badge com quantidade de novas inscrições
+- Ao clicar, abre:
+  /colab/demo
+- Tela com:
+  Total de inscritos
+  Quantos querem reportar feedback/bugs
+  Contagem Linux
+  Contagem Windows/macOS
+  Lista de usuários
+  E-mail
+  Sistema
+  Interesse
+  Early Explorer
+  Status: Aguardando / Convidado / Testando
+- Ao abrir a fila, as notificações atuais são marcadas como lidas.
 
-PRO
-US$ 29 / mês
-50 GB de armazenamento sincronizado
+BANCO
+- tabela public.demo_waitlist
+- RLS:
+  público só pode INSERIR
+  somente administradores podem LER/ATUALIZAR
+- e-mails da fila não ficam públicos
 
-A diferença inicial entre os planos continua sendo principalmente
-a capacidade de armazenamento sincronizado.
+REQUISITO
+Este pacote pressupõe que o sistema de administradores já está instalado,
+incluindo a função Supabase:
 
-Todos continuam com:
-- Brain
-- Financeiro
-- Treino
-- Rotina
-- offline-first
-- sincronização entre dispositivos
-- criptografia do conteúdo sincronizado
+public.is_colab_admin()
 
-IMPORTANTE:
-Esta atualização é visual.
-Não implementa quota real nem cobrança ainda.
+INSTALAÇÃO
 
-INSTALAÇÃO:
+1. Entre no site:
 
 cd ~/Documentos/PlatformIO/Projects/ghost-core/website
 
-unzip -o ~/Downloads/EVRYLUX_PLANS_1GB_UPDATE.zip -d .
+2. Extraia:
 
-Se o Astro já estiver rodando, basta atualizar o navegador.
+unzip -o ~/Downloads/EVRYLUX_DEMO_WAITLIST.zip -d .
+
+3. Abra o Supabase:
+SQL Editor -> New query
+
+Cole e execute TODO o conteúdo de:
+
+supabase/demo_waitlist.sql
+
+4. Se o Astro já estiver rodando, basta atualizar o navegador.
 
 Se quiser reiniciar:
 
 npx astro dev stop
 npm run dev
 
-ABRIR:
-http://localhost:4321/plans
+TESTAR PÚBLICO
+
+http://localhost:4321/download
+
+TESTAR ADMIN
+
+Entre com sua conta de administrador e abra:
+
+http://localhost:4321/colab/demo
+
+Quando um novo usuário preencher o formulário, o administrador verá
+um indicador de notificação no Header.
+
+OBSERVAÇÃO
+
+"Vantagens especiais" foi deixado propositalmente sem prometer
+gratuidade vitalícia, desconto específico ou quantidade fechada.
+Isso permite decidir a recompensa real mais perto do lançamento.

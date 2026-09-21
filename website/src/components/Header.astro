@@ -1,29 +1,11 @@
 ---
 const nav = [
-  {
-    label: 'Produto',
-    href: '/',
-  },
-  {
-    label: 'Colaboradores',
-    href: '/contributors',
-  },
-  {
-    label: 'Download',
-    href: '/download',
-  },
-  {
-    label: 'Planos',
-    href: '/plans',
-  },
-  {
-    label: 'Roadmap',
-    href: '/roadmap',
-  },
-  {
-    label: 'Licença',
-    href: '/license',
-  },
+  { label: 'Produto', href: '/' },
+  { label: 'Colaboradores', href: '/contributors' },
+  { label: 'Download', href: '/download' },
+  { label: 'Planos', href: '/plans' },
+  { label: 'Roadmap', href: '/roadmap' },
+  { label: 'Licença', href: '/license' },
 ];
 ---
 
@@ -64,22 +46,33 @@ const nav = [
 
     <div class="header-actions">
       <a
+        id="demo-admin-notification"
+        class="demo-admin-notification header-hidden"
+        href="/colab/demo"
+        aria-label="Novas inscrições no demo"
+        title="Fila do Demo"
+      >
+        <span class="notification-bell">
+          ◉
+        </span>
+
+        <span
+          id="demo-admin-count"
+          class="notification-count header-hidden"
+        >
+          0
+        </span>
+      </a>
+
+      <a
         class="github"
         href="https://github.com/joao01020/ghost-core"
         target="_blank"
         rel="noopener noreferrer"
         aria-label="GitHub do projeto EVRYLUX"
       >
-        <span>
-          GitHub
-        </span>
-
-        <span
-          class="external-arrow"
-          aria-hidden="true"
-        >
-          ↗
-        </span>
+        <span>GitHub</span>
+        <span class="external-arrow" aria-hidden="true">↗</span>
       </a>
 
       <a
@@ -109,6 +102,14 @@ const nav = [
     supabase,
   } from '../lib/supabase';
 
+  import {
+    isCurrentUserAdmin,
+  } from '../lib/colab-admin';
+
+  import {
+    getUnreadDemoCount,
+  } from '../lib/demo-waitlist';
+
   const collaboratorAccess =
     document.querySelector<HTMLAnchorElement>(
       '#collaborator-access',
@@ -122,6 +123,16 @@ const nav = [
   const collaboratorAccessIcon =
     document.querySelector<HTMLElement>(
       '#collaborator-access-icon',
+    );
+
+  const demoNotification =
+    document.querySelector<HTMLAnchorElement>(
+      '#demo-admin-notification',
+    );
+
+  const demoCount =
+    document.querySelector<HTMLElement>(
+      '#demo-admin-count',
     );
 
   function updateCollaboratorAccess(
@@ -176,6 +187,48 @@ const nav = [
     );
   }
 
+  async function loadAdminNotification() {
+    try {
+      const admin =
+        await isCurrentUserAdmin();
+
+      if (
+        !admin ||
+        !demoNotification
+      ) {
+        return;
+      }
+
+      demoNotification.classList.remove(
+        'header-hidden',
+      );
+
+      const count =
+        await getUnreadDemoCount();
+
+      if (
+        count > 0 &&
+        demoCount
+      ) {
+        demoCount.textContent =
+          count > 99
+            ? '99+'
+            : String(
+                count,
+              );
+
+        demoCount.classList.remove(
+          'header-hidden',
+        );
+      }
+    } catch (error) {
+      console.warn(
+        '[EVRYLUX] Não foi possível carregar notificações do demo:',
+        error,
+      );
+    }
+  }
+
   async function loadCollaboratorState() {
     try {
       const {
@@ -185,9 +238,18 @@ const nav = [
       } =
         await supabase.auth.getSession();
 
+      const authenticated =
+        Boolean(
+          session,
+        );
+
       updateCollaboratorAccess(
-        Boolean(session),
+        authenticated,
       );
+
+      if (authenticated) {
+        await loadAdminNotification();
+      }
     } catch (error) {
       console.warn(
         '[EVRYLUX] Não foi possível verificar a sessão:',
@@ -203,437 +265,238 @@ const nav = [
   await loadCollaboratorState();
 
   supabase.auth.onAuthStateChange(
-    (
+    async (
       _event,
       session,
     ) => {
+      const authenticated =
+        Boolean(
+          session,
+        );
+
       updateCollaboratorAccess(
-        Boolean(session),
+        authenticated,
       );
+
+      if (authenticated) {
+        await loadAdminNotification();
+      }
     },
   );
 </script>
 
 <style>
+  .header-hidden {
+    display: none !important;
+  }
+
   .site-header {
     position: sticky;
     top: 0;
     z-index: 50;
-
     padding: 14px 0;
-
-    background:
-      rgba(
-        247,
-        251,
-        244,
-        0.78
-      );
-
-    border-bottom:
-      1px solid
-      rgba(
-        65,
-        104,
-        62,
-        0.08
-      );
-
-    backdrop-filter:
-      blur(18px);
-
-    -webkit-backdrop-filter:
-      blur(18px);
+    background: rgba(247,251,244,.78);
+    border-bottom: 1px solid rgba(65,104,62,.08);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
   }
 
   .header-inner {
     display: flex;
-
     align-items: center;
     justify-content: space-between;
-
     gap: 22px;
   }
 
   .brand {
     flex: 0 0 auto;
-
     display: inline-flex;
-
     align-items: center;
-
     gap: 10px;
-
     font-weight: 850;
-
-    letter-spacing:
-      -0.02em;
+    letter-spacing: -.02em;
   }
 
   .brand-mark {
     width: 34px;
     height: 34px;
-
     display: grid;
-
     place-items: center;
-
     overflow: hidden;
-
     border-radius: 11px;
-
-    background:
-      linear-gradient(
-        145deg,
-        var(--primary-soft),
-        var(--primary)
-      );
-
-    box-shadow:
-      inset 0 0 0 1px
-      rgba(
-        54,
-        92,
-        51,
-        0.06
-      );
+    background: linear-gradient(145deg,var(--primary-soft),var(--primary));
+    box-shadow: inset 0 0 0 1px rgba(54,92,51,.06);
   }
 
   .brand-logo {
     width: 100%;
     height: 100%;
-
     display: block;
-
     object-fit: contain;
-
     padding: 4px;
   }
 
   .brand-name {
-    color:
-      var(--text);
+    color: var(--text);
   }
 
   .nav {
     display: flex;
-
     align-items: center;
     justify-content: center;
-
     gap: 4px;
   }
 
   .nav a {
-    padding:
-      10px
-      12px;
-
-    border-radius:
-      12px;
-
-    color:
-      var(--text-soft);
-
-    font-size:
-      14px;
-
-    font-weight:
-      650;
-
-    transition:
-      color 0.2s ease,
-      background 0.2s ease;
+    padding: 10px 10px;
+    border-radius: 12px;
+    color: var(--text-soft);
+    font-size: 13px;
+    font-weight: 650;
+    transition: color .2s ease, background .2s ease;
   }
 
   .nav a:hover {
-    color:
-      var(--text);
-
-    background:
-      rgba(
-        255,
-        255,
-        255,
-        0.72
-      );
+    color: var(--text);
+    background: rgba(255,255,255,.72);
   }
 
   .header-actions {
     flex: 0 0 auto;
-
     display: flex;
-
     align-items: center;
-
     gap: 8px;
+  }
+
+  .demo-admin-notification {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: rgba(255,255,255,.72);
+    color: var(--primary-deep);
+  }
+
+  .notification-bell {
+    width: 20px;
+    height: 20px;
+    display: grid;
+    place-items: center;
+    border-radius: 7px;
+    background: var(--primary-soft);
+    font-size: 9px;
+  }
+
+  .notification-count {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    display: grid;
+    place-items: center;
+    border: 2px solid var(--bg);
+    border-radius: 999px;
+    background: var(--primary-deep);
+    color: #fff;
+    font-size: 8px;
+    font-weight: 850;
   }
 
   .github {
     min-height: 42px;
-
-    padding:
-      0
-      12px;
-
+    padding: 0 12px;
     display: inline-flex;
-
     align-items: center;
-
     gap: 7px;
-
-    border-radius:
-      12px;
-
-    color:
-      var(--primary-deep);
-
-    font-size:
-      14px;
-
-    font-weight:
-      700;
-
-    transition:
-      color 0.2s ease,
-      background 0.2s ease;
+    border-radius: 12px;
+    color: var(--primary-deep);
+    font-size: 14px;
+    font-weight: 700;
+    transition: color .2s ease, background .2s ease;
   }
 
   .github:hover {
-    color:
-      var(--text);
-
-    background:
-      rgba(
-        255,
-        255,
-        255,
-        0.72
-      );
+    color: var(--text);
+    background: rgba(255,255,255,.72);
   }
 
   .external-arrow {
-    font-size:
-      14px;
-
-    transition:
-      transform 0.2s ease;
+    font-size: 14px;
+    transition: transform .2s ease;
   }
 
-  .github:hover
-  .external-arrow {
-    transform:
-      translate(
-        2px,
-        -2px
-      );
+  .github:hover .external-arrow {
+    transform: translate(2px,-2px);
   }
 
   .collaborator-access {
     min-height: 42px;
-
-    padding:
-      0
-      15px;
-
+    padding: 0 15px;
     display: inline-flex;
-
     align-items: center;
     justify-content: center;
-
     gap: 8px;
-
-    border:
-      1px solid
-      rgba(
-        65,
-        104,
-        62,
-        0.14
-      );
-
-    border-radius:
-      13px;
-
-    background:
-      rgba(
-        255,
-        255,
-        255,
-        0.76
-      );
-
-    color:
-      var(--text);
-
-    box-shadow:
-      0 7px 22px
-      rgba(
-        54,
-        92,
-        51,
-        0.045
-      );
-
-    font-size:
-      14px;
-
-    font-weight:
-      750;
-
-    transition:
-      transform 0.2s ease,
-      background 0.2s ease,
-      border-color 0.2s ease,
-      box-shadow 0.2s ease;
+    border: 1px solid rgba(65,104,62,.14);
+    border-radius: 13px;
+    background: rgba(255,255,255,.76);
+    color: var(--text);
+    box-shadow: 0 7px 22px rgba(54,92,51,.045);
+    font-size: 14px;
+    font-weight: 750;
+    transition: transform .2s ease, background .2s ease, border-color .2s ease, box-shadow .2s ease;
   }
 
   .collaborator-access:hover {
-    transform:
-      translateY(-1px);
-
-    background:
-      var(--surface-solid);
-
-    border-color:
-      var(--border-strong);
-
-    box-shadow:
-      0 9px 26px
-      rgba(
-        54,
-        92,
-        51,
-        0.08
-      );
+    transform: translateY(-1px);
+    background: var(--surface-solid);
+    border-color: var(--border-strong);
+    box-shadow: 0 9px 26px rgba(54,92,51,.08);
   }
 
   .collaborator-access-icon {
     width: 21px;
     height: 21px;
-
     display: grid;
-
     place-items: center;
-
-    border-radius:
-      7px;
-
-    background:
-      var(--primary-soft);
-
-    color:
-      var(--primary-deep);
-
-    font-size:
-      11px;
-
-    font-weight:
-      900;
+    border-radius: 7px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font-size: 11px;
+    font-weight: 900;
   }
 
   .collaborator-access.authenticated {
-    background:
-      linear-gradient(
-        180deg,
-        rgba(
-          223,
-          241,
-          218,
-          0.9
-        ),
-        rgba(
-          204,
-          232,
-          197,
-          0.86
-        )
-      );
-
-    border-color:
-      rgba(
-        95,
-        157,
-        89,
-        0.18
-      );
-
-    color:
-      var(--primary-deep);
+    background: linear-gradient(180deg,rgba(223,241,218,.9),rgba(204,232,197,.86));
+    border-color: rgba(95,157,89,.18);
+    color: var(--primary-deep);
   }
 
-  .collaborator-access.authenticated
-  .collaborator-access-icon {
-    background:
-      var(--primary);
-
-    color:
-      var(--primary-deep);
+  .collaborator-access.authenticated .collaborator-access-icon {
+    background: var(--primary);
+    color: var(--primary-deep);
   }
 
-  @media (
-    max-width: 1120px
-  ) {
-    .header-inner {
-      gap: 14px;
-    }
-
-    .nav {
-      gap: 0;
-    }
-
-    .nav a {
-      padding:
-        10px
-        8px;
-
-      font-size:
-        13px;
-    }
-
-    .github span:first-child {
-      display: none;
-    }
+  @media (max-width: 1120px) {
+    .header-inner { gap: 14px; }
+    .nav { gap: 0; }
+    .nav a { padding: 10px 7px; font-size: 12px; }
+    .github span:first-child { display: none; }
   }
 
-  @media (
-    max-width: 920px
-  ) {
-    .nav {
-      display: none;
-    }
-
-    .header-inner {
-      gap: 12px;
-    }
+  @media (max-width: 920px) {
+    .nav { display: none; }
+    .header-inner { gap: 12px; }
   }
 
-  @media (
-    max-width: 520px
-  ) {
-    .site-header {
-      padding:
-        11px
-        0;
-    }
-
-    .brand-name {
-      display: none;
-    }
-
-    .github {
-      width: 40px;
-
-      padding: 0;
-
-      justify-content:
-        center;
-    }
-
-    .collaborator-access {
-      padding:
-        0
-        12px;
-    }
+  @media (max-width: 520px) {
+    .site-header { padding: 11px 0; }
+    .brand-name { display: none; }
+    .github { width: 40px; padding: 0; justify-content: center; }
+    .collaborator-access { padding: 0 12px; }
   }
 </style>

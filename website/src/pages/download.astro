@@ -1,36 +1,1346 @@
 ---
 import Layout from '../layouts/Layout.astro';
-const platforms = [
-  ['Linux', 'Build para distribuições Linux'],
-  ['Windows', 'Build para Windows 64-bit'],
-  ['macOS', 'Build para macOS'],
-];
 ---
 
-<Layout title="Download — EVRYLUX">
-  <main class="section">
-    <div class="container">
-      <div class="eyebrow">Download</div>
-      <h1 class="section-title">Baixe o EVRYLUX</h1>
-      <p class="section-copy">Depois esta página pode buscar automaticamente a versão mais recente no GitHub Releases.</p>
+<Layout
+  title="Download — EVRYLUX"
+  description="Entre na fila para testar as primeiras versões do EVRYLUX."
+>
+  <main class="download-page">
+    <section class="download-hero">
+      <div class="container">
+        <div class="eyebrow">
+          Demo antecipado
+        </div>
 
-      <div class="grid grid-3 cards">
-        {platforms.map(([name, copy]) => (
-          <article class="card platform">
-            <div class="platform-icon">{name.slice(0,1)}</div>
-            <h2>{name}</h2>
-            <p>{copy}</p>
-            <div class="status">Em preparação</div>
-            <button class="button button-secondary" disabled>Download</button>
-          </article>
-        ))}
+        <div class="download-heading">
+          <div>
+            <h1>
+              Seja um dos primeiros a experimentar o EVRYLUX.
+            </h1>
+
+            <p>
+              As primeiras builds ainda estão em preparação. Escolha seu sistema,
+              garanta seu lugar na fila e receba prioridade quando a primeira
+              versão de demonstração estiver pronta.
+            </p>
+          </div>
+
+          <div class="early-card">
+            <span class="early-mark">
+              E
+            </span>
+
+            <div>
+              <strong>
+                Early Explorer
+              </strong>
+
+              <p>
+                Quem entrar agora fará parte do primeiro grupo de usuários e
+                poderá receber benefícios especiais de lançamento por ajudar
+                a testar, enviar feedback e reportar bugs.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
+    </section>
+
+    <section class="systems-section">
+      <div class="container">
+        <div class="systems-grid">
+          <button
+            class="system-card"
+            type="button"
+            data-platform="linux"
+          >
+            <div class="system-top">
+              <span class="system-icon">
+                L
+              </span>
+
+              <span class="system-status">
+                Demo em preparação
+              </span>
+            </div>
+
+            <h2>
+              Linux
+            </h2>
+
+            <p>
+              Build para distribuições Linux.
+            </p>
+
+            <div class="system-action">
+              <span>
+                Entrar na fila
+              </span>
+
+              <span aria-hidden="true">
+                →
+              </span>
+            </div>
+          </button>
+
+          <button
+            class="system-card"
+            type="button"
+            data-platform="windows"
+          >
+            <div class="system-top">
+              <span class="system-icon">
+                W
+              </span>
+
+              <span class="system-status">
+                Demo em preparação
+              </span>
+            </div>
+
+            <h2>
+              Windows
+            </h2>
+
+            <p>
+              Build para Windows 64-bit.
+            </p>
+
+            <div class="system-action">
+              <span>
+                Entrar na fila
+              </span>
+
+              <span aria-hidden="true">
+                →
+              </span>
+            </div>
+          </button>
+
+          <button
+            class="system-card"
+            type="button"
+            data-platform="macos"
+          >
+            <div class="system-top">
+              <span class="system-icon">
+                m
+              </span>
+
+              <span class="system-status">
+                Demo em preparação
+              </span>
+            </div>
+
+            <h2>
+              macOS
+            </h2>
+
+            <p>
+              Build para macOS.
+            </p>
+
+            <div class="system-action">
+              <span>
+                Entrar na fila
+              </span>
+
+              <span aria-hidden="true">
+                →
+              </span>
+            </div>
+          </button>
+        </div>
+
+        <div class="demo-benefits">
+          <div>
+            <span class="benefit-number">
+              01
+            </span>
+
+            <strong>
+              Prioridade no demo
+            </strong>
+
+            <p>
+              Os primeiros inscritos formam o grupo inicial de testes.
+            </p>
+          </div>
+
+          <div>
+            <span class="benefit-number">
+              02
+            </span>
+
+            <strong>
+              Early Explorer
+            </strong>
+
+            <p>
+              Um registro especial para quem ajudou o EVRYLUX antes da primeira versão.
+            </p>
+          </div>
+
+          <div>
+            <span class="benefit-number">
+              03
+            </span>
+
+            <strong>
+              Ajude a construir
+            </strong>
+
+            <p>
+              Feedbacks e bugs reportados ajudam a decidir o que precisa melhorar.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div
+      id="demo-modal"
+      class="demo-modal hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="demo-modal-title"
+    >
+      <button
+        id="demo-backdrop"
+        class="demo-backdrop"
+        type="button"
+        aria-label="Fechar formulário"
+      ></button>
+
+      <section class="demo-modal-card">
+        <div class="demo-modal-head">
+          <div>
+            <div class="eyebrow">
+              Primeiros usuários
+            </div>
+
+            <h2 id="demo-modal-title">
+              Garanta seu lugar no demo
+            </h2>
+
+            <p>
+              Leva menos de um minuto.
+            </p>
+          </div>
+
+          <button
+            id="demo-close"
+            class="demo-close"
+            type="button"
+            aria-label="Fechar"
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="selected-system">
+          <span class="selected-system-dot"></span>
+
+          <span>
+            Sistema selecionado:
+          </span>
+
+          <strong id="selected-system-label">
+            Linux
+          </strong>
+        </div>
+
+        <form id="demo-form">
+          <input
+            id="demo-platform"
+            type="hidden"
+            value="linux"
+          />
+
+          <div class="form-grid">
+            <label class="field">
+              <span>
+                Nome completo
+              </span>
+
+              <input
+                id="demo-name"
+                type="text"
+                maxlength="120"
+                autocomplete="name"
+                required
+                placeholder="Seu nome"
+              />
+            </label>
+
+            <label class="field">
+              <span>
+                E-mail
+              </span>
+
+              <input
+                id="demo-email"
+                type="email"
+                maxlength="180"
+                autocomplete="email"
+                required
+                placeholder="voce@email.com"
+              />
+            </label>
+          </div>
+
+          <fieldset class="quick-question">
+            <legend>
+              O que você mais quer testar?
+            </legend>
+
+            <div class="choice-grid">
+              <label>
+                <input
+                  type="radio"
+                  name="interest"
+                  value="brain"
+                />
+                <span>Brain</span>
+              </label>
+
+              <label>
+                <input
+                  type="radio"
+                  name="interest"
+                  value="finance"
+                />
+                <span>Financeiro</span>
+              </label>
+
+              <label>
+                <input
+                  type="radio"
+                  name="interest"
+                  value="training"
+                />
+                <span>Treino</span>
+              </label>
+
+              <label>
+                <input
+                  type="radio"
+                  name="interest"
+                  value="routine"
+                />
+                <span>Rotina</span>
+              </label>
+
+              <label class="choice-wide">
+                <input
+                  type="radio"
+                  name="interest"
+                  value="all"
+                  checked
+                />
+                <span>Quero explorar tudo</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <label class="feedback-check">
+            <input
+              id="demo-feedback"
+              type="checkbox"
+            />
+
+            <span>
+              <strong>
+                Posso ajudar com feedback e bugs
+              </strong>
+
+              <small>
+                Quero contar o que funcionou, o que ficou confuso e reportar
+                problemas durante o teste.
+              </small>
+            </span>
+          </label>
+
+          <div class="early-offer">
+            <span class="early-offer-mark">
+              ★
+            </span>
+
+            <div>
+              <strong>
+                Sua inscrição já entra como Early Explorer.
+              </strong>
+
+              <p>
+                O primeiro grupo terá prioridade no acesso e poderá receber
+                vantagens especiais de lançamento por participar do
+                desenvolvimento junto com a comunidade.
+              </p>
+            </div>
+          </div>
+
+          <p
+            id="demo-status"
+            class="demo-status"
+            role="status"
+            aria-live="polite"
+          ></p>
+
+          <button
+            id="demo-submit"
+            class="demo-submit"
+            type="submit"
+          >
+            <span>
+              Garantir meu lugar
+            </span>
+
+            <span aria-hidden="true">
+              →
+            </span>
+          </button>
+
+          <p class="privacy-note">
+            Usaremos seus dados apenas para contato sobre o demo e participação
+            nos testes iniciais.
+          </p>
+        </form>
+      </section>
+    </div>
+
+    <div
+      id="demo-success"
+      class="demo-modal hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="demo-success-title"
+    >
+      <button
+        id="success-backdrop"
+        class="demo-backdrop"
+        type="button"
+        aria-label="Fechar"
+      ></button>
+
+      <section class="success-card">
+        <span class="success-icon">
+          ✓
+        </span>
+
+        <div class="eyebrow">
+          Early Explorer
+        </div>
+
+        <h2 id="demo-success-title">
+          Seu lugar está reservado.
+        </h2>
+
+        <p>
+          Você entrou na fila do demo. Quando a primeira versão estiver pronta,
+          seu cadastro estará entre os primeiros que vamos considerar para o
+          grupo de testes.
+        </p>
+
+        <button
+          id="success-close"
+          type="button"
+        >
+          Entendi
+        </button>
+      </section>
     </div>
   </main>
 </Layout>
 
+<script>
+  import {
+    joinDemoWaitlist,
+    type DemoInterest,
+    type DemoPlatform,
+  } from '../lib/demo-waitlist';
+
+  const labels:
+    Record<
+      DemoPlatform,
+      string
+    > = {
+      linux:
+        'Linux',
+      windows:
+        'Windows',
+      macos:
+        'macOS',
+    };
+
+  const modal =
+    document.querySelector<HTMLElement>(
+      '#demo-modal',
+    );
+
+  const successModal =
+    document.querySelector<HTMLElement>(
+      '#demo-success',
+    );
+
+  const platformInput =
+    document.querySelector<HTMLInputElement>(
+      '#demo-platform',
+    );
+
+  const platformLabel =
+    document.querySelector<HTMLElement>(
+      '#selected-system-label',
+    );
+
+  const form =
+    document.querySelector<HTMLFormElement>(
+      '#demo-form',
+    );
+
+  const nameInput =
+    document.querySelector<HTMLInputElement>(
+      '#demo-name',
+    );
+
+  const emailInput =
+    document.querySelector<HTMLInputElement>(
+      '#demo-email',
+    );
+
+  const feedbackInput =
+    document.querySelector<HTMLInputElement>(
+      '#demo-feedback',
+    );
+
+  const submitButton =
+    document.querySelector<HTMLButtonElement>(
+      '#demo-submit',
+    );
+
+  const status =
+    document.querySelector<HTMLElement>(
+      '#demo-status',
+    );
+
+  function openDemo(
+    platform: DemoPlatform,
+  ) {
+    if (platformInput) {
+      platformInput.value =
+        platform;
+    }
+
+    if (platformLabel) {
+      platformLabel.textContent =
+        labels[platform];
+    }
+
+    modal?.classList.remove(
+      'hidden',
+    );
+
+    document.body.classList.add(
+      'demo-modal-open',
+    );
+
+    setTimeout(
+      () => {
+        nameInput?.focus();
+      },
+      80,
+    );
+  }
+
+  function closeDemo() {
+    modal?.classList.add(
+      'hidden',
+    );
+
+    document.body.classList.remove(
+      'demo-modal-open',
+    );
+  }
+
+  function closeSuccess() {
+    successModal?.classList.add(
+      'hidden',
+    );
+
+    document.body.classList.remove(
+      'demo-modal-open',
+    );
+  }
+
+  document
+    .querySelectorAll<HTMLButtonElement>(
+      '.system-card',
+    )
+    .forEach(
+      (button) => {
+        button.addEventListener(
+          'click',
+          () => {
+            const platform =
+              button.dataset.platform as
+                | DemoPlatform
+                | undefined;
+
+            if (platform) {
+              openDemo(
+                platform,
+              );
+            }
+          },
+        );
+      },
+    );
+
+  document
+    .querySelector(
+      '#demo-close',
+    )
+    ?.addEventListener(
+      'click',
+      closeDemo,
+    );
+
+  document
+    .querySelector(
+      '#demo-backdrop',
+    )
+    ?.addEventListener(
+      'click',
+      closeDemo,
+    );
+
+  document
+    .querySelector(
+      '#success-close',
+    )
+    ?.addEventListener(
+      'click',
+      closeSuccess,
+    );
+
+  document
+    .querySelector(
+      '#success-backdrop',
+    )
+    ?.addEventListener(
+      'click',
+      closeSuccess,
+    );
+
+  document.addEventListener(
+    'keydown',
+    (
+      event,
+    ) => {
+      if (
+        event.key ===
+        'Escape'
+      ) {
+        closeDemo();
+        closeSuccess();
+      }
+    },
+  );
+
+  form?.addEventListener(
+    'submit',
+    async (
+      event,
+    ) => {
+      event.preventDefault();
+
+      const fullName =
+        nameInput?.value.trim() ??
+        '';
+
+      const email =
+        emailInput?.value.trim() ??
+        '';
+
+      const platform =
+        (
+          platformInput?.value ??
+          'linux'
+        ) as DemoPlatform;
+
+      const interest =
+        (
+          document.querySelector<HTMLInputElement>(
+            'input[name="interest"]:checked',
+          )?.value ??
+          'all'
+        ) as DemoInterest;
+
+      if (
+        fullName.length <
+          2 ||
+        !email
+      ) {
+        if (status) {
+          status.textContent =
+            'Preencha seu nome e e-mail.';
+          status.className =
+            'demo-status error';
+        }
+
+        return;
+      }
+
+      if (submitButton) {
+        submitButton.disabled =
+          true;
+
+        submitButton.querySelector(
+          'span',
+        )!.textContent =
+          'Reservando...';
+      }
+
+      if (status) {
+        status.textContent =
+          '';
+        status.className =
+          'demo-status';
+      }
+
+      try {
+        await joinDemoWaitlist(
+          {
+            full_name:
+              fullName,
+            email,
+            platform,
+            interest,
+            willing_to_feedback:
+              Boolean(
+                feedbackInput?.checked,
+              ),
+          },
+        );
+
+        form.reset();
+
+        closeDemo();
+
+        successModal?.classList.remove(
+          'hidden',
+        );
+
+        document.body.classList.add(
+          'demo-modal-open',
+        );
+      } catch (error: any) {
+        console.error(
+          '[EVRYLUX] Falha ao entrar na fila do demo:',
+          error,
+        );
+
+        if (status) {
+          const duplicate =
+            String(
+              error?.code ??
+              '',
+            ) ===
+            '23505';
+
+          status.textContent =
+            duplicate
+              ? 'Este e-mail já está na fila do demo.'
+              : 'Não foi possível reservar seu lugar agora. Tente novamente.';
+
+          status.className =
+            'demo-status error';
+        }
+      } finally {
+        if (submitButton) {
+          submitButton.disabled =
+            false;
+
+          submitButton.querySelector(
+            'span',
+          )!.textContent =
+            'Garantir meu lugar';
+        }
+      }
+    },
+  );
+</script>
+
+<style is:global>
+  body.demo-modal-open {
+    overflow: hidden;
+  }
+
+  .hidden {
+    display: none !important;
+  }
+</style>
+
 <style>
-.cards{margin-top:34px}.platform{padding:26px}.platform-icon{width:48px;height:48px;border-radius:16px;display:grid;place-items:center;background:var(--primary-soft);color:var(--primary-deep);font-weight:850}
-.platform h2{margin:18px 0 8px}.platform p{color:var(--text-soft);line-height:1.6}.status{margin:18px 0;color:var(--primary-deep);font-size:13px;font-weight:750}
-button:disabled{opacity:.55;cursor:not-allowed}
+  .download-page {
+    min-height: 100vh;
+  }
+
+  .download-hero {
+    padding: 94px 0 34px;
+  }
+
+  .download-heading {
+    margin-top: 20px;
+    display: grid;
+    grid-template-columns:
+      minmax(0, 1.25fr)
+      minmax(310px, .75fr);
+    align-items: end;
+    gap: 54px;
+  }
+
+  .download-heading h1 {
+    max-width: 820px;
+    margin: 0;
+    font-size: clamp(44px, 5.5vw, 72px);
+    line-height: .98;
+    letter-spacing: -.058em;
+  }
+
+  .download-heading > div:first-child > p {
+    max-width: 700px;
+    margin: 22px 0 0;
+    color: var(--text-soft);
+    font-size: 17px;
+    line-height: 1.7;
+  }
+
+  .early-card {
+    padding: 18px;
+    display: flex;
+    align-items: flex-start;
+    gap: 13px;
+    border: 1px solid rgba(95,157,89,.2);
+    border-radius: 18px;
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255,255,255,.86),
+        rgba(223,241,218,.62)
+      );
+  }
+
+  .early-mark {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border-radius: 12px;
+    background: var(--primary);
+    color: var(--primary-deep);
+    font-size: 13px;
+    font-weight: 900;
+  }
+
+  .early-card strong {
+    display: block;
+    font-size: 13px;
+  }
+
+  .early-card p {
+    margin: 5px 0 0;
+    color: var(--text-soft);
+    font-size: 11px;
+    line-height: 1.6;
+  }
+
+  .systems-section {
+    padding: 18px 0 100px;
+  }
+
+  .systems-grid {
+    display: grid;
+    grid-template-columns: repeat(3,minmax(0,1fr));
+    gap: 16px;
+  }
+
+  .system-card {
+    min-height: 310px;
+    padding: 26px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: 23px;
+    background: rgba(255,255,255,.82);
+    color: var(--text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    box-shadow: 0 14px 40px rgba(54,92,51,.045);
+    transition:
+      transform .2s ease,
+      border-color .2s ease,
+      box-shadow .2s ease;
+  }
+
+  .system-card:hover {
+    transform: translateY(-5px);
+    border-color: rgba(95,157,89,.28);
+    box-shadow: 0 22px 54px rgba(54,92,51,.09);
+  }
+
+  .system-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .system-icon {
+    width: 48px;
+    height: 48px;
+    display: grid;
+    place-items: center;
+    border-radius: 14px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font-size: 15px;
+    font-weight: 900;
+  }
+
+  .system-status {
+    color: var(--primary-deep);
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+
+  .system-card h2 {
+    margin: 26px 0 0;
+    font-size: 26px;
+    letter-spacing: -.035em;
+  }
+
+  .system-card > p {
+    margin: 10px 0 0;
+    color: var(--text-soft);
+    font-size: 14px;
+  }
+
+  .system-action {
+    margin-top: auto;
+    min-height: 44px;
+    padding: 0 13px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid rgba(95,157,89,.16);
+    border-radius: 12px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .demo-benefits {
+    margin-top: 20px;
+    display: grid;
+    grid-template-columns: repeat(3,minmax(0,1fr));
+    gap: 10px;
+  }
+
+  .demo-benefits > div {
+    padding: 17px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: rgba(255,255,255,.5);
+  }
+
+  .benefit-number {
+    color: var(--primary-deep);
+    font-size: 9px;
+    font-weight: 850;
+    letter-spacing: .08em;
+  }
+
+  .demo-benefits strong {
+    display: block;
+    margin-top: 12px;
+    font-size: 12px;
+  }
+
+  .demo-benefits p {
+    margin: 5px 0 0;
+    color: var(--text-soft);
+    font-size: 10px;
+    line-height: 1.55;
+  }
+
+  .demo-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 180;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+  }
+
+  .demo-backdrop {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: rgba(23,32,25,.28);
+    backdrop-filter: blur(9px);
+  }
+
+  .demo-modal-card,
+  .success-card {
+    position: relative;
+    z-index: 2;
+    width: min(100%, 650px);
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    padding: 27px;
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    background: rgba(255,255,255,.985);
+    box-shadow: 0 30px 100px rgba(23,32,25,.2);
+  }
+
+  .demo-modal-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+  }
+
+  .demo-modal-head h2 {
+    margin: 9px 0 0;
+    font-size: 28px;
+    letter-spacing: -.04em;
+  }
+
+  .demo-modal-head p {
+    margin: 6px 0 0;
+    color: var(--text-soft);
+    font-size: 11px;
+  }
+
+  .demo-close {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-muted);
+    color: var(--text);
+    font: inherit;
+    font-size: 21px;
+    cursor: pointer;
+  }
+
+  .selected-system {
+    margin-top: 20px;
+    min-height: 40px;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    border-radius: 11px;
+    background: var(--surface-muted);
+    color: var(--text-soft);
+    font-size: 11px;
+  }
+
+  .selected-system-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--primary-strong);
+  }
+
+  .selected-system strong {
+    color: var(--primary-deep);
+  }
+
+  #demo-form {
+    margin-top: 18px;
+    display: grid;
+    gap: 16px;
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .field {
+    display: grid;
+    gap: 6px;
+  }
+
+  .field > span,
+  .quick-question legend {
+    color: var(--text);
+    font-size: 11px;
+    font-weight: 750;
+  }
+
+  .field input {
+    width: 100%;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: #fff;
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+    outline: none;
+  }
+
+  .field input:focus {
+    border-color: rgba(95,157,89,.5);
+    box-shadow: 0 0 0 3px rgba(159,211,149,.13);
+  }
+
+  .quick-question {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .choice-grid {
+    margin-top: 8px;
+    display: grid;
+    grid-template-columns: repeat(4,1fr);
+    gap: 7px;
+  }
+
+  .choice-grid label {
+    cursor: pointer;
+  }
+
+  .choice-grid input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .choice-grid label span {
+    min-height: 38px;
+    padding: 0 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-muted);
+    color: var(--text-soft);
+    font-size: 10px;
+    font-weight: 700;
+    text-align: center;
+  }
+
+  .choice-grid input:checked + span {
+    border-color: rgba(95,157,89,.26);
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+  }
+
+  .choice-wide {
+    grid-column: 1 / -1;
+  }
+
+  .feedback-check {
+    padding: 13px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: rgba(255,255,255,.7);
+    cursor: pointer;
+  }
+
+  .feedback-check input {
+    margin-top: 3px;
+    accent-color: var(--primary-strong);
+  }
+
+  .feedback-check strong,
+  .feedback-check small {
+    display: block;
+  }
+
+  .feedback-check strong {
+    font-size: 11px;
+  }
+
+  .feedback-check small {
+    margin-top: 3px;
+    color: var(--text-soft);
+    font-size: 9px;
+    line-height: 1.5;
+  }
+
+  .early-offer {
+    padding: 14px;
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    border: 1px solid rgba(95,157,89,.17);
+    border-radius: 14px;
+    background:
+      linear-gradient(
+        145deg,
+        rgba(239,248,235,.95),
+        rgba(255,255,255,.82)
+      );
+  }
+
+  .early-offer-mark {
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border-radius: 10px;
+    background: var(--primary);
+    color: var(--primary-deep);
+    font-size: 11px;
+  }
+
+  .early-offer strong {
+    font-size: 11px;
+  }
+
+  .early-offer p {
+    margin: 4px 0 0;
+    color: var(--text-soft);
+    font-size: 9px;
+    line-height: 1.55;
+  }
+
+  .demo-status {
+    min-height: 16px;
+    margin: 0;
+    font-size: 10px;
+  }
+
+  .demo-status.error {
+    color: #a24537;
+  }
+
+  .demo-submit {
+    min-height: 46px;
+    padding: 0 15px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid rgba(95,157,89,.2);
+    border-radius: 12px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 850;
+    cursor: pointer;
+  }
+
+  .demo-submit:disabled {
+    opacity: .6;
+    cursor: wait;
+  }
+
+  .privacy-note {
+    margin: -6px 0 0;
+    color: var(--text-soft);
+    font-size: 8px;
+    text-align: center;
+  }
+
+  .success-card {
+    width: min(100%, 470px);
+    padding: 34px;
+    text-align: center;
+  }
+
+  .success-icon {
+    width: 54px;
+    height: 54px;
+    margin: 0 auto 20px;
+    display: grid;
+    place-items: center;
+    border-radius: 17px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font-size: 20px;
+    font-weight: 900;
+  }
+
+  .success-card h2 {
+    margin: 12px 0 0;
+    font-size: 30px;
+    letter-spacing: -.045em;
+  }
+
+  .success-card > p {
+    margin: 12px 0 0;
+    color: var(--text-soft);
+    font-size: 12px;
+    line-height: 1.65;
+  }
+
+  .success-card button {
+    min-height: 42px;
+    margin-top: 22px;
+    padding: 0 20px;
+    border: 1px solid rgba(95,157,89,.2);
+    border-radius: 11px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  @media (max-width: 900px) {
+    .download-heading {
+      grid-template-columns: 1fr;
+      align-items: start;
+      gap: 22px;
+    }
+
+    .systems-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .system-card {
+      min-height: 250px;
+    }
+  }
+
+  @media (max-width: 650px) {
+    .download-hero {
+      padding-top: 66px;
+    }
+
+    .demo-benefits,
+    .form-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .choice-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
 </style>

@@ -1,0 +1,730 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import ColabNav from '../../components/colab/ColabNav.astro';
+import '../../styles/members.css';
+---
+
+<Layout
+  title="Fila do Demo — EVRYLUX Colab"
+  description="Inscrições para as primeiras versões do EVRYLUX."
+>
+  <main class="member-shell">
+    <div
+      id="waitlist-loading"
+      class="member-container member-loading"
+    >
+      Carregando inscrições...
+    </div>
+
+    <div
+      id="waitlist-content"
+      class="member-container member-hidden"
+    >
+      <div class="member-topbar">
+        <div class="member-title-block">
+          <div class="eyebrow">
+            Administração
+          </div>
+
+          <h1>
+            Fila do Demo
+          </h1>
+
+          <p>
+            Pessoas aguardando para testar as primeiras versões do EVRYLUX.
+          </p>
+        </div>
+
+        <ColabNav />
+      </div>
+
+      <section class="waitlist-summary">
+        <article>
+          <span>
+            Inscritos
+          </span>
+
+          <strong id="total-count">
+            0
+          </strong>
+        </article>
+
+        <article>
+          <span>
+            Querem ajudar com bugs
+          </span>
+
+          <strong id="feedback-count">
+            0
+          </strong>
+        </article>
+
+        <article>
+          <span>
+            Linux
+          </span>
+
+          <strong id="linux-count">
+            0
+          </strong>
+        </article>
+
+        <article>
+          <span>
+            Windows / macOS
+          </span>
+
+          <strong id="other-count">
+            0
+          </strong>
+        </article>
+      </section>
+
+      <section class="waitlist-panel">
+        <div class="waitlist-panel-head">
+          <div>
+            <span class="waitlist-kicker">
+              Early Explorers
+            </span>
+
+            <h2>
+              Inscrições recentes
+            </h2>
+          </div>
+
+          <select
+            id="waitlist-filter"
+            aria-label="Filtrar inscrições"
+          >
+            <option value="all">
+              Todos
+            </option>
+
+            <option value="waiting">
+              Aguardando
+            </option>
+
+            <option value="invited">
+              Convidados
+            </option>
+
+            <option value="testing">
+              Testando
+            </option>
+          </select>
+        </div>
+
+        <div
+          id="waitlist-list"
+          class="waitlist-list"
+        ></div>
+      </section>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  import {
+    requireMemberSession,
+  } from '../../lib/member-auth';
+
+  import {
+    isCurrentUserAdmin,
+  } from '../../lib/colab-admin';
+
+  import {
+    demoInterestLabel,
+    demoPlatformLabel,
+    getDemoWaitlist,
+    markDemoEntriesRead,
+    updateDemoStatus,
+    type DemoWaitlistEntry,
+  } from '../../lib/demo-waitlist';
+
+  const session =
+    await requireMemberSession();
+
+  const loading =
+    document.querySelector<HTMLElement>(
+      '#waitlist-loading',
+    );
+
+  const content =
+    document.querySelector<HTMLElement>(
+      '#waitlist-content',
+    );
+
+  const list =
+    document.querySelector<HTMLElement>(
+      '#waitlist-list',
+    );
+
+  const filter =
+    document.querySelector<HTMLSelectElement>(
+      '#waitlist-filter',
+    );
+
+  let entries:
+    DemoWaitlistEntry[] =
+      [];
+
+  function escapeHtml(
+    value: string,
+  ) {
+    return value
+      .replaceAll(
+        '&',
+        '&amp;',
+      )
+      .replaceAll(
+        '<',
+        '&lt;',
+      )
+      .replaceAll(
+        '>',
+        '&gt;',
+      )
+      .replaceAll(
+        '"',
+        '&quot;',
+      )
+      .replaceAll(
+        "'",
+        '&#039;',
+      );
+  }
+
+  function formatDate(
+    value: string,
+  ) {
+    return new Date(
+      value,
+    ).toLocaleString(
+      'pt-BR',
+      {
+        dateStyle:
+          'short',
+        timeStyle:
+          'short',
+      },
+    );
+  }
+
+  function updateSummary() {
+    const feedback =
+      entries.filter(
+        (
+          item,
+        ) =>
+          item.willing_to_feedback,
+      ).length;
+
+    const linux =
+      entries.filter(
+        (
+          item,
+        ) =>
+          item.platform ===
+          'linux',
+      ).length;
+
+    const others =
+      entries.length -
+      linux;
+
+    document.querySelector(
+      '#total-count',
+    )!.textContent =
+      String(
+        entries.length,
+      );
+
+    document.querySelector(
+      '#feedback-count',
+    )!.textContent =
+      String(
+        feedback,
+      );
+
+    document.querySelector(
+      '#linux-count',
+    )!.textContent =
+      String(
+        linux,
+      );
+
+    document.querySelector(
+      '#other-count',
+    )!.textContent =
+      String(
+        others,
+      );
+  }
+
+  function render() {
+    if (!list) {
+      return;
+    }
+
+    const value =
+      filter?.value ??
+      'all';
+
+    const visible =
+      value ===
+      'all'
+        ? entries
+        : entries.filter(
+            (
+              item,
+            ) =>
+              item.status ===
+              value,
+          );
+
+    if (
+      !visible.length
+    ) {
+      list.innerHTML = `
+        <div class="waitlist-empty">
+          Nenhuma inscrição nesta categoria.
+        </div>
+      `;
+
+      return;
+    }
+
+    list.innerHTML =
+      visible
+        .map(
+          (
+            item,
+          ) => `
+            <article class="waitlist-entry">
+              <div class="waitlist-avatar">
+                ${escapeHtml(
+                  item.full_name
+                    .trim()
+                    .slice(
+                      0,
+                      2,
+                    )
+                    .toUpperCase(),
+                )}
+              </div>
+
+              <div class="waitlist-person">
+                <div class="waitlist-name-row">
+                  <strong>
+                    ${escapeHtml(
+                      item.full_name,
+                    )}
+                  </strong>
+
+                  ${
+                    item.early_explorer
+                      ? `
+                        <span class="early-badge">
+                          Early Explorer
+                        </span>
+                      `
+                      : ''
+                  }
+                </div>
+
+                <a href="mailto:${escapeHtml(
+                  item.email,
+                )}">
+                  ${escapeHtml(
+                    item.email,
+                  )}
+                </a>
+
+                <div class="waitlist-tags">
+                  <span>
+                    ${demoPlatformLabel[
+                      item.platform
+                    ]}
+                  </span>
+
+                  <span>
+                    ${demoInterestLabel[
+                      item.interest
+                    ]}
+                  </span>
+
+                  ${
+                    item.willing_to_feedback
+                      ? `
+                        <span class="feedback-tag">
+                          Feedback + bugs
+                        </span>
+                      `
+                      : ''
+                  }
+                </div>
+              </div>
+
+              <div class="waitlist-meta">
+                <span>
+                  ${formatDate(
+                    item.created_at,
+                  )}
+                </span>
+
+                <select
+                  class="entry-status"
+                  data-entry-id="${escapeHtml(
+                    item.id,
+                  )}"
+                >
+                  <option
+                    value="waiting"
+                    ${
+                      item.status ===
+                      'waiting'
+                        ? 'selected'
+                        : ''
+                    }
+                  >
+                    Aguardando
+                  </option>
+
+                  <option
+                    value="invited"
+                    ${
+                      item.status ===
+                      'invited'
+                        ? 'selected'
+                        : ''
+                    }
+                  >
+                    Convidado
+                  </option>
+
+                  <option
+                    value="testing"
+                    ${
+                      item.status ===
+                      'testing'
+                        ? 'selected'
+                        : ''
+                    }
+                  >
+                    Testando
+                  </option>
+                </select>
+              </div>
+            </article>
+          `,
+        )
+        .join('');
+
+    list
+      .querySelectorAll<HTMLSelectElement>(
+        '.entry-status',
+      )
+      .forEach(
+        (
+          select,
+        ) => {
+          select.addEventListener(
+            'change',
+            async () => {
+              const id =
+                select.dataset.entryId;
+
+              if (!id) {
+                return;
+              }
+
+              try {
+                await updateDemoStatus(
+                  id,
+                  select.value as
+                    | 'waiting'
+                    | 'invited'
+                    | 'testing',
+                );
+
+                const entry =
+                  entries.find(
+                    (
+                      item,
+                    ) =>
+                      item.id ===
+                      id,
+                  );
+
+                if (entry) {
+                  entry.status =
+                    select.value as
+                      | 'waiting'
+                      | 'invited'
+                      | 'testing';
+                }
+              } catch (error) {
+                console.error(
+                  '[EVRYLUX] Erro ao atualizar status:',
+                  error,
+                );
+              }
+            },
+          );
+        },
+      );
+  }
+
+  async function load() {
+    entries =
+      await getDemoWaitlist();
+
+    updateSummary();
+    render();
+
+    await markDemoEntriesRead();
+  }
+
+  filter?.addEventListener(
+    'change',
+    render,
+  );
+
+  if (session) {
+    const admin =
+      await isCurrentUserAdmin();
+
+    if (!admin) {
+      window.location.replace(
+        '/colab',
+      );
+    } else {
+      try {
+        await load();
+
+        loading?.classList.add(
+          'member-hidden',
+        );
+
+        content?.classList.remove(
+          'member-hidden',
+        );
+      } catch (error) {
+        console.error(
+          '[EVRYLUX] Erro ao carregar fila:',
+          error,
+        );
+
+        loading!.textContent =
+          'Não foi possível carregar a fila do demo.';
+      }
+    }
+  }
+</script>
+
+<style is:global>
+  .waitlist-entry {
+    padding: 14px;
+    display: grid;
+    grid-template-columns: auto minmax(0,1fr) auto;
+    align-items: center;
+    gap: 13px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface-muted);
+  }
+
+  .waitlist-avatar {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font-size: 10px;
+    font-weight: 900;
+  }
+
+  .waitlist-person {
+    min-width: 0;
+  }
+
+  .waitlist-name-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+  }
+
+  .waitlist-name-row strong {
+    font-size: 13px;
+  }
+
+  .early-badge {
+    min-height: 20px;
+    padding: 0 7px;
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font-size: 8px;
+    font-weight: 850;
+  }
+
+  .waitlist-person > a {
+    display: block;
+    margin-top: 3px;
+    color: var(--text-soft);
+    font-size: 10px;
+  }
+
+  .waitlist-tags {
+    margin-top: 7px;
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+
+  .waitlist-tags span {
+    min-height: 22px;
+    padding: 0 7px;
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: rgba(255,255,255,.65);
+    color: var(--text-soft);
+    font-size: 8px;
+    font-weight: 700;
+  }
+
+  .waitlist-tags .feedback-tag {
+    color: var(--primary-deep);
+  }
+
+  .waitlist-meta {
+    display: grid;
+    justify-items: end;
+    gap: 7px;
+  }
+
+  .waitlist-meta > span {
+    color: var(--text-soft);
+    font-size: 9px;
+  }
+
+  .entry-status {
+    min-height: 32px;
+    padding: 0 8px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: white;
+    color: var(--text);
+    font-size: 9px;
+  }
+</style>
+
+<style>
+  .waitlist-summary {
+    margin-top: 30px;
+    display: grid;
+    grid-template-columns: repeat(4,minmax(0,1fr));
+    gap: 10px;
+  }
+
+  .waitlist-summary article {
+    padding: 17px;
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    background: rgba(255,255,255,.72);
+  }
+
+  .waitlist-summary span,
+  .waitlist-summary strong {
+    display: block;
+  }
+
+  .waitlist-summary span {
+    color: var(--text-soft);
+    font-size: 9px;
+  }
+
+  .waitlist-summary strong {
+    margin-top: 8px;
+    font-size: 24px;
+    letter-spacing: -.04em;
+  }
+
+  .waitlist-panel {
+    margin-top: 18px;
+    padding: 22px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: rgba(255,255,255,.78);
+  }
+
+  .waitlist-panel-head {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .waitlist-kicker {
+    display: block;
+    color: var(--primary-deep);
+    font-size: 9px;
+    font-weight: 850;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+
+  .waitlist-panel h2 {
+    margin: 6px 0 0;
+    font-size: 22px;
+    letter-spacing: -.035em;
+  }
+
+  #waitlist-filter {
+    min-height: 36px;
+    padding: 0 10px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-muted);
+    color: var(--text);
+    font-size: 10px;
+  }
+
+  .waitlist-list {
+    margin-top: 18px;
+    display: grid;
+    gap: 9px;
+  }
+
+  .waitlist-empty {
+    padding: 30px;
+    border: 1px dashed var(--border-strong);
+    border-radius: 14px;
+    color: var(--text-soft);
+    font-size: 11px;
+    text-align: center;
+  }
+
+  @media (max-width: 850px) {
+    .waitlist-summary {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  @media (max-width: 620px) {
+    .waitlist-summary {
+      grid-template-columns: 1fr;
+    }
+
+    .waitlist-panel {
+      padding: 16px;
+    }
+  }
+</style>
