@@ -303,7 +303,66 @@ const nav = [
           <span
             id="collaborator-access-fallback-icon"
             class="collaborator-access-fallback-icon"
-          ></span>
+          >
+            <svg
+              class="collaborator-entry-symbol"
+              viewBox="0 0 64 64"
+              aria-hidden="true"
+            >
+              <g
+                fill="none"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <circle
+                  cx="32"
+                  cy="27"
+                  r="7"
+                  stroke-width="3"
+                />
+
+                <circle
+                  cx="17"
+                  cy="31"
+                  r="5.5"
+                  stroke-width="3"
+                />
+
+                <circle
+                  cx="47"
+                  cy="31"
+                  r="5.5"
+                  stroke-width="3"
+                />
+
+                <path
+                  d="M20 50c.8-8 5.2-12 12-12s11.2 4 12 12"
+                  stroke-width="3"
+                />
+
+                <path
+                  d="M6.5 48.5c.6-6.3 4-9.5 10.5-9.5 3.2 0 5.7.9 7.5 2.7"
+                  stroke-width="3"
+                />
+
+                <path
+                  d="M57.5 48.5C56.9 42.2 53.5 39 47 39c-3.2 0-5.7.9-7.5 2.7"
+                  stroke-width="3"
+                />
+
+                <path
+                  d="M22.8 12.8 27 11.2l1.6-4.4h6.8l1.6 4.4 4.2 1.6 4.2-2.1 4.8 4.8-2.1 4.2 1.6 4.2"
+                  stroke-width="3"
+                />
+
+                <path
+                  d="M14.3 23.9 12.7 19.7l-2.1-4.2 4.8-4.8 4.2 2.1"
+                  stroke-width="3"
+                />
+              </g>
+            </svg>
+          </span>
         </span>
 
         <span id="collaborator-access-label"></span>
@@ -482,9 +541,6 @@ const nav = [
         'header-hidden',
       );
 
-      collaboratorAccessFallbackIcon.textContent =
-        '';
-
       collaboratorAccessFallbackIcon.classList.add(
         'header-hidden',
       );
@@ -520,9 +576,6 @@ const nav = [
     collaboratorAccessAvatar.removeAttribute(
       'src',
     );
-
-    collaboratorAccessFallbackIcon.textContent =
-      '↗';
 
     collaboratorAccessFallbackIcon.classList.remove(
       'header-hidden',
@@ -1542,8 +1595,13 @@ const nav = [
     height: 100%;
     display: grid;
     place-items: center;
-    font-size: 11px;
-    font-weight: 900;
+    color: var(--primary-deep);
+  }
+
+  .collaborator-entry-symbol {
+    width: 22px;
+    height: 22px;
+    display: block;
   }
 
   .collaborator-access.authenticated {

@@ -176,14 +176,91 @@ import '../../styles/members.css';
                     />
 
                     <button
-                      id="add-admin-submit"
-                      type="submit"
-                      class="member-button member-button-primary"
+                      id="lookup-admin-submit"
+                      type="button"
+                      class="member-button"
                     >
-                      Adicionar
+                      Consultar
                     </button>
                   </div>
                 </form>
+
+                <div
+                  id="admin-preview"
+                  class="admin-preview member-hidden"
+                >
+                  <div class="admin-preview-head">
+                    <div
+                      id="admin-preview-avatar"
+                      class="admin-preview-avatar"
+                    >
+                      EV
+                    </div>
+
+                    <div class="admin-preview-identity">
+                      <div class="admin-preview-role-row">
+                        <span
+                          id="admin-preview-role"
+                          class="role-pill"
+                        >
+                          Usuário
+                        </span>
+                      </div>
+
+                      <h3 id="admin-preview-name">
+                        —
+                      </h3>
+
+                      <p id="admin-preview-email">
+                        —
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="admin-preview-permissions">
+                    <div class="permissions-editor-head">
+                      <div>
+                        <strong>
+                          Permissões iniciais
+                        </strong>
+
+                        <p>
+                          Marque o que este administrador poderá fazer antes de conceder o acesso.
+                        </p>
+                      </div>
+
+                      <span
+                        id="admin-preview-permissions-count"
+                        class="permissions-count"
+                      >
+                        0 ativas
+                      </span>
+                    </div>
+
+                    <div
+                      id="admin-preview-permissions-list"
+                      class="preview-permissions-list"
+                    ></div>
+                  </div>
+
+                  <div class="admin-preview-actions">
+                    <button
+                      id="cancel-admin-preview"
+                      type="button"
+                      class="member-button"
+                    >
+                      Cancelar
+                    </button>
+
+                    <button
+                      id="add-admin-submit"
+                      type="button"
+                      class="member-button member-button-primary"
+                    >
+                      Adicionar administrador
+                    </button>
+                  </div>
+                </div>
               </div>
             </article>
 
@@ -316,6 +393,7 @@ import '../../styles/members.css';
     isCurrentUserOwner,
     listAdminAudit,
     listColabAdmins,
+    lookupColabUserForAdmin,
     removeColabAdmin,
     setColabAdminPermissions,
     type AdminPermission,
@@ -377,9 +455,54 @@ import '../../styles/members.css';
       '#admin-email',
     );
 
+  const lookupAdminSubmit =
+    document.querySelector<HTMLButtonElement>(
+      '#lookup-admin-submit',
+    );
+
   const addAdminSubmit =
     document.querySelector<HTMLButtonElement>(
       '#add-admin-submit',
+    );
+
+  const adminPreview =
+    document.querySelector<HTMLElement>(
+      '#admin-preview',
+    );
+
+  const adminPreviewAvatar =
+    document.querySelector<HTMLElement>(
+      '#admin-preview-avatar',
+    );
+
+  const adminPreviewRole =
+    document.querySelector<HTMLElement>(
+      '#admin-preview-role',
+    );
+
+  const adminPreviewName =
+    document.querySelector<HTMLElement>(
+      '#admin-preview-name',
+    );
+
+  const adminPreviewEmail =
+    document.querySelector<HTMLElement>(
+      '#admin-preview-email',
+    );
+
+  const adminPreviewPermissionsList =
+    document.querySelector<HTMLElement>(
+      '#admin-preview-permissions-list',
+    );
+
+  const adminPreviewPermissionsCount =
+    document.querySelector<HTMLElement>(
+      '#admin-preview-permissions-count',
+    );
+
+  const cancelAdminPreview =
+    document.querySelector<HTMLButtonElement>(
+      '#cancel-admin-preview',
     );
 
   const adminsList =
@@ -413,6 +536,14 @@ import '../../styles/members.css';
 
   let canViewAudit =
     false;
+
+  let previewUser:
+    Awaited<
+      ReturnType<
+        typeof lookupColabUserForAdmin
+      >
+    > =
+      null;
 
   function showStatus(
     message: string,
@@ -487,6 +618,310 @@ import '../../styles/members.css';
           '',
       )
       .join('');
+  }
+
+  function renderPreviewPermissions(
+    permissions:
+      AdminPermission[],
+  ) {
+    if (
+      !adminPreviewPermissionsList
+    ) {
+      return;
+    }
+
+    const groups =
+      new Map<
+        string,
+        typeof ADMIN_PERMISSION_DEFINITIONS[number][]
+      >();
+
+    for (
+      const definition
+      of ADMIN_PERMISSION_DEFINITIONS
+    ) {
+      const list =
+        groups.get(
+          definition.group,
+        ) ??
+        [];
+
+      list.push(
+        definition,
+      );
+
+      groups.set(
+        definition.group,
+        list,
+      );
+    }
+
+    adminPreviewPermissionsList.innerHTML =
+      Array.from(
+        groups.entries(),
+      )
+        .map(
+          (
+            [
+              group,
+              definitions,
+            ],
+          ) => `
+            <div class="permission-group">
+              <div class="permission-group-title">
+                ${escapeHtml(group)}
+              </div>
+
+              <div class="permission-options">
+                ${
+                  definitions
+                    .map(
+                      (
+                        permission,
+                      ) => {
+                        const checked =
+                          permissions.includes(
+                            permission.key,
+                          );
+
+                        return `
+                          <label class="permission-option">
+                            <span>
+                              <strong>
+                                ${escapeHtml(permission.label)}
+                              </strong>
+
+                              <small>
+                                ${escapeHtml(permission.description)}
+                              </small>
+                            </span>
+
+                            <input
+                              type="checkbox"
+                              data-preview-permission="${permission.key}"
+                              ${checked ? 'checked' : ''}
+                            />
+
+                            <span class="permission-switch" aria-hidden="true"></span>
+                          </label>
+                        `;
+                      },
+                    )
+                    .join('')
+                }
+              </div>
+            </div>
+          `,
+        )
+        .join('');
+
+    bindPreviewPermissionCounters();
+  }
+
+  function getPreviewPermissions():
+    AdminPermission[] {
+    return Array.from(
+      document.querySelectorAll<HTMLInputElement>(
+        '[data-preview-permission]:checked',
+      ),
+    )
+      .map(
+        (
+          input,
+        ) =>
+          input.dataset.previewPermission,
+      )
+      .filter(
+        (
+          permission,
+        ): permission is AdminPermission =>
+          Boolean(
+            permission,
+          ),
+      );
+  }
+
+  function updatePreviewPermissionCount() {
+    const count =
+      getPreviewPermissions().length;
+
+    if (
+      adminPreviewPermissionsCount
+    ) {
+      adminPreviewPermissionsCount.textContent =
+        `${count} ativa${count === 1 ? '' : 's'}`;
+    }
+  }
+
+  function bindPreviewPermissionCounters() {
+    document
+      .querySelectorAll<HTMLInputElement>(
+        '[data-preview-permission]',
+      )
+      .forEach(
+        (
+          input,
+        ) => {
+          input.addEventListener(
+            'change',
+            updatePreviewPermissionCount,
+          );
+        },
+      );
+
+    updatePreviewPermissionCount();
+  }
+
+  function closeAdminPreview() {
+    previewUser =
+      null;
+
+    adminPreview?.classList.add(
+      'member-hidden',
+    );
+
+    if (
+      adminPreviewPermissionsList
+    ) {
+      adminPreviewPermissionsList.innerHTML =
+        '';
+    }
+  }
+
+  async function lookupAdminCandidate() {
+    const email =
+      adminEmail?.value.trim() ??
+      '';
+
+    if (
+      !email ||
+      !lookupAdminSubmit
+    ) {
+      return;
+    }
+
+    lookupAdminSubmit.disabled =
+      true;
+
+    lookupAdminSubmit.textContent =
+      'Consultando...';
+
+    try {
+      const user =
+        await lookupColabUserForAdmin(
+          email,
+        );
+
+      if (!user) {
+        closeAdminPreview();
+
+        showStatus(
+          'Nenhum usuário encontrado com esse e-mail.',
+          'error',
+        );
+
+        return;
+      }
+
+      previewUser =
+        user;
+
+      if (
+        adminPreviewName
+      ) {
+        adminPreviewName.textContent =
+          user.display_name ||
+          user.email ||
+          'Usuário EVRYLUX';
+      }
+
+      if (
+        adminPreviewEmail
+      ) {
+        adminPreviewEmail.textContent =
+          user.email ||
+          email;
+      }
+
+      if (
+        adminPreviewRole
+      ) {
+        adminPreviewRole.textContent =
+          user.is_owner
+            ? 'Proprietário'
+            : user.is_admin
+              ? 'Administrador'
+              : 'Usuário';
+      }
+
+      if (
+        adminPreviewAvatar
+      ) {
+        if (
+          user.avatar_url
+        ) {
+          adminPreviewAvatar.innerHTML =
+            `<img src="${escapeHtml(user.avatar_url)}" alt="" class="admin-avatar-image" />`;
+        } else {
+          const fallback =
+            (
+              user.display_name ||
+              user.email ||
+              'EV'
+            )
+              .trim()
+              .split(/\s+/)
+              .slice(
+                0,
+                2,
+              )
+              .map(
+                (
+                  part,
+                ) =>
+                  part[0]?.toUpperCase() ??
+                  '',
+              )
+              .join('');
+
+          adminPreviewAvatar.textContent =
+            fallback ||
+            'EV';
+        }
+      }
+
+      renderPreviewPermissions(
+        user.permissions,
+      );
+
+      adminPreview?.classList.remove(
+        'member-hidden',
+      );
+
+      showStatus(
+        user.is_admin
+          ? 'Este usuário já é administrador. Você pode revisar e atualizar as permissões.'
+          : 'Usuário encontrado. Escolha as permissões antes de adicionar.',
+        'success',
+      );
+    } catch (
+      error
+    ) {
+      closeAdminPreview();
+
+      showStatus(
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível consultar o usuário.',
+        'error',
+      );
+    } finally {
+      lookupAdminSubmit.disabled =
+        false;
+
+      lookupAdminSubmit.textContent =
+        'Consultar';
+    }
   }
 
   function permissionGroups(
@@ -1191,26 +1626,70 @@ import '../../styles/members.css';
     ) => {
       event.preventDefault();
 
-      const email =
-        adminEmail?.value.trim() ??
-        '';
+      await lookupAdminCandidate();
+    },
+  );
 
+  lookupAdminSubmit?.addEventListener(
+    'click',
+    async () => {
+      await lookupAdminCandidate();
+    },
+  );
+
+  cancelAdminPreview?.addEventListener(
+    'click',
+    () => {
+      closeAdminPreview();
+    },
+  );
+
+  addAdminSubmit?.addEventListener(
+    'click',
+    async () => {
       if (
-        !email ||
+        !previewUser ||
         !addAdminSubmit
       ) {
         return;
       }
 
+      const permissions =
+        getPreviewPermissions();
+
       addAdminSubmit.disabled =
         true;
 
       addAdminSubmit.textContent =
-        'Adicionando...';
+        previewUser.is_admin
+          ? 'Atualizando...'
+          : 'Adicionando...';
 
       try {
-        await addColabAdminByEmail(
-          email,
+        if (
+          !previewUser.is_admin
+        ) {
+          await addColabAdminByEmail(
+            previewUser.email ??
+            adminEmail?.value.trim() ??
+            '',
+          );
+        }
+
+        if (
+          !previewUser.is_owner
+        ) {
+          await setColabAdminPermissions(
+            previewUser.user_id,
+            permissions,
+          );
+        }
+
+        showStatus(
+          previewUser.is_admin
+            ? 'Permissões do administrador atualizadas.'
+            : 'Administrador adicionado com as permissões selecionadas.',
+          'success',
         );
 
         if (
@@ -1220,10 +1699,7 @@ import '../../styles/members.css';
             '';
         }
 
-        showStatus(
-          'Administrador adicionado. Agora escolha as permissões.',
-          'success',
-        );
+        closeAdminPreview();
 
         await refreshAdmins();
       } catch (
@@ -1232,7 +1708,7 @@ import '../../styles/members.css';
         showStatus(
           error instanceof Error
             ? error.message
-            : 'Não foi possível adicionar o administrador.',
+            : 'Não foi possível concluir a configuração do administrador.',
           'error',
         );
       } finally {
@@ -1240,7 +1716,7 @@ import '../../styles/members.css';
           false;
 
         addAdminSubmit.textContent =
-          'Adicionar';
+          'Adicionar administrador';
       }
     },
   );
@@ -1892,6 +2368,88 @@ import '../../styles/members.css';
 
   .audit-entry {
     position: relative;
+  }
+
+
+  .admin-preview {
+    margin-top: 18px;
+    padding: 17px;
+    border: 1px solid rgba(95,157,89,.16);
+    border-radius: 17px;
+    background:
+      linear-gradient(
+        145deg,
+        rgba(247,251,244,.96),
+        rgba(223,241,218,.42)
+      );
+  }
+
+  .admin-preview-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .admin-preview-avatar {
+    width: 52px;
+    height: 52px;
+    flex: 0 0 auto;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font-size: 12px;
+    font-weight: 850;
+  }
+
+  .admin-preview-identity {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .admin-preview-identity h3 {
+    margin: 6px 0 0;
+    font-size: 15px;
+  }
+
+  .admin-preview-identity p {
+    margin: 3px 0 0;
+    color: var(--text-soft);
+    font-size: 10px;
+  }
+
+  .admin-preview-permissions {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .preview-permissions-list {
+    margin-top: 4px;
+  }
+
+  .admin-preview-actions {
+    margin-top: 16px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  #lookup-admin-submit {
+    white-space: nowrap;
+  }
+
+  @media (max-width: 620px) {
+    .admin-preview-actions {
+      flex-direction: column-reverse;
+    }
+
+    .admin-preview-actions .member-button {
+      width: 100%;
+    }
   }
 
 </style>

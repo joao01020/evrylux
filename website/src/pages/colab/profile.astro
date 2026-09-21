@@ -8,7 +8,7 @@ import '../../styles/members.css';
   title="Meu perfil — EVRYLUX Colab"
   description="Perfil interno de colaborador do projeto EVRYLUX."
 >
-  <main class="member-shell">
+  <main class="member-shell profile-page">
     <div
       id="profile-loading"
       class="member-container member-loading"
@@ -20,7 +20,7 @@ import '../../styles/members.css';
       id="profile-content"
       class="member-container member-hidden"
     >
-      <div class="member-topbar">
+      <div class="member-topbar profile-topbar">
         <div class="member-title-block">
           <div class="eyebrow">
             EVRYLUX Colab
@@ -31,122 +31,276 @@ import '../../styles/members.css';
           </h1>
 
           <p>
-            Essas informações serão usadas para organizar
-            sua participação como colaborador no projeto.
+            Organize sua identidade, sua participação no projeto e a segurança
+            da sua conta em um só lugar.
           </p>
         </div>
 
         <ColabNav />
       </div>
 
-      <div class="member-grid">
-        <section class="member-card">
+      <section class="profile-overview-grid">
+        <article class="member-card profile-preview-card">
           <div class="member-card-inner">
-            <form
-              id="profile-form"
-              class="member-form"
-            >
-              <div class="member-row">
-                <div class="member-field">
-                  <label for="display-name">
-                    Nome público
-                  </label>
-
-                  <input
-                    id="display-name"
-                    type="text"
-                    maxlength="80"
-                    placeholder="Como você quer aparecer"
+            <div class="profile-preview-layout">
+              <div class="profile-preview-avatar-wrap">
+                <div
+                  id="profile-avatar-placeholder"
+                  class="member-avatar-placeholder default-profile-avatar default-profile-avatar-preview"
+                  aria-label="Sem foto de perfil"
+                >
+                  <img
+                    class="default-profile-avatar-image"
+                    src="/branding/default-profile-avatar.png"
+                    alt=""
+                    aria-hidden="true"
+                    draggable="false"
                   />
                 </div>
 
-                <div class="member-field">
-                  <label for="github-login">
-                    GitHub
-                  </label>
-
-                  <input
-                    id="github-login"
-                    type="text"
-                    maxlength="80"
-                    placeholder="seu-usuario"
-                  />
-                </div>
-              </div>
-
-              <div class="member-field">
-                <label for="bio">
-                  Sobre você
-                </label>
-
-                <textarea
-                  id="bio"
-                  maxlength="500"
-                  placeholder="Uma descrição curta sobre você e sua participação no projeto."
-                ></textarea>
-              </div>
-
-              <div class="member-row">
-                <div class="member-field">
-                  <label for="area">
-                    Área principal
-                  </label>
-
-                  <input
-                    id="area"
-                    type="text"
-                    maxlength="120"
-                    placeholder="Ex.: Flutter / UI / Backend / Docs"
-                  />
-                </div>
-
-                <div class="member-field">
-                  <label for="availability">
-                    Disponibilidade
-                  </label>
-
-                  <input
-                    id="availability"
-                    type="text"
-                    maxlength="120"
-                    placeholder="Ex.: fins de semana"
-                  />
-                </div>
-              </div>
-
-              <div class="member-field">
-                <label for="skills">
-                  Tecnologias / habilidades
-                </label>
-
-                <input
-                  id="skills"
-                  type="text"
-                  maxlength="240"
-                  placeholder="Flutter, Dart, Astro, Supabase..."
+                <img
+                  id="profile-avatar-preview"
+                  class="member-avatar member-hidden"
+                  alt=""
                 />
               </div>
 
-              <div class="member-field">
-                <label>
-                  Foto de perfil
-                </label>
+              <div class="profile-preview-copy">
+                <span class="member-badge">
+                  Perfil
+                </span>
+
+                <h2 id="preview-name">
+                  Colaborador EVRYLUX
+                </h2>
+
+                <p
+                  id="preview-github"
+                  class="member-muted"
+                >
+                  GitHub não informado
+                </p>
+
+                <p
+                  id="preview-bio"
+                  class="profile-preview-bio"
+                >
+                  Sua descrição aparecerá aqui.
+                </p>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="profile-tip-card">
+          <div class="profile-tip-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M12 3 5.5 6v5.2c0 4.1 2.7 7.7 6.5 9.8 3.8-2.1 6.5-5.7 6.5-9.8V6L12 3Z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M9.5 12.2 11.2 14l3.5-4"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </div>
+
+          <div>
+            <span>
+              Perfil completo
+            </span>
+
+            <strong>
+              Mantenha seus dados atualizados
+            </strong>
+
+            <p>
+              Essas informações ajudam a equipe a entender sua área, disponibilidade
+              e como você participa do projeto.
+            </p>
+          </div>
+        </article>
+      </section>
+
+      <section class="profile-settings-grid">
+        <article class="member-card profile-main-card">
+          <div class="member-card-inner">
+            <div class="section-heading">
+              <span class="section-kicker">
+                Informações pessoais
+              </span>
+
+              <h2>
+                Identidade e participação
+              </h2>
+
+              <p>
+                Defina como você aparece no EVRYLUX Colab e informe os dados
+                mais úteis para o trabalho em equipe.
+              </p>
+            </div>
+
+            <form
+              id="profile-form"
+              class="member-form profile-form-modern"
+            >
+              <div class="form-section">
+                <div class="form-section-head">
+                  <span class="form-section-index">
+                    01
+                  </span>
+
+                  <div>
+                    <strong>
+                      Identidade
+                    </strong>
+
+                    <p>
+                      Nome, GitHub e uma breve apresentação.
+                    </p>
+                  </div>
+                </div>
+
+                <div class="member-row">
+                  <div class="member-field">
+                    <label for="display-name">
+                      Nome público
+                    </label>
+
+                    <input
+                      id="display-name"
+                      type="text"
+                      maxlength="80"
+                      placeholder="Como você quer aparecer"
+                    />
+                  </div>
+
+                  <div class="member-field">
+                    <label for="github-login">
+                      GitHub
+                    </label>
+
+                    <input
+                      id="github-login"
+                      type="text"
+                      maxlength="80"
+                      placeholder="seu-usuario"
+                    />
+                  </div>
+                </div>
+
+                <div class="member-field">
+                  <label for="bio">
+                    Sobre você
+                  </label>
+
+                  <textarea
+                    id="bio"
+                    maxlength="500"
+                    placeholder="Uma descrição curta sobre você e sua participação no projeto."
+                  ></textarea>
+                </div>
+              </div>
+
+              <div class="form-section">
+                <div class="form-section-head">
+                  <span class="form-section-index">
+                    02
+                  </span>
+
+                  <div>
+                    <strong>
+                      Participação
+                    </strong>
+
+                    <p>
+                      Área principal, disponibilidade e habilidades.
+                    </p>
+                  </div>
+                </div>
+
+                <div class="member-row">
+                  <div class="member-field">
+                    <label for="area">
+                      Área principal
+                    </label>
+
+                    <input
+                      id="area"
+                      type="text"
+                      maxlength="120"
+                      placeholder="Ex.: Flutter / UI / Backend / Docs"
+                    />
+                  </div>
+
+                  <div class="member-field">
+                    <label for="availability">
+                      Disponibilidade
+                    </label>
+
+                    <input
+                      id="availability"
+                      type="text"
+                      maxlength="120"
+                      placeholder="Ex.: fins de semana"
+                    />
+                  </div>
+                </div>
+
+                <div class="member-field">
+                  <label for="skills">
+                    Tecnologias / habilidades
+                  </label>
+
+                  <input
+                    id="skills"
+                    type="text"
+                    maxlength="240"
+                    placeholder="Flutter, Dart, Astro, Supabase..."
+                  />
+                </div>
+              </div>
+
+              <div class="form-section">
+                <div class="form-section-head">
+                  <span class="form-section-index">
+                    03
+                  </span>
+
+                  <div>
+                    <strong>
+                      Foto de perfil
+                    </strong>
+
+                    <p>
+                      Personalize como você aparece para a equipe.
+                    </p>
+                  </div>
+                </div>
 
                 <div class="profile-photo-control">
                   <div class="profile-photo-control-preview">
                     <div
-                id="profile-upload-placeholder"
-                class="default-profile-avatar default-profile-avatar-large"
-                aria-label="Sem foto de perfil"
-              >
-                <img
-                  class="default-profile-avatar-image"
-                  src="/branding/default-profile-avatar.png"
-                  alt=""
-                  aria-hidden="true"
-                  draggable="false"
-                />
-              </div>
+                      id="profile-upload-placeholder"
+                      class="default-profile-avatar default-profile-avatar-large"
+                      aria-label="Sem foto de perfil"
+                    >
+                      <img
+                        class="default-profile-avatar-image"
+                        src="/branding/default-profile-avatar.png"
+                        alt=""
+                        aria-hidden="true"
+                        draggable="false"
+                      />
+                    </div>
 
                     <img
                       id="profile-upload-preview"
@@ -157,12 +311,12 @@ import '../../styles/members.css';
 
                   <div class="profile-photo-control-copy">
                     <strong>
-                      Escolha uma foto
+                      Sua imagem
                     </strong>
 
                     <p>
-                      JPG, PNG ou WebP de até 5 MB. A imagem será
-                      recortada em formato circular.
+                      JPG, PNG ou WebP de até 5 MB. A imagem será exibida
+                      em formato circular.
                     </p>
 
                     <div class="profile-photo-actions">
@@ -192,13 +346,25 @@ import '../../styles/members.css';
                 </div>
               </div>
 
-              <button
-                id="save-profile"
-                class="member-button member-button-primary"
-                type="submit"
-              >
-                Salvar perfil
-              </button>
+              <div class="profile-form-footer">
+                <div>
+                  <strong>
+                    Tudo pronto?
+                  </strong>
+
+                  <p>
+                    Salve para atualizar seu perfil em todo o portal.
+                  </p>
+                </div>
+
+                <button
+                  id="save-profile"
+                  class="member-button member-button-primary"
+                  type="submit"
+                >
+                  Salvar perfil
+                </button>
+              </div>
             </form>
 
             <div
@@ -207,58 +373,211 @@ import '../../styles/members.css';
               role="status"
             ></div>
           </div>
-        </section>
+        </article>
 
-        <aside class="member-card">
-          <div class="member-card-inner">
-            <div class="member-profile-head">
-              <div
-                id="profile-avatar-placeholder"
-                class="member-avatar-placeholder default-profile-avatar"
-                aria-label="Sem foto de perfil"
+        <aside class="profile-side-column">
+          <article class="member-card password-card">
+            <div class="member-card-inner">
+              <div class="password-card-head">
+                <div class="password-card-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path
+                      d="M7 10V8a5 5 0 0 1 10 0v2"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                    />
+                    <rect
+                      x="5"
+                      y="10"
+                      width="14"
+                      height="10"
+                      rx="3"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                    />
+                    <path
+                      d="M12 14v2.5"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </div>
+
+                <div>
+                  <div class="eyebrow">
+                    Segurança
+                  </div>
+
+                  <h2>
+                    Alterar senha
+                  </h2>
+
+                  <p>
+                    Confirme sua senha atual antes de definir uma nova.
+                  </p>
+                </div>
+              </div>
+
+              <form
+                id="password-form"
+                class="password-form"
               >
-                <img
-                  class="default-profile-avatar-image"
-                  src="/branding/default-profile-avatar.png"
-                  alt=""
-                  aria-hidden="true"
-                  draggable="false"
-                />
-              </div>
+                <div class="member-field">
+                  <label for="current-password">
+                    Senha atual
+                  </label>
 
-              <img
-                id="profile-avatar-preview"
-                class="member-avatar member-hidden"
-                alt=""
-              />
+                  <div class="password-input-wrap">
+                    <input
+                      id="current-password"
+                      type="password"
+                      autocomplete="current-password"
+                      placeholder="Digite sua senha atual"
+                      required
+                    />
 
-              <div>
-                <span class="member-badge">
-                  Perfil
-                </span>
+                    <button
+                      class="password-toggle"
+                      type="button"
+                      data-password-toggle="current-password"
+                      aria-label="Mostrar senha atual"
+                    >
+                      Mostrar
+                    </button>
+                  </div>
+                </div>
 
-                <h2 id="preview-name">
-                  Colaborador EVRYLUX
-                </h2>
+                <div class="member-field">
+                  <label for="new-password">
+                    Nova senha
+                  </label>
 
-                <p
-                  id="preview-github"
-                  class="member-muted"
+                  <div class="password-input-wrap">
+                    <input
+                      id="new-password"
+                      type="password"
+                      autocomplete="new-password"
+                      minlength="8"
+                      placeholder="Mínimo de 8 caracteres"
+                      required
+                    />
+
+                    <button
+                      class="password-toggle"
+                      type="button"
+                      data-password-toggle="new-password"
+                      aria-label="Mostrar nova senha"
+                    >
+                      Mostrar
+                    </button>
+                  </div>
+
+                  <div
+                    id="password-strength"
+                    class="password-strength"
+                    aria-live="polite"
+                  >
+                    <span class="password-strength-bar">
+                      <span id="password-strength-fill"></span>
+                    </span>
+
+                    <small id="password-strength-label">
+                      Use pelo menos 8 caracteres.
+                    </small>
+                  </div>
+                </div>
+
+                <div class="member-field">
+                  <label for="confirm-password">
+                    Confirmar nova senha
+                  </label>
+
+                  <div class="password-input-wrap">
+                    <input
+                      id="confirm-password"
+                      type="password"
+                      autocomplete="new-password"
+                      minlength="8"
+                      placeholder="Repita a nova senha"
+                      required
+                    />
+
+                    <button
+                      class="password-toggle"
+                      type="button"
+                      data-password-toggle="confirm-password"
+                      aria-label="Mostrar confirmação da nova senha"
+                    >
+                      Mostrar
+                    </button>
+                  </div>
+                </div>
+
+                <div class="password-security-note">
+                  <span aria-hidden="true">✓</span>
+
+                  <p>
+                    A senha atual será validada antes da alteração.
+                  </p>
+                </div>
+
+                <button
+                  id="change-password"
+                  class="member-button member-button-primary password-submit"
+                  type="submit"
                 >
-                  GitHub não informado
-                </p>
-              </div>
+                  Alterar senha
+                </button>
+              </form>
+
+              <div
+                id="password-status"
+                class="member-status"
+                role="status"
+              ></div>
+            </div>
+          </article>
+
+          <article class="security-note-card">
+            <div class="security-note-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="8"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                />
+
+                <path
+                  d="M12 10.5v5M12 7.5v.5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                />
+              </svg>
             </div>
 
-            <p
-              id="preview-bio"
-              class="profile-preview-bio"
-            >
-              Sua descrição aparecerá aqui.
-            </p>
-          </div>
+            <div>
+              <strong>
+                Dica de segurança
+              </strong>
+
+              <p>
+                Evite reutilizar a mesma senha em outros serviços e mantenha o
+                2FA ativado para proteger áreas administrativas.
+              </p>
+            </div>
+          </article>
         </aside>
-      </div>
+      </section>
     </div>
   </main>
 </Layout>
@@ -365,6 +684,46 @@ import '../../styles/members.css';
       '#profile-status',
     );
 
+  const passwordForm =
+    document.querySelector<HTMLFormElement>(
+      '#password-form',
+    );
+
+  const currentPassword =
+    document.querySelector<HTMLInputElement>(
+      '#current-password',
+    );
+
+  const newPassword =
+    document.querySelector<HTMLInputElement>(
+      '#new-password',
+    );
+
+  const confirmPassword =
+    document.querySelector<HTMLInputElement>(
+      '#confirm-password',
+    );
+
+  const changePasswordButton =
+    document.querySelector<HTMLButtonElement>(
+      '#change-password',
+    );
+
+  const passwordStatus =
+    document.querySelector<HTMLDivElement>(
+      '#password-status',
+    );
+
+  const passwordStrengthFill =
+    document.querySelector<HTMLElement>(
+      '#password-strength-fill',
+    );
+
+  const passwordStrengthLabel =
+    document.querySelector<HTMLElement>(
+      '#password-strength-label',
+    );
+
   const previewName =
     document.querySelector<HTMLElement>(
       '#preview-name',
@@ -402,6 +761,216 @@ import '../../styles/members.css';
     status.className =
       `member-status show ${type}`;
   }
+
+  function showPasswordStatus(
+    message: string,
+    type:
+      | 'success'
+      | 'error',
+  ) {
+    if (
+      !passwordStatus
+    ) {
+      return;
+    }
+
+    passwordStatus.textContent =
+      message;
+
+    passwordStatus.className =
+      `member-status show ${type}`;
+  }
+
+  function clearPasswordStatus() {
+    if (
+      !passwordStatus
+    ) {
+      return;
+    }
+
+    passwordStatus.textContent =
+      '';
+
+    passwordStatus.className =
+      'member-status';
+  }
+
+  function getPasswordStrength(
+    password: string,
+  ) {
+    let score =
+      0;
+
+    if (
+      password.length >=
+      8
+    ) {
+      score += 1;
+    }
+
+    if (
+      password.length >=
+      12
+    ) {
+      score += 1;
+    }
+
+    if (
+      /[a-z]/.test(
+        password,
+      ) &&
+      /[A-Z]/.test(
+        password,
+      )
+    ) {
+      score += 1;
+    }
+
+    if (
+      /\d/.test(
+        password,
+      )
+    ) {
+      score += 1;
+    }
+
+    if (
+      /[^A-Za-z0-9]/.test(
+        password,
+      )
+    ) {
+      score += 1;
+    }
+
+    return Math.min(
+      score,
+      5,
+    );
+  }
+
+  function updatePasswordStrength() {
+    const password =
+      newPassword?.value ??
+      '';
+
+    const strength =
+      getPasswordStrength(
+        password,
+      );
+
+    const percentages =
+      [
+        0,
+        20,
+        40,
+        60,
+        80,
+        100,
+      ];
+
+    const labels =
+      [
+        'Use pelo menos 8 caracteres.',
+        'Senha fraca',
+        'Senha razoável',
+        'Senha boa',
+        'Senha forte',
+        'Senha muito forte',
+      ];
+
+    if (
+      passwordStrengthFill
+    ) {
+      passwordStrengthFill.style.width =
+        `${percentages[strength]}%`;
+
+      passwordStrengthFill.dataset.strength =
+        String(
+          strength,
+        );
+    }
+
+    if (
+      passwordStrengthLabel
+    ) {
+      passwordStrengthLabel.textContent =
+        labels[strength];
+    }
+  }
+
+  document
+    .querySelectorAll<HTMLButtonElement>(
+      '[data-password-toggle]',
+    )
+    .forEach(
+      (
+        button,
+      ) => {
+        button.addEventListener(
+          'click',
+          () => {
+            const targetId =
+              button.dataset.passwordToggle;
+
+            if (
+              !targetId
+            ) {
+              return;
+            }
+
+            const input =
+              document.getElementById(
+                targetId,
+              ) as HTMLInputElement | null;
+
+            if (
+              !input
+            ) {
+              return;
+            }
+
+            const showing =
+              input.type ===
+              'text';
+
+            input.type =
+              showing
+                ? 'password'
+                : 'text';
+
+            button.textContent =
+              showing
+                ? 'Mostrar'
+                : 'Ocultar';
+
+            button.setAttribute(
+              'aria-label',
+              showing
+                ? 'Mostrar senha'
+                : 'Ocultar senha',
+            );
+          },
+        );
+      },
+    );
+
+  newPassword?.addEventListener(
+    'input',
+    () => {
+      clearPasswordStatus();
+      updatePasswordStrength();
+    },
+  );
+
+  currentPassword?.addEventListener(
+    'input',
+    clearPasswordStatus,
+  );
+
+  confirmPassword?.addEventListener(
+    'input',
+    clearPasswordStatus,
+  );
 
   function setAvatarPreview(
     avatar:
@@ -936,6 +1505,187 @@ import '../../styles/members.css';
     },
   );
 
+  passwordForm?.addEventListener(
+    'submit',
+    async (
+      event,
+    ) => {
+      event.preventDefault();
+
+      clearPasswordStatus();
+
+      if (
+        !session ||
+        !currentPassword ||
+        !newPassword ||
+        !confirmPassword ||
+        !changePasswordButton
+      ) {
+        return;
+      }
+
+      const email =
+        session.user.email;
+
+      if (
+        !email
+      ) {
+        showPasswordStatus(
+          'Sua conta não possui um e-mail disponível para confirmar a senha atual.',
+          'error',
+        );
+
+        return;
+      }
+
+      const current =
+        currentPassword.value;
+
+      const next =
+        newPassword.value;
+
+      const confirmation =
+        confirmPassword.value;
+
+      if (
+        !current
+      ) {
+        showPasswordStatus(
+          'Digite sua senha atual.',
+          'error',
+        );
+
+        return;
+      }
+
+      if (
+        next.length <
+        8
+      ) {
+        showPasswordStatus(
+          'A nova senha precisa ter pelo menos 8 caracteres.',
+          'error',
+        );
+
+        return;
+      }
+
+      if (
+        next !==
+        confirmation
+      ) {
+        showPasswordStatus(
+          'A confirmação da nova senha não corresponde.',
+          'error',
+        );
+
+        return;
+      }
+
+      if (
+        current ===
+        next
+      ) {
+        showPasswordStatus(
+          'A nova senha precisa ser diferente da senha atual.',
+          'error',
+        );
+
+        return;
+      }
+
+      changePasswordButton.disabled =
+        true;
+
+      changePasswordButton.textContent =
+        'Confirmando senha atual...';
+
+      try {
+        // Reautentica usando a senha atual.
+        // A troca só continua se esta etapa for aceita pelo Supabase Auth.
+        const {
+          error:
+            signInError,
+        } =
+          await supabase.auth
+            .signInWithPassword(
+              {
+                email,
+                password:
+                  current,
+              },
+            );
+
+        if (
+          signInError
+        ) {
+          showPasswordStatus(
+            'Senha atual incorreta.',
+            'error',
+          );
+
+          return;
+        }
+
+        changePasswordButton.textContent =
+          'Alterando senha...';
+
+        const {
+          error:
+            updateError,
+        } =
+          await supabase.auth
+            .updateUser(
+              {
+                password:
+                  next,
+              },
+            );
+
+        if (
+          updateError
+        ) {
+          throw updateError;
+        }
+
+        currentPassword.value =
+          '';
+
+        newPassword.value =
+          '';
+
+        confirmPassword.value =
+          '';
+
+        updatePasswordStrength();
+
+        showPasswordStatus(
+          'Senha alterada com sucesso.',
+          'success',
+        );
+      } catch (
+        error: any
+      ) {
+        console.error(
+          '[EVRYLUX] Falha ao alterar senha:',
+          error,
+        );
+
+        showPasswordStatus(
+          error?.message ||
+          'Não foi possível alterar sua senha.',
+          'error',
+        );
+      } finally {
+        changePasswordButton.disabled =
+          false;
+
+        changePasswordButton.textContent =
+          'Alterar senha';
+      }
+    },
+  );
+
   window.addEventListener(
     'pagehide',
     clearLocalPreviewUrl,
@@ -944,51 +1694,226 @@ import '../../styles/members.css';
 </script>
 
 <style>
-  .profile-preview-bio {
-    margin: 24px 0 0;
-    color: var(--text-soft);
-    line-height: 1.75;
+  .profile-page {
+    position: relative;
   }
 
-  .default-profile-avatar {
-    width: 72px;
-    height: 72px;
-    padding: 0;
-    overflow: hidden;
+  .profile-topbar {
+    align-items: flex-start;
+  }
+
+  .profile-topbar .member-title-block {
+    max-width: 720px;
+  }
+
+  .profile-topbar h1 {
+    font-size: clamp(42px, 5vw, 64px);
+    line-height: .98;
+    letter-spacing: -.055em;
+  }
+
+  .profile-topbar p {
+    max-width: 650px;
+    line-height: 1.72;
+  }
+
+  .profile-overview-grid {
+    margin-top: 30px;
+    display: grid;
+    grid-template-columns: minmax(0,1.35fr) minmax(300px,.65fr);
+    gap: 16px;
+  }
+
+  .profile-preview-card {
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255,255,255,.94),
+        rgba(247,251,244,.82)
+      );
+    box-shadow:
+      0 16px 44px
+      rgba(54,92,51,.045);
+  }
+
+  .profile-preview-layout {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+
+  .profile-preview-avatar-wrap {
+    width: 84px;
+    height: 84px;
     flex: 0 0 auto;
-    border: 0;
-    border-radius: 50%;
-    background: transparent;
-    box-shadow: none;
   }
 
-  .default-profile-avatar-large {
-    width: 92px;
-    height: 92px;
-  }
-
-  .default-profile-avatar svg {
-    width: 100%;
-    height: 100%;
-    display: block;
-  }
-
-  .default-profile-avatar .default-avatar-bg {
-    fill: #a9abad;
-  }
-
-  .default-profile-avatar .default-avatar-person {
-    fill: #eef6f3;
-  }
-
+  .default-profile-avatar-preview,
   #profile-avatar-preview {
-    width: 72px;
-    height: 72px;
+    width: 84px;
+    height: 84px;
+  }
+
+  .profile-preview-copy {
+    min-width: 0;
+  }
+
+  .profile-preview-copy h2 {
+    margin: 9px 0 0;
+    font-size: 24px;
+    letter-spacing: -.035em;
+  }
+
+  .profile-preview-copy .member-muted {
+    margin-top: 4px;
+  }
+
+  .profile-preview-bio {
+    max-width: 620px;
+    margin: 12px 0 0;
+    color: var(--text-soft);
+    line-height: 1.7;
+  }
+
+  .profile-tip-card {
+    padding: 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 13px;
+    border: 1px solid rgba(95,157,89,.13);
+    border-radius: 20px;
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255,255,255,.82),
+        rgba(223,241,218,.48)
+      );
+  }
+
+  .profile-tip-icon,
+  .security-note-icon {
+    width: 40px;
+    height: 40px;
     flex: 0 0 auto;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 1px solid rgba(65,104,62,.1);
-    box-shadow: 0 8px 24px rgba(54,92,51,.06);
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+  }
+
+  .profile-tip-icon svg,
+  .security-note-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .profile-tip-card span {
+    display: block;
+    color: var(--primary-deep);
+    font-size: 8px;
+    font-weight: 850;
+    letter-spacing: .055em;
+    text-transform: uppercase;
+  }
+
+  .profile-tip-card strong {
+    display: block;
+    margin-top: 5px;
+    font-size: 13px;
+  }
+
+  .profile-tip-card p {
+    margin: 7px 0 0;
+    color: var(--text-soft);
+    font-size: 10px;
+    line-height: 1.6;
+  }
+
+  .profile-settings-grid {
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: minmax(0,1.45fr) minmax(320px,.55fr);
+    gap: 16px;
+    align-items: start;
+  }
+
+  .profile-main-card {
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255,255,255,.96),
+        rgba(249,252,247,.86)
+      );
+    box-shadow:
+      0 18px 52px
+      rgba(54,92,51,.05);
+  }
+
+  .section-heading {
+    padding-bottom: 22px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-kicker {
+    color: var(--primary-deep);
+    font-size: 8px;
+    font-weight: 850;
+    letter-spacing: .055em;
+    text-transform: uppercase;
+  }
+
+  .section-heading h2 {
+    margin: 7px 0 0;
+    font-size: 28px;
+    letter-spacing: -.04em;
+  }
+
+  .section-heading p {
+    max-width: 670px;
+    margin: 8px 0 0;
+    color: var(--text-soft);
+    font-size: 11px;
+    line-height: 1.65;
+  }
+
+  .profile-form-modern {
+    margin-top: 0;
+  }
+
+  .form-section {
+    padding: 24px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .form-section-head {
+    margin-bottom: 17px;
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+  }
+
+  .form-section-index {
+    min-width: 30px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font-size: 8px;
+    font-weight: 900;
+  }
+
+  .form-section-head strong {
+    display: block;
+    font-size: 12px;
+  }
+
+  .form-section-head p {
+    margin: 3px 0 0;
+    color: var(--text-soft);
+    font-size: 9px;
   }
 
   .profile-photo-control {
@@ -996,7 +1921,7 @@ import '../../styles/members.css';
     display: flex;
     align-items: center;
     gap: 18px;
-    border: 1px solid var(--border);
+    border: 1px solid rgba(65,104,62,.1);
     border-radius: 18px;
     background:
       linear-gradient(
@@ -1012,14 +1937,46 @@ import '../../styles/members.css';
     flex: 0 0 auto;
   }
 
+  .default-profile-avatar {
+    padding: 0;
+    overflow: hidden;
+    flex: 0 0 auto;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .default-profile-avatar-large,
   .profile-upload-preview {
     width: 92px;
     height: 92px;
+  }
+
+  .default-profile-avatar-image,
+  .profile-upload-preview {
+    width: 100%;
+    height: 100%;
+    display: block;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+
+  #profile-avatar-preview {
     display: block;
     border-radius: 50%;
     object-fit: cover;
     border: 1px solid rgba(65,104,62,.1);
-    box-shadow: 0 10px 30px rgba(54,92,51,.08);
+    box-shadow:
+      0 8px 24px
+      rgba(54,92,51,.06);
+  }
+
+  .profile-upload-preview {
+    border: 1px solid rgba(65,104,62,.1);
+    box-shadow:
+      0 10px 30px
+      rgba(54,92,51,.08);
   }
 
   .profile-photo-control-copy {
@@ -1078,10 +2035,297 @@ import '../../styles/members.css';
     pointer-events: none;
   }
 
+  .profile-form-footer {
+    padding-top: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+  }
+
+  .profile-form-footer strong {
+    display: block;
+    font-size: 11px;
+  }
+
+  .profile-form-footer p {
+    margin: 3px 0 0;
+    color: var(--text-soft);
+    font-size: 9px;
+  }
+
+  .profile-side-column {
+    display: grid;
+    gap: 14px;
+  }
+
+  .password-card {
+    overflow: hidden;
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255,255,255,.95),
+        rgba(247,251,244,.84)
+      );
+    box-shadow:
+      0 16px 46px
+      rgba(54,92,51,.045);
+  }
+
+  .password-card-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .password-card-head h2 {
+    margin: 6px 0 0;
+    font-size: 22px;
+    letter-spacing: -.035em;
+  }
+
+  .password-card-head p {
+    margin: 7px 0 0;
+    color: var(--text-soft);
+    font-size: 10px;
+    line-height: 1.55;
+  }
+
+  .password-card-icon {
+    width: 44px;
+    height: 44px;
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(95,157,89,.14);
+    border-radius: 13px;
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255,255,255,.95),
+        var(--primary-soft)
+      );
+    color: var(--primary-deep);
+  }
+
+  .password-card-icon svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .password-form {
+    margin-top: 20px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+  }
+
+  .password-form .member-field + .member-field {
+    margin-top: 14px;
+  }
+
+  .password-input-wrap {
+    position: relative;
+  }
+
+  .password-input-wrap input {
+    width: 100%;
+    padding-right: 78px;
+  }
+
+  .password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    min-width: 58px;
+    min-height: 32px;
+    padding: 0 9px;
+    transform: translateY(-50%);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: rgba(247,251,244,.92);
+    color: var(--text-soft);
+    font: inherit;
+    font-size: 9px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .password-toggle:hover {
+    border-color: rgba(95,157,89,.24);
+    background: #fff;
+    color: var(--primary-deep);
+  }
+
+  .password-strength {
+    margin-top: 9px;
+  }
+
+  .password-strength-bar {
+    height: 5px;
+    display: block;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(104,114,105,.12);
+  }
+
+  #password-strength-fill {
+    width: 0;
+    height: 100%;
+    display: block;
+    border-radius: inherit;
+    background: var(--primary-strong);
+    transition:
+      width .22s ease,
+      background .22s ease;
+  }
+
+  #password-strength-fill[data-strength="1"] {
+    background: #c87f72;
+  }
+
+  #password-strength-fill[data-strength="2"] {
+    background: #c59a68;
+  }
+
+  #password-strength-fill[data-strength="3"] {
+    background: #9da765;
+  }
+
+  #password-strength-fill[data-strength="4"],
+  #password-strength-fill[data-strength="5"] {
+    background: var(--primary-strong);
+  }
+
+  .password-strength small {
+    display: block;
+    margin-top: 6px;
+    color: var(--text-soft);
+    font-size: 9px;
+  }
+
+  .password-security-note {
+    margin-top: 16px;
+    padding: 11px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid rgba(95,157,89,.12);
+    border-radius: 11px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+  }
+
+  .password-security-note > span {
+    width: 22px;
+    height: 22px;
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    border-radius: 7px;
+    background: rgba(255,255,255,.55);
+    font-size: 9px;
+    font-weight: 900;
+  }
+
+  .password-security-note p {
+    margin: 0;
+    font-size: 9px;
+  }
+
+  .password-submit {
+    width: 100%;
+    margin-top: 14px;
+  }
+
+  #password-status.show,
+  #profile-status.show {
+    margin-top: 14px;
+  }
+
+  .security-note-card {
+    padding: 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    border: 1px solid rgba(65,104,62,.1);
+    border-radius: 16px;
+    background: rgba(255,255,255,.62);
+  }
+
+  .security-note-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+  }
+
+  .security-note-icon svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .security-note-card strong {
+    display: block;
+    font-size: 10px;
+  }
+
+  .security-note-card p {
+    margin: 5px 0 0;
+    color: var(--text-soft);
+    font-size: 9px;
+    line-height: 1.55;
+  }
+
+  @media (max-width: 980px) {
+    .profile-overview-grid,
+    .profile-settings-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .profile-side-column {
+      grid-template-columns:
+        repeat(
+          2,
+          minmax(0,1fr)
+        );
+    }
+  }
+
+  @media (max-width: 700px) {
+    .profile-preview-layout {
+      align-items: flex-start;
+    }
+
+    .profile-side-column {
+      grid-template-columns: 1fr;
+    }
+
+    .profile-form-footer {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .profile-form-footer .member-button {
+      width: 100%;
+    }
+  }
+
   @media (max-width: 620px) {
-    .profile-photo-control {
+    .profile-photo-control,
+    .profile-preview-layout,
+    .password-card-head {
       align-items: flex-start;
       flex-direction: column;
+    }
+
+    .profile-preview-avatar-wrap {
+      width: 72px;
+      height: 72px;
+    }
+
+    .default-profile-avatar-preview,
+    #profile-avatar-preview {
+      width: 72px;
+      height: 72px;
     }
   }
 </style>

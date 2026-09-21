@@ -32,6 +32,7 @@ begin;
 --
 drop function if exists public.list_colab_admins();
 drop function if exists public.add_colab_admin_by_email(text);
+drop function if exists public.lookup_colab_user_for_admin(text);
 drop function if exists public.set_colab_admin_permissions(uuid, text[]);
 drop function if exists public.remove_colab_admin(uuid);
 drop function if exists public.list_colab_admin_audit(integer);
@@ -293,6 +294,59 @@ begin
     lower(coalesce(mp.display_name, u.email));
 end;
 $$;
+
+
+-- ------------------------------------------------------------
+-- 6.1. CONSULTAR USUÁRIO POR E-MAIL
+--
+-- Permite que o proprietário veja quem é o usuário e quais
+-- permissões ele já possui antes de adicionar/promover.
+-- ------------------------------------------------------------
+
+create or replace function public.lookup_colab_user_for_admin(target_email text)
+returns table (
+  user_id uuid,
+  email text,
+  display_name text,
+  avatar_url text,
+  is_admin boolean,
+  is_owner boolean,
+  permissions text[]
+)
+language plpgsql
+stable
+security definer
+set search_path = public, auth
+as $$
+begin
+  if not public.is_colab_owner() then
+    raise exception 'Somente o proprietário pode consultar usuários para promoção';
+  end if;
+
+  return query
+  select
+    u.id,
+    u.email::text,
+    coalesce(mp.display_name, split_part(u.email, '@', 1))::text,
+    mp.avatar_url::text,
+    exists (
+      select 1
+      from public.colab_user_roles r
+      where r.user_id = u.id
+        and r.role = 'admin'
+    ),
+    coalesce(a.is_owner, false),
+    coalesce(a.permissions, '{}'::text[])
+  from auth.users u
+  left join public.member_profiles mp
+    on mp.user_id = u.id
+  left join public.colab_admin_access a
+    on a.user_id = u.id
+  where lower(u.email) = lower(trim(target_email))
+  limit 1;
+end;
+$$;
+
 
 -- ------------------------------------------------------------
 -- 7. ADICIONAR ADMIN POR E-MAIL
@@ -592,6 +646,7 @@ grant execute on function public.has_colab_admin_permission(text) to authenticat
 grant execute on function public.is_colab_admin_role() to authenticated;
 grant execute on function public.claim_colab_owner() to authenticated;
 grant execute on function public.list_colab_admins() to authenticated;
+grant execute on function public.lookup_colab_user_for_admin(text) to authenticated;
 grant execute on function public.add_colab_admin_by_email(text) to authenticated;
 grant execute on function public.set_colab_admin_permissions(uuid, text[]) to authenticated;
 grant execute on function public.remove_colab_admin(uuid) to authenticated;

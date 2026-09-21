@@ -68,6 +68,16 @@ export const ADMIN_PERMISSION_DEFINITIONS = [
 export type AdminPermission =
   typeof ADMIN_PERMISSION_DEFINITIONS[number]['key'];
 
+export interface ColabUserAdminPreview {
+  user_id: string;
+  email: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+  is_admin: boolean;
+  is_owner: boolean;
+  permissions: AdminPermission[];
+}
+
 export interface ColabAdmin {
   user_id: string;
   email: string | null;
@@ -261,6 +271,96 @@ export async function listColabAdmins():
         ),
     }),
   );
+}
+
+
+export async function lookupColabUserForAdmin(
+  email: string,
+):
+  Promise<
+    ColabUserAdminPreview | null
+  > {
+  const {
+    data,
+    error,
+  } =
+    await supabase.rpc(
+      'lookup_colab_user_for_admin',
+      {
+        target_email:
+          email.trim(),
+      },
+    );
+
+  if (error) {
+    throw normalizeRpcError(
+      error,
+      'Não foi possível consultar o usuário.',
+    );
+  }
+
+  const row =
+    Array.isArray(data)
+      ? data[0]
+      : data;
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    user_id:
+      String(
+        row.user_id ??
+        '',
+      ),
+
+    email:
+      typeof row.email ===
+      'string'
+        ? row.email
+        : null,
+
+    display_name:
+      typeof row.display_name ===
+      'string'
+        ? row.display_name
+        : null,
+
+    avatar_url:
+      typeof row.avatar_url ===
+      'string'
+        ? row.avatar_url
+        : null,
+
+    is_admin:
+      row.is_admin ===
+      true,
+
+    is_owner:
+      row.is_owner ===
+      true,
+
+    permissions:
+      Array.isArray(
+        row.permissions,
+      )
+        ? row.permissions.filter(
+            (
+              permission,
+            ): permission is AdminPermission =>
+              typeof permission ===
+                'string' &&
+              ADMIN_PERMISSION_DEFINITIONS.some(
+                (
+                  definition,
+                ) =>
+                  definition.key ===
+                  permission,
+              ),
+          )
+        : [],
+  };
 }
 
 export async function addColabAdminByEmail(
