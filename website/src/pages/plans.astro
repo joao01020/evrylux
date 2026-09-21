@@ -1,0 +1,886 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const plans = [
+  {
+    name: 'Free',
+    price: 'US$ 0',
+    period: 'para sempre',
+    storage: '1 GB',
+    description:
+      'Para conhecer o EVRYLUX com espaço suficiente para criar uma base real de conhecimento, usar os módulos no dia a dia e sentir a experiência do produto antes de precisar aumentar a capacidade.',
+    cta: 'Começar grátis',
+    featured: false,
+    badge: 'Para começar',
+    items: [
+      '1 GB de armazenamento sincronizado',
+      'Acesso ao Brain',
+      'Acesso ao Financeiro',
+      'Acesso ao Treino',
+      'Acesso à Rotina',
+      'Uso offline-first',
+      'Sincronização entre dispositivos',
+      'Criptografia do conteúdo sincronizado',
+    ],
+  },
+  {
+    name: 'Essencial',
+    price: 'US$ 9',
+    period: '/ mês',
+    storage: '10 GB',
+    description:
+      'Para quem passou a usar o EVRYLUX de forma recorrente e quer muito mais espaço para conhecimento, histórico, anexos e arquivos sincronizados.',
+    cta: 'Escolher Essencial',
+    featured: true,
+    badge: 'Mais indicado',
+    items: [
+      '10 GB de armazenamento sincronizado',
+      'Tudo do plano Free',
+      'Mais espaço para conhecimento e histórico',
+      'Mais espaço para anexos e arquivos',
+      'Todos os módulos disponíveis',
+      'Uso offline-first',
+      'Sincronização entre dispositivos',
+      'Criptografia do conteúdo sincronizado',
+    ],
+  },
+  {
+    name: 'Pro',
+    price: 'US$ 29',
+    period: '/ mês',
+    storage: '50 GB',
+    description:
+      'Para usuários intensivos que querem concentrar uma grande parte do histórico pessoal, materiais e arquivos dentro do ecossistema EVRYLUX.',
+    cta: 'Escolher Pro',
+    featured: false,
+    badge: 'Mais capacidade',
+    items: [
+      '50 GB de armazenamento sincronizado',
+      'Tudo do plano Essencial',
+      'Grande capacidade para histórico de longo prazo',
+      'Muito mais espaço para arquivos e materiais',
+      'Todos os módulos disponíveis',
+      'Uso offline-first',
+      'Sincronização entre dispositivos',
+      'Criptografia do conteúdo sincronizado',
+    ],
+  },
+];
+
+const comparisons = [
+  ['Armazenamento sincronizado', '1 GB', '10 GB', '50 GB'],
+  ['Brain', 'Incluído', 'Incluído', 'Incluído'],
+  ['Financeiro', 'Incluído', 'Incluído', 'Incluído'],
+  ['Treino', 'Incluído', 'Incluído', 'Incluído'],
+  ['Rotina', 'Incluído', 'Incluído', 'Incluído'],
+  ['Offline-first', 'Incluído', 'Incluído', 'Incluído'],
+  ['Criptografia', 'Incluído', 'Incluído', 'Incluído'],
+];
+---
+
+<Layout
+  title="Planos — EVRYLUX"
+  description="Escolha a capacidade de armazenamento sincronizado do EVRYLUX sem perder acesso aos recursos essenciais."
+>
+  <main class="plans-page">
+    <section class="plans-hero">
+      <div class="plans-orb plans-orb-one" aria-hidden="true"></div>
+      <div class="plans-orb plans-orb-two" aria-hidden="true"></div>
+
+      <div class="container plans-hero-inner">
+        <div class="eyebrow">Planos EVRYLUX</div>
+
+        <h1>
+          Comece com espaço para usar de verdade.
+          <span>Cresça quando precisar.</span>
+        </h1>
+
+        <p>
+          Os recursos principais continuam disponíveis em todos os planos.
+          Por enquanto, o que muda é a capacidade de armazenamento sincronizado:
+          você escolhe quanto espaço precisa conforme o seu histórico cresce.
+        </p>
+
+        <div class="plans-principle">
+          <span class="principle-dot"></span>
+
+          <div>
+            <strong>Sem bloquear a experiência principal.</strong>
+
+            <span>
+              Brain, Financeiro, Treino e Rotina permanecem disponíveis
+              desde o plano gratuito.
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="pricing-section">
+      <div class="container">
+        <div class="pricing-grid">
+          {
+            plans.map((plan) => (
+              <article
+                class:list={[
+                  'pricing-card',
+                  {
+                    featured: plan.featured,
+                  },
+                ]}
+              >
+                <div class="pricing-card-top">
+                  <div>
+                    <span class="plan-badge">
+                      {plan.badge}
+                    </span>
+
+                    <h2>
+                      {plan.name}
+                    </h2>
+                  </div>
+
+                  <div class="storage-badge">
+                    <span>
+                      Armazenamento
+                    </span>
+
+                    <strong>
+                      {plan.storage}
+                    </strong>
+                  </div>
+                </div>
+
+                <div class="plan-price">
+                  <strong>
+                    {plan.price}
+                  </strong>
+
+                  <span>
+                    {plan.period}
+                  </span>
+                </div>
+
+                <p class="plan-description">
+                  {plan.description}
+                </p>
+
+                <a
+                  class:list={[
+                    'plan-button',
+                    {
+                      'plan-button-primary':
+                        plan.featured,
+                    },
+                  ]}
+                  href="/download"
+                >
+                  <span>
+                    {plan.cta}
+                  </span>
+
+                  <span aria-hidden="true">
+                    →
+                  </span>
+                </a>
+
+                <div class="plan-divider"></div>
+
+                <div class="plan-includes">
+                  <span class="includes-label">
+                    Inclui
+                  </span>
+
+                  <ul>
+                    {
+                      plan.items.map((item) => (
+                        <li>
+                          <span class="check" aria-hidden="true">✓</span>
+                          <span>{item}</span>
+                        </li>
+                      ))
+                    }
+                  </ul>
+                </div>
+              </article>
+            ))
+          }
+        </div>
+
+        <div class="pricing-note">
+          <span class="pricing-note-icon">i</span>
+
+          <div>
+            <strong>
+              Proposta inicial de preços
+            </strong>
+
+            <p>
+              Os valores e limites desta página representam a estrutura inicial
+              dos planos. Antes do lançamento comercial, eles podem ser
+              ajustados conforme custo real de infraestrutura, armazenamento e
+              sincronização.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="comparison-section">
+      <div class="container">
+        <div class="comparison-heading">
+          <div>
+            <div class="eyebrow">
+              Comparação
+            </div>
+
+            <h2>
+              A mesma experiência.
+              Mais espaço quando necessário.
+            </h2>
+          </div>
+
+          <p>
+            A ideia inicial é simples: não criar dezenas de limitações
+            artificiais. O usuário começa com o produto completo e aumenta
+            sua capacidade quando o volume de dados justificar.
+          </p>
+        </div>
+
+        <div class="comparison-card">
+          <div class="comparison-row comparison-header">
+            <div>Recurso</div>
+            <div>Free</div>
+            <div class="featured-column">Essencial</div>
+            <div>Pro</div>
+          </div>
+
+          {
+            comparisons.map((row) => (
+              <div class="comparison-row">
+                <div>{row[0]}</div>
+                <div>{row[1]}</div>
+                <div class="featured-column">{row[2]}</div>
+                <div>{row[3]}</div>
+              </div>
+            ))
+          }
+        </div>
+      </div>
+    </section>
+
+    <section class="storage-explanation">
+      <div class="container">
+        <div class="storage-card">
+          <div class="storage-copy">
+            <div class="eyebrow">
+              Como funciona
+            </div>
+
+            <h2>
+              Seu conhecimento local continua sendo seu.
+            </h2>
+
+            <p>
+              A capacidade do plano representa o espaço de dados sincronizados
+              na infraestrutura do EVRYLUX. Como o produto é pensado com
+              abordagem offline-first, o armazenamento local do dispositivo e
+              o armazenamento sincronizado são conceitos diferentes.
+            </p>
+          </div>
+
+          <div class="storage-visual">
+            <article>
+              <span class="storage-number">01</span>
+
+              <div>
+                <strong>Você registra</strong>
+
+                <p>
+                  Conceitos, perguntas, treinos, objetivos e rotina.
+                </p>
+              </div>
+            </article>
+
+            <span class="storage-line"></span>
+
+            <article>
+              <span class="storage-number">02</span>
+
+              <div>
+                <strong>O EVRYLUX protege</strong>
+
+                <p>
+                  O conteúdo sensível entra no fluxo de proteção e criptografia.
+                </p>
+              </div>
+            </article>
+
+            <span class="storage-line"></span>
+
+            <article>
+              <span class="storage-number">03</span>
+
+              <div>
+                <strong>Você sincroniza</strong>
+
+                <p>
+                  O plano define a capacidade disponível para os dados sincronizados.
+                </p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="plans-cta">
+      <div class="container">
+        <div class="plans-cta-card">
+          <div>
+            <div class="eyebrow">
+              Comece sem compromisso
+            </div>
+
+            <h2>
+              Primeiro, use o EVRYLUX de verdade.
+            </h2>
+
+            <p>
+              O plano Free agora oferece 1 GB de armazenamento sincronizado,
+              espaço suficiente para o usuário criar uma base significativa
+              de conhecimento e experimentar os módulos antes de precisar
+              aumentar a capacidade.
+            </p>
+          </div>
+
+          <a class="button button-primary" href="/download">
+            Baixar EVRYLUX
+            <span aria-hidden="true">↗</span>
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+</Layout>
+
+<style>
+  .plans-page { overflow: hidden; }
+
+  .plans-hero {
+    position: relative;
+    padding: 112px 0 76px;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .plans-hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -3;
+    background:
+      radial-gradient(circle at 80% 18%, rgba(159,211,149,.18), transparent 30%),
+      linear-gradient(180deg, #f9fcf7 0%, var(--bg) 100%);
+  }
+
+  .plans-orb {
+    position: absolute;
+    z-index: -2;
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  .plans-orb-one {
+    width: 420px;
+    height: 420px;
+    top: -190px;
+    right: -120px;
+    background: rgba(223,241,218,.5);
+  }
+
+  .plans-orb-two {
+    width: 260px;
+    height: 260px;
+    left: 25%;
+    bottom: -150px;
+    background: rgba(159,211,149,.08);
+  }
+
+  .plans-hero-inner h1 {
+    max-width: 940px;
+    margin: 20px 0 0;
+    font-size: clamp(54px, 7vw, 90px);
+    line-height: .96;
+    letter-spacing: -.064em;
+  }
+
+  .plans-hero-inner h1 span {
+    display: block;
+    color: var(--primary-deep);
+  }
+
+  .plans-hero-inner > p {
+    max-width: 790px;
+    margin: 28px 0 0;
+    color: var(--text-soft);
+    font-size: 19px;
+    line-height: 1.72;
+  }
+
+  .plans-principle {
+    max-width: 720px;
+    margin-top: 28px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: rgba(255,255,255,.68);
+    box-shadow: 0 10px 34px rgba(54,92,51,.04);
+  }
+
+  .principle-dot {
+    width: 9px;
+    height: 9px;
+    margin-top: 5px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: var(--primary-strong);
+    box-shadow: 0 0 0 6px rgba(95,157,89,.1);
+  }
+
+  .plans-principle strong,
+  .plans-principle span { display: block; }
+
+  .plans-principle strong { font-size: 12px; }
+
+  .plans-principle div > span {
+    margin-top: 4px;
+    color: var(--text-soft);
+    font-size: 11px;
+    line-height: 1.5;
+  }
+
+  .pricing-section { padding: 12px 0 86px; }
+
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0,1fr));
+    gap: 16px;
+    align-items: stretch;
+  }
+
+  .pricing-card {
+    position: relative;
+    min-height: 610px;
+    padding: 26px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    background: rgba(255,255,255,.82);
+    box-shadow: 0 16px 50px rgba(54,92,51,.045);
+  }
+
+  .pricing-card.featured {
+    transform: translateY(-10px);
+    border-color: rgba(95,157,89,.28);
+    background: linear-gradient(145deg, rgba(255,255,255,.96), rgba(239,248,235,.88));
+    box-shadow: 0 25px 70px rgba(54,92,51,.1);
+  }
+
+  .pricing-card.featured::before {
+    content: "";
+    position: absolute;
+    width: 230px;
+    height: 230px;
+    right: -90px;
+    top: -110px;
+    border-radius: 50%;
+    background: rgba(159,211,149,.13);
+  }
+
+  .pricing-card-top {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+  }
+
+  .plan-badge {
+    min-height: 25px;
+    padding: 0 8px;
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    background: var(--surface-muted);
+    color: var(--text-soft);
+    font-size: 9px;
+    font-weight: 850;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+  }
+
+  .featured .plan-badge {
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+  }
+
+  .pricing-card h2 {
+    margin: 13px 0 0;
+    font-size: 28px;
+    letter-spacing: -.04em;
+  }
+
+  .storage-badge {
+    min-width: 88px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    background: rgba(255,255,255,.72);
+    text-align: right;
+  }
+
+  .storage-badge span,
+  .storage-badge strong { display: block; }
+
+  .storage-badge span {
+    color: var(--text-soft);
+    font-size: 7px;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+  }
+
+  .storage-badge strong {
+    margin-top: 3px;
+    color: var(--primary-deep);
+    font-size: 12px;
+  }
+
+  .plan-price {
+    position: relative;
+    z-index: 2;
+    margin-top: 30px;
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+  }
+
+  .plan-price strong {
+    font-size: 42px;
+    letter-spacing: -.055em;
+  }
+
+  .plan-price span {
+    color: var(--text-soft);
+    font-size: 11px;
+  }
+
+  .plan-description {
+    position: relative;
+    z-index: 2;
+    min-height: 90px;
+    margin: 16px 0 0;
+    color: var(--text-soft);
+    font-size: 13px;
+    line-height: 1.7;
+  }
+
+  .plan-button {
+    position: relative;
+    z-index: 2;
+    min-height: 46px;
+    margin-top: 20px;
+    padding: 0 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    background: rgba(255,255,255,.78);
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 800;
+    transition: transform .18s ease, box-shadow .18s ease;
+  }
+
+  .plan-button-primary {
+    border-color: rgba(95,157,89,.2);
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+  }
+
+  .plan-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(54,92,51,.07);
+  }
+
+  .plan-divider {
+    height: 1px;
+    margin: 24px 0 20px;
+    background: var(--border);
+  }
+
+  .includes-label {
+    color: var(--text-soft);
+    font-size: 9px;
+    font-weight: 850;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+
+  .plan-includes ul {
+    margin: 14px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 10px;
+    list-style: none;
+  }
+
+  .plan-includes li {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    color: var(--text-soft);
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .check {
+    width: 18px;
+    height: 18px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border-radius: 6px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font-size: 9px;
+    font-weight: 900;
+  }
+
+  .pricing-note {
+    margin-top: 28px;
+    padding: 16px 18px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: rgba(255,255,255,.52);
+  }
+
+  .pricing-note-icon {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border-radius: 10px;
+    background: var(--surface-muted);
+    color: var(--text-soft);
+    font-size: 11px;
+    font-weight: 850;
+  }
+
+  .pricing-note strong { display: block; font-size: 11px; }
+
+  .pricing-note p {
+    margin: 4px 0 0;
+    color: var(--text-soft);
+    font-size: 10px;
+    line-height: 1.55;
+  }
+
+  .comparison-section { padding: 10px 0 88px; }
+
+  .comparison-heading {
+    display: grid;
+    grid-template-columns: minmax(0,1.05fr) minmax(320px,.95fr);
+    align-items: end;
+    gap: 60px;
+  }
+
+  .comparison-heading h2 {
+    max-width: 760px;
+    margin: 14px 0 0;
+    font-size: clamp(34px,4vw,52px);
+    line-height: 1.05;
+    letter-spacing: -.052em;
+  }
+
+  .comparison-heading > p {
+    margin: 0;
+    color: var(--text-soft);
+    font-size: 14px;
+    line-height: 1.7;
+  }
+
+  .comparison-card {
+    margin-top: 30px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: rgba(255,255,255,.76);
+  }
+
+  .comparison-row {
+    display: grid;
+    grid-template-columns: 1.4fr repeat(3,1fr);
+    border-top: 1px solid var(--border);
+  }
+
+  .comparison-row:first-child { border-top: 0; }
+
+  .comparison-row > div {
+    min-height: 54px;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    color: var(--text-soft);
+    font-size: 11px;
+    border-left: 1px solid var(--border);
+  }
+
+  .comparison-row > div:first-child {
+    border-left: 0;
+    color: var(--text);
+    font-weight: 750;
+  }
+
+  .comparison-header > div {
+    min-height: 48px;
+    color: var(--text);
+    font-size: 10px;
+    font-weight: 850;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    background: var(--surface-muted);
+  }
+
+  .comparison-row .featured-column {
+    background: rgba(223,241,218,.36);
+    color: var(--primary-deep);
+    font-weight: 750;
+  }
+
+  .storage-explanation { padding: 0 0 88px; }
+
+  .storage-card {
+    padding: 38px;
+    display: grid;
+    grid-template-columns: minmax(0,.9fr) minmax(420px,1.1fr);
+    gap: 54px;
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    background: linear-gradient(145deg, rgba(255,255,255,.9), rgba(239,248,235,.74));
+  }
+
+  .storage-copy h2 {
+    margin: 14px 0 0;
+    font-size: clamp(34px,4vw,48px);
+    line-height: 1.06;
+    letter-spacing: -.05em;
+  }
+
+  .storage-copy p {
+    margin: 18px 0 0;
+    color: var(--text-soft);
+    font-size: 13px;
+    line-height: 1.72;
+  }
+
+  .storage-visual {
+    display: grid;
+    align-content: center;
+  }
+
+  .storage-visual article {
+    padding: 14px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    background: rgba(255,255,255,.68);
+  }
+
+  .storage-number {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border-radius: 10px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font-size: 9px;
+    font-weight: 850;
+  }
+
+  .storage-visual strong { display: block; font-size: 12px; }
+
+  .storage-visual p {
+    margin: 4px 0 0;
+    color: var(--text-soft);
+    font-size: 10px;
+    line-height: 1.5;
+  }
+
+  .storage-line {
+    width: 1px;
+    height: 12px;
+    margin-left: 31px;
+    background: var(--border-strong);
+  }
+
+  .plans-cta { padding: 0 0 100px; }
+
+  .plans-cta-card {
+    padding: 34px;
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 40px;
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    background: rgba(255,255,255,.72);
+  }
+
+  .plans-cta-card h2 {
+    margin: 12px 0 0;
+    font-size: clamp(30px,3vw,42px);
+    letter-spacing: -.045em;
+  }
+
+  .plans-cta-card p {
+    max-width: 680px;
+    margin: 12px 0 0;
+    color: var(--text-soft);
+    line-height: 1.65;
+  }
+
+  @media (max-width: 980px) {
+    .pricing-grid { grid-template-columns: 1fr; }
+    .pricing-card.featured { transform: none; }
+    .pricing-card { min-height: auto; }
+    .plan-description { min-height: auto; }
+    .comparison-heading,
+    .storage-card { grid-template-columns: 1fr; }
+    .comparison-heading { align-items: start; gap: 20px; }
+  }
+
+  @media (max-width: 720px) {
+    .plans-hero { padding-top: 76px; }
+    .comparison-card { overflow-x: auto; }
+    .comparison-row { min-width: 700px; }
+    .storage-card { padding: 26px; }
+    .plans-cta-card { align-items: flex-start; flex-direction: column; }
+  }
+</style>

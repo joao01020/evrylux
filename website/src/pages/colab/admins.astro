@@ -1,0 +1,638 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import ColabNav from '../../components/colab/ColabNav.astro';
+import '../../styles/members.css';
+---
+
+<Layout
+  title="Administradores — EVRYLUX Colab"
+  description="Gerenciamento de administradores do EVRYLUX."
+>
+  <main class="member-shell">
+    <div
+      id="admin-loading"
+      class="member-container member-loading"
+    >
+      Verificando permissões...
+    </div>
+
+    <div
+      id="admin-content"
+      class="member-container member-hidden"
+    >
+      <div class="member-topbar">
+        <div class="member-title-block">
+          <div class="eyebrow">
+            EVRYLUX Colab
+          </div>
+
+          <h1>
+            Administradores
+          </h1>
+
+          <p>
+            Controle quem pode administrar o site e editar o roadmap público.
+          </p>
+        </div>
+
+        <ColabNav />
+      </div>
+
+      <section class="admin-panel">
+        <div class="admin-add-card">
+          <div>
+            <span class="admin-kicker">
+              Acesso administrativo
+            </span>
+
+            <h2>
+              Adicionar administrador
+            </h2>
+
+            <p>
+              Informe o e-mail de um usuário que já existe
+              em Authentication → Users.
+            </p>
+          </div>
+
+          <form
+            id="admin-add-form"
+            class="admin-add-form"
+          >
+            <input
+              id="admin-email"
+              type="email"
+              required
+              autocomplete="email"
+              placeholder="usuario@evrylux.com"
+            />
+
+            <button
+              id="admin-add-button"
+              type="submit"
+            >
+              Adicionar
+            </button>
+          </form>
+
+          <div
+            id="admin-status"
+            class="admin-status"
+            role="status"
+          ></div>
+        </div>
+
+        <div class="admin-list-card">
+          <div class="admin-list-head">
+            <div>
+              <span class="admin-kicker">
+                Permissões
+              </span>
+
+              <h2>
+                Administradores atuais
+              </h2>
+            </div>
+
+            <span
+              id="admin-count"
+              class="admin-count"
+            >
+              0
+            </span>
+          </div>
+
+          <div
+            id="admin-list"
+            class="admin-list"
+          ></div>
+        </div>
+      </section>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  import {
+    requireMemberSession,
+  } from '../../lib/member-auth';
+
+  import {
+    addColabAdminByEmail,
+    getColabAdmins,
+    isCurrentUserAdmin,
+    removeColabAdmin,
+    type ColabAdmin,
+  } from '../../lib/colab-admin';
+
+  const session =
+    await requireMemberSession();
+
+  const loading =
+    document.querySelector<HTMLElement>(
+      '#admin-loading',
+    );
+
+  const content =
+    document.querySelector<HTMLElement>(
+      '#admin-content',
+    );
+
+  const form =
+    document.querySelector<HTMLFormElement>(
+      '#admin-add-form',
+    );
+
+  const emailInput =
+    document.querySelector<HTMLInputElement>(
+      '#admin-email',
+    );
+
+  const addButton =
+    document.querySelector<HTMLButtonElement>(
+      '#admin-add-button',
+    );
+
+  const status =
+    document.querySelector<HTMLElement>(
+      '#admin-status',
+    );
+
+  const list =
+    document.querySelector<HTMLElement>(
+      '#admin-list',
+    );
+
+  const count =
+    document.querySelector<HTMLElement>(
+      '#admin-count',
+    );
+
+  function showStatus(
+    message: string,
+    type:
+      'success' |
+      'error' |
+      '',
+  ) {
+    if (!status) {
+      return;
+    }
+
+    status.textContent =
+      message;
+
+    status.className =
+      type
+        ? `admin-status ${type}`
+        : 'admin-status';
+  }
+
+  function escapeHtml(
+    value: string,
+  ) {
+    return value
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
+  function renderAdmins(
+    admins: ColabAdmin[],
+  ) {
+    if (count) {
+      count.textContent =
+        String(
+          admins.length,
+        );
+    }
+
+    if (!list) {
+      return;
+    }
+
+    if (!admins.length) {
+      list.innerHTML = `
+        <div class="admin-empty">
+          Nenhum administrador encontrado.
+        </div>
+      `;
+
+      return;
+    }
+
+    list.innerHTML =
+      admins
+        .map(
+          (admin) => {
+            const name =
+              admin.display_name?.trim() ||
+              admin.github_login?.trim() ||
+              admin.email ||
+              'Administrador EVRYLUX';
+
+            const isSelf =
+              session?.user.id ===
+              admin.user_id;
+
+            return `
+              <article class="admin-row">
+                <div class="admin-avatar">
+                  ${escapeHtml(
+                    name
+                      .slice(0, 2)
+                      .toUpperCase(),
+                  )}
+                </div>
+
+                <div class="admin-info">
+                  <strong>
+                    ${escapeHtml(name)}
+                  </strong>
+
+                  <span>
+                    ${escapeHtml(
+                      admin.email ??
+                      'E-mail não disponível',
+                    )}
+                  </span>
+                </div>
+
+                ${
+                  isSelf
+                    ? `
+                      <span class="admin-self">
+                        Você
+                      </span>
+                    `
+                    : `
+                      <button
+                        class="admin-remove"
+                        type="button"
+                        data-user-id="${escapeHtml(
+                          admin.user_id,
+                        )}"
+                      >
+                        Remover
+                      </button>
+                    `
+                }
+              </article>
+            `;
+          },
+        )
+        .join('');
+
+    list
+      .querySelectorAll<HTMLButtonElement>(
+        '.admin-remove',
+      )
+      .forEach(
+        (button) => {
+          button.addEventListener(
+            'click',
+            async () => {
+              const userId =
+                button.dataset.userId;
+
+              if (!userId) {
+                return;
+              }
+
+              if (
+                !window.confirm(
+                  'Remover este administrador?',
+                )
+              ) {
+                return;
+              }
+
+              button.disabled =
+                true;
+
+              try {
+                await removeColabAdmin(
+                  userId,
+                );
+
+                await loadAdmins();
+              } catch (error) {
+                console.error(
+                  '[EVRYLUX] Não foi possível remover administrador:',
+                  error,
+                );
+
+                showStatus(
+                  'Não foi possível remover o administrador.',
+                  'error',
+                );
+              } finally {
+                button.disabled =
+                  false;
+              }
+            },
+          );
+        },
+      );
+  }
+
+  async function loadAdmins() {
+    try {
+      const admins =
+        await getColabAdmins();
+
+      renderAdmins(
+        admins,
+      );
+    } catch (error) {
+      console.error(
+        '[EVRYLUX] Não foi possível carregar administradores:',
+        error,
+      );
+
+      showStatus(
+        'Não foi possível carregar os administradores.',
+        'error',
+      );
+    }
+  }
+
+  if (session) {
+    const admin =
+      await isCurrentUserAdmin();
+
+    if (!admin) {
+      window.location.replace(
+        '/colab',
+      );
+    } else {
+      await loadAdmins();
+
+      loading?.classList.add(
+        'member-hidden',
+      );
+
+      content?.classList.remove(
+        'member-hidden',
+      );
+    }
+  }
+
+  form?.addEventListener(
+    'submit',
+    async (event) => {
+      event.preventDefault();
+
+      const email =
+        emailInput?.value.trim() ??
+        '';
+
+      if (!email) {
+        showStatus(
+          'Informe um e-mail.',
+          'error',
+        );
+
+        return;
+      }
+
+      if (addButton) {
+        addButton.disabled =
+          true;
+
+        addButton.textContent =
+          'Adicionando...';
+      }
+
+      try {
+        await addColabAdminByEmail(
+          email,
+        );
+
+        if (emailInput) {
+          emailInput.value =
+            '';
+        }
+
+        showStatus(
+          'Administrador adicionado.',
+          'success',
+        );
+
+        await loadAdmins();
+      } catch (error: any) {
+        console.error(
+          '[EVRYLUX] Não foi possível adicionar administrador:',
+          error,
+        );
+
+        showStatus(
+          error?.message ||
+          'Não foi possível adicionar o administrador.',
+          'error',
+        );
+      } finally {
+        if (addButton) {
+          addButton.disabled =
+            false;
+
+          addButton.textContent =
+            'Adicionar';
+        }
+      }
+    },
+  );
+</script>
+
+<style is:global>
+  .admin-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .admin-row {
+    padding: 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    background: var(--surface-muted);
+  }
+
+  .admin-avatar {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border-radius: 12px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font-size: 11px;
+    font-weight: 900;
+  }
+
+  .admin-info {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .admin-info strong,
+  .admin-info span {
+    display: block;
+  }
+
+  .admin-info strong {
+    font-size: 14px;
+  }
+
+  .admin-info span {
+    margin-top: 3px;
+    color: var(--text-soft);
+    font-size: 11px;
+  }
+
+  .admin-self {
+    color: var(--primary-deep);
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .admin-remove {
+    min-height: 34px;
+    padding: 0 10px;
+    border: 1px solid rgba(162,69,55,.15);
+    border-radius: 10px;
+    background: #fff0ed;
+    color: #9a4638;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 750;
+    cursor: pointer;
+  }
+</style>
+
+<style>
+  .admin-panel {
+    margin-top: 34px;
+    display: grid;
+    grid-template-columns: minmax(0,.8fr) minmax(0,1.2fr);
+    gap: 16px;
+  }
+
+  .admin-add-card,
+  .admin-list-card {
+    padding: 26px;
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    background: rgba(255,255,255,.84);
+    box-shadow: 0 14px 42px rgba(54,92,51,.05);
+  }
+
+  .admin-kicker {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--primary-deep);
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+
+  .admin-add-card h2,
+  .admin-list-card h2 {
+    margin: 0;
+    font-size: 24px;
+    letter-spacing: -.035em;
+  }
+
+  .admin-add-card p {
+    margin: 9px 0 0;
+    color: var(--text-soft);
+    font-size: 13px;
+    line-height: 1.65;
+  }
+
+  .admin-add-form {
+    margin-top: 22px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+  }
+
+  .admin-add-form input {
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-solid);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+    outline: none;
+  }
+
+  .admin-add-form button {
+    min-height: 44px;
+    padding: 0 14px;
+    border: 1px solid rgba(95,157,89,.18);
+    border-radius: 12px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .admin-status {
+    min-height: 18px;
+    margin-top: 12px;
+    font-size: 12px;
+  }
+
+  .admin-status.success {
+    color: var(--primary-deep);
+  }
+
+  .admin-status.error {
+    color: #a24537;
+  }
+
+  .admin-list-head {
+    margin-bottom: 18px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .admin-count {
+    min-width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border-radius: 11px;
+    background: var(--surface-muted);
+    color: var(--text-soft);
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .admin-empty {
+    padding: 18px;
+    border: 1px dashed var(--border-strong);
+    border-radius: 14px;
+    color: var(--text-soft);
+    font-size: 12px;
+  }
+
+  @media (max-width: 900px) {
+    .admin-panel {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

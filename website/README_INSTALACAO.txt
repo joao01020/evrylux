@@ -1,57 +1,47 @@
-EVRYLUX COLAB — NOTAS RÁPIDAS COMPARTILHADAS
+EVRYLUX — ATUALIZAÇÃO DOS PLANOS
 
-Este pacote adiciona:
-- Card "Notas rápidas" no Studio, junto do Roadmap
-- Página /colab/studio/notes
-- Criar nota
-- Editar nota
-- Excluir nota
-- Fixar/desfixar nota
-- Mostrar autor
-- Mostrar data relativa
-- Seções Fixadas e Recentes
-- Integração com Supabase
+NOVOS LIMITES
 
-ARQUIVOS:
-src/pages/colab/studio/index.astro
-src/pages/colab/studio/notes.astro
-src/components/colab/QuickNoteCard.astro
-src/components/colab/QuickNoteModal.astro
-src/lib/colab-notes.ts
-supabase/colab_quick_notes.sql
+FREE
+US$ 0
+1 GB de armazenamento sincronizado
+
+ESSENCIAL
+US$ 9 / mês
+10 GB de armazenamento sincronizado
+
+PRO
+US$ 29 / mês
+50 GB de armazenamento sincronizado
+
+A diferença inicial entre os planos continua sendo principalmente
+a capacidade de armazenamento sincronizado.
+
+Todos continuam com:
+- Brain
+- Financeiro
+- Treino
+- Rotina
+- offline-first
+- sincronização entre dispositivos
+- criptografia do conteúdo sincronizado
+
+IMPORTANTE:
+Esta atualização é visual.
+Não implementa quota real nem cobrança ainda.
 
 INSTALAÇÃO:
 
-1. Pare o Astro.
-
-2. Entre no website:
-
 cd ~/Documentos/PlatformIO/Projects/ghost-core/website
 
-3. Extraia:
+unzip -o ~/Downloads/EVRYLUX_PLANS_1GB_UPDATE.zip -d .
 
-unzip -o ~/Downloads/EVRYLUX_COLAB_SHARED_NOTES.zip -d .
+Se o Astro já estiver rodando, basta atualizar o navegador.
 
-4. No Supabase:
-SQL Editor -> New query
+Se quiser reiniciar:
 
-Cole e execute o conteúdo de:
-
-supabase/colab_quick_notes.sql
-
-5. Inicie o Astro:
-
+npx astro dev stop
 npm run dev
 
-6. Abra:
-
-http://localhost:4321/colab/studio
-
-Notas:
-
-http://localhost:4321/colab/studio/notes
-
-Nenhuma alteração é necessária em:
-- member_profiles
-- roadmap
-- presence
+ABRIR:
+http://localhost:4321/plans

@@ -13,10 +13,6 @@ const nav = [
     href: '/download',
   },
   {
-    label: 'Planos',
-    href: '/plans',
-  },
-  {
     label: 'Roadmap',
     href: '/roadmap',
   },
@@ -572,12 +568,8 @@ const nav = [
   }
 
   @media (
-    max-width: 1120px
+    max-width: 1040px
   ) {
-    .header-inner {
-      gap: 14px;
-    }
-
     .nav {
       gap: 0;
     }
@@ -597,7 +589,7 @@ const nav = [
   }
 
   @media (
-    max-width: 920px
+    max-width: 880px
   ) {
     .nav {
       display: none;

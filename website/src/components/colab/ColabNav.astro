@@ -1,38 +1,154 @@
-<nav class="collab-nav" aria-label="Área de colaboradores">
-  <a href="/colab">Dashboard</a>
-  <a href="/colab/profile">Meu perfil</a>
-  <a href="/colab/studio">Studio</a>
-  <button id="collab-nav-signout" type="button">Sair</button>
+<nav
+  class="collab-nav"
+  aria-label="Área de colaboradores"
+>
+  <a href="/colab">
+    Dashboard
+  </a>
+
+  <a href="/colab/profile">
+    Meu perfil
+  </a>
+
+  <a href="/colab/studio">
+    Studio
+  </a>
+
+  <a
+    id="colab-admin-link"
+    class="member-hidden"
+    href="/colab/admins"
+  >
+    Administradores
+  </a>
+
+  <button
+    id="collab-nav-signout"
+    type="button"
+  >
+    Sair
+  </button>
 </nav>
 
 <style>
-  .collab-nav { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .collab-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
   .collab-nav a,
   .collab-nav button {
-    min-height:40px; padding:0 13px; display:inline-flex; align-items:center; justify-content:center;
-    border:1px solid var(--border); border-radius:12px; background:rgba(255,255,255,.72);
-    color:var(--text-soft); font:inherit; font-size:13px; font-weight:700; cursor:pointer;
-    transition:color .2s ease, background .2s ease, border-color .2s ease, transform .2s ease;
+    min-height: 40px;
+    padding: 0 13px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    border: 1px solid var(--border);
+    border-radius: 12px;
+
+    background: rgba(255,255,255,.72);
+    color: var(--text-soft);
+
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+
+    cursor: pointer;
   }
+
   .collab-nav a:hover,
-  .collab-nav button:hover { color:var(--text); background:rgba(255,255,255,.92); border-color:var(--border-strong); transform:translateY(-1px); }
-  .collab-nav a[aria-current="page"] { color:var(--primary-deep); background:var(--primary-soft); border-color:rgba(95,157,89,.18); }
+  .collab-nav button:hover {
+    color: var(--text);
+    border-color: var(--border-strong);
+  }
+
+  .collab-nav a[aria-current="page"] {
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    border-color: rgba(95,157,89,.18);
+  }
 </style>
 
 <script>
-  import { signOutMember } from '../../lib/member-auth';
+  import {
+    signOutMember,
+  } from '../../lib/member-auth';
 
-  const button = document.querySelector<HTMLButtonElement>('#collab-nav-signout');
-  const path = window.location.pathname;
+  import {
+    isCurrentUserAdmin,
+  } from '../../lib/colab-admin';
 
-  document.querySelectorAll<HTMLAnchorElement>('.collab-nav a').forEach((link) => {
-    const href = link.getAttribute('href');
-    if (!href) return;
-    const active = href === '/colab/studio' ? path.startsWith('/colab/studio') : path === href;
-    if (active) link.setAttribute('aria-current', 'page');
-  });
+  const button =
+    document.querySelector<HTMLButtonElement>(
+      '#collab-nav-signout',
+    );
 
-  button?.addEventListener('click', async () => {
-    await signOutMember();
-  });
+  const adminLink =
+    document.querySelector<HTMLAnchorElement>(
+      '#colab-admin-link',
+    );
+
+  const path =
+    window.location.pathname;
+
+  document
+    .querySelectorAll<HTMLAnchorElement>(
+      '.collab-nav a',
+    )
+    .forEach(
+      (link) => {
+        const href =
+          link.getAttribute(
+            'href',
+          );
+
+        if (!href) {
+          return;
+        }
+
+        const active =
+          href === '/colab/studio'
+            ? path.startsWith(
+                '/colab/studio',
+              )
+            : path === href;
+
+        if (active) {
+          link.setAttribute(
+            'aria-current',
+            'page',
+          );
+        }
+      },
+    );
+
+  try {
+    const admin =
+      await isCurrentUserAdmin();
+
+    if (
+      admin &&
+      adminLink
+    ) {
+      adminLink.classList.remove(
+        'member-hidden',
+      );
+    }
+  } catch (error) {
+    console.warn(
+      '[EVRYLUX] Não foi possível carregar o estado de administrador:',
+      error,
+    );
+  }
+
+  button?.addEventListener(
+    'click',
+    async () => {
+      await signOutMember();
+    },
+  );
 </script>

@@ -1,0 +1,674 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const areas = [
+  {
+    slug: 'brain',
+    eyebrow: 'Conhecimento',
+    title: 'Brain',
+    intro: 'Transforme o que você aprende em um histórico vivo, pesquisável e conectado.',
+    problem: 'Informações importantes se perdem entre notas, abas, conversas e arquivos desconectados.',
+    solution: 'O Brain reúne conceitos, perguntas, revisões, relações e histórico em um único espaço. A proposta é construir, ao longo do tempo, um mapa do que você registrou, estudou, questionou e conectou.',
+    highlights: [
+      'Conceitos e perguntas em uma mesma estrutura',
+      'Revisões para retomar conhecimento importante',
+      'Busca e recuperação do histórico',
+      'Mapa visual de relações entre conhecimentos',
+      'Organização automática por áreas e assuntos',
+      'Experiência offline-first',
+    ],
+  },
+  {
+    slug: 'finance',
+    eyebrow: 'Objetivos',
+    title: 'Financeiro',
+    intro: 'Transforme uma meta financeira distante em uma linha de chegada visível.',
+    problem: 'Guardar dinheiro durante meses pode parecer abstrato quando o progresso não está claro.',
+    solution: 'Você define um objetivo, registra o que está guardando e acompanha uma barra de progresso que cresce conforme você avança. O sistema também pode estimar o tempo restante de acordo com o ritmo atual, tornando a evolução mais concreta.',
+    highlights: [
+      'Objetivo financeiro definido pelo usuário',
+      'Barra visual de progresso',
+      'Valor acumulado e valor restante',
+      'Estimativa de chegada ao objetivo',
+      'Previsões com base no ritmo de economia',
+      'Histórico para acompanhar a evolução',
+    ],
+  },
+  {
+    slug: 'training',
+    eyebrow: 'Consistência',
+    title: 'Treino',
+    intro: 'Veja sua rotina de treino como um histórico que cresce semana após semana.',
+    problem: 'Sem registro, é difícil perceber frequência, consistência e mudanças na rotina ao longo do tempo.',
+    solution: 'O módulo de treino permite registrar sessões e acompanhar um mapa da semana, dos meses e do histórico geral. Assim, a rotina deixa de depender apenas da memória e passa a ficar visível dentro do aplicativo.',
+    highlights: [
+      'Registro de treinos realizados',
+      'Visão completa da semana',
+      'Histórico ao longo dos meses',
+      'Acompanhamento de frequência',
+      'Mapa visual da rotina de treino',
+      'Consulta rápida dentro do app',
+    ],
+  },
+  {
+    slug: 'routine',
+    eyebrow: 'Organização',
+    title: 'Rotina',
+    intro: 'Um espaço flexível para organizar ideias, tarefas e estruturas do dia a dia.',
+    problem: 'Anotações, lembretes e planejamentos acabam espalhados em ferramentas diferentes.',
+    solution: 'A área de rotina funciona como um espaço visual onde você pode criar lousas, organizar anotações, montar mapas mentais e acompanhar elementos importantes do cotidiano. A proposta inclui lembretes integrados ao Telegram.',
+    highlights: [
+      'Lousas para organização visual',
+      'Anotações livres',
+      'Mapas mentais',
+      'Estruturas para planejamento pessoal',
+      'Lembretes e acompanhamento',
+      'Integrações como Telegram para notificações',
+    ],
+  },
+];
+---
+
+<Layout
+  title="Explore o EVRYLUX"
+  description="Conheça as diferentes áreas do EVRYLUX: Brain, Financeiro, Treino e Rotina."
+>
+  <main class="explore-page">
+    <section class="explore-hero">
+      <div class="explore-glow" aria-hidden="true"></div>
+
+      <div class="container">
+        <div class="eyebrow">
+          Ecossistema EVRYLUX
+        </div>
+
+        <h1>
+          Diferentes áreas.
+          <span>Uma mesma evolução.</span>
+        </h1>
+
+        <p>
+          O EVRYLUX não é apenas um bloco de notas ou um painel de tarefas.
+          A proposta é tornar progresso pessoal visível em diferentes partes
+          da vida: conhecimento, objetivos financeiros, treino e rotina.
+        </p>
+
+        <div class="explore-jump">
+          <a href="#brain">Brain</a>
+          <a href="#finance">Financeiro</a>
+          <a href="#training">Treino</a>
+          <a href="#routine">Rotina</a>
+          <a href="#security">Segurança</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="areas-section">
+      <div class="container areas-list">
+        {
+          areas.map((area, index) => (
+            <article
+              id={area.slug}
+              class={`area-card area-card-${area.slug}`}
+            >
+              <div class="area-visual">
+                <div class="area-number">
+                  {String(index + 1).padStart(2, '0')}
+                </div>
+
+                <div class="area-symbol">
+                  {
+                    area.slug === 'brain'
+                      ? 'B'
+                      : area.slug === 'finance'
+                        ? 'F'
+                        : area.slug === 'training'
+                          ? 'T'
+                          : 'R'
+                  }
+                </div>
+
+                <div class="area-visual-lines" aria-hidden="true">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+              </div>
+
+              <div class="area-copy">
+                <div class="eyebrow">
+                  {area.eyebrow}
+                </div>
+
+                <h2>{area.title}</h2>
+
+                <p class="area-intro">
+                  {area.intro}
+                </p>
+
+                <div class="area-explanation">
+                  <div>
+                    <span class="area-label">
+                      O problema
+                    </span>
+
+                    <p>{area.problem}</p>
+                  </div>
+
+                  <div>
+                    <span class="area-label">
+                      Como o EVRYLUX ajuda
+                    </span>
+
+                    <p>{area.solution}</p>
+                  </div>
+                </div>
+
+                <div class="area-highlights">
+                  {
+                    area.highlights.map((item) => (
+                      <div class="area-highlight">
+                        <span class="highlight-dot"></span>
+                        <span>{item}</span>
+                      </div>
+                    ))
+                  }
+                </div>
+              </div>
+            </article>
+          ))
+        }
+      </div>
+    </section>
+
+    <section id="security" class="security-section">
+      <div class="container">
+        <div class="security-card">
+          <div class="security-copy">
+            <div class="eyebrow">
+              Segurança do Brain
+            </div>
+
+            <h2>
+              Conhecimento pessoal precisa ser tratado como dado sensível.
+            </h2>
+
+            <p>
+              A arquitetura de segurança do Brain foi pensada para evitar
+              que a proteção dependa apenas do servidor. O projeto trabalha
+              com criptografia de ponta a ponta, Vault local e chaves
+              protegidas no dispositivo, mantendo o princípio offline-first.
+            </p>
+          </div>
+
+          <div class="security-stack">
+            <article>
+              <span class="security-icon">01</span>
+              <div>
+                <strong>Vault local</strong>
+                <p>
+                  O conteúdo sensível é protegido antes de fazer parte
+                  do fluxo de sincronização.
+                </p>
+              </div>
+            </article>
+
+            <article>
+              <span class="security-icon">02</span>
+              <div>
+                <strong>E2EE</strong>
+                <p>
+                  A sincronização é projetada para transportar dados
+                  criptografados, reduzindo a exposição do conteúdo pessoal.
+                </p>
+              </div>
+            </article>
+
+            <article>
+              <span class="security-icon">03</span>
+              <div>
+                <strong>Offline-first</strong>
+                <p>
+                  Funções fundamentais continuam sendo pensadas para
+                  funcionar localmente, sem depender de uma IA externa
+                  ou conexão permanente.
+                </p>
+              </div>
+            </article>
+
+            <article>
+              <span class="security-icon">04</span>
+              <div>
+                <strong>Chaves protegidas</strong>
+                <p>
+                  A arquitetura separa conteúdo, chaves e sincronização
+                  para limitar o que cada camada precisa acessar.
+                </p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="explore-cta">
+      <div class="container">
+        <div class="explore-cta-card">
+          <div>
+            <div class="eyebrow">
+              EVRYLUX
+            </div>
+
+            <h2>
+              Seu progresso deixa de ser invisível.
+            </h2>
+
+            <p>
+              Cada área transforma registros do dia a dia em uma visão
+              contínua da sua evolução.
+            </p>
+          </div>
+
+          <a class="button button-primary" href="/download">
+            Baixar EVRYLUX
+            <span aria-hidden="true">↗</span>
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+</Layout>
+
+<style>
+  .explore-page {
+    overflow: hidden;
+  }
+
+  .explore-hero {
+    position: relative;
+    padding: 112px 0 78px;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .explore-hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    background:
+      radial-gradient(circle at 78% 18%, rgba(159,211,149,.18), transparent 30%),
+      linear-gradient(180deg, #f9fcf7 0%, var(--bg) 100%);
+  }
+
+  .explore-glow {
+    position: absolute;
+    z-index: -1;
+    width: 460px;
+    height: 460px;
+    right: -170px;
+    top: -180px;
+    border-radius: 50%;
+    background: rgba(223,241,218,.52);
+  }
+
+  .explore-hero h1 {
+    max-width: 930px;
+    margin: 20px 0 0;
+    font-size: clamp(54px,7vw,92px);
+    line-height: .95;
+    letter-spacing: -.065em;
+  }
+
+  .explore-hero h1 span {
+    display: block;
+    color: var(--primary-deep);
+  }
+
+  .explore-hero > .container > p {
+    max-width: 760px;
+    margin: 28px 0 0;
+    color: var(--text-soft);
+    font-size: 19px;
+    line-height: 1.7;
+  }
+
+  .explore-jump {
+    margin-top: 30px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .explore-jump a {
+    min-height: 38px;
+    padding: 0 12px;
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: rgba(255,255,255,.72);
+    color: var(--text-soft);
+    font-size: 11px;
+    font-weight: 750;
+    transition: transform .18s ease, background .18s ease;
+  }
+
+  .explore-jump a:hover {
+    transform: translateY(-2px);
+    background: #fff;
+    color: var(--text);
+  }
+
+  .areas-section {
+    padding: 24px 0 82px;
+  }
+
+  .areas-list {
+    display: grid;
+    gap: 18px;
+  }
+
+  .area-card {
+    min-height: 470px;
+    display: grid;
+    grid-template-columns: minmax(320px,.78fr) minmax(0,1.22fr);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 28px;
+    background: rgba(255,255,255,.78);
+    box-shadow: 0 20px 58px rgba(54,92,51,.055);
+  }
+
+  .area-visual {
+    position: relative;
+    min-height: 100%;
+    padding: 30px;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 20% 18%, rgba(159,211,149,.2), transparent 32%),
+      linear-gradient(145deg, rgba(239,248,235,.96), rgba(255,255,255,.72));
+  }
+
+  .area-card-finance .area-visual {
+    background:
+      radial-gradient(circle at 22% 18%, rgba(159,211,149,.17), transparent 31%),
+      linear-gradient(145deg, #f6fbf3, #fff);
+  }
+
+  .area-card-training .area-visual {
+    background:
+      radial-gradient(circle at 72% 20%, rgba(159,211,149,.16), transparent 30%),
+      linear-gradient(145deg, #fff, #f1f8ed);
+  }
+
+  .area-card-routine .area-visual {
+    background:
+      radial-gradient(circle at 50% 80%, rgba(159,211,149,.16), transparent 34%),
+      linear-gradient(145deg, #f8fcf5, #fff);
+  }
+
+  .area-number {
+    color: var(--text-soft);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .12em;
+  }
+
+  .area-symbol {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 150px;
+    height: 150px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(95,157,89,.14);
+    border-radius: 38px;
+    background: rgba(255,255,255,.72);
+    color: var(--primary-deep);
+    box-shadow: 0 24px 60px rgba(54,92,51,.08);
+    transform: translate(-50%,-50%) rotate(-3deg);
+    font-size: 52px;
+    font-weight: 850;
+    letter-spacing: -.05em;
+  }
+
+  .area-visual-lines {
+    position: absolute;
+    left: 30px;
+    right: 30px;
+    bottom: 30px;
+    display: grid;
+    gap: 7px;
+  }
+
+  .area-visual-lines span {
+    height: 7px;
+    border-radius: 999px;
+    background: rgba(95,157,89,.1);
+  }
+
+  .area-visual-lines span:nth-child(1) { width: 78%; }
+  .area-visual-lines span:nth-child(2) { width: 54%; }
+  .area-visual-lines span:nth-child(3) { width: 66%; }
+
+  .area-copy {
+    padding: 42px;
+  }
+
+  .area-copy h2 {
+    margin: 12px 0 0;
+    font-size: clamp(38px,4vw,54px);
+    letter-spacing: -.055em;
+  }
+
+  .area-intro {
+    max-width: 720px;
+    margin: 14px 0 0;
+    color: var(--text-soft);
+    font-size: 17px;
+    line-height: 1.65;
+  }
+
+  .area-explanation {
+    margin-top: 30px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .area-explanation > div {
+    padding: 18px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface-muted);
+  }
+
+  .area-label {
+    display: block;
+    color: var(--primary-deep);
+    font-size: 10px;
+    font-weight: 850;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+
+  .area-explanation p {
+    margin: 9px 0 0;
+    color: var(--text-soft);
+    font-size: 13px;
+    line-height: 1.65;
+  }
+
+  .area-highlights {
+    margin-top: 22px;
+    display: grid;
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    gap: 8px 14px;
+  }
+
+  .area-highlight {
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-soft);
+    font-size: 12px;
+  }
+
+  .highlight-dot {
+    width: 6px;
+    height: 6px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: var(--primary);
+  }
+
+  .security-section {
+    padding: 0 0 82px;
+  }
+
+  .security-card {
+    position: relative;
+    overflow: hidden;
+    padding: 42px;
+    display: grid;
+    grid-template-columns: minmax(0,.9fr) minmax(420px,1.1fr);
+    gap: 56px;
+    border: 1px solid var(--border);
+    border-radius: 28px;
+    background:
+      linear-gradient(145deg, rgba(255,255,255,.94), rgba(239,248,235,.82));
+  }
+
+  .security-card::after {
+    content: "";
+    position: absolute;
+    width: 380px;
+    height: 380px;
+    left: -170px;
+    bottom: -230px;
+    border-radius: 50%;
+    background: rgba(159,211,149,.12);
+  }
+
+  .security-copy,
+  .security-stack {
+    position: relative;
+    z-index: 2;
+  }
+
+  .security-copy h2 {
+    margin: 14px 0 0;
+    font-size: clamp(34px,4vw,50px);
+    line-height: 1.05;
+    letter-spacing: -.05em;
+  }
+
+  .security-copy p {
+    margin: 20px 0 0;
+    color: var(--text-soft);
+    font-size: 14px;
+    line-height: 1.75;
+  }
+
+  .security-stack {
+    display: grid;
+    gap: 10px;
+  }
+
+  .security-stack article {
+    padding: 16px;
+    display: flex;
+    gap: 13px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: rgba(255,255,255,.68);
+  }
+
+  .security-icon {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border-radius: 10px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font-size: 10px;
+    font-weight: 850;
+  }
+
+  .security-stack strong {
+    display: block;
+    font-size: 13px;
+  }
+
+  .security-stack p {
+    margin: 5px 0 0;
+    color: var(--text-soft);
+    font-size: 11px;
+    line-height: 1.6;
+  }
+
+  .explore-cta {
+    padding: 0 0 100px;
+  }
+
+  .explore-cta-card {
+    padding: 34px;
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 40px;
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    background: rgba(255,255,255,.72);
+  }
+
+  .explore-cta-card h2 {
+    margin: 12px 0 0;
+    font-size: clamp(30px,3vw,42px);
+    letter-spacing: -.045em;
+  }
+
+  .explore-cta-card p {
+    max-width: 680px;
+    margin: 12px 0 0;
+    color: var(--text-soft);
+    line-height: 1.65;
+  }
+
+  @media (max-width: 980px) {
+    .area-card,
+    .security-card {
+      grid-template-columns: 1fr;
+    }
+
+    .area-visual {
+      min-height: 300px;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .explore-hero {
+      padding-top: 72px;
+    }
+
+    .area-copy,
+    .security-card {
+      padding: 26px;
+    }
+
+    .area-explanation,
+    .area-highlights {
+      grid-template-columns: 1fr;
+    }
+
+    .explore-cta-card {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+  }
+</style>

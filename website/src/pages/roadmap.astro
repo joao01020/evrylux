@@ -1,36 +1,1070 @@
 ---
 import Layout from '../layouts/Layout.astro';
-
-const groups = [
-  { title: 'Disponível / em uso', items: ['Conceitos', 'Perguntas', 'Revisões', 'Busca', 'Estrutura visual do Brain'] },
-  { title: 'Em desenvolvimento', items: ['Mapa do conhecimento', 'Sincronização entre dispositivos', 'Fluxos de colaboração'] },
-  { title: 'Planejado', items: ['Compartilhamento de conhecimento', 'Recursos de comunidade', 'Expansão multiplataforma'] },
-];
 ---
 
-<Layout title="Roadmap — EVRYLUX">
-  <main class="section">
+<Layout
+  title="Roadmap — EVRYLUX"
+  description="Uma visão simples do que já existe, do que está sendo desenvolvido e do que pode vir depois."
+>
+  <main class="roadmap-public-page">
     <div class="container">
-      <div class="eyebrow">Evolução</div>
-      <h1 class="section-title">Roadmap</h1>
-      <p class="section-copy">Uma visão simples do que já existe, do que está sendo desenvolvido e do que pode vir depois.</p>
+      <div class="roadmap-public-head">
+        <div>
+          <h1>
+            Roadmap
+          </h1>
 
-      <div class="grid grid-3 roadmap">
-        {groups.map((group) => (
-          <section class="card lane">
-            <h2>{group.title}</h2>
-            <div class="items">
-              {group.items.map((item) => <div class="item"><span></span>{item}</div>)}
-            </div>
-          </section>
-        ))}
+          <p>
+            Uma visão simples do que já existe,
+            do que está sendo desenvolvido e do que pode vir depois.
+          </p>
+        </div>
+
+        <button
+          id="roadmap-admin-add"
+          class="roadmap-admin-add member-hidden"
+          type="button"
+        >
+          ＋ Adicionar item
+        </button>
       </div>
+
+      <div
+        id="roadmap-public-status"
+        class="roadmap-public-status"
+        role="status"
+      ></div>
+
+      <section class="roadmap-public-grid">
+        {
+          [
+            {
+              id: 'available',
+              title: 'Disponível / em uso',
+            },
+            {
+              id: 'development',
+              title: 'Em desenvolvimento',
+            },
+            {
+              id: 'planned',
+              title: 'Planejado',
+            },
+          ].map((column) => (
+            <article class="roadmap-public-column">
+              <h2>
+                {column.title}
+              </h2>
+
+              <div
+                id={`roadmap-public-${column.id}`}
+                class="roadmap-public-list"
+              ></div>
+            </article>
+          ))
+        }
+      </section>
+    </div>
+
+    <div
+      id="roadmap-editor-modal"
+      class="roadmap-editor-modal member-hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="roadmap-editor-title"
+    >
+      <button
+        id="roadmap-editor-backdrop"
+        class="roadmap-editor-backdrop"
+        type="button"
+        aria-label="Fechar"
+      ></button>
+
+      <section class="roadmap-editor-card">
+        <div class="roadmap-editor-head">
+          <div>
+            <div class="roadmap-editor-kicker">
+              Administração
+            </div>
+
+            <h2 id="roadmap-editor-title">
+              Novo item
+            </h2>
+          </div>
+
+          <button
+            id="roadmap-editor-close"
+            class="roadmap-editor-close"
+            type="button"
+            aria-label="Fechar"
+          >
+            ×
+          </button>
+        </div>
+
+        <form
+          id="roadmap-editor-form"
+          class="roadmap-editor-form"
+        >
+          <input
+            id="roadmap-editor-id"
+            type="hidden"
+          />
+
+          <label>
+            <span>
+              Título
+            </span>
+
+            <input
+              id="roadmap-editor-item-title"
+              type="text"
+              maxlength="140"
+              required
+            />
+          </label>
+
+          <label>
+            <span>
+              Coluna
+            </span>
+
+            <select
+              id="roadmap-editor-stage"
+            >
+              <option value="available">
+                Disponível / em uso
+              </option>
+
+              <option value="development">
+                Em desenvolvimento
+              </option>
+
+              <option value="planned">
+                Planejado
+              </option>
+            </select>
+          </label>
+
+          <label>
+            <span>
+              Ordem
+            </span>
+
+            <input
+              id="roadmap-editor-order"
+              type="number"
+              min="0"
+              max="999"
+              value="0"
+            />
+          </label>
+
+          <div
+            id="roadmap-editor-status"
+            class="roadmap-editor-status"
+          ></div>
+
+          <div class="roadmap-editor-actions">
+            <button
+              id="roadmap-editor-delete"
+              class="roadmap-editor-delete member-hidden"
+              type="button"
+            >
+              Excluir
+            </button>
+
+            <div class="roadmap-editor-actions-right">
+              <button
+                id="roadmap-editor-cancel"
+                class="roadmap-editor-cancel"
+                type="button"
+              >
+                Cancelar
+              </button>
+
+              <button
+                id="roadmap-editor-save"
+                class="roadmap-editor-save"
+                type="submit"
+              >
+                Salvar
+              </button>
+            </div>
+          </div>
+        </form>
+      </section>
     </div>
   </main>
 </Layout>
 
+<script>
+  import {
+    isCurrentUserAdmin,
+  } from '../lib/colab-admin';
+
+  import {
+    createPublicRoadmapItem,
+    deletePublicRoadmapItem,
+    getPublicRoadmapItems,
+    updatePublicRoadmapItem,
+    type PublicRoadmapItem,
+    type PublicRoadmapInput,
+    type PublicRoadmapStage,
+  } from '../lib/public-roadmap';
+
+  const columns:
+    Record<
+      PublicRoadmapStage,
+      HTMLElement | null
+    > = {
+    available:
+      document.querySelector<HTMLElement>(
+        '#roadmap-public-available',
+      ),
+
+    development:
+      document.querySelector<HTMLElement>(
+        '#roadmap-public-development',
+      ),
+
+    planned:
+      document.querySelector<HTMLElement>(
+        '#roadmap-public-planned',
+      ),
+  };
+
+  const addButton =
+    document.querySelector<HTMLButtonElement>(
+      '#roadmap-admin-add',
+    );
+
+  const pageStatus =
+    document.querySelector<HTMLElement>(
+      '#roadmap-public-status',
+    );
+
+  const modal =
+    document.querySelector<HTMLElement>(
+      '#roadmap-editor-modal',
+    );
+
+  const backdrop =
+    document.querySelector<HTMLButtonElement>(
+      '#roadmap-editor-backdrop',
+    );
+
+  const closeButton =
+    document.querySelector<HTMLButtonElement>(
+      '#roadmap-editor-close',
+    );
+
+  const cancelButton =
+    document.querySelector<HTMLButtonElement>(
+      '#roadmap-editor-cancel',
+    );
+
+  const modalTitle =
+    document.querySelector<HTMLElement>(
+      '#roadmap-editor-title',
+    );
+
+  const form =
+    document.querySelector<HTMLFormElement>(
+      '#roadmap-editor-form',
+    );
+
+  const idInput =
+    document.querySelector<HTMLInputElement>(
+      '#roadmap-editor-id',
+    );
+
+  const titleInput =
+    document.querySelector<HTMLInputElement>(
+      '#roadmap-editor-item-title',
+    );
+
+  const stageInput =
+    document.querySelector<HTMLSelectElement>(
+      '#roadmap-editor-stage',
+    );
+
+  const orderInput =
+    document.querySelector<HTMLInputElement>(
+      '#roadmap-editor-order',
+    );
+
+  const saveButton =
+    document.querySelector<HTMLButtonElement>(
+      '#roadmap-editor-save',
+    );
+
+  const deleteButton =
+    document.querySelector<HTMLButtonElement>(
+      '#roadmap-editor-delete',
+    );
+
+  const editorStatus =
+    document.querySelector<HTMLElement>(
+      '#roadmap-editor-status',
+    );
+
+  let items:
+    PublicRoadmapItem[] =
+      [];
+
+  let admin =
+    false;
+
+  function showPageStatus(
+    message: string,
+    type:
+      'error' |
+      '',
+  ) {
+    if (!pageStatus) {
+      return;
+    }
+
+    pageStatus.textContent =
+      message;
+
+    pageStatus.className =
+      type
+        ? `roadmap-public-status ${type}`
+        : 'roadmap-public-status';
+  }
+
+  function showEditorStatus(
+    message: string,
+    type:
+      'error' |
+      '',
+  ) {
+    if (!editorStatus) {
+      return;
+    }
+
+    editorStatus.textContent =
+      message;
+
+    editorStatus.className =
+      type
+        ? `roadmap-editor-status ${type}`
+        : 'roadmap-editor-status';
+  }
+
+  function createItemElement(
+    item: PublicRoadmapItem,
+  ) {
+    const element =
+      document.createElement(
+        admin
+          ? 'button'
+          : 'div',
+      );
+
+    element.className =
+      admin
+        ? 'roadmap-public-item admin-editable'
+        : 'roadmap-public-item';
+
+    if (admin) {
+      (
+        element as HTMLButtonElement
+      ).type =
+        'button';
+    }
+
+    const dot =
+      document.createElement(
+        'span',
+      );
+
+    dot.className =
+      'roadmap-public-dot';
+
+    const title =
+      document.createElement(
+        'span',
+      );
+
+    title.textContent =
+      item.title;
+
+    element.append(
+      dot,
+      title,
+    );
+
+    if (admin) {
+      const edit =
+        document.createElement(
+          'span',
+        );
+
+      edit.className =
+        'roadmap-public-edit-hint';
+
+      edit.textContent =
+        'Editar';
+
+      element.appendChild(
+        edit,
+      );
+
+      element.addEventListener(
+        'click',
+        () => {
+          openEditModal(
+            item,
+          );
+        },
+      );
+    }
+
+    return element;
+  }
+
+  function renderItems() {
+    (
+      Object.values(
+        columns,
+      )
+    ).forEach(
+      (column) => {
+        if (column) {
+          column.innerHTML =
+            '';
+        }
+      },
+    );
+
+    items.forEach(
+      (item) => {
+        columns[
+          item.stage
+        ]?.appendChild(
+          createItemElement(
+            item,
+          ),
+        );
+      },
+    );
+  }
+
+  async function loadItems() {
+    showPageStatus(
+      '',
+      '',
+    );
+
+    try {
+      items =
+        await getPublicRoadmapItems();
+
+      renderItems();
+    } catch (error) {
+      console.error(
+        '[EVRYLUX] Não foi possível carregar roadmap público:',
+        error,
+      );
+
+      showPageStatus(
+        'Não foi possível carregar o roadmap.',
+        'error',
+      );
+    }
+  }
+
+  function resetForm() {
+    form?.reset();
+
+    if (idInput) {
+      idInput.value =
+        '';
+    }
+
+    if (stageInput) {
+      stageInput.value =
+        'available';
+    }
+
+    if (orderInput) {
+      orderInput.value =
+        '0';
+    }
+
+    showEditorStatus(
+      '',
+      '',
+    );
+
+    deleteButton?.classList.add(
+      'member-hidden',
+    );
+
+    if (modalTitle) {
+      modalTitle.textContent =
+        'Novo item';
+    }
+  }
+
+  function openCreateModal() {
+    if (!admin) {
+      return;
+    }
+
+    resetForm();
+
+    modal?.classList.remove(
+      'member-hidden',
+    );
+
+    document.body.classList.add(
+      'public-roadmap-modal-open',
+    );
+
+    titleInput?.focus();
+  }
+
+  function openEditModal(
+    item: PublicRoadmapItem,
+  ) {
+    if (!admin) {
+      return;
+    }
+
+    resetForm();
+
+    if (modalTitle) {
+      modalTitle.textContent =
+        'Editar item';
+    }
+
+    if (idInput) {
+      idInput.value =
+        item.id;
+    }
+
+    if (titleInput) {
+      titleInput.value =
+        item.title;
+    }
+
+    if (stageInput) {
+      stageInput.value =
+        item.stage;
+    }
+
+    if (orderInput) {
+      orderInput.value =
+        String(
+          item.sort_order,
+        );
+    }
+
+    deleteButton?.classList.remove(
+      'member-hidden',
+    );
+
+    modal?.classList.remove(
+      'member-hidden',
+    );
+
+    document.body.classList.add(
+      'public-roadmap-modal-open',
+    );
+  }
+
+  function closeModal() {
+    modal?.classList.add(
+      'member-hidden',
+    );
+
+    document.body.classList.remove(
+      'public-roadmap-modal-open',
+    );
+
+    resetForm();
+  }
+
+  addButton?.addEventListener(
+    'click',
+    openCreateModal,
+  );
+
+  closeButton?.addEventListener(
+    'click',
+    closeModal,
+  );
+
+  cancelButton?.addEventListener(
+    'click',
+    closeModal,
+  );
+
+  backdrop?.addEventListener(
+    'click',
+    closeModal,
+  );
+
+  form?.addEventListener(
+    'submit',
+    async (event) => {
+      event.preventDefault();
+
+      if (
+        !admin ||
+        !titleInput?.value.trim()
+      ) {
+        return;
+      }
+
+      const input:
+        PublicRoadmapInput = {
+        title:
+          titleInput.value.trim(),
+
+        stage:
+          (
+            stageInput?.value ??
+            'available'
+          ) as PublicRoadmapStage,
+
+        sort_order:
+          Math.max(
+            0,
+            Number(
+              orderInput?.value ??
+              0,
+            ),
+          ),
+      };
+
+      const id =
+        idInput?.value ??
+        '';
+
+      if (saveButton) {
+        saveButton.disabled =
+          true;
+
+        saveButton.textContent =
+          'Salvando...';
+      }
+
+      try {
+        if (id) {
+          await updatePublicRoadmapItem(
+            id,
+            input,
+          );
+        } else {
+          await createPublicRoadmapItem(
+            input,
+          );
+        }
+
+        await loadItems();
+        closeModal();
+      } catch (error) {
+        console.error(
+          '[EVRYLUX] Não foi possível salvar item do roadmap público:',
+          error,
+        );
+
+        showEditorStatus(
+          'Não foi possível salvar.',
+          'error',
+        );
+      } finally {
+        if (saveButton) {
+          saveButton.disabled =
+            false;
+
+          saveButton.textContent =
+            'Salvar';
+        }
+      }
+    },
+  );
+
+  deleteButton?.addEventListener(
+    'click',
+    async () => {
+      const id =
+        idInput?.value;
+
+      if (
+        !admin ||
+        !id
+      ) {
+        return;
+      }
+
+      if (
+        !window.confirm(
+          'Excluir este item do roadmap público?',
+        )
+      ) {
+        return;
+      }
+
+      deleteButton.disabled =
+        true;
+
+      try {
+        await deletePublicRoadmapItem(
+          id,
+        );
+
+        await loadItems();
+        closeModal();
+      } catch (error) {
+        console.error(
+          '[EVRYLUX] Não foi possível excluir item do roadmap público:',
+          error,
+        );
+
+        showEditorStatus(
+          'Não foi possível excluir.',
+          'error',
+        );
+      } finally {
+        deleteButton.disabled =
+          false;
+      }
+    },
+  );
+
+  document.addEventListener(
+    'keydown',
+    (event) => {
+      if (
+        event.key ===
+          'Escape' &&
+        modal &&
+        !modal.classList.contains(
+          'member-hidden',
+        )
+      ) {
+        closeModal();
+      }
+    },
+  );
+
+  try {
+    admin =
+      await isCurrentUserAdmin();
+
+    if (
+      admin &&
+      addButton
+    ) {
+      addButton.classList.remove(
+        'member-hidden',
+      );
+    }
+  } catch (error) {
+    console.warn(
+      '[EVRYLUX] Não foi possível determinar permissões administrativas:',
+      error,
+    );
+  }
+
+  await loadItems();
+</script>
+
+<style is:global>
+  body.public-roadmap-modal-open {
+    overflow: hidden;
+  }
+
+  .roadmap-public-item {
+    width: 100%;
+    min-height: 50px;
+    padding: 0 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 0;
+    border-radius: 14px;
+    background: var(--surface-muted);
+    color: var(--text-soft);
+    font: inherit;
+    font-size: 16px;
+    text-align: left;
+  }
+
+  button.roadmap-public-item.admin-editable {
+    cursor: pointer;
+    transition:
+      transform .16s ease,
+      background .16s ease,
+      box-shadow .16s ease;
+  }
+
+  button.roadmap-public-item.admin-editable:hover {
+    transform: translateY(-1px);
+    background: rgba(223,241,218,.68);
+    box-shadow: 0 7px 20px rgba(54,92,51,.05);
+  }
+
+  .roadmap-public-dot {
+    width: 10px;
+    height: 10px;
+    flex: 0 0 auto;
+    border-radius: 999px;
+    background: var(--primary);
+  }
+
+  .roadmap-public-edit-hint {
+    margin-left: auto;
+    color: var(--primary-deep);
+    font-size: 10px;
+    font-weight: 800;
+    opacity: .72;
+  }
+
+  .roadmap-editor-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 160;
+    display: grid;
+    place-items: center;
+    padding: 18px;
+  }
+
+  .roadmap-editor-backdrop {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: rgba(23,32,25,.24);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .roadmap-editor-card {
+    position: relative;
+    z-index: 1;
+    width: min(100%,520px);
+    padding: 26px;
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    background: rgba(255,255,255,.98);
+    box-shadow: 0 28px 90px rgba(23,32,25,.18);
+  }
+
+  .roadmap-editor-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 20px;
+  }
+
+  .roadmap-editor-kicker {
+    color: var(--primary-deep);
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+
+  .roadmap-editor-head h2 {
+    margin: 7px 0 0;
+    font-size: 27px;
+    letter-spacing: -.04em;
+  }
+
+  .roadmap-editor-close {
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: var(--surface-muted);
+    color: var(--text);
+    font: inherit;
+    font-size: 20px;
+    cursor: pointer;
+  }
+
+  .roadmap-editor-form {
+    display: grid;
+    gap: 14px;
+  }
+
+  .roadmap-editor-form label {
+    display: grid;
+    gap: 6px;
+  }
+
+  .roadmap-editor-form label > span {
+    font-size: 11px;
+    font-weight: 750;
+  }
+
+  .roadmap-editor-form input,
+  .roadmap-editor-form select {
+    min-height: 42px;
+    padding: 0 11px;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: var(--surface-solid);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+    outline: none;
+  }
+
+  .roadmap-editor-status {
+    min-height: 16px;
+    font-size: 12px;
+  }
+
+  .roadmap-editor-status.error {
+    color: #a24537;
+  }
+
+  .roadmap-editor-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .roadmap-editor-actions-right {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+  }
+
+  .roadmap-editor-save,
+  .roadmap-editor-cancel,
+  .roadmap-editor-delete {
+    min-height: 40px;
+    padding: 0 13px;
+    border-radius: 11px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 750;
+    cursor: pointer;
+  }
+
+  .roadmap-editor-save {
+    border: 1px solid rgba(95,157,89,.2);
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+  }
+
+  .roadmap-editor-cancel {
+    border: 1px solid var(--border);
+    background: var(--surface-muted);
+    color: var(--text);
+  }
+
+  .roadmap-editor-delete {
+    border: 1px solid rgba(162,69,55,.15);
+    background: #fff0ed;
+    color: #9a4638;
+  }
+</style>
+
 <style>
-.roadmap{margin-top:34px}.lane{padding:26px}.lane h2{margin-top:0;font-size:19px}.items{display:grid;gap:12px;margin-top:20px}
-.item{display:flex;align-items:center;gap:10px;padding:14px;border-radius:14px;background:var(--surface-muted);color:var(--text-soft)}
-.item span{width:9px;height:9px;border-radius:50%;background:var(--primary);flex:0 0 auto}
+  .roadmap-public-page {
+    padding: 8px 20px 90px;
+  }
+
+  .roadmap-public-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+  }
+
+  .roadmap-public-head h1 {
+    margin: 0;
+    font-size: clamp(46px,7vw,62px);
+    letter-spacing: -.055em;
+  }
+
+  .roadmap-public-head p {
+    max-width: 680px;
+    margin: 16px 0 0;
+    color: var(--text-soft);
+    font-size: 17px;
+    line-height: 1.65;
+  }
+
+  .roadmap-admin-add {
+    min-height: 42px;
+    padding: 0 14px;
+    flex: 0 0 auto;
+    border: 1px solid rgba(95,157,89,.18);
+    border-radius: 12px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .roadmap-public-status {
+    min-height: 18px;
+    margin-top: 16px;
+    font-size: 12px;
+  }
+
+  .roadmap-public-status.error {
+    color: #a24537;
+  }
+
+  .roadmap-public-grid {
+    margin-top: 36px;
+    display: grid;
+    grid-template-columns:
+      repeat(3,minmax(0,1fr));
+    gap: 18px;
+  }
+
+  .roadmap-public-column {
+    min-height: 405px;
+    padding: 26px;
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    background: rgba(255,255,255,.8);
+    box-shadow: 0 14px 42px rgba(54,92,51,.04);
+  }
+
+  .roadmap-public-column h2 {
+    margin: 0 0 20px;
+    font-size: 20px;
+    letter-spacing: -.025em;
+  }
+
+  .roadmap-public-list {
+    display: grid;
+    gap: 12px;
+  }
+
+  @media (max-width: 900px) {
+    .roadmap-public-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .roadmap-public-column {
+      min-height: auto;
+    }
+
+    .roadmap-public-head {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+  }
 </style>
