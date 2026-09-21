@@ -4,7 +4,7 @@ import ColabNav from '../../../components/colab/ColabNav.astro';
 import QuickNoteCard from '../../../components/colab/QuickNoteCard.astro';
 import QuickNoteModal from '../../../components/colab/QuickNoteModal.astro';
 import '../../../styles/members.css';
-import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
+import EvryluxNeuralLoader from '../../../components/ui/EvryluxNeuralLoader.astro';
 ---
 
 <Layout
@@ -12,7 +12,7 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
   description="Notas rápidas compartilhadas do projeto EVRYLUX."
 >
   <main class="member-shell">
-    <EvryluxLogoLoader
+    <EvryluxNeuralLoader
       id="notes-loading"
       size="md"
     />

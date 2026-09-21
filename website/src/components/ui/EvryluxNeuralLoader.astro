@@ -1,0 +1,375 @@
+---
+interface Props {
+  id?: string;
+  class?: string;
+  size?: 'sm' | 'md' | 'lg';
+  fullscreen?: boolean;
+}
+
+const {
+  id,
+  class: className = '',
+  size = 'md',
+  fullscreen = false,
+} = Astro.props;
+---
+
+<div
+  id={id}
+  class:list={[
+    'evrylux-neural-loader',
+    `evrylux-neural-loader-${size}`,
+    fullscreen && 'evrylux-neural-loader-fullscreen',
+    className,
+  ]}
+  role="status"
+  aria-label="Carregando"
+>
+  <div class="evrylux-neural-stage" aria-hidden="true">
+    <svg
+      class="evrylux-neural-network"
+      viewBox="0 0 360 360"
+      focusable="false"
+    >
+      <defs>
+        <filter id="evryluxLoaderGlow" x="-120%" y="-120%" width="340%" height="340%">
+          <feGaussianBlur stdDeviation="5" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+
+        <filter id="evryluxLoaderSoftGlow" x="-160%" y="-160%" width="420%" height="420%">
+          <feGaussianBlur stdDeviation="10" />
+        </filter>
+
+        <linearGradient id="evryluxLoaderLine" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#dff1da" stop-opacity=".1" />
+          <stop offset="42%" stop-color="#9fd395" stop-opacity=".75" />
+          <stop offset="72%" stop-color="#5f9d59" stop-opacity=".58" />
+          <stop offset="100%" stop-color="#dff1da" stop-opacity=".1" />
+        </linearGradient>
+      </defs>
+
+      <circle class="network-orbit orbit-one" cx="180" cy="180" r="118" />
+      <circle class="network-orbit orbit-two" cx="180" cy="180" r="94" />
+
+      <g class="network-lines">
+        <path d="M68 126 C101 81 142 70 180 82 C219 94 255 79 286 116" />
+        <path d="M286 116 C309 153 302 202 270 230 C245 251 231 282 194 294" />
+        <path d="M194 294 C148 305 103 281 88 246 C74 214 58 190 68 156" />
+        <path d="M68 156 C61 145 62 136 68 126" />
+        <path d="M94 231 C121 197 149 178 180 174 C213 170 237 147 267 128" />
+        <path d="M109 101 C128 130 147 154 180 174 C203 191 220 216 239 250" />
+      </g>
+
+      <g class="travel-dots">
+        <circle class="travel-dot travel-a" cx="68" cy="126" r="4.5" />
+        <circle class="travel-dot travel-b" cx="286" cy="116" r="4" />
+        <circle class="travel-dot travel-c" cx="270" cy="230" r="4.5" />
+        <circle class="travel-dot travel-d" cx="194" cy="294" r="4" />
+      </g>
+
+      <g class="network-nodes">
+        <g class="node node-1">
+          <circle class="node-aura" cx="68" cy="126" r="18" />
+          <circle class="node-ring" cx="68" cy="126" r="9" />
+          <circle class="node-core" cx="68" cy="126" r="3.5" />
+        </g>
+        <g class="node node-2">
+          <circle class="node-aura" cx="180" cy="82" r="15" />
+          <circle class="node-ring" cx="180" cy="82" r="8" />
+          <circle class="node-core" cx="180" cy="82" r="3" />
+        </g>
+        <g class="node node-3">
+          <circle class="node-aura" cx="286" cy="116" r="17" />
+          <circle class="node-ring" cx="286" cy="116" r="8.5" />
+          <circle class="node-core" cx="286" cy="116" r="3.2" />
+        </g>
+        <g class="node node-4">
+          <circle class="node-aura" cx="270" cy="230" r="16" />
+          <circle class="node-ring" cx="270" cy="230" r="8" />
+          <circle class="node-core" cx="270" cy="230" r="3" />
+        </g>
+        <g class="node node-5">
+          <circle class="node-aura" cx="194" cy="294" r="17" />
+          <circle class="node-ring" cx="194" cy="294" r="8.5" />
+          <circle class="node-core" cx="194" cy="294" r="3.2" />
+        </g>
+        <g class="node node-6">
+          <circle class="node-aura" cx="88" cy="246" r="14" />
+          <circle class="node-ring" cx="88" cy="246" r="7" />
+          <circle class="node-core" cx="88" cy="246" r="2.8" />
+        </g>
+        <g class="node node-7">
+          <circle class="node-aura" cx="68" cy="156" r="12" />
+          <circle class="node-ring" cx="68" cy="156" r="6" />
+          <circle class="node-core" cx="68" cy="156" r="2.5" />
+        </g>
+      </g>
+
+      <g class="micro-nodes">
+        <circle cx="118" cy="92" r="2.2" />
+        <circle cx="233" cy="91" r="2.1" />
+        <circle cx="300" cy="171" r="2.4" />
+        <circle cx="244" cy="270" r="2.3" />
+        <circle cx="140" cy="296" r="2.2" />
+        <circle cx="67" cy="207" r="2.3" />
+        <circle cx="119" cy="201" r="2" />
+        <circle cx="244" cy="154" r="2.2" />
+      </g>
+    </svg>
+
+    <div class="logo-core">
+      <span class="logo-aura"></span>
+      <img
+        class="loader-logo"
+        src="/branding/evrylux-loader-logo.png"
+        alt=""
+        draggable="false"
+      />
+      <span class="logo-spark"></span>
+    </div>
+  </div>
+</div>
+
+<style is:global>
+  .evrylux-neural-loader {
+    --loader-size: 250px;
+    width: 100%;
+    min-height: min(44vh, 360px);
+    display: grid;
+    place-items: center;
+    padding: 26px;
+    color: #365c33;
+  }
+
+  .evrylux-neural-loader-sm {
+    --loader-size: 135px;
+    min-height: 150px;
+  }
+
+  .evrylux-neural-loader-md {
+    --loader-size: 250px;
+  }
+
+  .evrylux-neural-loader-lg {
+    --loader-size: 340px;
+    min-height: min(62vh, 520px);
+  }
+
+  .evrylux-neural-loader-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 50% 47%, rgba(223,241,218,.78), rgba(247,251,244,.96) 45%, #f7fbf4 76%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .evrylux-neural-stage {
+    position: relative;
+    width: var(--loader-size);
+    height: var(--loader-size);
+    display: grid;
+    place-items: center;
+    isolation: isolate;
+  }
+
+  .evrylux-neural-network {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .network-orbit {
+    fill: none;
+    stroke: rgba(95,157,89,.16);
+    stroke-width: 1.2;
+    stroke-dasharray: 2 12;
+    transform-origin: 180px 180px;
+  }
+
+  .orbit-one { animation: evrylux-orbit-cw 12s linear infinite; }
+  .orbit-two {
+    stroke: rgba(159,211,149,.12);
+    stroke-dasharray: 7 15;
+    animation: evrylux-orbit-ccw 15s linear infinite;
+  }
+
+  .network-lines path {
+    fill: none;
+    stroke: url(#evryluxLoaderLine);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-dasharray: 5 8;
+    opacity: .68;
+    animation: evrylux-line-flow 3.2s linear infinite;
+  }
+
+  .travel-dot {
+    fill: #79bd72;
+    filter: url(#evryluxLoaderGlow);
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .travel-a { animation: evrylux-travel-a 2.6s ease-in-out infinite; }
+  .travel-b { animation: evrylux-travel-b 2.9s .35s ease-in-out infinite; }
+  .travel-c { animation: evrylux-travel-c 3.1s .7s ease-in-out infinite; }
+  .travel-d { animation: evrylux-travel-d 3.3s 1s ease-in-out infinite; }
+
+  .node {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: evrylux-node-breathe 2.7s ease-in-out infinite;
+  }
+
+  .node-2 { animation-delay: .25s; }
+  .node-3 { animation-delay: .55s; }
+  .node-4 { animation-delay: .85s; }
+  .node-5 { animation-delay: 1.15s; }
+  .node-6 { animation-delay: 1.45s; }
+  .node-7 { animation-delay: 1.75s; }
+
+  .node-aura {
+    fill: rgba(159,211,149,.20);
+    filter: url(#evryluxLoaderSoftGlow);
+  }
+
+  .node-ring {
+    fill: rgba(255,255,255,.94);
+    stroke: #79bd72;
+    stroke-width: 2;
+  }
+
+  .node-core {
+    fill: #4f8c4a;
+    filter: url(#evryluxLoaderGlow);
+  }
+
+  .micro-nodes circle {
+    fill: #9fd395;
+    opacity: .28;
+    animation: evrylux-micro-pulse 2s ease-in-out infinite;
+  }
+
+  .micro-nodes circle:nth-child(2n) { animation-delay: .55s; }
+  .micro-nodes circle:nth-child(3n) { animation-delay: 1s; }
+
+  .logo-core {
+    position: relative;
+    z-index: 2;
+    width: 43%;
+    aspect-ratio: 1;
+    display: grid;
+    place-items: center;
+    animation: evrylux-core-float 3.1s ease-in-out infinite;
+  }
+
+  .logo-aura {
+    position: absolute;
+    inset: -31%;
+    z-index: -1;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle, rgba(159,211,149,.28), rgba(159,211,149,.08) 47%, transparent 72%);
+    filter: blur(8px);
+    animation: evrylux-aura-pulse 2.4s ease-in-out infinite;
+  }
+
+  .loader-logo {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-drag: none;
+    filter: drop-shadow(0 14px 24px rgba(23,32,25,.11));
+  }
+
+  .logo-spark {
+    position: absolute;
+    top: 7%;
+    right: 6%;
+    width: 12px;
+    height: 12px;
+    background: #5f9d59;
+    clip-path: polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);
+    box-shadow: 0 0 16px rgba(95,157,89,.42);
+    animation: evrylux-spark 2.1s ease-in-out infinite;
+  }
+
+  @keyframes evrylux-orbit-cw { to { transform: rotate(360deg); } }
+  @keyframes evrylux-orbit-ccw { to { transform: rotate(-360deg); } }
+  @keyframes evrylux-line-flow { to { stroke-dashoffset: -28; } }
+
+  @keyframes evrylux-node-breathe {
+    0%,100% { transform: scale(.9); opacity: .62; }
+    50% { transform: scale(1.13); opacity: 1; }
+  }
+
+  @keyframes evrylux-micro-pulse {
+    0%,100% { opacity: .18; transform: scale(.7); }
+    50% { opacity: .85; transform: scale(1.35); }
+  }
+
+  @keyframes evrylux-core-float {
+    0%,100% { transform: translateY(2px) scale(.985); }
+    50% { transform: translateY(-4px) scale(1.018); }
+  }
+
+  @keyframes evrylux-aura-pulse {
+    0%,100% { opacity: .48; transform: scale(.88); }
+    50% { opacity: 1; transform: scale(1.14); }
+  }
+
+  @keyframes evrylux-spark {
+    0%,100% { opacity: .42; transform: rotate(0deg) scale(.72); }
+    50% { opacity: 1; transform: rotate(45deg) scale(1.22); }
+  }
+
+  @keyframes evrylux-travel-a {
+    0% { transform: translate(0,0) scale(.7); opacity: .15; }
+    45% { transform: translate(112px,-44px) scale(1.2); opacity: 1; }
+    100% { transform: translate(218px,-10px) scale(.72); opacity: .12; }
+  }
+
+  @keyframes evrylux-travel-b {
+    0% { transform: translate(0,0) scale(.75); opacity: .15; }
+    50% { transform: translate(-16px,114px) scale(1.2); opacity: 1; }
+    100% { transform: translate(-92px,178px) scale(.75); opacity: .12; }
+  }
+
+  @keyframes evrylux-travel-c {
+    0% { transform: translate(0,0) scale(.7); opacity: .12; }
+    52% { transform: translate(-88px,64px) scale(1.18); opacity: 1; }
+    100% { transform: translate(-182px,16px) scale(.72); opacity: .12; }
+  }
+
+  @keyframes evrylux-travel-d {
+    0% { transform: translate(0,0) scale(.7); opacity: .12; }
+    48% { transform: translate(-74px,-48px) scale(1.2); opacity: 1; }
+    100% { transform: translate(-126px,-138px) scale(.72); opacity: .12; }
+  }
+
+  @media (max-width: 640px) {
+    .evrylux-neural-loader-md { --loader-size: 205px; }
+    .evrylux-neural-loader-lg { --loader-size: 260px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .evrylux-neural-loader *,
+    .evrylux-neural-loader *::before,
+    .evrylux-neural-loader *::after {
+      animation-duration: .001ms !important;
+      animation-iteration-count: 1 !important;
+    }
+  }
+</style>

@@ -1,0 +1,18 @@
+---
+import Layout from '../layouts/Layout.astro';
+import EvryluxNeuralLoader from '../components/ui/EvryluxNeuralLoader.astro';
+---
+
+<Layout title="Loader EVRYLUX">
+  <main class="demo-shell">
+    <EvryluxNeuralLoader size="lg" />
+  </main>
+</Layout>
+
+<style>
+  .demo-shell {
+    min-height: calc(100vh - 80px);
+    display: grid;
+    place-items: center;
+  }
+</style>

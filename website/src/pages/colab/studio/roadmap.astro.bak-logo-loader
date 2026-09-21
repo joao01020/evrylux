@@ -5,7 +5,7 @@ import RoadmapCard from '../../../components/colab/RoadmapCard.astro';
 import RoadmapModal from '../../../components/colab/RoadmapModal.astro';
 import RoadmapDetailsModal from '../../../components/colab/RoadmapDetailsModal.astro';
 import '../../../styles/members.css';
-import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
+import EvryluxNeuralLoader from '../../../components/ui/EvryluxNeuralLoader.astro';
 ---
 
 <Layout
@@ -13,7 +13,7 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
   description="Roadmap interno detalhado do projeto EVRYLUX."
 >
   <main class="member-shell">
-    <EvryluxLogoLoader
+    <EvryluxNeuralLoader
       id="roadmap-loading"
       size="md"
     />

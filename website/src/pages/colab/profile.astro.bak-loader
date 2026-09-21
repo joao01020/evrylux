@@ -2,7 +2,6 @@
 import Layout from '../../layouts/Layout.astro';
 import ColabNav from '../../components/colab/ColabNav.astro';
 import '../../styles/members.css';
-import EvryluxLogoLoader from '../../components/ui/EvryluxLogoLoader.astro';
 ---
 
 <Layout
@@ -10,10 +9,12 @@ import EvryluxLogoLoader from '../../components/ui/EvryluxLogoLoader.astro';
   description="Perfil interno de colaborador do projeto EVRYLUX."
 >
   <main class="member-shell profile-page">
-    <EvryluxLogoLoader
+    <div
       id="profile-loading"
-      size="md"
-    />
+      class="member-container member-loading"
+    >
+      Carregando perfil...
+    </div>
 
     <div
       id="profile-content"

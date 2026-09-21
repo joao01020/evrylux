@@ -2,7 +2,6 @@
 import Layout from '../../../layouts/Layout.astro';
 import ColabNav from '../../../components/colab/ColabNav.astro';
 import '../../../styles/members.css';
-import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
 ---
 
 <Layout
@@ -10,10 +9,12 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
   description="Ferramentas internas de colaboração do EVRYLUX."
 >
   <main class="member-shell">
-    <EvryluxLogoLoader
+    <div
       id="studio-loading"
-      size="md"
-    />
+      class="member-container member-loading"
+    >
+      Carregando Studio...
+    </div>
 
     <div
       id="studio-content"

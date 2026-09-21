@@ -1,0 +1,829 @@
+---
+interface Props {
+  id?: string;
+  class?: string;
+  size?: 'sm' | 'md' | 'lg';
+  fullscreen?: boolean;
+}
+
+const {
+  id,
+  class: className = '',
+  size = 'md',
+  fullscreen = false,
+} = Astro.props;
+---
+
+<div
+  id={id}
+  class:list={[
+    'evrylux-logo-loader',
+    `evrylux-logo-loader-${size}`,
+    fullscreen && 'evrylux-logo-loader-fullscreen',
+    className,
+  ]}
+  role="status"
+  aria-label="Carregando"
+>
+  <div class="evrylux-logo-stage" aria-hidden="true">
+    <svg
+      class="evrylux-logo-draw"
+      viewBox="0 0 260 260"
+      focusable="false"
+    >
+      <defs>
+        <filter
+          id="evryluxLoaderGlowStrong"
+          x="-100%"
+          y="-100%"
+          width="300%"
+          height="300%"
+        >
+          <feGaussianBlur
+            stdDeviation="4.6"
+            result="blur"
+          />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+
+        <filter
+          id="evryluxLoaderGlowSoft"
+          x="-160%"
+          y="-160%"
+          width="420%"
+          height="420%"
+        >
+          <feGaussianBlur
+            stdDeviation="9"
+          />
+        </filter>
+
+        <linearGradient
+          id="evryluxLoaderStroke"
+          x1="0"
+          y1="1"
+          x2="1"
+          y2="0"
+        >
+          <stop
+            offset="0%"
+            stop-color="#365c33"
+          />
+
+          <stop
+            offset="46%"
+            stop-color="#79bd72"
+          />
+
+          <stop
+            offset="78%"
+            stop-color="#bfe5b9"
+          />
+
+          <stop
+            offset="100%"
+            stop-color="#5f9d59"
+          />
+        </linearGradient>
+      </defs>
+
+      <!-- Aura suave -->
+      <circle
+        class="evrylux-logo-aura-ring"
+        cx="130"
+        cy="130"
+        r="92"
+      />
+
+      <!--
+        Estrutura inspirada na marca EVRYLUX:
+        três linhas angulares que se constroem progressivamente.
+      -->
+      <g class="evrylux-logo-structure">
+        <path
+          class="logo-path logo-path-1"
+          d="
+            M56 218
+            L56 96
+            L86 66
+            L163 66
+            L190 48
+          "
+        />
+
+        <path
+          class="logo-path logo-path-2"
+          d="
+            M92 205
+            L92 119
+            L117 94
+            L153 94
+            L186 69
+          "
+        />
+
+        <path
+          class="logo-path logo-path-3"
+          d="
+            M128 190
+            L128 142
+            L148 122
+            L169 122
+            L187 103
+          "
+        />
+      </g>
+
+      <!-- trilhas pontilhadas que precedem o traço -->
+      <g class="evrylux-logo-guides">
+        <path
+          class="guide-path guide-1"
+          d="
+            M56 218
+            L56 96
+            L86 66
+            L163 66
+            L190 48
+          "
+        />
+
+        <path
+          class="guide-path guide-2"
+          d="
+            M92 205
+            L92 119
+            L117 94
+            L153 94
+            L186 69
+          "
+        />
+
+        <path
+          class="guide-path guide-3"
+          d="
+            M128 190
+            L128 142
+            L148 122
+            L169 122
+            L187 103
+          "
+        />
+      </g>
+
+      <!-- pontos que percorrem cada segmento -->
+      <g class="evrylux-logo-travelers">
+        <circle
+          class="traveler traveler-1"
+          r="4.4"
+        />
+
+        <circle
+          class="traveler traveler-2"
+          r="3.9"
+        />
+
+        <circle
+          class="traveler traveler-3"
+          r="3.5"
+        />
+      </g>
+
+      <!-- nós de conexão -->
+      <g class="evrylux-logo-nodes">
+        <g class="logo-node node-a">
+          <circle
+            class="node-glow"
+            cx="56"
+            cy="96"
+            r="14"
+          />
+          <circle
+            class="node-ring"
+            cx="56"
+            cy="96"
+            r="6"
+          />
+          <circle
+            class="node-core"
+            cx="56"
+            cy="96"
+            r="2.3"
+          />
+        </g>
+
+        <g class="logo-node node-b">
+          <circle
+            class="node-glow"
+            cx="86"
+            cy="66"
+            r="13"
+          />
+          <circle
+            class="node-ring"
+            cx="86"
+            cy="66"
+            r="5.5"
+          />
+          <circle
+            class="node-core"
+            cx="86"
+            cy="66"
+            r="2.1"
+          />
+        </g>
+
+        <g class="logo-node node-c">
+          <circle
+            class="node-glow"
+            cx="92"
+            cy="119"
+            r="13"
+          />
+          <circle
+            class="node-ring"
+            cx="92"
+            cy="119"
+            r="5.5"
+          />
+          <circle
+            class="node-core"
+            cx="92"
+            cy="119"
+            r="2.1"
+          />
+        </g>
+
+        <g class="logo-node node-d">
+          <circle
+            class="node-glow"
+            cx="128"
+            cy="142"
+            r="12"
+          />
+          <circle
+            class="node-ring"
+            cx="128"
+            cy="142"
+            r="5"
+          />
+          <circle
+            class="node-core"
+            cx="128"
+            cy="142"
+            r="2"
+          />
+        </g>
+
+        <g class="logo-node node-e">
+          <circle
+            class="node-glow"
+            cx="190"
+            cy="48"
+            r="15"
+          />
+          <circle
+            class="node-ring"
+            cx="190"
+            cy="48"
+            r="6.2"
+          />
+          <circle
+            class="node-core"
+            cx="190"
+            cy="48"
+            r="2.5"
+          />
+        </g>
+      </g>
+
+      <!-- estrela da marca -->
+      <path
+        class="evrylux-logo-spark"
+        d="
+          M207 34
+          L211 43
+          L220 47
+          L211 51
+          L207 60
+          L203 51
+          L194 47
+          L203 43
+          Z
+        "
+      />
+    </svg>
+
+    <!-- partículas fora do SVG principal -->
+    <span class="ambient-dot dot-1"></span>
+    <span class="ambient-dot dot-2"></span>
+    <span class="ambient-dot dot-3"></span>
+    <span class="ambient-dot dot-4"></span>
+    <span class="ambient-dot dot-5"></span>
+    <span class="ambient-dot dot-6"></span>
+  </div>
+</div>
+
+<style is:global>
+  .evrylux-logo-loader {
+    --loader-size: 230px;
+
+    width: 100%;
+    min-height: min(42vh, 350px);
+    display: grid;
+    place-items: center;
+    padding: 24px;
+  }
+
+  .evrylux-logo-loader-sm {
+    --loader-size: 125px;
+    min-height: 140px;
+  }
+
+  .evrylux-logo-loader-md {
+    --loader-size: 230px;
+  }
+
+  .evrylux-logo-loader-lg {
+    --loader-size: 320px;
+    min-height: min(62vh, 510px);
+  }
+
+  .evrylux-logo-loader-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    min-height: 100vh;
+    background:
+      radial-gradient(
+        circle at 50% 46%,
+        rgba(223,241,218,.62),
+        rgba(247,251,244,.96) 42%,
+        #f7fbf4 76%
+      );
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .evrylux-logo-stage {
+    position: relative;
+    width: var(--loader-size);
+    height: var(--loader-size);
+    display: grid;
+    place-items: center;
+    isolation: isolate;
+  }
+
+  .evrylux-logo-draw {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .evrylux-logo-aura-ring {
+    fill: none;
+    stroke: rgba(95,157,89,.12);
+    stroke-width: 1;
+    stroke-dasharray: 2 11;
+    transform-origin: 130px 130px;
+    animation:
+      logoAuraOrbit
+      11s
+      linear
+      infinite;
+  }
+
+  .logo-path {
+    fill: none;
+    stroke: url(#evryluxLoaderStroke);
+    stroke-width: 12;
+    stroke-linecap: square;
+    stroke-linejoin: bevel;
+    filter: url(#evryluxLoaderGlowStrong);
+
+    stroke-dasharray: 520;
+    stroke-dashoffset: 520;
+
+    animation:
+      logoBuild
+      2.65s
+      cubic-bezier(.22,.8,.28,1)
+      infinite;
+  }
+
+  .logo-path-1 {
+    animation-delay: 0s;
+  }
+
+  .logo-path-2 {
+    animation-delay: .22s;
+  }
+
+  .logo-path-3 {
+    animation-delay: .44s;
+  }
+
+  .guide-path {
+    fill: none;
+    stroke: rgba(159,211,149,.42);
+    stroke-width: 1.2;
+    stroke-linecap: round;
+    stroke-dasharray: 3 8;
+    opacity: .62;
+
+    animation:
+      guideFlow
+      1.8s
+      linear
+      infinite;
+  }
+
+  .guide-2 {
+    animation-delay: .25s;
+  }
+
+  .guide-3 {
+    animation-delay: .5s;
+  }
+
+  .traveler {
+    fill: #9fd395;
+    filter: url(#evryluxLoaderGlowStrong);
+    opacity: 0;
+  }
+
+  .traveler-1 {
+    animation:
+      travelerOne
+      2.65s
+      cubic-bezier(.2,.72,.2,1)
+      infinite;
+  }
+
+  .traveler-2 {
+    animation:
+      travelerTwo
+      2.65s
+      .22s
+      cubic-bezier(.2,.72,.2,1)
+      infinite;
+  }
+
+  .traveler-3 {
+    animation:
+      travelerThree
+      2.65s
+      .44s
+      cubic-bezier(.2,.72,.2,1)
+      infinite;
+  }
+
+  .logo-node {
+    transform-box: fill-box;
+    transform-origin: center;
+    opacity: .28;
+
+    animation:
+      nodeWake
+      2.65s
+      ease-in-out
+      infinite;
+  }
+
+  .node-a {
+    animation-delay: .15s;
+  }
+
+  .node-b {
+    animation-delay: .45s;
+  }
+
+  .node-c {
+    animation-delay: .72s;
+  }
+
+  .node-d {
+    animation-delay: 1s;
+  }
+
+  .node-e {
+    animation-delay: 1.3s;
+  }
+
+  .node-glow {
+    fill: rgba(159,211,149,.18);
+    filter: url(#evryluxLoaderGlowSoft);
+  }
+
+  .node-ring {
+    fill: rgba(255,255,255,.94);
+    stroke: #79bd72;
+    stroke-width: 1.7;
+  }
+
+  .node-core {
+    fill: #4f8c4a;
+  }
+
+  .evrylux-logo-spark {
+    fill: #79bd72;
+    filter: url(#evryluxLoaderGlowStrong);
+    transform-origin: 207px 47px;
+
+    animation:
+      sparkBirth
+      2.65s
+      ease-in-out
+      infinite;
+  }
+
+  .ambient-dot {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #9fd395;
+    box-shadow:
+      0 0 12px
+      rgba(95,157,89,.4);
+
+    animation:
+      ambientPulse
+      2.4s
+      ease-in-out
+      infinite;
+  }
+
+  .dot-1 {
+    left: 18%;
+    top: 27%;
+  }
+
+  .dot-2 {
+    right: 16%;
+    top: 39%;
+    animation-delay: .4s;
+  }
+
+  .dot-3 {
+    left: 26%;
+    bottom: 17%;
+    animation-delay: .8s;
+  }
+
+  .dot-4 {
+    right: 26%;
+    bottom: 23%;
+    animation-delay: 1.2s;
+  }
+
+  .dot-5 {
+    left: 48%;
+    top: 12%;
+    animation-delay: .65s;
+  }
+
+  .dot-6 {
+    right: 10%;
+    bottom: 39%;
+    animation-delay: 1.55s;
+  }
+
+  @keyframes logoBuild {
+    0% {
+      stroke-dashoffset: 520;
+      opacity: .16;
+    }
+
+    14% {
+      opacity: .58;
+    }
+
+    58% {
+      stroke-dashoffset: 0;
+      opacity: 1;
+    }
+
+    78% {
+      stroke-dashoffset: 0;
+      opacity: 1;
+    }
+
+    100% {
+      stroke-dashoffset: -520;
+      opacity: .08;
+    }
+  }
+
+  @keyframes guideFlow {
+    to {
+      stroke-dashoffset: -24;
+    }
+  }
+
+  @keyframes logoAuraOrbit {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes nodeWake {
+    0%,
+    100% {
+      opacity: .18;
+      transform: scale(.7);
+    }
+
+    42% {
+      opacity: .95;
+      transform: scale(1.18);
+    }
+
+    67% {
+      opacity: .65;
+      transform: scale(.96);
+    }
+  }
+
+  @keyframes sparkBirth {
+    0%,
+    54% {
+      opacity: 0;
+      transform:
+        rotate(0deg)
+        scale(.2);
+    }
+
+    68% {
+      opacity: 1;
+      transform:
+        rotate(45deg)
+        scale(1.3);
+    }
+
+    84% {
+      opacity: .78;
+      transform:
+        rotate(60deg)
+        scale(.9);
+    }
+
+    100% {
+      opacity: 0;
+      transform:
+        rotate(90deg)
+        scale(.3);
+    }
+  }
+
+  @keyframes ambientPulse {
+    0%,
+    100% {
+      opacity: .08;
+      transform: scale(.5);
+    }
+
+    50% {
+      opacity: .75;
+      transform: scale(1.22);
+    }
+  }
+
+  @keyframes travelerOne {
+    0% {
+      cx: 56px;
+      cy: 218px;
+      opacity: 0;
+    }
+
+    12% {
+      opacity: 1;
+    }
+
+    30% {
+      cx: 56px;
+      cy: 96px;
+    }
+
+    45% {
+      cx: 86px;
+      cy: 66px;
+    }
+
+    72% {
+      cx: 163px;
+      cy: 66px;
+    }
+
+    88% {
+      cx: 190px;
+      cy: 48px;
+      opacity: 1;
+    }
+
+    100% {
+      cx: 190px;
+      cy: 48px;
+      opacity: 0;
+    }
+  }
+
+  @keyframes travelerTwo {
+    0% {
+      cx: 92px;
+      cy: 205px;
+      opacity: 0;
+    }
+
+    12% {
+      opacity: 1;
+    }
+
+    34% {
+      cx: 92px;
+      cy: 119px;
+    }
+
+    53% {
+      cx: 117px;
+      cy: 94px;
+    }
+
+    73% {
+      cx: 153px;
+      cy: 94px;
+    }
+
+    90% {
+      cx: 186px;
+      cy: 69px;
+      opacity: 1;
+    }
+
+    100% {
+      cx: 186px;
+      cy: 69px;
+      opacity: 0;
+    }
+  }
+
+  @keyframes travelerThree {
+    0% {
+      cx: 128px;
+      cy: 190px;
+      opacity: 0;
+    }
+
+    12% {
+      opacity: 1;
+    }
+
+    34% {
+      cx: 128px;
+      cy: 142px;
+    }
+
+    58% {
+      cx: 148px;
+      cy: 122px;
+    }
+
+    77% {
+      cx: 169px;
+      cy: 122px;
+    }
+
+    90% {
+      cx: 187px;
+      cy: 103px;
+      opacity: 1;
+    }
+
+    100% {
+      cx: 187px;
+      cy: 103px;
+      opacity: 0;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .evrylux-logo-loader-md {
+      --loader-size: 195px;
+    }
+
+    .evrylux-logo-loader-lg {
+      --loader-size: 260px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .evrylux-logo-loader *,
+    .evrylux-logo-loader *::before,
+    .evrylux-logo-loader *::after {
+      animation-duration: .001ms !important;
+      animation-iteration-count: 1 !important;
+    }
+  }
+</style>

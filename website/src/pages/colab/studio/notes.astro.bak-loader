@@ -4,7 +4,6 @@ import ColabNav from '../../../components/colab/ColabNav.astro';
 import QuickNoteCard from '../../../components/colab/QuickNoteCard.astro';
 import QuickNoteModal from '../../../components/colab/QuickNoteModal.astro';
 import '../../../styles/members.css';
-import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
 ---
 
 <Layout
@@ -12,10 +11,12 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
   description="Notas rápidas compartilhadas do projeto EVRYLUX."
 >
   <main class="member-shell">
-    <EvryluxLogoLoader
+    <div
       id="notes-loading"
-      size="md"
-    />
+      class="member-container member-loading"
+    >
+      Carregando notas...
+    </div>
 
     <div
       id="notes-content"
