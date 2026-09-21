@@ -1,0 +1,614 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import ColabNav from '../../components/colab/ColabNav.astro';
+import '../../styles/members.css';
+---
+
+<Layout
+  title="Segurança — EVRYLUX Colab"
+  description="Configure autenticação em dois fatores para proteger sua conta EVRYLUX."
+>
+  <main class="member-shell">
+    <div class="member-container">
+      <div class="member-topbar">
+        <div class="member-title-block">
+          <div class="eyebrow">EVRYLUX Colab</div>
+          <h1>Segurança</h1>
+          <p>Proteja sua conta com autenticação em dois fatores.</p>
+        </div>
+
+        <ColabNav />
+      </div>
+
+      <section class="security-layout">
+        <article class="member-card">
+          <div class="member-card-inner">
+            <div class="security-head">
+              <div>
+                <span class="member-badge">2FA / MFA</span>
+                <h2>Aplicativo autenticador</h2>
+                <p class="member-muted">
+                  Compatível com Google Authenticator, Microsoft Authenticator,
+                  Authy, 1Password e outros aplicativos TOTP.
+                </p>
+              </div>
+
+              <span id="security-state" class="security-state">Verificando...</span>
+            </div>
+
+            <div id="loading-panel" class="security-panel">
+              Carregando configurações de segurança...
+            </div>
+
+            <div id="aal2-panel" class="security-panel" hidden>
+              <div class="security-icon">✓</div>
+              <div>
+                <h3>Sessão protegida</h3>
+                <p>
+                  Sua sessão atual está em <strong>AAL2</strong>.
+                  Os recursos administrativos protegidos estão liberados.
+                </p>
+                <button id="continue-button" class="member-button member-button-primary" type="button">
+                  Continuar
+                </button>
+              </div>
+            </div>
+
+            <div id="challenge-panel" class="security-panel" hidden>
+              <div class="security-icon">01</div>
+              <div class="security-content">
+                <h3>Confirme seu segundo fator</h3>
+                <p>
+                  Abra o aplicativo autenticador e digite o código de 6 dígitos.
+                </p>
+
+                <form id="challenge-form">
+                  <label for="challenge-code">Código</label>
+                  <input
+                    id="challenge-code"
+                    class="security-code"
+                    type="text"
+                    inputmode="numeric"
+                    autocomplete="one-time-code"
+                    maxlength="6"
+                    placeholder="000000"
+                    required
+                  />
+                  <button id="challenge-submit" class="member-button member-button-primary" type="submit">
+                    Verificar
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            <div id="enroll-panel" class="security-panel" hidden>
+              <div class="security-icon">01</div>
+              <div class="security-content">
+                <h3>Ative o 2FA</h3>
+                <p>
+                  Nenhum autenticador foi configurado para esta conta.
+                </p>
+                <button id="start-enroll" class="member-button member-button-primary" type="button">
+                  Configurar autenticador
+                </button>
+              </div>
+            </div>
+
+            <div id="qr-panel" class="security-panel" hidden>
+              <div class="security-icon">02</div>
+              <div class="security-content">
+                <h3>Escaneie o QR Code</h3>
+                <p>
+                  Abra o aplicativo autenticador e escaneie o código abaixo.
+                </p>
+
+                <div class="qr-wrap">
+                  <img id="mfa-qr" alt="QR Code para configurar 2FA" />
+                </div>
+
+                <div class="secret-box">
+                  <span>Chave manual</span>
+                  <code id="mfa-secret">—</code>
+                </div>
+
+                <form id="enroll-form">
+                  <label for="enroll-code">Código gerado pelo aplicativo</label>
+                  <input
+                    id="enroll-code"
+                    class="security-code"
+                    type="text"
+                    inputmode="numeric"
+                    autocomplete="one-time-code"
+                    maxlength="6"
+                    placeholder="000000"
+                    required
+                  />
+                  <button id="enroll-submit" class="member-button member-button-primary" type="submit">
+                    Ativar 2FA
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            <div id="security-status" class="member-status" role="status"></div>
+          </div>
+        </article>
+
+        <aside class="member-card">
+          <div class="member-card-inner">
+            <div class="eyebrow">Proteção administrativa</div>
+            <h2>AAL2 obrigatório</h2>
+            <p class="member-muted">
+              Administradores precisam confirmar o segundo fator antes de usar áreas sensíveis.
+            </p>
+
+            <div class="protected-list">
+              <div><span>✓</span><strong>/colab/admins</strong></div>
+              <div><span>✓</span><strong>/colab/demo</strong></div>
+              <div><span>✓</span><strong>/colab/support</strong></div>
+              <div><span>✓</span><strong>Edição do roadmap</strong></div>
+            </div>
+
+            <p id="admin-note" class="admin-note" hidden>
+              Sua conta possui papel de administrador. O 2FA é obrigatório
+              para usar as ferramentas administrativas.
+            </p>
+          </div>
+        </aside>
+      </section>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  import { supabase } from '../../lib/supabase';
+  import {
+    getMfaAalState,
+    getVerifiedTotpFactor,
+    hasAdminRole,
+  } from '../../lib/mfa';
+
+  const loadingPanel = document.querySelector<HTMLElement>('#loading-panel');
+  const aal2Panel = document.querySelector<HTMLElement>('#aal2-panel');
+  const challengePanel = document.querySelector<HTMLElement>('#challenge-panel');
+  const enrollPanel = document.querySelector<HTMLElement>('#enroll-panel');
+  const qrPanel = document.querySelector<HTMLElement>('#qr-panel');
+  const stateLabel = document.querySelector<HTMLElement>('#security-state');
+  const status = document.querySelector<HTMLElement>('#security-status');
+  const adminNote = document.querySelector<HTMLElement>('#admin-note');
+
+  const startEnroll = document.querySelector<HTMLButtonElement>('#start-enroll');
+  const qrImage = document.querySelector<HTMLImageElement>('#mfa-qr');
+  const secret = document.querySelector<HTMLElement>('#mfa-secret');
+
+  const enrollForm = document.querySelector<HTMLFormElement>('#enroll-form');
+  const enrollCode = document.querySelector<HTMLInputElement>('#enroll-code');
+  const enrollSubmit = document.querySelector<HTMLButtonElement>('#enroll-submit');
+
+  const challengeForm = document.querySelector<HTMLFormElement>('#challenge-form');
+  const challengeCode = document.querySelector<HTMLInputElement>('#challenge-code');
+  const challengeSubmit = document.querySelector<HTMLButtonElement>('#challenge-submit');
+  const continueButton = document.querySelector<HTMLButtonElement>('#continue-button');
+
+  let enrollmentFactorId = '';
+  let verifiedFactorId = '';
+
+  function nextUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const value = params.get('next');
+
+    if (value && value.startsWith('/') && !value.startsWith('//')) {
+      return value;
+    }
+
+    return '/colab';
+  }
+
+  function hidePanels() {
+    for (const panel of [loadingPanel, aal2Panel, challengePanel, enrollPanel, qrPanel]) {
+      if (panel) panel.hidden = true;
+    }
+  }
+
+  function showStatus(message: string, type: 'success' | 'error' | '') {
+    if (!status) return;
+    status.textContent = message;
+    status.className = type ? `member-status show ${type}` : 'member-status';
+  }
+
+  function normalizeCode(value: string) {
+    return value.replace(/\D/g, '').slice(0, 6);
+  }
+
+  function qrSource(value: string) {
+    const qr = value.trim();
+
+    if (qr.startsWith('data:')) return qr;
+
+    if (qr.startsWith('<svg')) {
+      return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(qr);
+    }
+
+    return qr;
+  }
+
+  async function refreshState() {
+    hidePanels();
+
+    const { data: sessionData, error: sessionError } =
+      await supabase.auth.getSession();
+
+    if (sessionError || !sessionData.session) {
+      window.location.href =
+        `/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+      return;
+    }
+
+    try {
+      const [aal, factor, admin] = await Promise.all([
+        getMfaAalState(),
+        getVerifiedTotpFactor(),
+        hasAdminRole().catch(() => false),
+      ]);
+
+      if (adminNote) {
+        adminNote.hidden = !admin;
+      }
+
+      if (aal.currentLevel === 'aal2') {
+        if (stateLabel) {
+          stateLabel.textContent = 'AAL2 ativo';
+          stateLabel.classList.add('active');
+        }
+
+        if (aal2Panel) aal2Panel.hidden = false;
+        return;
+      }
+
+      if (stateLabel) {
+        stateLabel.textContent = 'AAL1';
+        stateLabel.classList.remove('active');
+      }
+
+      if (factor) {
+        verifiedFactorId = factor.id;
+        if (challengePanel) challengePanel.hidden = false;
+        challengeCode?.focus();
+        return;
+      }
+
+      if (enrollPanel) enrollPanel.hidden = false;
+    } catch (error) {
+      console.error('[EVRYLUX] Falha ao verificar MFA:', error);
+      showStatus('Não foi possível carregar as configurações de 2FA.', 'error');
+    }
+  }
+
+  startEnroll?.addEventListener('click', async () => {
+    startEnroll.disabled = true;
+    showStatus('', '');
+
+    try {
+      const { data, error } = await supabase.auth.mfa.enroll({
+        factorType: 'totp',
+        friendlyName: 'EVRYLUX Authenticator',
+      });
+
+      if (error) throw error;
+
+      enrollmentFactorId = data.id;
+
+      if (qrImage) {
+        qrImage.src = qrSource(data.totp.qr_code);
+      }
+
+      if (secret) {
+        secret.textContent = data.totp.secret;
+      }
+
+      hidePanels();
+      if (qrPanel) qrPanel.hidden = false;
+      enrollCode?.focus();
+    } catch (error) {
+      console.error('[EVRYLUX] Falha ao iniciar MFA:', error);
+      showStatus(
+        error instanceof Error ? error.message : 'Não foi possível iniciar a configuração do 2FA.',
+        'error',
+      );
+    } finally {
+      startEnroll.disabled = false;
+    }
+  });
+
+  enrollCode?.addEventListener('input', () => {
+    enrollCode.value = normalizeCode(enrollCode.value);
+  });
+
+  challengeCode?.addEventListener('input', () => {
+    challengeCode.value = normalizeCode(challengeCode.value);
+  });
+
+  enrollForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    const code = normalizeCode(enrollCode?.value ?? '');
+
+    if (!enrollmentFactorId || code.length !== 6) {
+      showStatus('Digite o código de 6 dígitos.', 'error');
+      return;
+    }
+
+    if (enrollSubmit) {
+      enrollSubmit.disabled = true;
+      enrollSubmit.textContent = 'Ativando...';
+    }
+
+    try {
+      const { data: challenge, error: challengeError } =
+        await supabase.auth.mfa.challenge({
+          factorId: enrollmentFactorId,
+        });
+
+      if (challengeError) throw challengeError;
+
+      const { error: verifyError } =
+        await supabase.auth.mfa.verify({
+          factorId: enrollmentFactorId,
+          challengeId: challenge.id,
+          code,
+        });
+
+      if (verifyError) throw verifyError;
+
+      showStatus('2FA ativado com sucesso. Sua sessão agora está em AAL2.', 'success');
+      await refreshState();
+    } catch (error) {
+      console.error('[EVRYLUX] Falha ao ativar MFA:', error);
+      showStatus('Código inválido ou expirado. Tente novamente.', 'error');
+    } finally {
+      if (enrollSubmit) {
+        enrollSubmit.disabled = false;
+        enrollSubmit.textContent = 'Ativar 2FA';
+      }
+    }
+  });
+
+  challengeForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    const code = normalizeCode(challengeCode?.value ?? '');
+
+    if (!verifiedFactorId || code.length !== 6) {
+      showStatus('Digite o código de 6 dígitos.', 'error');
+      return;
+    }
+
+    if (challengeSubmit) {
+      challengeSubmit.disabled = true;
+      challengeSubmit.textContent = 'Verificando...';
+    }
+
+    try {
+      const { error } =
+        await supabase.auth.mfa.challengeAndVerify({
+          factorId: verifiedFactorId,
+          code,
+        });
+
+      if (error) throw error;
+
+      window.location.href = nextUrl();
+    } catch (error) {
+      console.error('[EVRYLUX] Falha na verificação MFA:', error);
+      showStatus('Código inválido ou expirado. Confira o autenticador.', 'error');
+    } finally {
+      if (challengeSubmit) {
+        challengeSubmit.disabled = false;
+        challengeSubmit.textContent = 'Verificar';
+      }
+    }
+  });
+
+  continueButton?.addEventListener('click', () => {
+    window.location.href = nextUrl();
+  });
+
+  await refreshState();
+</script>
+
+<style is:global>
+  [hidden] { display: none !important; }
+</style>
+
+<style>
+  .security-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(300px, .65fr);
+    gap: 18px;
+  }
+
+  .security-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+  }
+
+  .security-head h2 {
+    margin: 10px 0 0;
+    font-size: 25px;
+    letter-spacing: -.035em;
+  }
+
+  .security-head p {
+    max-width: 680px;
+    line-height: 1.7;
+  }
+
+  .security-state {
+    padding: 8px 11px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface-muted);
+    color: var(--text-soft);
+    font-size: 10px;
+    font-weight: 800;
+  }
+
+  .security-state.active {
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+  }
+
+  .security-panel {
+    margin-top: 26px;
+    padding: 22px;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: var(--surface-muted);
+  }
+
+  .security-icon {
+    width: 38px;
+    height: 38px;
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font-size: 11px;
+    font-weight: 900;
+  }
+
+  .security-content {
+    width: 100%;
+  }
+
+  .security-panel h3 {
+    margin: 0;
+  }
+
+  .security-panel p {
+    color: var(--text-soft);
+    line-height: 1.7;
+    font-size: 13px;
+  }
+
+  #challenge-form,
+  #enroll-form {
+    margin-top: 18px;
+    display: grid;
+    gap: 9px;
+    max-width: 330px;
+  }
+
+  #challenge-form label,
+  #enroll-form label {
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .security-code {
+    min-height: 48px;
+    padding: 0 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-solid);
+    color: var(--text);
+    font: inherit;
+    font-size: 20px;
+    font-weight: 850;
+    letter-spacing: .22em;
+    outline: none;
+  }
+
+  .qr-wrap {
+    width: 230px;
+    height: 230px;
+    margin-top: 18px;
+    padding: 14px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: #fff;
+  }
+
+  .qr-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .secret-box {
+    max-width: 540px;
+    margin-top: 12px;
+    padding: 13px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: rgba(255,255,255,.7);
+  }
+
+  .secret-box span,
+  .secret-box code {
+    display: block;
+  }
+
+  .secret-box code {
+    margin-top: 6px;
+    overflow-wrap: anywhere;
+    font-size: 12px;
+  }
+
+  .protected-list {
+    margin-top: 22px;
+    display: grid;
+    gap: 9px;
+  }
+
+  .protected-list div {
+    min-height: 43px;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-muted);
+  }
+
+  .protected-list span {
+    color: var(--primary-strong);
+    font-weight: 900;
+  }
+
+  .protected-list strong {
+    font-size: 11px;
+  }
+
+  .admin-note {
+    margin-top: 18px;
+    padding: 13px;
+    border-radius: 12px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.6;
+  }
+
+  #continue-button,
+  #start-enroll {
+    margin-top: 18px;
+  }
+
+  @media (max-width: 900px) {
+    .security-layout {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

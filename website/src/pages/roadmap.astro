@@ -207,6 +207,10 @@ import Layout from '../layouts/Layout.astro';
   } from '../lib/colab-admin';
 
   import {
+    requireAdminAal2,
+  } from '../lib/mfa';
+
+  import {
     createPublicRoadmapItem,
     deletePublicRoadmapItem,
     getPublicRoadmapItems,
@@ -773,6 +777,13 @@ import Layout from '../layouts/Layout.astro';
   try {
     admin =
       await isCurrentUserAdmin();
+
+    if (admin) {
+      admin =
+        await requireAdminAal2({
+          next: '/roadmap',
+        });
+    }
 
     if (addButton) {
       addButton.hidden =
