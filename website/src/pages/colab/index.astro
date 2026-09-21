@@ -44,9 +44,16 @@ import '../../styles/members.css';
             <div class="dashboard-profile">
               <div
                 id="dashboard-avatar-placeholder"
-                class="member-avatar-placeholder"
+                class="member-avatar-placeholder default-profile-avatar"
+                aria-label="Sem foto de perfil"
               >
-                E
+                <img
+                  class="default-profile-avatar-image"
+                  src="/branding/default-profile-avatar.png"
+                  alt=""
+                  aria-hidden="true"
+                  draggable="false"
+                />
               </div>
 
               <img
@@ -56,9 +63,41 @@ import '../../styles/members.css';
               />
 
               <div>
-                <span class="member-badge">
-                  Colaborador
-                </span>
+                <div class="dashboard-role-badges">
+                  <span class="member-badge">
+                    Colaborador
+                  </span>
+
+                  <span
+                    id="dashboard-admin-badge"
+                    class="member-badge dashboard-admin-badge member-hidden"
+                    title="Este colaborador possui acesso administrativo"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M12 3 5.5 6v5.2c0 4.1 2.7 7.7 6.5 9.8 3.8-2.1 6.5-5.7 6.5-9.8V6L12 3Z"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linejoin="round"
+                      />
+
+                      <path
+                        d="m9.4 12.1 1.7 1.8 3.6-4"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+
+                    Administrador
+                  </span>
+                </div>
 
                 <h2 id="dashboard-name">
                   Perfil EVRYLUX
@@ -197,7 +236,10 @@ import '../../styles/members.css';
           >
             <div class="tool-card-top">
               <span class="tool-icon">
-                S
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 5.5h16v13H4z" fill="none" stroke="currentColor" stroke-width="1.8" rx="2"/>
+                  <path d="M8 9h8M8 12h5M8 15h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
               </span>
 
               <span class="tool-arrow">
@@ -221,7 +263,12 @@ import '../../styles/members.css';
           >
             <div class="tool-card-top">
               <span class="tool-icon">
-                R
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M5 19V8m7 11V5m7 14v-7" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+                  <circle cx="5" cy="6" r="2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                  <circle cx="12" cy="3" r="2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                  <circle cx="19" cy="10" r="2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                </svg>
               </span>
 
               <span class="tool-arrow">
@@ -245,7 +292,10 @@ import '../../styles/members.css';
           >
             <div class="tool-card-top">
               <span class="tool-icon">
-                S
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6.5 17.5h-1A2.5 2.5 0 0 1 3 15V9a9 9 0 0 1 18 0v6a2.5 2.5 0 0 1-2.5 2.5h-1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                  <path d="M7 16v-4a2 2 0 0 1 2-2h1v8H9a2 2 0 0 1-2-2Zm10 0v-4a2 2 0 0 0-2-2h-1v8h1a2 2 0 0 0 2-2Z" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                </svg>
               </span>
 
               <span class="tool-arrow">
@@ -270,7 +320,11 @@ import '../../styles/members.css';
           >
             <div class="tool-card-top">
               <span class="tool-icon">
-                D
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M5 4.5h14v15H5z" fill="none" stroke="currentColor" stroke-width="1.8" rx="2"/>
+                  <path d="M8 8h8M8 12h8M8 16h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                  <circle cx="17" cy="16" r="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+                </svg>
               </span>
 
               <span class="tool-arrow">
@@ -290,12 +344,16 @@ import '../../styles/members.css';
 
           <a
             id="admin-users-card"
-            class="tool-card member-card admin-tool member-hidden"
+            class="tool-card member-card admin-tool"
             href="/colab/admins"
           >
             <div class="tool-card-top">
               <span class="tool-icon">
-                A
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="9" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                  <path d="M4 18a5 5 0 0 1 10 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                  <path d="M16 8h4M18 6v4M16 14h4M18 12v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
               </span>
 
               <span class="tool-arrow">
@@ -319,7 +377,10 @@ import '../../styles/members.css';
           >
             <div class="tool-card-top">
               <span class="tool-icon">
-                2
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 3 5.5 6v5.2c0 4.1 2.7 7.7 6.5 9.8 3.8-2.1 6.5-5.7 6.5-9.8V6L12 3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                  <path d="M9.5 12.2 11.2 14l3.5-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
               </span>
 
               <span class="tool-arrow">
@@ -343,7 +404,11 @@ import '../../styles/members.css';
           >
             <div class="tool-card-top">
               <span class="tool-icon">
-                C
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="8" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                  <circle cx="17" cy="9" r="2.4" fill="none" stroke="currentColor" stroke-width="1.7"/>
+                  <path d="M3.5 19a4.5 4.5 0 0 1 9 0M13.5 18.5a3.5 3.5 0 0 1 7 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
               </span>
 
               <span class="tool-arrow">
@@ -465,6 +530,11 @@ import '../../styles/members.css';
         '#admin-users-card',
       );
 
+    const adminBadge =
+      document.querySelector<HTMLElement>(
+        '#dashboard-admin-badge',
+      );
+
     const displayName =
       profile?.display_name?.trim() ||
       session.user.email ||
@@ -522,6 +592,30 @@ import '../../styles/members.css';
       placeholder?.classList.add(
         'member-hidden',
       );
+
+      avatar.addEventListener(
+        'error',
+        () => {
+          avatar.classList.add(
+            'member-hidden',
+          );
+
+          placeholder?.classList.remove(
+            'member-hidden',
+          );
+        },
+        {
+          once: true,
+        },
+      );
+    } else {
+      avatar?.classList.add(
+        'member-hidden',
+      );
+
+      placeholder?.classList.remove(
+        'member-hidden',
+      );
     }
 
     try {
@@ -529,6 +623,10 @@ import '../../styles/members.css';
         await isCurrentUserAdmin();
 
       if (admin) {
+        adminBadge?.classList.remove(
+          'member-hidden',
+        );
+
         adminDemoCard?.classList.remove(
           'member-hidden',
         );
@@ -536,8 +634,32 @@ import '../../styles/members.css';
         adminUsersCard?.classList.remove(
           'member-hidden',
         );
+      } else {
+        adminBadge?.classList.add(
+          'member-hidden',
+        );
+
+        adminDemoCard?.classList.add(
+          'member-hidden',
+        );
+
+        adminUsersCard?.classList.add(
+          'member-hidden',
+        );
       }
     } catch (adminError) {
+      adminBadge?.classList.add(
+        'member-hidden',
+      );
+
+      adminDemoCard?.classList.add(
+        'member-hidden',
+      );
+
+      adminUsersCard?.classList.add(
+        'member-hidden',
+      );
+
       console.warn(
         '[EVRYLUX] Não foi possível verificar permissões administrativas:',
         adminError,
@@ -725,26 +847,52 @@ import '../../styles/members.css';
   }
 
   .tool-icon {
-    width: 38px;
-    height: 38px;
+    width: 42px;
+    height: 42px;
 
     display: grid;
 
     place-items: center;
 
-    border-radius: 11px;
+    border-radius: 12px;
 
     background:
-      var(--primary-soft);
+      linear-gradient(
+        145deg,
+        rgba(255,255,255,.95),
+        var(--primary-soft)
+      );
 
     color:
       var(--primary-deep);
 
-    font-size:
-      12px;
+    border:
+      1px solid
+      rgba(
+        95,
+        157,
+        89,
+        .14
+      );
 
-    font-weight:
-      850;
+    box-shadow:
+      0 8px 22px
+      rgba(
+        54,
+        92,
+        51,
+        .05
+      );
+
+    transition:
+      transform .2s ease,
+      box-shadow .2s ease;
+  }
+
+  .tool-icon svg {
+    width: 21px;
+    height: 21px;
+    display: block;
   }
 
   .tool-arrow {
@@ -762,6 +910,13 @@ import '../../styles/members.css';
   .tool-arrow {
     transform:
       translateX(3px);
+  }
+
+  .tool-card:hover
+  .tool-icon {
+    transform:
+      translateY(-1px)
+      scale(1.03);
   }
 
   .tool-card h3 {
@@ -841,4 +996,74 @@ import '../../styles/members.css';
         1fr;
     }
   }
+
+  .default-profile-avatar {
+    width: 72px;
+    height: 72px;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .default-profile-avatar svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .default-profile-avatar .default-avatar-bg {
+    fill: #a9abad;
+  }
+
+  .default-profile-avatar .default-avatar-person {
+    fill: #eef6f3;
+  }
+
+  #dashboard-avatar {
+    width: 72px;
+    height: 72px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid rgba(65,104,62,.1);
+    box-shadow: 0 8px 24px rgba(54,92,51,.06);
+  }
+
+
+  .dashboard-role-badges {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+  }
+
+  .dashboard-admin-badge {
+    min-height: 28px;
+    padding: 0 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid rgba(95,157,89,.22);
+    border-radius: 999px;
+    background:
+      linear-gradient(
+        180deg,
+        rgba(223,241,218,.96),
+        rgba(204,232,197,.84)
+      );
+    color: var(--primary-deep);
+    box-shadow: 0 6px 18px rgba(54,92,51,.055);
+    font-size: 10px;
+    font-weight: 850;
+  }
+
+  .dashboard-admin-badge svg {
+    width: 14px;
+    height: 14px;
+    flex: 0 0 auto;
+  }
+
 </style>

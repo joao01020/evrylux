@@ -20,13 +20,11 @@ const nav = [
       <span class="brand-mark">
         <img
           src="/branding/evrylux-logo.png"
-          alt="EVRYLUX"
+          alt=""
           class="brand-logo"
+          draggable="false"
+          aria-hidden="true"
         />
-      </span>
-
-      <span class="brand-name">
-        EVRYLUX
       </span>
     </a>
 
@@ -46,6 +44,164 @@ const nav = [
     </nav>
 
     <div class="header-actions">
+      <div
+        id="admin-notification-center"
+        class="notification-center header-hidden"
+      >
+        <button
+          id="notification-center-button"
+          class="admin-notification notification-center-button"
+          type="button"
+          aria-label="Abrir notificações"
+          aria-expanded="false"
+          title="Notificações"
+        >
+          <span class="notification-icon notification-bell-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M18 8.7a6 6 0 1 0-12 0c0 6.4-2.6 6.6-2.6 8.3h17.2C20.6 15.3 18 15.1 18 8.7Z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M9.7 20h4.6"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              />
+            </svg>
+          </span>
+
+          <span
+            id="notification-center-count"
+            class="notification-count header-hidden"
+          >
+            0
+          </span>
+        </button>
+
+        <div
+          id="notification-popover"
+          class="notification-popover header-hidden"
+          role="dialog"
+          aria-label="Notificações administrativas"
+        >
+          <div class="notification-popover-head">
+            <div>
+              <span class="notification-popover-kicker">
+                EVRYLUX Colab
+              </span>
+
+              <strong>
+                Notificações
+              </strong>
+            </div>
+
+            <span
+              id="notification-popover-total"
+              class="notification-popover-total"
+            >
+              Tudo em dia
+            </span>
+          </div>
+
+          <div class="notification-popover-list">
+            <a
+              id="notification-popover-support"
+              class="notification-popover-item"
+              href="/colab/support"
+            >
+              <span class="popover-item-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path
+                    d="M7 8.5h10a3 3 0 0 1 3 3v3a3 3 0 0 1-3 3h-4.2L9 20v-2.5H7a3 3 0 0 1-3-3v-3a3 3 0 0 1 3-3Z"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M8.5 12.5h7"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </span>
+
+              <span class="popover-item-copy">
+                <strong>Suporte</strong>
+                <small id="notification-popover-support-copy">
+                  Nenhuma conversa nova
+                </small>
+              </span>
+
+              <span
+                id="notification-popover-support-count"
+                class="popover-item-count header-hidden"
+              >
+                0
+              </span>
+            </a>
+
+            <a
+              id="notification-popover-demo"
+              class="notification-popover-item"
+              href="/colab/demo"
+            >
+              <span class="popover-item-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <rect
+                    x="5"
+                    y="4"
+                    width="14"
+                    height="16"
+                    rx="3"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                  />
+                  <path
+                    d="M9 8h6M9 12h6M9 16h3"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                  />
+                  <circle
+                    cx="16.8"
+                    cy="16.2"
+                    r="1.8"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                  />
+                </svg>
+              </span>
+
+              <span class="popover-item-copy">
+                <strong>Fila do Demo</strong>
+                <small id="notification-popover-demo-copy">
+                  Nenhuma inscrição nova
+                </small>
+              </span>
+
+              <span
+                id="notification-popover-demo-count"
+                class="popover-item-count header-hidden"
+              >
+                0
+              </span>
+            </a>
+          </div>
+        </div>
+      </div>
+
       <a
         id="support-admin-notification"
         class="admin-notification header-hidden"
@@ -53,8 +209,23 @@ const nav = [
         aria-label="Novas mensagens de suporte"
         title="Suporte"
       >
-        <span class="notification-icon">
-          S
+        <span class="notification-icon notification-support-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M7 8.5h10a3 3 0 0 1 3 3v3a3 3 0 0 1-3 3h-4.2L9 20v-2.5H7a3 3 0 0 1-3-3v-3a3 3 0 0 1 3-3Z"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M8.5 12.5h7"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+            />
+          </svg>
         </span>
 
         <span
@@ -72,8 +243,34 @@ const nav = [
         aria-label="Novas inscrições no demo"
         title="Fila do Demo"
       >
-        <span class="notification-icon">
-          D
+        <span class="notification-icon notification-demo-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <rect
+              x="5"
+              y="4"
+              width="14"
+              height="16"
+              rx="3"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+            />
+            <path
+              d="M9 8h6M9 12h6M9 16h3"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+            />
+            <circle
+              cx="16.8"
+              cy="16.2"
+              r="1.8"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+            />
+          </svg>
         </span>
 
         <span
@@ -85,41 +282,31 @@ const nav = [
       </a>
 
       <a
-        class="github"
-        href="https://github.com/joao01020/ghost-core"
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="GitHub do projeto EVRYLUX"
-      >
-        <span>
-          GitHub
-        </span>
-
-        <span
-          class="external-arrow"
-          aria-hidden="true"
-        >
-          ↗
-        </span>
-      </a>
-
-      <a
         id="collaborator-access"
-        class="collaborator-access"
+        class="collaborator-access auth-pending"
         href="/login"
-        aria-label="Entrar na área de colaboradores"
+        aria-label="Acessar área de colaboradores"
       >
         <span
           id="collaborator-access-icon"
           class="collaborator-access-icon"
           aria-hidden="true"
         >
-          ↗
+          <img
+            id="collaborator-access-avatar"
+            class="collaborator-access-avatar header-hidden"
+            src="/branding/default-profile-avatar.png"
+            alt=""
+            draggable="false"
+          />
+
+          <span
+            id="collaborator-access-fallback-icon"
+            class="collaborator-access-fallback-icon"
+          ></span>
         </span>
 
-        <span id="collaborator-access-label">
-          Entrar
-        </span>
+        <span id="collaborator-access-label"></span>
       </a>
     </div>
   </div>
@@ -158,6 +345,16 @@ const nav = [
       '#collaborator-access-icon',
     );
 
+  const collaboratorAccessAvatar =
+    document.querySelector<HTMLImageElement>(
+      '#collaborator-access-avatar',
+    );
+
+  const collaboratorAccessFallbackIcon =
+    document.querySelector<HTMLElement>(
+      '#collaborator-access-fallback-icon',
+    );
+
   const demoNotification =
     document.querySelector<HTMLAnchorElement>(
       '#demo-admin-notification',
@@ -178,6 +375,67 @@ const nav = [
       '#support-admin-count',
     );
 
+  const notificationCenter =
+    document.querySelector<HTMLElement>(
+      '#admin-notification-center',
+    );
+
+  const notificationCenterButton =
+    document.querySelector<HTMLButtonElement>(
+      '#notification-center-button',
+    );
+
+  const notificationCenterCount =
+    document.querySelector<HTMLElement>(
+      '#notification-center-count',
+    );
+
+  const notificationPopover =
+    document.querySelector<HTMLElement>(
+      '#notification-popover',
+    );
+
+  const notificationPopoverTotal =
+    document.querySelector<HTMLElement>(
+      '#notification-popover-total',
+    );
+
+  const notificationPopoverSupportCount =
+    document.querySelector<HTMLElement>(
+      '#notification-popover-support-count',
+    );
+
+  const notificationPopoverDemoCount =
+    document.querySelector<HTMLElement>(
+      '#notification-popover-demo-count',
+    );
+
+  const notificationPopoverSupportCopy =
+    document.querySelector<HTMLElement>(
+      '#notification-popover-support-copy',
+    );
+
+  const notificationPopoverDemoCopy =
+    document.querySelector<HTMLElement>(
+      '#notification-popover-demo-copy',
+    );
+
+  const notificationPopoverSupport =
+    document.querySelector<HTMLAnchorElement>(
+      '#notification-popover-support',
+    );
+
+  const notificationPopoverDemo =
+    document.querySelector<HTMLAnchorElement>(
+      '#notification-popover-demo',
+    );
+
+  let currentSupportUnread =
+    0;
+
+  let currentDemoUnread =
+    0;
+
   let supportNotifications:
     ReturnType<
       typeof subscribeAdminSupportNotifications
@@ -186,11 +444,16 @@ const nav = [
 
   function updateCollaboratorAccess(
     authenticated: boolean,
+    avatarUrl:
+      string | null =
+        null,
   ) {
     if (
       !collaboratorAccess ||
       !collaboratorAccessLabel ||
-      !collaboratorAccessIcon
+      !collaboratorAccessIcon ||
+      !collaboratorAccessAvatar ||
+      !collaboratorAccessFallbackIcon
     ) {
       return;
     }
@@ -202,11 +465,43 @@ const nav = [
       collaboratorAccessLabel.textContent =
         'Minha área';
 
-      collaboratorAccessIcon.textContent =
-        '●';
+      collaboratorAccess.setAttribute(
+        'aria-label',
+        'Abrir minha área',
+      );
 
       collaboratorAccess.classList.add(
         'authenticated',
+      );
+
+      collaboratorAccessAvatar.src =
+        avatarUrl?.trim() ||
+        '/branding/default-profile-avatar.png';
+
+      collaboratorAccessAvatar.classList.remove(
+        'header-hidden',
+      );
+
+      collaboratorAccessFallbackIcon.textContent =
+        '';
+
+      collaboratorAccessFallbackIcon.classList.add(
+        'header-hidden',
+      );
+
+      collaboratorAccessAvatar.addEventListener(
+        'error',
+        () => {
+          collaboratorAccessAvatar.src =
+            '/branding/default-profile-avatar.png';
+        },
+        {
+          once: true,
+        },
+      );
+
+      collaboratorAccess.classList.remove(
+        'auth-pending',
       );
 
       return;
@@ -218,11 +513,340 @@ const nav = [
     collaboratorAccessLabel.textContent =
       'Entrar';
 
-    collaboratorAccessIcon.textContent =
+    collaboratorAccessAvatar.classList.add(
+      'header-hidden',
+    );
+
+    collaboratorAccessAvatar.removeAttribute(
+      'src',
+    );
+
+    collaboratorAccessFallbackIcon.textContent =
       '↗';
+
+    collaboratorAccessFallbackIcon.classList.remove(
+      'header-hidden',
+    );
+
+    collaboratorAccess.setAttribute(
+      'aria-label',
+      'Entrar na área de colaboradores',
+    );
 
     collaboratorAccess.classList.remove(
       'authenticated',
+    );
+
+    collaboratorAccess.classList.remove(
+      'auth-pending',
+    );
+  }
+
+  async function loadCollaboratorAvatar(
+    userId: string,
+  ) {
+    try {
+      const {
+        data,
+        error,
+      } =
+        await supabase
+          .from(
+            'member_profiles',
+          )
+          .select(
+            'avatar_url',
+          )
+          .eq(
+            'user_id',
+            userId,
+          )
+          .maybeSingle();
+
+      if (error) {
+        console.warn(
+          '[EVRYLUX] Não foi possível carregar a foto do colaborador:',
+          error.message,
+        );
+
+        return null;
+      }
+
+      return (
+        data?.avatar_url?.trim() ||
+        null
+      );
+    } catch (error) {
+      console.warn(
+        '[EVRYLUX] Não foi possível carregar a foto do colaborador:',
+        error,
+      );
+
+      return null;
+    }
+  }
+
+  const seenStorageKeys = {
+    support:
+      'evrylux:admin-notifications:support-seen',
+    demo:
+      'evrylux:admin-notifications:demo-seen',
+  } as const;
+
+  function readSeenCount(
+    key: keyof typeof seenStorageKeys,
+  ) {
+    try {
+      const value =
+        Number(
+          localStorage.getItem(
+            seenStorageKeys[key],
+          ) ?? '0',
+        );
+
+      return Number.isFinite(
+        value,
+      )
+        ? Math.max(
+            0,
+            Math.floor(
+              value,
+            ),
+          )
+        : 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  function writeSeenCount(
+    key: keyof typeof seenStorageKeys,
+    value: number,
+  ) {
+    try {
+      localStorage.setItem(
+        seenStorageKeys[key],
+        String(
+          Math.max(
+            0,
+            Math.floor(
+              value,
+            ),
+          ),
+        ),
+      );
+    } catch {
+      // localStorage pode estar indisponível em modos privados restritos.
+    }
+  }
+
+  function visibleUnread(
+    key: keyof typeof seenStorageKeys,
+    rawCount: number,
+  ) {
+    const normalized =
+      Math.max(
+        0,
+        Math.floor(
+          rawCount,
+        ),
+      );
+
+    if (
+      normalized ===
+      0
+    ) {
+      writeSeenCount(
+        key,
+        0,
+      );
+
+      return 0;
+    }
+
+    const seen =
+      readSeenCount(
+        key,
+      );
+
+    return Math.max(
+      0,
+      normalized -
+        seen,
+    );
+  }
+
+  function formatBadgeCount(
+    value: number,
+  ) {
+    return value > 99
+      ? '99+'
+      : String(
+          value,
+        );
+  }
+
+  function updateNotificationCenter() {
+    const supportVisible =
+      visibleUnread(
+        'support',
+        currentSupportUnread,
+      );
+
+    const demoVisible =
+      visibleUnread(
+        'demo',
+        currentDemoUnread,
+      );
+
+    const total =
+      supportVisible +
+      demoVisible;
+
+    if (
+      notificationCenterCount
+    ) {
+      notificationCenterCount.textContent =
+        formatBadgeCount(
+          total,
+        );
+
+      notificationCenterCount.classList.toggle(
+        'header-hidden',
+        total <= 0,
+      );
+    }
+
+    if (
+      notificationPopoverTotal
+    ) {
+      notificationPopoverTotal.textContent =
+        total > 0
+          ? `${total} nova${total === 1 ? '' : 's'}`
+          : 'Tudo em dia';
+    }
+
+    if (
+      notificationPopoverSupportCount
+    ) {
+      notificationPopoverSupportCount.textContent =
+        formatBadgeCount(
+          supportVisible,
+        );
+
+      notificationPopoverSupportCount.classList.toggle(
+        'header-hidden',
+        supportVisible <= 0,
+      );
+    }
+
+    if (
+      notificationPopoverDemoCount
+    ) {
+      notificationPopoverDemoCount.textContent =
+        formatBadgeCount(
+          demoVisible,
+        );
+
+      notificationPopoverDemoCount.classList.toggle(
+        'header-hidden',
+        demoVisible <= 0,
+      );
+    }
+
+    if (
+      notificationPopoverSupportCopy
+    ) {
+      notificationPopoverSupportCopy.textContent =
+        supportVisible > 0
+          ? `${supportVisible} conversa${supportVisible === 1 ? '' : 's'} nova${supportVisible === 1 ? '' : 's'}`
+          : 'Nenhuma conversa nova';
+    }
+
+    if (
+      notificationPopoverDemoCopy
+    ) {
+      notificationPopoverDemoCopy.textContent =
+        demoVisible > 0
+          ? `${demoVisible} inscrição${demoVisible === 1 ? '' : 'ões'} nova${demoVisible === 1 ? '' : 's'}`
+          : 'Nenhuma inscrição nova';
+    }
+
+    if (
+      supportCount
+    ) {
+      supportCount.textContent =
+        formatBadgeCount(
+          supportVisible,
+        );
+
+      supportCount.classList.toggle(
+        'header-hidden',
+        supportVisible <= 0,
+      );
+    }
+
+    if (
+      demoCount
+    ) {
+      demoCount.textContent =
+        formatBadgeCount(
+          demoVisible,
+        );
+
+      demoCount.classList.toggle(
+        'header-hidden',
+        demoVisible <= 0,
+      );
+    }
+
+    supportNotification?.classList.toggle(
+      'has-unread',
+      supportVisible > 0,
+    );
+
+    demoNotification?.classList.toggle(
+      'has-unread',
+      demoVisible > 0,
+    );
+
+    notificationCenterButton?.classList.toggle(
+      'has-unread',
+      total > 0,
+    );
+  }
+
+  function markNotificationAsSeen(
+    type:
+      | 'support'
+      | 'demo',
+  ) {
+    if (
+      type ===
+      'support'
+    ) {
+      writeSeenCount(
+        'support',
+        currentSupportUnread,
+      );
+    } else {
+      writeSeenCount(
+        'demo',
+        currentDemoUnread,
+      );
+    }
+
+    updateNotificationCenter();
+  }
+
+  function closeNotificationPopover() {
+    notificationPopover?.classList.add(
+      'header-hidden',
+    );
+
+    notificationCenterButton?.setAttribute(
+      'aria-expanded',
+      'false',
     );
   }
 
@@ -233,32 +857,14 @@ const nav = [
       return;
     }
 
-    const count =
+    currentSupportUnread =
       await getUnreadSupportCount();
 
     supportNotification.classList.remove(
       'header-hidden',
     );
 
-    if (
-      count > 0 &&
-      supportCount
-    ) {
-      supportCount.textContent =
-        count > 99
-          ? '99+'
-          : String(
-              count,
-            );
-
-      supportCount.classList.remove(
-        'header-hidden',
-      );
-    } else {
-      supportCount?.classList.add(
-        'header-hidden',
-      );
-    }
+    updateNotificationCenter();
   }
 
   async function loadAdminNotifications() {
@@ -277,25 +883,15 @@ const nav = [
           'header-hidden',
         );
 
-        const demo =
+        currentDemoUnread =
           await getUnreadDemoCount();
 
-        if (
-          demo > 0 &&
-          demoCount
-        ) {
-          demoCount.textContent =
-            demo > 99
-              ? '99+'
-              : String(
-                  demo,
-                );
-
-          demoCount.classList.remove(
-            'header-hidden',
-          );
-        }
+        updateNotificationCenter();
       }
+
+      notificationCenter?.classList.remove(
+        'header-hidden',
+      );
 
       await refreshSupportCount();
 
@@ -313,6 +909,102 @@ const nav = [
     }
   }
 
+  supportNotification?.addEventListener(
+    'click',
+    () => {
+      markNotificationAsSeen(
+        'support',
+      );
+    },
+  );
+
+  demoNotification?.addEventListener(
+    'click',
+    () => {
+      markNotificationAsSeen(
+        'demo',
+      );
+    },
+  );
+
+  notificationPopoverSupport?.addEventListener(
+    'click',
+    () => {
+      markNotificationAsSeen(
+        'support',
+      );
+    },
+  );
+
+  notificationPopoverDemo?.addEventListener(
+    'click',
+    () => {
+      markNotificationAsSeen(
+        'demo',
+      );
+    },
+  );
+
+  notificationCenterButton?.addEventListener(
+    'click',
+    (event) => {
+      event.stopPropagation();
+
+      const isOpen =
+        !notificationPopover?.classList.contains(
+          'header-hidden',
+        );
+
+      if (
+        isOpen
+      ) {
+        closeNotificationPopover();
+        return;
+      }
+
+      notificationPopover?.classList.remove(
+        'header-hidden',
+      );
+
+      notificationCenterButton.setAttribute(
+        'aria-expanded',
+        'true',
+      );
+    },
+  );
+
+  document.addEventListener(
+    'click',
+    (event) => {
+      if (
+        !notificationCenter ||
+        !(event.target instanceof Node)
+      ) {
+        return;
+      }
+
+      if (
+        !notificationCenter.contains(
+          event.target,
+        )
+      ) {
+        closeNotificationPopover();
+      }
+    },
+  );
+
+  document.addEventListener(
+    'keydown',
+    (event) => {
+      if (
+        event.key ===
+        'Escape'
+      ) {
+        closeNotificationPopover();
+      }
+    },
+  );
+
   async function loadCollaboratorState() {
     try {
       const {
@@ -327,12 +1019,25 @@ const nav = [
           session,
         );
 
-      updateCollaboratorAccess(
-        authenticated,
-      );
+      if (
+        authenticated &&
+        session
+      ) {
+        const avatarUrl =
+          await loadCollaboratorAvatar(
+            session.user.id,
+          );
 
-      if (authenticated) {
+        updateCollaboratorAccess(
+          true,
+          avatarUrl,
+        );
+
         await loadAdminNotifications();
+      } else {
+        updateCollaboratorAccess(
+          false,
+        );
       }
     } catch (error) {
       console.warn(
@@ -358,12 +1063,25 @@ const nav = [
           session,
         );
 
-      updateCollaboratorAccess(
-        authenticated,
-      );
+      if (
+        authenticated &&
+        session
+      ) {
+        const avatarUrl =
+          await loadCollaboratorAvatar(
+            session.user.id,
+          );
 
-      if (authenticated) {
+        updateCollaboratorAccess(
+          true,
+          avatarUrl,
+        );
+
         await loadAdminNotifications();
+      } else {
+        updateCollaboratorAccess(
+          false,
+        );
       }
     },
   );
@@ -401,16 +1119,28 @@ const nav = [
 
   .brand {
     flex: 0 0 auto;
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    font-weight: 850;
-    letter-spacing: -.02em;
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    outline: none;
+  }
+
+  .brand:focus,
+  .brand:active {
+    outline: none;
+  }
+
+  .brand:focus-visible {
+    box-shadow: 0 0 0 3px rgba(95,157,89,.16);
   }
 
   .brand-mark {
-    width: 34px;
-    height: 34px;
+    width: 38px;
+    height: 38px;
     display: grid;
     place-items: center;
     overflow: hidden;
@@ -424,10 +1154,9 @@ const nav = [
     display: block;
     object-fit: contain;
     padding: 4px;
-  }
-
-  .brand-name {
-    color: var(--text);
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-drag: none;
   }
 
   .nav {
@@ -458,64 +1187,288 @@ const nav = [
     gap: 6px;
   }
 
+  .notification-center {
+    position: relative;
+    flex: 0 0 auto;
+  }
+
   .admin-notification {
     position: relative;
-    width: 38px;
-    height: 38px;
+    width: 40px;
+    height: 40px;
     display: grid;
     place-items: center;
-    border: 1px solid var(--border);
-    border-radius: 11px;
-    background: rgba(255,255,255,.72);
+    border: 1px solid rgba(65,104,62,.12);
+    border-radius: 12px;
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255,255,255,.9),
+        rgba(247,251,244,.74)
+      );
+    color: var(--text-soft);
+    box-shadow: 0 7px 20px rgba(54,92,51,.035);
+    cursor: pointer;
+    transition:
+      transform .2s ease,
+      border-color .2s ease,
+      box-shadow .2s ease,
+      background .2s ease,
+      color .2s ease;
+  }
+
+  .admin-notification:hover {
+    transform: translateY(-1px);
+    border-color: rgba(95,157,89,.24);
+    background: #fff;
+    color: var(--primary-deep);
+    box-shadow: 0 11px 26px rgba(54,92,51,.07);
+  }
+
+  .admin-notification.has-unread {
+    border-color: rgba(95,157,89,.23);
+    color: var(--primary-deep);
+  }
+
+  .notification-center-button {
+    padding: 0;
+    font: inherit;
   }
 
   .notification-icon {
-    width: 20px;
-    height: 20px;
+    width: 25px;
+    height: 25px;
     display: grid;
     place-items: center;
-    border-radius: 7px;
-    background: var(--primary-soft);
-    color: var(--primary-deep);
-    font-size: 8px;
-    font-weight: 900;
+    border-radius: 8px;
+    background: transparent;
+    color: currentColor;
+  }
+
+  .notification-icon svg {
+    width: 20px;
+    height: 20px;
+    display: block;
+  }
+
+  .notification-support-icon svg {
+    width: 21px;
+    height: 21px;
+  }
+
+  .notification-demo-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .notification-bell-icon svg {
+    width: 21px;
+    height: 21px;
   }
 
   .notification-count {
     position: absolute;
-    top: -5px;
-    right: -5px;
-    min-width: 18px;
-    height: 18px;
-    padding: 0 4px;
+    top: -7px;
+    right: -7px;
+    min-width: 19px;
+    height: 19px;
+    padding: 0 5px;
     display: grid;
     place-items: center;
     border: 2px solid var(--bg);
     border-radius: 999px;
-    background: var(--primary-deep);
+    background: #ef3f46;
     color: #fff;
+    box-shadow: 0 5px 12px rgba(239,63,70,.28);
     font-size: 8px;
-    font-weight: 850;
+    font-weight: 900;
+    line-height: 1;
   }
 
-  .github {
-    min-height: 42px;
-    padding: 0 10px;
+  .admin-notification.has-unread::after {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    z-index: -1;
+    border-radius: 15px;
+    border: 1px solid rgba(239,63,70,.13);
+    animation: notificationPulse 1.9s ease-out infinite;
+  }
+
+  .notification-popover {
+    position: absolute;
+    top: calc(100% + 12px);
+    right: 0;
+    width: min(340px, calc(100vw - 24px));
+    padding: 14px;
+    z-index: 90;
+    border: 1px solid rgba(65,104,62,.13);
+    border-radius: 18px;
+    background: rgba(255,255,255,.96);
+    box-shadow: 0 22px 70px rgba(31,50,32,.16);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    transform-origin: top right;
+    animation: notificationPopoverIn .18s ease-out both;
+  }
+
+  .notification-popover::before {
+    content: "";
+    position: absolute;
+    top: -7px;
+    right: 13px;
+    width: 12px;
+    height: 12px;
+    transform: rotate(45deg);
+    border-left: 1px solid rgba(65,104,62,.13);
+    border-top: 1px solid rgba(65,104,62,.13);
+    background: rgba(255,255,255,.96);
+  }
+
+  .notification-popover-head {
+    padding: 4px 4px 12px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .notification-popover-kicker {
+    display: block;
+    color: var(--text-soft);
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: .055em;
+    text-transform: uppercase;
+  }
+
+  .notification-popover-head strong {
+    display: block;
+    margin-top: 3px;
+    font-size: 15px;
+    letter-spacing: -.02em;
+  }
+
+  .notification-popover-total {
+    min-height: 25px;
+    padding: 0 8px;
     display: inline-flex;
     align-items: center;
-    gap: 7px;
-    border-radius: 12px;
-    color: var(--primary-deep);
-    font-size: 13px;
-    font-weight: 700;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface-muted);
+    color: var(--text-soft);
+    font-size: 8px;
+    font-weight: 800;
+    white-space: nowrap;
   }
 
-  .external-arrow {
-    font-size: 13px;
+  .notification-popover-list {
+    display: grid;
+    gap: 7px;
   }
+
+  .notification-popover-item {
+    min-height: 62px;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid rgba(65,104,62,.09);
+    border-radius: 13px;
+    background: rgba(247,251,244,.72);
+    color: var(--text);
+    transition:
+      transform .18s ease,
+      border-color .18s ease,
+      background .18s ease;
+  }
+
+  .notification-popover-item:hover {
+    transform: translateX(2px);
+    border-color: rgba(95,157,89,.22);
+    background: #fff;
+  }
+
+  .popover-item-icon {
+    width: 36px;
+    height: 36px;
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    border-radius: 11px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+  }
+
+  .popover-item-icon svg {
+    width: 19px;
+    height: 19px;
+  }
+
+  .popover-item-copy {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .popover-item-copy strong,
+  .popover-item-copy small {
+    display: block;
+  }
+
+  .popover-item-copy strong {
+    font-size: 11px;
+  }
+
+  .popover-item-copy small {
+    margin-top: 3px;
+    color: var(--text-soft);
+    font-size: 9px;
+  }
+
+  .popover-item-count {
+    min-width: 23px;
+    height: 23px;
+    padding: 0 6px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: #ef3f46;
+    color: #fff;
+    font-size: 8px;
+    font-weight: 900;
+  }
+
+  @keyframes notificationPulse {
+    0% {
+      opacity: .65;
+      transform: scale(.92);
+    }
+
+    70%,
+    100% {
+      opacity: 0;
+      transform: scale(1.18);
+    }
+  }
+
+  @keyframes notificationPopoverIn {
+    from {
+      opacity: 0;
+      transform: translateY(-4px) scale(.98);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+
 
   .collaborator-access {
     min-height: 42px;
+    min-width: 88px;
     padding: 0 13px;
     display: inline-flex;
     align-items: center;
@@ -528,33 +1481,80 @@ const nav = [
     box-shadow: 0 7px 22px rgba(54,92,51,.045);
     font-size: 13px;
     font-weight: 750;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    outline: none;
+    transition:
+      opacity .15s ease,
+      background .2s ease,
+      color .2s ease,
+      border-color .2s ease,
+      box-shadow .2s ease;
+  }
+
+  .collaborator-access.auth-pending {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .collaborator-access:focus,
+  .collaborator-access:active {
+    outline: none;
+  }
+
+  .collaborator-access:focus-visible {
+    box-shadow:
+      0 0 0 3px rgba(95,157,89,.16),
+      0 7px 22px rgba(54,92,51,.045);
+  }
+
+  #collaborator-access-label,
+  .collaborator-access-icon {
+    pointer-events: none;
+    user-select: none;
   }
 
   .collaborator-access-icon {
-    width: 21px;
-    height: 21px;
+    width: 28px;
+    height: 28px;
     display: grid;
     place-items: center;
-    border-radius: 7px;
+    overflow: hidden;
+    flex: 0 0 auto;
+    border-radius: 50%;
     background: var(--primary-soft);
     color: var(--primary-deep);
+  }
+
+  .collaborator-access-avatar {
+    width: 100%;
+    height: 100%;
+    display: block;
+    border-radius: 50%;
+    object-fit: cover;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+
+  .collaborator-access-fallback-icon {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: center;
     font-size: 11px;
     font-weight: 900;
   }
 
   .collaborator-access.authenticated {
+    min-width: 116px;
+    padding-left: 8px;
     background: linear-gradient(180deg,rgba(223,241,218,.9),rgba(204,232,197,.86));
     color: var(--primary-deep);
   }
 
   @media (max-width: 1180px) {
-    .brand-name {
-      display: none;
-    }
 
-    .github span:first-child {
-      display: none;
-    }
   }
 
   @media (max-width: 980px) {
@@ -568,14 +1568,41 @@ const nav = [
       padding: 11px 0;
     }
 
-    .github {
-      width: 38px;
-      padding: 0;
-      justify-content: center;
-    }
 
     .collaborator-access {
       padding: 0 10px;
     }
   }
+
+  @media (max-width: 640px) {
+    .header-actions {
+      gap: 4px;
+    }
+
+    .admin-notification {
+      width: 37px;
+      height: 37px;
+      border-radius: 11px;
+    }
+
+    .notification-popover {
+      position: fixed;
+      top: 70px;
+      right: 12px;
+      left: 12px;
+      width: auto;
+    }
+
+    .notification-popover::before {
+      display: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .admin-notification.has-unread::after,
+    .notification-popover {
+      animation: none;
+    }
+  }
+
 </style>

@@ -8,124 +8,472 @@ import '../../styles/members.css';
   title="Segurança — EVRYLUX Colab"
   description="Configure autenticação em dois fatores para proteger sua conta EVRYLUX."
 >
-  <main class="member-shell">
-    <div class="member-container">
-      <div class="member-topbar">
-        <div class="member-title-block">
-          <div class="eyebrow">EVRYLUX Colab</div>
-          <h1>Segurança</h1>
-          <p>Proteja sua conta com autenticação em dois fatores.</p>
+  <main class="member-shell security-page">
+    <div class="security-ambient" aria-hidden="true">
+      <span class="security-orb security-orb-a"></span>
+      <span class="security-orb security-orb-b"></span>
+      <span class="security-grid"></span>
+    </div>
+
+    <div class="member-container security-container">
+      <div class="member-topbar security-topbar">
+        <div class="member-title-block security-title-block">
+          <div class="eyebrow">
+            EVRYLUX Colab
+          </div>
+
+          <h1>
+            Segurança da conta
+          </h1>
+
+          <p>
+            Proteja seu acesso com uma segunda camada de verificação.
+            O 2FA ajuda a impedir que outra pessoa entre mesmo que sua senha seja descoberta.
+          </p>
         </div>
 
         <ColabNav />
       </div>
 
+      <section class="security-overview">
+        <article class="security-overview-card security-overview-primary">
+          <div class="overview-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M12 3 5.5 6v5.2c0 4.1 2.7 7.7 6.5 9.8 3.8-2.1 6.5-5.7 6.5-9.8V6L12 3Z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M9.5 12.2 11.2 14l3.5-4"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </div>
+
+          <div>
+            <span class="overview-kicker">
+              Proteção adicional
+            </span>
+
+            <strong>
+              Autenticação em dois fatores
+            </strong>
+
+            <p>
+              Use um aplicativo autenticador para gerar códigos temporários
+              que só você consegue acessar.
+            </p>
+          </div>
+        </article>
+
+        <article class="security-overview-card">
+          <div class="overview-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M7 10V8a5 5 0 0 1 10 0v2"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              />
+              <rect
+                x="5"
+                y="10"
+                width="14"
+                height="10"
+                rx="3"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+              />
+              <circle
+                cx="12"
+                cy="15"
+                r="1.4"
+                fill="currentColor"
+              />
+            </svg>
+          </div>
+
+          <div>
+            <span class="overview-kicker">
+              Sessão atual
+            </span>
+
+            <strong id="security-state">
+              Verificando...
+            </strong>
+
+            <p>
+              O nível de segurança da sua sessão aparece aqui automaticamente.
+            </p>
+          </div>
+        </article>
+
+        <article class="security-overview-card">
+          <div class="overview-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <circle
+                cx="12"
+                cy="12"
+                r="8"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+              />
+              <path
+                d="M12 8v4l2.6 1.6"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </div>
+
+          <div>
+            <span class="overview-kicker">
+              Códigos temporários
+            </span>
+
+            <strong>
+              Expiram rapidamente
+            </strong>
+
+            <p>
+              Os códigos TOTP mudam em poucos segundos e não podem ser reutilizados.
+            </p>
+          </div>
+        </article>
+      </section>
+
       <section class="security-layout">
-        <article class="member-card">
+        <article class="member-card security-main-card">
           <div class="member-card-inner">
             <div class="security-head">
-              <div>
-                <span class="member-badge">2FA / MFA</span>
-                <h2>Aplicativo autenticador</h2>
+              <div class="security-head-copy">
+                <span class="security-badge">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M7 10V8a5 5 0 0 1 10 0v2"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                    />
+                    <rect
+                      x="5"
+                      y="10"
+                      width="14"
+                      height="10"
+                      rx="3"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                    />
+                  </svg>
+
+                  2FA / MFA
+                </span>
+
+                <h2>
+                  Aplicativo autenticador
+                </h2>
+
                 <p class="member-muted">
                   Compatível com Google Authenticator, Microsoft Authenticator,
-                  Authy, 1Password e outros aplicativos TOTP.
+                  Authy, 1Password e outros aplicativos compatíveis com TOTP.
                 </p>
               </div>
-
-              <span id="security-state" class="security-state">Verificando...</span>
             </div>
 
-            <div id="loading-panel" class="security-panel">
-              Carregando configurações de segurança...
-            </div>
+            <div id="loading-panel" class="security-panel security-panel-loading">
+              <div class="security-icon security-icon-loading" aria-hidden="true">
+                <span></span>
+              </div>
 
-            <div id="aal2-panel" class="security-panel" hidden>
-              <div class="security-icon">✓</div>
               <div>
-                <h3>Sessão protegida</h3>
+                <h3>
+                  Verificando sua proteção
+                </h3>
+
                 <p>
-                  Sua sessão atual está em <strong>AAL2</strong>.
+                  Estamos conferindo o nível atual da sessão e se já existe
+                  um autenticador configurado.
+                </p>
+              </div>
+            </div>
+
+            <div id="aal2-panel" class="security-panel security-panel-success" hidden>
+              <div class="security-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path
+                    d="m7.5 12.2 3 3.1 6-7"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </div>
+
+              <div class="security-content">
+                <div class="panel-heading-row">
+                  <div>
+                    <span class="panel-kicker">
+                      Proteção confirmada
+                    </span>
+
+                    <h3>
+                      Sessão protegida
+                    </h3>
+                  </div>
+
+                  <span class="panel-state-pill">
+                    AAL2 ativo
+                  </span>
+                </div>
+
+                <p>
+                  Sua sessão atual já confirmou o segundo fator.
                   Os recursos administrativos protegidos estão liberados.
                 </p>
-                <button id="continue-button" class="member-button member-button-primary" type="button">
+
+                <button
+                  id="continue-button"
+                  class="member-button member-button-primary security-primary-button"
+                  type="button"
+                >
                   Continuar
+                  <span aria-hidden="true">→</span>
                 </button>
               </div>
             </div>
 
             <div id="challenge-panel" class="security-panel" hidden>
-              <div class="security-icon">01</div>
+              <div class="security-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path
+                    d="M8 10V8a4 4 0 0 1 8 0v2"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                  />
+                  <rect
+                    x="6"
+                    y="10"
+                    width="12"
+                    height="9"
+                    rx="2.5"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                  />
+                </svg>
+              </div>
+
               <div class="security-content">
-                <h3>Confirme seu segundo fator</h3>
+                <span class="panel-kicker">
+                  Etapa de confirmação
+                </span>
+
+                <h3>
+                  Confirme seu segundo fator
+                </h3>
+
                 <p>
-                  Abra o aplicativo autenticador e digite o código de 6 dígitos.
+                  Abra seu aplicativo autenticador e digite o código de
+                  6 dígitos exibido nele.
                 </p>
 
-                <form id="challenge-form">
-                  <label for="challenge-code">Código</label>
-                  <input
-                    id="challenge-code"
-                    class="security-code"
-                    type="text"
-                    inputmode="numeric"
-                    autocomplete="one-time-code"
-                    maxlength="6"
-                    placeholder="000000"
-                    required
-                  />
-                  <button id="challenge-submit" class="member-button member-button-primary" type="submit">
-                    Verificar
-                  </button>
+                <form id="challenge-form" class="security-code-form">
+                  <label for="challenge-code">
+                    Código do autenticador
+                  </label>
+
+                  <div class="security-code-row">
+                    <input
+                      id="challenge-code"
+                      class="security-code"
+                      type="text"
+                      inputmode="numeric"
+                      autocomplete="one-time-code"
+                      maxlength="6"
+                      placeholder="000000"
+                      required
+                    />
+
+                    <button
+                      id="challenge-submit"
+                      class="member-button member-button-primary"
+                      type="submit"
+                    >
+                      Verificar
+                    </button>
+                  </div>
+
+                  <small>
+                    O código muda automaticamente depois de alguns segundos.
+                  </small>
                 </form>
               </div>
             </div>
 
             <div id="enroll-panel" class="security-panel" hidden>
-              <div class="security-icon">01</div>
+              <div class="security-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path
+                    d="M12 3 5.5 6v5.2c0 4.1 2.7 7.7 6.5 9.8 3.8-2.1 6.5-5.7 6.5-9.8V6L12 3Z"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M12 8v8M8 12h8"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </div>
+
               <div class="security-content">
-                <h3>Ative o 2FA</h3>
+                <span class="panel-kicker">
+                  Recomendado
+                </span>
+
+                <h3>
+                  Ative a proteção em dois fatores
+                </h3>
+
                 <p>
                   Nenhum autenticador foi configurado para esta conta.
+                  A configuração leva poucos minutos e adiciona uma camada
+                  importante de proteção.
                 </p>
-                <button id="start-enroll" class="member-button member-button-primary" type="button">
+
+                <button
+                  id="start-enroll"
+                  class="member-button member-button-primary security-primary-button"
+                  type="button"
+                >
                   Configurar autenticador
+                  <span aria-hidden="true">→</span>
                 </button>
               </div>
             </div>
 
             <div id="qr-panel" class="security-panel" hidden>
-              <div class="security-icon">02</div>
+              <div class="security-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path
+                    d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4z"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                  />
+                  <path
+                    d="M15 14h2v2h-2zM19 14h1v3h-3v3h-3v-2"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </div>
+
               <div class="security-content">
-                <h3>Escaneie o QR Code</h3>
+                <span class="panel-kicker">
+                  Etapa 1 de 2
+                </span>
+
+                <h3>
+                  Escaneie o QR Code
+                </h3>
+
                 <p>
-                  Abra o aplicativo autenticador e escaneie o código abaixo.
+                  Abra seu aplicativo autenticador e use a opção de adicionar
+                  uma nova conta escaneando o código abaixo.
                 </p>
 
-                <div class="qr-wrap">
-                  <img id="mfa-qr" alt="QR Code para configurar 2FA" />
+                <div class="qr-content-grid">
+                  <div class="qr-wrap">
+                    <div class="qr-corners" aria-hidden="true"></div>
+                    <img id="mfa-qr" alt="QR Code para configurar 2FA" />
+                  </div>
+
+                  <div class="qr-copy">
+                    <div class="secret-box">
+                      <span>
+                        Chave manual
+                      </span>
+
+                      <code id="mfa-secret">
+                        —
+                      </code>
+                    </div>
+
+                    <div class="qr-tip">
+                      <span class="qr-tip-icon" aria-hidden="true">
+                        i
+                      </span>
+
+                      <p>
+                        Se não puder escanear o QR Code, copie a chave manual
+                        e adicione-a diretamente no aplicativo autenticador.
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
-                <div class="secret-box">
-                  <span>Chave manual</span>
-                  <code id="mfa-secret">—</code>
+                <div class="security-step-divider">
+                  <span>
+                    Etapa 2 de 2
+                  </span>
                 </div>
 
-                <form id="enroll-form">
-                  <label for="enroll-code">Código gerado pelo aplicativo</label>
-                  <input
-                    id="enroll-code"
-                    class="security-code"
-                    type="text"
-                    inputmode="numeric"
-                    autocomplete="one-time-code"
-                    maxlength="6"
-                    placeholder="000000"
-                    required
-                  />
-                  <button id="enroll-submit" class="member-button member-button-primary" type="submit">
-                    Ativar 2FA
-                  </button>
+                <form id="enroll-form" class="security-code-form">
+                  <label for="enroll-code">
+                    Código gerado pelo aplicativo
+                  </label>
+
+                  <div class="security-code-row">
+                    <input
+                      id="enroll-code"
+                      class="security-code"
+                      type="text"
+                      inputmode="numeric"
+                      autocomplete="one-time-code"
+                      maxlength="6"
+                      placeholder="000000"
+                      required
+                    />
+
+                    <button
+                      id="enroll-submit"
+                      class="member-button member-button-primary"
+                      type="submit"
+                    >
+                      Ativar 2FA
+                    </button>
+                  </div>
+
+                  <small>
+                    Digite o primeiro código gerado para confirmar a configuração.
+                  </small>
                 </form>
               </div>
             </div>
@@ -134,26 +482,111 @@ import '../../styles/members.css';
           </div>
         </article>
 
-        <aside class="member-card">
-          <div class="member-card-inner">
-            <div class="eyebrow">Proteção administrativa</div>
-            <h2>AAL2 obrigatório</h2>
-            <p class="member-muted">
-              Administradores precisam confirmar o segundo fator antes de usar áreas sensíveis.
-            </p>
+        <aside class="security-side-column">
+          <article class="member-card security-side-card">
+            <div class="member-card-inner">
+              <div class="side-card-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path
+                    d="M12 3 5.5 6v5.2c0 4.1 2.7 7.7 6.5 9.8 3.8-2.1 6.5-5.7 6.5-9.8V6L12 3Z"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </div>
 
-            <div class="protected-list">
-              <div><span>✓</span><strong>/colab/admins</strong></div>
-              <div><span>✓</span><strong>/colab/demo</strong></div>
-              <div><span>✓</span><strong>/colab/support</strong></div>
-              <div><span>✓</span><strong>Edição do roadmap</strong></div>
+              <div class="eyebrow">
+                Proteção administrativa
+              </div>
+
+              <h2>
+                Segundo fator obrigatório
+              </h2>
+
+              <p class="member-muted">
+                Administradores precisam confirmar o segundo fator antes
+                de acessar operações sensíveis do portal.
+              </p>
+
+              <div class="protected-list">
+                <div>
+                  <span class="protected-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                      <path d="M7 12.5 10.2 16 17 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </span>
+
+                  <strong>
+                    Gestão de administradores
+                  </strong>
+                </div>
+
+                <div>
+                  <span class="protected-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                      <path d="M7 12.5 10.2 16 17 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </span>
+
+                  <strong>
+                    Fila do Demo
+                  </strong>
+                </div>
+
+                <div>
+                  <span class="protected-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                      <path d="M7 12.5 10.2 16 17 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </span>
+
+                  <strong>
+                    Suporte administrativo
+                  </strong>
+                </div>
+
+                <div>
+                  <span class="protected-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                      <path d="M7 12.5 10.2 16 17 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </span>
+
+                  <strong>
+                    Edição do roadmap
+                  </strong>
+                </div>
+              </div>
+
+              <p id="admin-note" class="admin-note" hidden>
+                <span class="admin-note-dot" aria-hidden="true"></span>
+                Sua conta possui papel de administrador. O 2FA é obrigatório
+                para usar as ferramentas administrativas.
+              </p>
+            </div>
+          </article>
+
+          <article class="security-info-card">
+            <div class="security-info-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                <path d="M12 10.5v5M12 7.5v.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
             </div>
 
-            <p id="admin-note" class="admin-note" hidden>
-              Sua conta possui papel de administrador. O 2FA é obrigatório
-              para usar as ferramentas administrativas.
-            </p>
-          </div>
+            <div>
+              <strong>
+                Seu código não é sua senha
+              </strong>
+
+              <p>
+                Nunca compartilhe os códigos temporários do autenticador.
+                O EVRYLUX não precisa pedir esses códigos fora da tela de login ou segurança.
+              </p>
+            </div>
+          </article>
         </aside>
       </section>
     </div>
@@ -417,125 +850,438 @@ import '../../styles/members.css';
 </script>
 
 <style is:global>
-  [hidden] { display: none !important; }
+  [hidden] {
+    display: none !important;
+  }
 </style>
 
 <style>
-  .security-layout {
+  .security-page {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .security-container {
+    position: relative;
+    z-index: 2;
+  }
+
+  .security-ambient {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .security-grid {
+    position: absolute;
+    inset: 0;
+    opacity: .18;
+    background-image:
+      linear-gradient(rgba(95,157,89,.055) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(95,157,89,.055) 1px, transparent 1px);
+    background-size: 76px 76px;
+    mask-image:
+      radial-gradient(circle at 72% 26%, black, transparent 72%);
+  }
+
+  .security-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(1px);
+  }
+
+  .security-orb-a {
+    width: 520px;
+    height: 520px;
+    right: -180px;
+    top: -250px;
+    background:
+      radial-gradient(
+        circle,
+        rgba(159,211,149,.18),
+        rgba(223,241,218,.07) 60%,
+        transparent 72%
+      );
+  }
+
+  .security-orb-b {
+    width: 360px;
+    height: 360px;
+    left: 24%;
+    bottom: -280px;
+    background:
+      radial-gradient(
+        circle,
+        rgba(95,157,89,.08),
+        transparent 70%
+      );
+  }
+
+  .security-topbar {
+    align-items: flex-start;
+  }
+
+  .security-title-block {
+    max-width: 760px;
+  }
+
+  .security-title-block h1 {
+    margin-top: 12px;
+    font-size: clamp(40px, 5vw, 62px);
+    line-height: .98;
+    letter-spacing: -.055em;
+  }
+
+  .security-title-block p {
+    max-width: 680px;
+    margin-top: 14px;
+    color: var(--text-soft);
+    line-height: 1.75;
+  }
+
+  .security-overview {
+    margin-top: 36px;
     display: grid;
-    grid-template-columns: minmax(0, 1.35fr) minmax(300px, .65fr);
+    grid-template-columns: repeat(3,minmax(0,1fr));
+    gap: 14px;
+  }
+
+  .security-overview-card {
+    min-height: 150px;
+    padding: 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: rgba(255,255,255,.68);
+    box-shadow: 0 14px 36px rgba(54,92,51,.035);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .security-overview-primary {
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255,255,255,.9),
+        rgba(223,241,218,.62)
+      );
+  }
+
+  .overview-icon,
+  .side-card-icon,
+  .security-info-icon {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(95,157,89,.13);
+    border-radius: 13px;
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255,255,255,.94),
+        var(--primary-soft)
+      );
+    color: var(--primary-deep);
+    box-shadow: 0 9px 24px rgba(54,92,51,.05);
+  }
+
+  .overview-icon svg,
+  .side-card-icon svg,
+  .security-info-icon svg {
+    width: 21px;
+    height: 21px;
+  }
+
+  .overview-kicker {
+    display: block;
+    color: var(--text-soft);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .055em;
+    text-transform: uppercase;
+  }
+
+  .security-overview-card strong {
+    display: block;
+    margin-top: 5px;
+    font-size: 14px;
+  }
+
+  .security-overview-card p {
+    margin: 7px 0 0;
+    color: var(--text-soft);
+    font-size: 11px;
+    line-height: 1.55;
+  }
+
+  #security-state.active {
+    color: var(--primary-deep);
+  }
+
+  .security-layout {
+    margin-top: 18px;
+    display: grid;
+    grid-template-columns: minmax(0,1.42fr) minmax(300px,.58fr);
     gap: 18px;
+    align-items: start;
+  }
+
+  .security-main-card {
+    position: relative;
+    overflow: hidden;
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255,255,255,.93),
+        rgba(248,251,246,.84)
+      );
+    box-shadow: 0 18px 48px rgba(54,92,51,.055);
+  }
+
+  .security-main-card::before {
+    content: "";
+    position: absolute;
+    width: 230px;
+    height: 230px;
+    right: -115px;
+    top: -125px;
+    border-radius: 50%;
+    background: rgba(159,211,149,.08);
+    pointer-events: none;
   }
 
   .security-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 24px;
+    position: relative;
+    z-index: 2;
+  }
+
+  .security-head-copy {
+    max-width: 710px;
+  }
+
+  .security-badge {
+    min-height: 29px;
+    padding: 0 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid rgba(95,157,89,.16);
+    border-radius: 999px;
+    background: rgba(223,241,218,.65);
+    color: var(--primary-deep);
+    font-size: 9px;
+    font-weight: 850;
+    letter-spacing: .035em;
+  }
+
+  .security-badge svg {
+    width: 14px;
+    height: 14px;
   }
 
   .security-head h2 {
-    margin: 10px 0 0;
-    font-size: 25px;
-    letter-spacing: -.035em;
+    margin: 14px 0 0;
+    font-size: 29px;
+    letter-spacing: -.04em;
   }
 
   .security-head p {
     max-width: 680px;
-    line-height: 1.7;
-  }
-
-  .security-state {
-    padding: 8px 11px;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: var(--surface-muted);
-    color: var(--text-soft);
-    font-size: 10px;
-    font-weight: 800;
-  }
-
-  .security-state.active {
-    background: var(--primary-soft);
-    color: var(--primary-deep);
+    margin-top: 10px;
+    line-height: 1.72;
   }
 
   .security-panel {
+    position: relative;
     margin-top: 26px;
-    padding: 22px;
+    padding: 24px;
     display: flex;
     align-items: flex-start;
-    gap: 16px;
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    background: var(--surface-muted);
+    gap: 17px;
+    border: 1px solid rgba(65,104,62,.12);
+    border-radius: 20px;
+    background:
+      linear-gradient(
+        145deg,
+        rgba(249,252,247,.96),
+        rgba(241,248,237,.78)
+      );
+    box-shadow: 0 12px 32px rgba(54,92,51,.035);
+  }
+
+  .security-panel-success {
+    border-color: rgba(95,157,89,.2);
+    background:
+      linear-gradient(
+        145deg,
+        rgba(247,252,244,.98),
+        rgba(223,241,218,.68)
+      );
+  }
+
+  .security-panel-loading {
+    color: var(--text-soft);
   }
 
   .security-icon {
-    width: 38px;
-    height: 38px;
+    width: 42px;
+    height: 42px;
     flex: 0 0 auto;
     display: grid;
     place-items: center;
-    border-radius: 12px;
-    background: var(--primary-soft);
+    border: 1px solid rgba(95,157,89,.13);
+    border-radius: 13px;
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255,255,255,.94),
+        var(--primary-soft)
+      );
     color: var(--primary-deep);
-    font-size: 11px;
-    font-weight: 900;
+    box-shadow: 0 8px 20px rgba(54,92,51,.045);
+  }
+
+  .security-icon svg {
+    width: 21px;
+    height: 21px;
+  }
+
+  .security-icon-loading span {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(95,157,89,.22);
+    border-top-color: var(--primary-strong);
+    border-radius: 50%;
+    animation: securitySpin .9s linear infinite;
   }
 
   .security-content {
     width: 100%;
+    min-width: 0;
+  }
+
+  .panel-heading-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+  }
+
+  .panel-kicker {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--primary-deep);
+    font-size: 9px;
+    font-weight: 850;
+    letter-spacing: .055em;
+    text-transform: uppercase;
+  }
+
+  .panel-state-pill {
+    min-height: 28px;
+    padding: 0 10px;
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    border: 1px solid rgba(95,157,89,.17);
+    border-radius: 999px;
+    background: rgba(255,255,255,.62);
+    color: var(--primary-deep);
+    font-size: 9px;
+    font-weight: 850;
   }
 
   .security-panel h3 {
     margin: 0;
+    font-size: 18px;
+    letter-spacing: -.02em;
   }
 
   .security-panel p {
+    max-width: 650px;
+    margin: 9px 0 0;
     color: var(--text-soft);
-    line-height: 1.7;
+    line-height: 1.72;
     font-size: 13px;
   }
 
-  #challenge-form,
-  #enroll-form {
+  .security-primary-button {
     margin-top: 18px;
-    display: grid;
-    gap: 9px;
-    max-width: 330px;
+    gap: 10px;
   }
 
-  #challenge-form label,
-  #enroll-form label {
+  .security-code-form {
+    margin-top: 20px;
+    display: grid;
+    gap: 9px;
+    max-width: 480px;
+  }
+
+  .security-code-form label {
     font-size: 11px;
     font-weight: 800;
   }
 
+  .security-code-form small {
+    color: var(--text-soft);
+    font-size: 9px;
+    line-height: 1.5;
+  }
+
+  .security-code-row {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) auto;
+    gap: 9px;
+  }
+
   .security-code {
-    min-height: 48px;
-    padding: 0 14px;
+    min-height: 50px;
+    padding: 0 15px;
     border: 1px solid var(--border);
-    border-radius: 12px;
-    background: var(--surface-solid);
+    border-radius: 13px;
+    background: rgba(255,255,255,.9);
     color: var(--text);
     font: inherit;
     font-size: 20px;
     font-weight: 850;
-    letter-spacing: .22em;
+    letter-spacing: .24em;
     outline: none;
+    transition:
+      border-color .2s ease,
+      box-shadow .2s ease,
+      background .2s ease;
+  }
+
+  .security-code:focus {
+    border-color: rgba(95,157,89,.38);
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(159,211,149,.12);
+  }
+
+  .qr-content-grid {
+    margin-top: 20px;
+    display: grid;
+    grid-template-columns: 230px minmax(0,1fr);
+    gap: 18px;
+    align-items: start;
   }
 
   .qr-wrap {
+    position: relative;
     width: 230px;
     height: 230px;
-    margin-top: 18px;
-    padding: 14px;
+    padding: 16px;
     display: grid;
     place-items: center;
-    border: 1px solid var(--border);
-    border-radius: 18px;
+    border: 1px solid rgba(65,104,62,.12);
+    border-radius: 22px;
     background: #fff;
+    box-shadow: 0 15px 36px rgba(54,92,51,.055);
   }
 
   .qr-wrap img {
@@ -544,13 +1290,42 @@ import '../../styles/members.css';
     object-fit: contain;
   }
 
+  .qr-corners::before,
+  .qr-corners::after {
+    content: "";
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    border-color: var(--primary-strong);
+    opacity: .5;
+  }
+
+  .qr-corners::before {
+    left: 9px;
+    top: 9px;
+    border-left: 2px solid;
+    border-top: 2px solid;
+    border-top-left-radius: 5px;
+  }
+
+  .qr-corners::after {
+    right: 9px;
+    bottom: 9px;
+    border-right: 2px solid;
+    border-bottom: 2px solid;
+    border-bottom-right-radius: 5px;
+  }
+
+  .qr-copy {
+    min-width: 0;
+  }
+
   .secret-box {
-    max-width: 540px;
-    margin-top: 12px;
-    padding: 13px;
+    margin-top: 0;
+    padding: 15px;
     border: 1px solid var(--border);
-    border-radius: 12px;
-    background: rgba(255,255,255,.7);
+    border-radius: 14px;
+    background: rgba(255,255,255,.72);
   }
 
   .secret-box span,
@@ -558,10 +1333,100 @@ import '../../styles/members.css';
     display: block;
   }
 
+  .secret-box span {
+    color: var(--text-soft);
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+
   .secret-box code {
-    margin-top: 6px;
+    margin-top: 7px;
     overflow-wrap: anywhere;
+    color: var(--text);
     font-size: 12px;
+    line-height: 1.55;
+  }
+
+  .qr-tip {
+    margin-top: 10px;
+    padding: 13px;
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    border: 1px solid rgba(65,104,62,.1);
+    border-radius: 13px;
+    background: rgba(247,251,244,.78);
+  }
+
+  .qr-tip-icon {
+    width: 21px;
+    height: 21px;
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font-size: 10px;
+    font-weight: 900;
+  }
+
+  .qr-tip p {
+    margin: 0;
+    font-size: 10px;
+    line-height: 1.55;
+  }
+
+  .security-step-divider {
+    margin-top: 22px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-soft);
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .045em;
+  }
+
+  .security-step-divider::before,
+  .security-step-divider::after {
+    content: "";
+    height: 1px;
+    flex: 1;
+    background: var(--border);
+  }
+
+  .security-side-column {
+    display: grid;
+    gap: 14px;
+  }
+
+  .security-side-card {
+    overflow: hidden;
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255,255,255,.91),
+        rgba(247,251,244,.8)
+      );
+    box-shadow: 0 15px 42px rgba(54,92,51,.045);
+  }
+
+  .side-card-icon {
+    margin-bottom: 16px;
+  }
+
+  .security-side-card h2 {
+    margin: 10px 0 0;
+    font-size: 23px;
+    letter-spacing: -.035em;
+  }
+
+  .security-side-card > .member-card-inner > p {
+    line-height: 1.7;
   }
 
   .protected-list {
@@ -571,29 +1436,42 @@ import '../../styles/members.css';
   }
 
   .protected-list div {
-    min-height: 43px;
+    min-height: 47px;
     padding: 0 12px;
     display: flex;
     align-items: center;
-    gap: 9px;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    background: var(--surface-muted);
+    gap: 10px;
+    border: 1px solid rgba(65,104,62,.1);
+    border-radius: 13px;
+    background: rgba(247,251,244,.76);
   }
 
-  .protected-list span {
-    color: var(--primary-strong);
-    font-weight: 900;
+  .protected-icon {
+    width: 25px;
+    height: 25px;
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+  }
+
+  .protected-icon svg {
+    width: 14px;
+    height: 14px;
   }
 
   .protected-list strong {
     font-size: 11px;
+    line-height: 1.35;
   }
 
   .admin-note {
     margin-top: 18px;
-    padding: 13px;
-    border-radius: 12px;
+    padding: 14px;
+    border: 1px solid rgba(95,157,89,.15);
+    border-radius: 13px;
     background: var(--primary-soft);
     color: var(--primary-deep);
     font-size: 11px;
@@ -601,14 +1479,127 @@ import '../../styles/members.css';
     line-height: 1.6;
   }
 
-  #continue-button,
-  #start-enroll {
-    margin-top: 18px;
+  .admin-note-dot {
+    width: 7px;
+    height: 7px;
+    margin-right: 7px;
+    display: inline-block;
+    border-radius: 50%;
+    background: var(--primary-strong);
+    box-shadow: 0 0 0 5px rgba(159,211,149,.13);
+    vertical-align: 1px;
   }
 
-  @media (max-width: 900px) {
+  .security-info-card {
+    padding: 17px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    border: 1px solid rgba(65,104,62,.1);
+    border-radius: 17px;
+    background: rgba(255,255,255,.62);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .security-info-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 11px;
+  }
+
+  .security-info-icon svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .security-info-card strong {
+    display: block;
+    font-size: 11px;
+  }
+
+  .security-info-card p {
+    margin: 5px 0 0;
+    color: var(--text-soft);
+    font-size: 9px;
+    line-height: 1.55;
+  }
+
+  #security-status.show {
+    margin-top: 16px;
+  }
+
+  @keyframes securitySpin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @media (max-width: 980px) {
+    .security-overview {
+      grid-template-columns: 1fr;
+    }
+
     .security-layout {
       grid-template-columns: 1fr;
+    }
+
+    .security-side-column {
+      grid-template-columns: repeat(2,minmax(0,1fr));
+    }
+  }
+
+  @media (max-width: 720px) {
+    .security-title-block h1 {
+      font-size: clamp(38px, 12vw, 54px);
+    }
+
+    .security-overview-card {
+      min-height: auto;
+    }
+
+    .qr-content-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .qr-wrap {
+      width: min(100%, 260px);
+      height: auto;
+      aspect-ratio: 1;
+    }
+
+    .security-side-column {
+      grid-template-columns: 1fr;
+    }
+
+    .security-code-row {
+      grid-template-columns: 1fr;
+    }
+
+    .security-code-row .member-button {
+      width: 100%;
+    }
+
+    .panel-heading-row {
+      flex-direction: column;
+    }
+  }
+
+  @media (max-width: 520px) {
+    .security-panel {
+      padding: 18px;
+      flex-direction: column;
+    }
+
+    .security-icon {
+      width: 38px;
+      height: 38px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .security-icon-loading span {
+      animation: none;
     }
   }
 </style>

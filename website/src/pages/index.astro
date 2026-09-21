@@ -1,5 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import NeuralBrainAnimation from '../components/home/NeuralBrainAnimation.astro';
+import ImmersiveKnowledgeStory from '../components/home/ImmersiveKnowledgeStory.astro';
 
 const features = [
   ['Conceitos', 'Organize o que você aprende em conhecimento estruturado e fácil de reencontrar.'],
@@ -29,7 +31,7 @@ const featureIcons = ['01', '02', '03', '04', '05', '06'];
         <div class="hero-copy">
           <div class="eyebrow hero-eyebrow">
             <span class="eyebrow-dot"></span>
-            EVRYLUX Brain
+            EVRYLUX Cérebro
           </div>
 
           <h1 class="title hero-title">
@@ -78,7 +80,7 @@ const featureIcons = ['01', '02', '03', '04', '05', '06'];
           </div>
         </div>
 
-        <div class="brain-showcase">
+        <div class="cerebro-showcase">
           <div class="floating-note floating-note-top">
             <span class="floating-note-icon">?</span>
 
@@ -88,30 +90,21 @@ const featureIcons = ['01', '02', '03', '04', '05', '06'];
             </div>
           </div>
 
-          <div class="brain-card card">
-            <div class="brain-glow"></div>
+          <div class="cerebro-card card">
+            <div class="cerebro-glow"></div>
 
-            <div class="brain-top">
+            <div class="cerebro-top">
               <span class="pulse" aria-label="Ativo"></span>
             </div>
 
-            <div class="brain-content">
-              <div class="brain-stat">
+            <div class="cerebro-content">
+              <div class="cerebro-stat">
                 <strong>127</strong>
                 <span>conceitos conectados</span>
               </div>
 
-              <div class="brain-map" aria-hidden="true">
-                <svg viewBox="0 0 240 150" role="presentation">
-                  <path class="brain-line" d="M20 100 C60 50, 92 55, 126 76" />
-                  <path class="brain-line brain-line-delay" d="M126 76 C155 52, 186 38, 220 44" />
-                  <path class="brain-line brain-line-delay-two" d="M126 76 C155 96, 180 112, 215 104" />
-                  <circle class="brain-node node-a" cx="20" cy="100" r="7" />
-                  <circle class="brain-node node-b" cx="88" cy="58" r="6" />
-                  <circle class="brain-node node-c" cx="126" cy="76" r="9" />
-                  <circle class="brain-node node-d" cx="220" cy="44" r="7" />
-                  <circle class="brain-node node-e" cx="215" cy="104" r="6" />
-                </svg>
+              <div class="cerebro-map">
+                <NeuralBrainAnimation />
               </div>
             </div>
 
@@ -121,9 +114,9 @@ const featureIcons = ['01', '02', '03', '04', '05', '06'];
               <div><b>5</b><span>Áreas</span></div>
             </div>
 
-            <div class="brain-footer">
-              <div class="brain-footer-status">
-                <span class="brain-footer-dot"></span>
+            <div class="cerebro-footer">
+              <div class="cerebro-footer-status">
+                <span class="cerebro-footer-dot"></span>
                 Evoluindo com você
               </div>
 
@@ -143,12 +136,15 @@ const featureIcons = ['01', '02', '03', '04', '05', '06'];
       </div>
     </section>
 
+
+    <ImmersiveKnowledgeStory />
+
     <section class="ecosystem-entry">
       <div class="container">
         <div class="ecosystem-entry-card">
           <div class="ecosystem-entry-copy">
             <div class="eyebrow">
-              Além do Brain
+              Além do Cérebro
             </div>
 
             <h2>
@@ -164,7 +160,7 @@ const featureIcons = ['01', '02', '03', '04', '05', '06'];
 
           <div class="ecosystem-entry-side">
             <div class="ecosystem-mini-list">
-              <span>Brain</span>
+              <span>Cérebro</span>
               <span>Financeiro</span>
               <span>Treino</span>
               <span>Rotina</span>
@@ -449,15 +445,15 @@ const featureIcons = ['01', '02', '03', '04', '05', '06'];
     background: var(--primary);
   }
 
-  .brain-showcase {
+  .cerebro-showcase {
     position: relative;
     min-height: 520px;
     display: grid;
     place-items: center;
-    animation: brainIn .95s .12s cubic-bezier(.22,1,.36,1) both;
+    animation: cerebroIn .95s .12s cubic-bezier(.22,1,.36,1) both;
   }
 
-  .brain-card {
+  .cerebro-card {
     position: relative;
     z-index: 3;
     width: min(100%, 540px);
@@ -473,7 +469,7 @@ const featureIcons = ['01', '02', '03', '04', '05', '06'];
     animation: cardFloat 6s ease-in-out infinite;
   }
 
-  .brain-card::before {
+  .cerebro-card::before {
     content: "";
     position: absolute;
     inset: 0;
@@ -483,7 +479,7 @@ const featureIcons = ['01', '02', '03', '04', '05', '06'];
     pointer-events: none;
   }
 
-  .brain-glow {
+  .cerebro-glow {
     position: absolute;
     width: 290px;
     height: 290px;
@@ -494,15 +490,15 @@ const featureIcons = ['01', '02', '03', '04', '05', '06'];
     animation: glowMove 8s ease-in-out infinite;
   }
 
-  .brain-top,
-  .brain-content,
+  .cerebro-top,
+  .cerebro-content,
   .mini-grid,
-  .brain-footer {
+  .cerebro-footer {
     position: relative;
     z-index: 2;
   }
 
-  .brain-top {
+  .cerebro-top {
     display: flex;
     align-items: flex-start;
     justify-content: flex-end;
@@ -517,7 +513,7 @@ const featureIcons = ['01', '02', '03', '04', '05', '06'];
     animation: livePulse 2.1s ease-out infinite;
   }
 
-  .brain-content {
+  .cerebro-content {
     min-height: 172px;
     margin-top: 34px;
     display: grid;
@@ -526,56 +522,27 @@ const featureIcons = ['01', '02', '03', '04', '05', '06'];
     gap: 18px;
   }
 
-  .brain-stat strong {
+  .cerebro-stat strong {
     display: block;
     font-size: 70px;
     line-height: 1;
     letter-spacing: -.06em;
   }
 
-  .brain-stat span {
+  .cerebro-stat span {
     display: block;
     margin-top: 10px;
     color: var(--text-soft);
     font-size: 14px;
   }
 
-  .brain-map {
+  .cerebro-map {
     display: grid;
     place-items: center;
   }
 
-  .brain-map svg {
-    width: 100%;
-    max-width: 250px;
-    overflow: visible;
-  }
 
-  .brain-line {
-    fill: none;
-    stroke: rgba(95,157,89,.3);
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-dasharray: 8 10;
-    animation: lineMove 8s linear infinite;
-  }
 
-  .brain-line-delay { animation-delay: -2s; }
-  .brain-line-delay-two { animation-delay: -4s; }
-
-  .brain-node {
-    fill: white;
-    stroke: var(--primary-strong);
-    stroke-width: 3;
-    transform-box: fill-box;
-    transform-origin: center;
-    animation: nodePulse 3s ease-in-out infinite;
-  }
-
-  .node-b { animation-delay: -.6s; }
-  .node-c { animation-delay: -1.2s; }
-  .node-d { animation-delay: -1.8s; }
-  .node-e { animation-delay: -2.4s; }
 
   .mini-grid {
     display: grid;
@@ -610,7 +577,7 @@ const featureIcons = ['01', '02', '03', '04', '05', '06'];
     margin-top: 5px;
   }
 
-  .brain-footer {
+  .cerebro-footer {
     margin-top: 20px;
     padding-top: 16px;
     display: flex;
@@ -619,7 +586,7 @@ const featureIcons = ['01', '02', '03', '04', '05', '06'];
     border-top: 1px solid rgba(65,104,62,.08);
   }
 
-  .brain-footer-status {
+  .cerebro-footer-status {
     display: flex;
     align-items: center;
     gap: 7px;
@@ -628,7 +595,7 @@ const featureIcons = ['01', '02', '03', '04', '05', '06'];
     font-weight: 700;
   }
 
-  .brain-footer-dot {
+  .cerebro-footer-dot {
     width: 7px;
     height: 7px;
     border-radius: 50%;
@@ -938,7 +905,7 @@ const featureIcons = ['01', '02', '03', '04', '05', '06'];
     to { opacity: 1; transform: translateX(0); }
   }
 
-  @keyframes brainIn {
+  @keyframes cerebroIn {
     from { opacity: 0; transform: translateX(28px); }
     to { opacity: 1; transform: translateX(0); }
   }
@@ -958,12 +925,7 @@ const featureIcons = ['01', '02', '03', '04', '05', '06'];
     50% { transform: scale(1.08) translate(-8px,10px); }
   }
 
-  @keyframes lineMove { to { stroke-dashoffset: -72; } }
 
-  @keyframes nodePulse {
-    0%,100% { transform: scale(1); }
-    50% { transform: scale(1.17); }
-  }
 
   @keyframes livePulse {
     0% { box-shadow: 0 0 0 0 rgba(95,157,89,.34); }
@@ -1064,20 +1026,20 @@ const featureIcons = ['01', '02', '03', '04', '05', '06'];
 
     .hero-actions .button { width: 100%; }
 
-    .brain-showcase { min-height: 430px; }
+    .cerebro-showcase { min-height: 430px; }
 
-    .brain-card {
+    .cerebro-card {
       min-height: 390px;
       padding: 22px;
       border-radius: 22px;
     }
 
-    .brain-content {
+    .cerebro-content {
       grid-template-columns: 1fr;
       min-height: auto;
     }
 
-    .brain-map { display: none; }
+    .cerebro-map { max-width: 300px; margin: 0 auto; }
     .mini-grid { margin-top: 26px; }
     .floating-note { display: none; }
 

@@ -128,16 +128,68 @@ import '../../styles/members.css';
               </div>
 
               <div class="member-field">
-                <label for="avatar-url">
-                  URL da foto/avatar
+                <label>
+                  Foto de perfil
                 </label>
 
-                <input
-                  id="avatar-url"
-                  type="url"
-                  maxlength="500"
-                  placeholder="https://..."
+                <div class="profile-photo-control">
+                  <div class="profile-photo-control-preview">
+                    <div
+                id="profile-upload-placeholder"
+                class="default-profile-avatar default-profile-avatar-large"
+                aria-label="Sem foto de perfil"
+              >
+                <img
+                  class="default-profile-avatar-image"
+                  src="/branding/default-profile-avatar.png"
+                  alt=""
+                  aria-hidden="true"
+                  draggable="false"
                 />
+              </div>
+
+                    <img
+                      id="profile-upload-preview"
+                      class="profile-upload-preview member-hidden"
+                      alt=""
+                    />
+                  </div>
+
+                  <div class="profile-photo-control-copy">
+                    <strong>
+                      Escolha uma foto
+                    </strong>
+
+                    <p>
+                      JPG, PNG ou WebP de até 5 MB. A imagem será
+                      recortada em formato circular.
+                    </p>
+
+                    <div class="profile-photo-actions">
+                      <label
+                        class="member-button profile-photo-button"
+                        for="avatar-file"
+                      >
+                        Escolher foto
+                      </label>
+
+                      <button
+                        id="remove-avatar"
+                        class="profile-photo-remove"
+                        type="button"
+                      >
+                        Remover foto
+                      </button>
+                    </div>
+
+                    <input
+                      id="avatar-file"
+                      class="profile-file-input"
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                    />
+                  </div>
+                </div>
               </div>
 
               <button
@@ -162,9 +214,16 @@ import '../../styles/members.css';
             <div class="member-profile-head">
               <div
                 id="profile-avatar-placeholder"
-                class="member-avatar-placeholder"
+                class="member-avatar-placeholder default-profile-avatar"
+                aria-label="Sem foto de perfil"
               >
-                E
+                <img
+                  class="default-profile-avatar-image"
+                  src="/branding/default-profile-avatar.png"
+                  alt=""
+                  aria-hidden="true"
+                  draggable="false"
+                />
               </div>
 
               <img
@@ -261,10 +320,40 @@ import '../../styles/members.css';
       '#skills',
     );
 
-  const avatarUrl =
+  const avatarFile =
     document.querySelector<HTMLInputElement>(
-      '#avatar-url',
+      '#avatar-file',
     );
+
+  const removeAvatarButton =
+    document.querySelector<HTMLButtonElement>(
+      '#remove-avatar',
+    );
+
+  const uploadPreview =
+    document.querySelector<HTMLImageElement>(
+      '#profile-upload-preview',
+    );
+
+  const uploadPlaceholder =
+    document.querySelector<HTMLElement>(
+      '#profile-upload-placeholder',
+    );
+
+  let currentAvatarUrl:
+    string | null =
+      null;
+
+  let selectedAvatarFile:
+    File | null =
+      null;
+
+  let removeAvatar =
+    false;
+
+  let localPreviewUrl:
+    string | null =
+      null;
 
   const saveButton =
     document.querySelector<HTMLButtonElement>(
@@ -314,6 +403,80 @@ import '../../styles/members.css';
       `member-status show ${type}`;
   }
 
+  function setAvatarPreview(
+    avatar:
+      string | null,
+  ) {
+    const hasAvatar =
+      Boolean(
+        avatar,
+      );
+
+    if (
+      previewAvatar
+    ) {
+      if (
+        hasAvatar &&
+        avatar
+      ) {
+        previewAvatar.src =
+          avatar;
+
+        previewAvatar.alt =
+          `Avatar de ${displayName?.value.trim() || 'colaborador EVRYLUX'}`;
+
+        previewAvatar.classList.remove(
+          'member-hidden',
+        );
+      } else {
+        previewAvatar.removeAttribute(
+          'src',
+        );
+
+        previewAvatar.classList.add(
+          'member-hidden',
+        );
+      }
+    }
+
+    previewPlaceholder?.classList.toggle(
+      'member-hidden',
+      hasAvatar,
+    );
+
+    if (
+      uploadPreview
+    ) {
+      if (
+        hasAvatar &&
+        avatar
+      ) {
+        uploadPreview.src =
+          avatar;
+
+        uploadPreview.alt =
+          'Prévia da foto de perfil';
+
+        uploadPreview.classList.remove(
+          'member-hidden',
+        );
+      } else {
+        uploadPreview.removeAttribute(
+          'src',
+        );
+
+        uploadPreview.classList.add(
+          'member-hidden',
+        );
+      }
+    }
+
+    uploadPlaceholder?.classList.toggle(
+      'member-hidden',
+      hasAvatar,
+    );
+  }
+
   function updatePreview() {
     if (previewName) {
       previewName.textContent =
@@ -335,46 +498,230 @@ import '../../styles/members.css';
     }
 
     const avatar =
-      avatarUrl?.value.trim();
+      removeAvatar
+        ? null
+        : localPreviewUrl ||
+          currentAvatarUrl;
 
+    setAvatarPreview(
+      avatar,
+    );
+  }
+
+  function clearLocalPreviewUrl() {
     if (
-      avatar &&
-      previewAvatar
+      localPreviewUrl
     ) {
-      previewAvatar.src =
-        avatar;
-
-      previewAvatar.alt =
-        `Avatar de ${displayName?.value.trim() || 'colaborador EVRYLUX'}`;
-
-      previewAvatar.classList.remove(
-        'member-hidden',
+      URL.revokeObjectURL(
+        localPreviewUrl,
       );
 
-      previewPlaceholder?.classList.add(
-        'member-hidden',
-      );
-    } else {
-      previewAvatar?.classList.add(
-        'member-hidden',
-      );
+      localPreviewUrl =
+        null;
+    }
+  }
 
-      previewPlaceholder?.classList.remove(
-        'member-hidden',
+  function getAvatarExtension(
+    file: File,
+  ) {
+    const byType:
+      Record<string, string> = {
+        'image/jpeg':
+          'jpg',
+        'image/png':
+          'png',
+        'image/webp':
+          'webp',
+      };
+
+    return (
+      byType[file.type] ??
+      'jpg'
+    );
+  }
+
+  async function uploadAvatar(
+    file: File,
+  ) {
+    if (!session) {
+      throw new Error(
+        'Sessão não encontrada.',
       );
     }
+
+    const extension =
+      getAvatarExtension(
+        file,
+      );
+
+    const path =
+      `${session.user.id}/avatar-${Date.now()}.${extension}`;
+
+    const {
+      error: uploadError,
+    } =
+      await supabase.storage
+        .from(
+          'profile-avatars',
+        )
+        .upload(
+          path,
+          file,
+          {
+            cacheControl:
+              '3600',
+
+            upsert:
+              false,
+
+            contentType:
+              file.type,
+          },
+        );
+
+    if (
+      uploadError
+    ) {
+      throw uploadError;
+    }
+
+    const {
+      data,
+    } =
+      supabase.storage
+        .from(
+          'profile-avatars',
+        )
+        .getPublicUrl(
+          path,
+        );
+
+    return data.publicUrl;
   }
 
   [
     displayName,
     githubLogin,
     bio,
-    avatarUrl,
   ].forEach(
     (input) => {
       input?.addEventListener(
         'input',
         updatePreview,
+      );
+    },
+  );
+
+  avatarFile?.addEventListener(
+    'change',
+    () => {
+      const file =
+        avatarFile.files?.[0] ??
+        null;
+
+      if (!file) {
+        return;
+      }
+
+      const allowedTypes =
+        [
+          'image/jpeg',
+          'image/png',
+          'image/webp',
+        ];
+
+      if (
+        !allowedTypes.includes(
+          file.type,
+        )
+      ) {
+        avatarFile.value =
+          '';
+
+        showStatus(
+          'Escolha uma imagem JPG, PNG ou WebP.',
+          'error',
+        );
+
+        return;
+      }
+
+      if (
+        file.size >
+        5 * 1024 * 1024
+      ) {
+        avatarFile.value =
+          '';
+
+        showStatus(
+          'A foto deve ter no máximo 5 MB.',
+          'error',
+        );
+
+        return;
+      }
+
+      clearLocalPreviewUrl();
+
+      selectedAvatarFile =
+        file;
+
+      removeAvatar =
+        false;
+
+      localPreviewUrl =
+        URL.createObjectURL(
+          file,
+        );
+
+      updatePreview();
+    },
+  );
+
+  removeAvatarButton?.addEventListener(
+    'click',
+    () => {
+      clearLocalPreviewUrl();
+
+      selectedAvatarFile =
+        null;
+
+      removeAvatar =
+        true;
+
+      if (
+        avatarFile
+      ) {
+        avatarFile.value =
+          '';
+      }
+
+      updatePreview();
+    },
+  );
+
+  previewAvatar?.addEventListener(
+    'error',
+    () => {
+      previewAvatar.classList.add(
+        'member-hidden',
+      );
+
+      previewPlaceholder?.classList.remove(
+        'member-hidden',
+      );
+    },
+  );
+
+  uploadPreview?.addEventListener(
+    'error',
+    () => {
+      uploadPreview.classList.add(
+        'member-hidden',
+      );
+
+      uploadPlaceholder?.classList.remove(
+        'member-hidden',
       );
     },
   );
@@ -433,10 +780,9 @@ import '../../styles/members.css';
           profile.skills ?? '';
       }
 
-      if (avatarUrl) {
-        avatarUrl.value =
-          profile.avatar_url ?? '';
-      }
+      currentAvatarUrl =
+        profile.avatar_url?.trim() ||
+        null;
     }
 
     updatePreview();
@@ -460,79 +806,141 @@ import '../../styles/members.css';
       }
 
       if (saveButton) {
-        saveButton.disabled = true;
+        saveButton.disabled =
+          true;
+
         saveButton.textContent =
-          'Salvando...';
+          selectedAvatarFile
+            ? 'Enviando foto...'
+            : 'Salvando...';
       }
 
-      const {
-        error,
-      } =
-        await supabase
-          .from('member_profiles')
-          .upsert(
-            {
-              user_id:
-                session.user.id,
+      try {
+        let avatarUrl =
+          removeAvatar
+            ? null
+            : currentAvatarUrl;
 
-              display_name:
-                displayName?.value.trim() ||
-                null,
+        if (
+          selectedAvatarFile
+        ) {
+          avatarUrl =
+            await uploadAvatar(
+              selectedAvatarFile,
+            );
+        }
 
-              github_login:
-                githubLogin?.value.trim() ||
-                null,
+        if (
+          saveButton
+        ) {
+          saveButton.textContent =
+            'Salvando...';
+        }
 
-              bio:
-                bio?.value.trim() ||
-                null,
+        const {
+          error,
+        } =
+          await supabase
+            .from(
+              'member_profiles',
+            )
+            .upsert(
+              {
+                user_id:
+                  session.user.id,
 
-              avatar_url:
-                avatarUrl?.value.trim() ||
-                null,
+                display_name:
+                  displayName?.value.trim() ||
+                  null,
 
-              area:
-                area?.value.trim() ||
-                null,
+                github_login:
+                  githubLogin?.value.trim() ||
+                  null,
 
-              skills:
-                skills?.value.trim() ||
-                null,
+                bio:
+                  bio?.value.trim() ||
+                  null,
 
-              availability:
-                availability?.value.trim() ||
-                null,
+                avatar_url:
+                  avatarUrl,
 
-              updated_at:
-                new Date().toISOString(),
-            },
-            {
-              onConflict:
-                'user_id',
-            },
-          );
+                area:
+                  area?.value.trim() ||
+                  null,
 
-      if (error) {
-        showStatus(
-          error.message,
-          'error',
-        );
-      } else {
+                skills:
+                  skills?.value.trim() ||
+                  null,
+
+                availability:
+                  availability?.value.trim() ||
+                  null,
+
+                updated_at:
+                  new Date().toISOString(),
+              },
+              {
+                onConflict:
+                  'user_id',
+              },
+            );
+
+        if (error) {
+          throw error;
+        }
+
+        currentAvatarUrl =
+          avatarUrl;
+
+        selectedAvatarFile =
+          null;
+
+        removeAvatar =
+          false;
+
+        clearLocalPreviewUrl();
+
+        if (
+          avatarFile
+        ) {
+          avatarFile.value =
+            '';
+        }
+
         showStatus(
           'Perfil atualizado.',
           'success',
         );
 
         updatePreview();
-      }
+      } catch (error: any) {
+        console.error(
+          '[EVRYLUX] Falha ao salvar perfil:',
+          error,
+        );
 
-      if (saveButton) {
-        saveButton.disabled = false;
-        saveButton.textContent =
-          'Salvar perfil';
+        showStatus(
+          error?.message ||
+          'Não foi possível salvar o perfil.',
+          'error',
+        );
+      } finally {
+        if (saveButton) {
+          saveButton.disabled =
+            false;
+
+          saveButton.textContent =
+            'Salvar perfil';
+        }
       }
     },
   );
+
+  window.addEventListener(
+    'pagehide',
+    clearLocalPreviewUrl,
+  );
+
 </script>
 
 <style>
@@ -540,5 +948,140 @@ import '../../styles/members.css';
     margin: 24px 0 0;
     color: var(--text-soft);
     line-height: 1.75;
+  }
+
+  .default-profile-avatar {
+    width: 72px;
+    height: 72px;
+    padding: 0;
+    overflow: hidden;
+    flex: 0 0 auto;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .default-profile-avatar-large {
+    width: 92px;
+    height: 92px;
+  }
+
+  .default-profile-avatar svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .default-profile-avatar .default-avatar-bg {
+    fill: #a9abad;
+  }
+
+  .default-profile-avatar .default-avatar-person {
+    fill: #eef6f3;
+  }
+
+  #profile-avatar-preview {
+    width: 72px;
+    height: 72px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid rgba(65,104,62,.1);
+    box-shadow: 0 8px 24px rgba(54,92,51,.06);
+  }
+
+  .profile-photo-control {
+    padding: 18px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255,255,255,.88),
+        rgba(239,248,235,.58)
+      );
+  }
+
+  .profile-photo-control-preview {
+    width: 92px;
+    height: 92px;
+    flex: 0 0 auto;
+  }
+
+  .profile-upload-preview {
+    width: 92px;
+    height: 92px;
+    display: block;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid rgba(65,104,62,.1);
+    box-shadow: 0 10px 30px rgba(54,92,51,.08);
+  }
+
+  .profile-photo-control-copy {
+    min-width: 0;
+  }
+
+  .profile-photo-control-copy > strong {
+    display: block;
+    font-size: 13px;
+  }
+
+  .profile-photo-control-copy > p {
+    max-width: 500px;
+    margin: 6px 0 0;
+    color: var(--text-soft);
+    font-size: 10px;
+    line-height: 1.55;
+  }
+
+  .profile-photo-actions {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .profile-photo-button {
+    min-height: 38px;
+    cursor: pointer;
+  }
+
+  .profile-photo-remove {
+    min-height: 38px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: rgba(255,255,255,.72);
+    color: var(--text-soft);
+    font: inherit;
+    font-size: 10px;
+    font-weight: 750;
+    cursor: pointer;
+  }
+
+  .profile-photo-remove:hover {
+    color: var(--text);
+    background: #fff;
+  }
+
+  .profile-file-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  @media (max-width: 620px) {
+    .profile-photo-control {
+      align-items: flex-start;
+      flex-direction: column;
+    }
   }
 </style>

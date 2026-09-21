@@ -1,0 +1,375 @@
+---
+---
+
+<div class="neural-brain" data-neural-brain aria-label="Rede de conhecimento em atividade" role="img">
+  <div class="neural-halo neural-halo-a" aria-hidden="true"></div>
+  <div class="neural-halo neural-halo-b" aria-hidden="true"></div>
+
+  <svg class="neural-svg" viewBox="0 0 320 220" role="presentation" aria-hidden="true">
+    <defs>
+      <filter id="neuralSoftGlow" x="-80%" y="-80%" width="260%" height="260%">
+        <feGaussianBlur stdDeviation="4" result="blur" />
+        <feMerge>
+          <feMergeNode in="blur" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
+
+      <filter id="neuralCoreGlow" x="-100%" y="-100%" width="300%" height="300%">
+        <feGaussianBlur stdDeviation="7" result="blur" />
+        <feMerge>
+          <feMergeNode in="blur" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
+
+      <linearGradient id="neuralPulseGradient" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#9fd395" stop-opacity="0" />
+        <stop offset="50%" stop-color="#5f9d59" stop-opacity="1" />
+        <stop offset="100%" stop-color="#9fd395" stop-opacity="0" />
+      </linearGradient>
+    </defs>
+
+    <g class="network-layer">
+      <path id="routeA" class="network-path path-a" d="M28 137 C64 92, 94 77, 134 88" />
+      <path id="routeB" class="network-path path-b" d="M134 88 C172 62, 212 44, 282 60" />
+      <path id="routeC" class="network-path path-c" d="M134 88 C176 118, 224 148, 277 139" />
+      <path id="routeD" class="network-path path-d" d="M76 173 C108 153, 118 123, 134 88" />
+      <path id="routeE" class="network-path path-e" d="M134 88 C161 94, 190 91, 217 101" />
+    </g>
+
+    <g class="signal-layer" filter="url(#neuralSoftGlow)">
+      <circle class="signal signal-main" r="4.4">
+        <animateMotion dur="3.6s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="spline" keySplines=".4 0 .2 1">
+          <mpath href="#routeA" />
+        </animateMotion>
+      </circle>
+
+      <circle class="signal signal-branch-a" r="3.7">
+        <animateMotion begin="1.85s" dur="4.4s" repeatCount="indefinite">
+          <mpath href="#routeB" />
+        </animateMotion>
+      </circle>
+
+      <circle class="signal signal-branch-b" r="3.5">
+        <animateMotion begin="2.65s" dur="4.8s" repeatCount="indefinite">
+          <mpath href="#routeC" />
+        </animateMotion>
+      </circle>
+
+      <circle class="signal signal-soft" r="2.8">
+        <animateMotion begin=".9s" dur="5.3s" repeatCount="indefinite">
+          <mpath href="#routeD" />
+        </animateMotion>
+      </circle>
+    </g>
+
+    <g class="nodes-layer">
+      <g class="node node-start" style="--delay:-.2s">
+        <circle class="node-halo" cx="28" cy="137" r="17" />
+        <circle class="node-body" cx="28" cy="137" r="8" />
+        <circle class="node-core" cx="28" cy="137" r="3" />
+      </g>
+
+      <g class="node node-mid-a" style="--delay:-1.4s">
+        <circle class="node-halo" cx="91" cy="82" r="14" />
+        <circle class="node-body" cx="91" cy="82" r="6.5" />
+        <circle class="node-core" cx="91" cy="82" r="2.6" />
+      </g>
+
+      <g class="node node-center" style="--delay:-2.1s" filter="url(#neuralCoreGlow)">
+        <circle class="center-ring center-ring-a" cx="134" cy="88" r="20" />
+        <circle class="center-ring center-ring-b" cx="134" cy="88" r="14" />
+        <circle class="node-halo" cx="134" cy="88" r="24" />
+        <circle class="node-body" cx="134" cy="88" r="11" />
+        <circle class="node-core" cx="134" cy="88" r="4.2" />
+      </g>
+
+      <g class="node" style="--delay:-.8s">
+        <circle class="node-halo" cx="282" cy="60" r="15" />
+        <circle class="node-body" cx="282" cy="60" r="7" />
+        <circle class="node-core" cx="282" cy="60" r="2.8" />
+      </g>
+
+      <g class="node" style="--delay:-2.8s">
+        <circle class="node-halo" cx="277" cy="139" r="13" />
+        <circle class="node-body" cx="277" cy="139" r="6" />
+        <circle class="node-core" cx="277" cy="139" r="2.5" />
+      </g>
+
+      <g class="node" style="--delay:-1.8s">
+        <circle class="node-halo" cx="76" cy="173" r="12" />
+        <circle class="node-body" cx="76" cy="173" r="5.5" />
+        <circle class="node-core" cx="76" cy="173" r="2.3" />
+      </g>
+
+      <g class="node" style="--delay:-3.2s">
+        <circle class="node-halo" cx="217" cy="101" r="10" />
+        <circle class="node-body" cx="217" cy="101" r="4.8" />
+        <circle class="node-core" cx="217" cy="101" r="2" />
+      </g>
+    </g>
+  </svg>
+
+  <div class="neural-status" aria-hidden="true">
+    <span class="neural-status-dot"></span>
+    <span>conectando ideias</span>
+  </div>
+</div>
+
+<script>
+  const neuralBrains = document.querySelectorAll<HTMLElement>('[data-neural-brain]');
+
+  neuralBrains.forEach((brain) => {
+    let frame = 0;
+
+    const updatePointer = (event: PointerEvent) => {
+      const rect = brain.getBoundingClientRect();
+      const x = (event.clientX - rect.left) / rect.width - 0.5;
+      const y = (event.clientY - rect.top) / rect.height - 0.5;
+
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        brain.style.setProperty('--neural-x', `${x * 7}px`);
+        brain.style.setProperty('--neural-y', `${y * 5}px`);
+      });
+    };
+
+    const resetPointer = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        brain.style.setProperty('--neural-x', '0px');
+        brain.style.setProperty('--neural-y', '0px');
+      });
+    };
+
+    brain.addEventListener('pointermove', updatePointer, { passive: true });
+    brain.addEventListener('pointerleave', resetPointer, { passive: true });
+  });
+</script>
+
+<style>
+  .neural-brain {
+    --neural-x: 0px;
+    --neural-y: 0px;
+    position: relative;
+    width: min(100%, 320px);
+    aspect-ratio: 320 / 220;
+    display: grid;
+    place-items: center;
+    isolation: isolate;
+    transform: translate(var(--neural-x), var(--neural-y));
+    transition: transform .45s cubic-bezier(.22,1,.36,1);
+  }
+
+  .neural-svg {
+    position: relative;
+    z-index: 3;
+    width: 100%;
+    overflow: visible;
+  }
+
+  .neural-halo {
+    position: absolute;
+    z-index: 0;
+    border-radius: 50%;
+    pointer-events: none;
+    filter: blur(1px);
+  }
+
+  .neural-halo-a {
+    width: 170px;
+    height: 170px;
+    right: -22px;
+    top: -20px;
+    background: radial-gradient(circle, rgba(159,211,149,.2), rgba(223,241,218,.07) 58%, transparent 72%);
+    animation: haloBreath 7s ease-in-out infinite;
+  }
+
+  .neural-halo-b {
+    width: 108px;
+    height: 108px;
+    left: 72px;
+    bottom: 5px;
+    background: radial-gradient(circle, rgba(95,157,89,.09), transparent 70%);
+    animation: haloBreath 9s -3s ease-in-out infinite reverse;
+  }
+
+  .network-path {
+    fill: none;
+    stroke: rgba(95,157,89,.26);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-dasharray: 7 10;
+    vector-effect: non-scaling-stroke;
+    animation: networkFlow 9s linear infinite, pathBreathe 4.8s ease-in-out infinite;
+  }
+
+  .path-b { animation-delay: -2s, -.8s; }
+  .path-c { animation-delay: -4s, -1.6s; }
+  .path-d { animation-delay: -1s, -2.4s; opacity: .72; }
+  .path-e { animation-delay: -6s, -3.2s; opacity: .55; }
+
+  .signal {
+    fill: #6cac64;
+    opacity: .88;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .signal-main {
+    fill: #5f9d59;
+  }
+
+  .signal-branch-a,
+  .signal-branch-b {
+    opacity: .72;
+  }
+
+  .signal-soft {
+    opacity: .5;
+  }
+
+  .node {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: nodeBreath 3.7s var(--delay, 0s) ease-in-out infinite;
+  }
+
+  .node-halo {
+    fill: rgba(159,211,149,.09);
+    stroke: rgba(159,211,149,.13);
+    stroke-width: 1;
+    animation: haloNode 3.7s var(--delay, 0s) ease-out infinite;
+  }
+
+  .node-body {
+    fill: rgba(255,255,255,.96);
+    stroke: #5f9d59;
+    stroke-width: 2.6;
+  }
+
+  .node-core {
+    fill: #8bc47f;
+    opacity: .82;
+    animation: corePulse 2.6s var(--delay, 0s) ease-in-out infinite;
+  }
+
+  .node-center .node-body {
+    stroke-width: 3;
+  }
+
+  .node-center .node-core {
+    fill: #5f9d59;
+  }
+
+  .center-ring {
+    fill: none;
+    stroke: rgba(95,157,89,.16);
+    stroke-width: 1.2;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .center-ring-a {
+    animation: centerRing 3s ease-out infinite;
+  }
+
+  .center-ring-b {
+    animation: centerRing 3s 1.5s ease-out infinite;
+  }
+
+  .neural-status {
+    position: absolute;
+    z-index: 5;
+    left: 50%;
+    bottom: 3px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 9px;
+    border: 1px solid rgba(65,104,62,.09);
+    border-radius: 999px;
+    background: rgba(255,255,255,.62);
+    color: rgba(54,92,51,.76);
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    transform: translateX(-50%);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    animation: statusFloat 4s ease-in-out infinite;
+  }
+
+  .neural-status-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #5f9d59;
+    box-shadow: 0 0 0 4px rgba(95,157,89,.09);
+    animation: statusPulse 1.9s ease-out infinite;
+  }
+
+  @keyframes networkFlow {
+    to { stroke-dashoffset: -85; }
+  }
+
+  @keyframes pathBreathe {
+    0%,100% { stroke-opacity: .65; }
+    50% { stroke-opacity: 1; }
+  }
+
+  @keyframes nodeBreath {
+    0%,100% { transform: scale(1); }
+    50% { transform: scale(1.055); }
+  }
+
+  @keyframes haloNode {
+    0% { opacity: .3; transform: scale(.86); }
+    55% { opacity: .8; }
+    100% { opacity: 0; transform: scale(1.35); }
+  }
+
+  @keyframes corePulse {
+    0%,100% { opacity: .58; transform: scale(.9); }
+    50% { opacity: 1; transform: scale(1.12); }
+  }
+
+  @keyframes centerRing {
+    0% { opacity: .6; transform: scale(.72); }
+    100% { opacity: 0; transform: scale(1.45); }
+  }
+
+  @keyframes haloBreath {
+    0%,100% { transform: scale(.92) translate3d(0,0,0); opacity: .65; }
+    50% { transform: scale(1.08) translate3d(-5px,6px,0); opacity: 1; }
+  }
+
+  @keyframes statusFloat {
+    0%,100% { transform: translateX(-50%) translateY(0); }
+    50% { transform: translateX(-50%) translateY(-3px); }
+  }
+
+  @keyframes statusPulse {
+    0% { box-shadow: 0 0 0 0 rgba(95,157,89,.25); }
+    75%,100% { box-shadow: 0 0 0 7px rgba(95,157,89,0); }
+  }
+
+  @media (max-width: 620px) {
+    .neural-brain {
+      width: min(100%, 286px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .neural-brain,
+    .neural-brain *,
+    .neural-brain *::before,
+    .neural-brain *::after {
+      animation-duration: .01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .01ms !important;
+    }
+  }
+</style>
