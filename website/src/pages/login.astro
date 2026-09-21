@@ -1,0 +1,529 @@
+---
+import Layout from '../layouts/Layout.astro';
+import '../styles/members.css';
+---
+
+<Layout
+  title="Entrar — EVRYLUX Colab"
+  description="Acesso à área de colaboradores do projeto EVRYLUX."
+>
+  <main class="login-page">
+    <div class="login-wrap">
+      <section class="login-copy">
+        <div class="eyebrow">
+          EVRYLUX Colab
+        </div>
+
+        <h1>
+          A área de quem ajuda o projeto a evoluir.
+        </h1>
+
+        <p>
+          Acesse seu perfil, acompanhe informações da equipe
+          e, nas próximas etapas, participe de tarefas,
+          atualizações e votações do projeto.
+        </p>
+      </section>
+
+      <section class="login-card member-card">
+        <div class="member-card-inner">
+          <div class="login-brand">
+            <span class="login-brand-mark">
+              <img
+                src="/branding/evrylux-logo.png"
+                alt="EVRYLUX"
+                class="login-brand-logo"
+              />
+            </span>
+
+            <strong>
+              EVRYLUX
+            </strong>
+          </div>
+
+          <h2>
+            Entrar
+          </h2>
+
+          <p class="member-muted">
+            Use sua conta de colaborador do EVRYLUX.
+          </p>
+
+          <form
+            id="login-form"
+            class="member-form"
+          >
+            <div class="member-field">
+              <label for="email">
+                E-mail
+              </label>
+
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autocomplete="email"
+                required
+              />
+            </div>
+
+            <div class="member-field">
+              <label for="password">
+                Senha
+              </label>
+
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                minlength="6"
+                required
+              />
+            </div>
+
+            <button
+              id="login-button"
+              class="member-button member-button-primary"
+              type="submit"
+            >
+              Entrar
+            </button>
+          </form>
+
+          <div
+            id="login-status"
+            class="member-status"
+            role="status"
+            aria-live="polite"
+          ></div>
+
+          <div class="login-note">
+            <strong>
+              Primeiro acesso?
+            </strong>
+
+            <span>
+              Nesta primeira versão, as contas de colaboradores
+              são criadas ou convidadas pelo projeto.
+            </span>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  import {
+    supabase,
+  } from '../lib/supabase';
+
+  import {
+    redirectAuthenticatedMember,
+  } from '../lib/member-auth';
+
+  await redirectAuthenticatedMember();
+
+  const form =
+    document.querySelector<HTMLFormElement>(
+      '#login-form',
+    );
+
+  const emailInput =
+    document.querySelector<HTMLInputElement>(
+      '#email',
+    );
+
+  const passwordInput =
+    document.querySelector<HTMLInputElement>(
+      '#password',
+    );
+
+  const button =
+    document.querySelector<HTMLButtonElement>(
+      '#login-button',
+    );
+
+  const status =
+    document.querySelector<HTMLDivElement>(
+      '#login-status',
+    );
+
+  function showStatus(
+    message: string,
+    type: 'success' | 'error',
+  ) {
+    if (!status) {
+      return;
+    }
+
+    status.textContent =
+      message;
+
+    status.className =
+      `member-status show ${type}`;
+  }
+
+  form?.addEventListener(
+    'submit',
+    async (event) => {
+      event.preventDefault();
+
+      const email =
+        emailInput?.value.trim() ??
+        '';
+
+      const password =
+        passwordInput?.value ??
+        '';
+
+      if (
+        !email ||
+        !password
+      ) {
+        showStatus(
+          'Preencha e-mail e senha.',
+          'error',
+        );
+
+        return;
+      }
+
+      if (button) {
+        button.disabled =
+          true;
+
+        button.textContent =
+          'Entrando...';
+      }
+
+      try {
+        const {
+          error,
+        } =
+          await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+
+        if (error) {
+          showStatus(
+            error.message,
+            'error',
+          );
+
+          return;
+        }
+
+        showStatus(
+          'Login realizado. Abrindo sua área...',
+          'success',
+        );
+
+        window.location.replace(
+          '/colab',
+        );
+      } catch (error) {
+        console.error(
+          '[EVRYLUX] Erro ao realizar login:',
+          error,
+        );
+
+        showStatus(
+          'Não foi possível realizar o login. Tente novamente.',
+          'error',
+        );
+      } finally {
+        if (button) {
+          button.disabled =
+            false;
+
+          button.textContent =
+            'Entrar';
+        }
+      }
+    },
+  );
+</script>
+
+<style>
+  .login-page {
+    min-height:
+      calc(100vh - 160px);
+
+    padding:
+      78px
+      20px
+      96px;
+
+    display: grid;
+
+    place-items:
+      center;
+  }
+
+  .login-wrap {
+    width:
+      min(
+        100%,
+        1040px
+      );
+
+    display: grid;
+
+    grid-template-columns:
+      minmax(0, 1fr)
+      420px;
+
+    align-items:
+      center;
+
+    gap:
+      70px;
+  }
+
+  .login-copy h1 {
+    margin:
+      0;
+
+    max-width:
+      680px;
+
+    font-size:
+      clamp(
+        42px,
+        6vw,
+        72px
+      );
+
+    line-height:
+      0.98;
+
+    letter-spacing:
+      -0.055em;
+  }
+
+  .login-copy p {
+    max-width:
+      610px;
+
+    margin:
+      24px
+      0
+      0;
+
+    color:
+      var(--text-soft);
+
+    font-size:
+      18px;
+
+    line-height:
+      1.75;
+  }
+
+  .login-card {
+    overflow:
+      hidden;
+  }
+
+  .login-card
+  .member-card-inner {
+    padding:
+      34px;
+  }
+
+  .login-brand {
+    display:
+      flex;
+
+    align-items:
+      center;
+
+    gap:
+      10px;
+
+    margin-bottom:
+      34px;
+  }
+
+  .login-brand-mark {
+    width:
+      38px;
+
+    height:
+      38px;
+
+    display:
+      grid;
+
+    place-items:
+      center;
+
+    overflow:
+      hidden;
+
+    border-radius:
+      12px;
+
+    background:
+      linear-gradient(
+        145deg,
+        var(--primary-soft),
+        var(--primary)
+      );
+
+    box-shadow:
+      inset
+      0
+      0
+      0
+      1px
+      rgba(
+        54,
+        92,
+        51,
+        0.06
+      );
+  }
+
+  .login-brand-logo {
+    width:
+      100%;
+
+    height:
+      100%;
+
+    display:
+      block;
+
+    object-fit:
+      contain;
+
+    padding:
+      4px;
+  }
+
+  .login-brand strong {
+    color:
+      var(--text);
+
+    font-size:
+      15px;
+
+    font-weight:
+      850;
+
+    letter-spacing:
+      -0.02em;
+  }
+
+  .login-card h2 {
+    margin:
+      0;
+
+    font-size:
+      28px;
+
+    letter-spacing:
+      -0.03em;
+  }
+
+  .login-card
+  > div
+  > p {
+    margin:
+      8px
+      0
+      26px;
+  }
+
+  .login-note {
+    margin-top:
+      24px;
+
+    padding:
+      16px;
+
+    border-radius:
+      15px;
+
+    background:
+      var(--surface-muted);
+
+    color:
+      var(--text-soft);
+
+    font-size:
+      13px;
+
+    line-height:
+      1.65;
+  }
+
+  .login-note strong,
+  .login-note span {
+    display:
+      block;
+  }
+
+  .login-note strong {
+    margin-bottom:
+      4px;
+
+    color:
+      var(--text);
+  }
+
+  @media (
+    max-width: 900px
+  ) {
+    .login-wrap {
+      grid-template-columns:
+        1fr;
+
+      gap:
+        42px;
+    }
+
+    .login-card {
+      max-width:
+        520px;
+
+      width:
+        100%;
+    }
+  }
+
+  @media (
+    max-width: 560px
+  ) {
+    .login-page {
+      padding:
+        48px
+        18px
+        72px;
+    }
+
+    .login-card
+    .member-card-inner {
+      padding:
+        26px;
+    }
+
+    .login-copy h1 {
+      font-size:
+        clamp(
+          38px,
+          13vw,
+          54px
+        );
+    }
+
+    .login-copy p {
+      font-size:
+        16px;
+    }
+  }
+</style>

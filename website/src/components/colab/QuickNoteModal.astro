@@ -1,0 +1,121 @@
+<div
+  id="quick-note-modal"
+  class="quick-note-modal member-hidden"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="quick-note-modal-title"
+>
+  <button
+    id="quick-note-modal-backdrop"
+    class="quick-note-modal-backdrop"
+    type="button"
+    aria-label="Fechar"
+  ></button>
+
+  <section class="quick-note-modal-card">
+    <div class="quick-note-modal-head">
+      <div>
+        <div class="eyebrow">
+          Notas rápidas
+        </div>
+
+        <h2 id="quick-note-modal-title">
+          Nova nota
+        </h2>
+      </div>
+
+      <button
+        id="quick-note-modal-close"
+        class="quick-note-modal-close"
+        type="button"
+        aria-label="Fechar"
+      >
+        ×
+      </button>
+    </div>
+
+    <form
+      id="quick-note-form"
+      class="quick-note-form"
+    >
+      <input
+        id="quick-note-id"
+        type="hidden"
+      />
+
+      <div class="quick-note-field">
+        <label for="quick-note-title">
+          Título
+        </label>
+
+        <input
+          id="quick-note-title"
+          type="text"
+          maxlength="120"
+          required
+          placeholder="Ex.: Testar sync offline"
+        />
+      </div>
+
+      <div class="quick-note-field">
+        <label for="quick-note-content">
+          Nota
+        </label>
+
+        <textarea
+          id="quick-note-content"
+          maxlength="1600"
+          rows="6"
+          required
+          placeholder="Escreva sua nota..."
+        ></textarea>
+      </div>
+
+      <label class="quick-note-pin-toggle">
+        <input
+          id="quick-note-pinned"
+          type="checkbox"
+        />
+
+        <span>
+          Fixar esta nota
+        </span>
+      </label>
+
+      <div
+        id="quick-note-form-status"
+        class="quick-note-form-status"
+        role="status"
+        aria-live="polite"
+      ></div>
+
+      <div class="quick-note-actions">
+        <button
+          id="quick-note-delete"
+          class="quick-note-button quick-note-button-danger member-hidden"
+          type="button"
+        >
+          Excluir
+        </button>
+
+        <div class="quick-note-actions-right">
+          <button
+            id="quick-note-cancel"
+            class="quick-note-button quick-note-button-secondary"
+            type="button"
+          >
+            Cancelar
+          </button>
+
+          <button
+            id="quick-note-save"
+            class="quick-note-button quick-note-button-primary"
+            type="submit"
+          >
+            Salvar nota
+          </button>
+        </div>
+      </div>
+    </form>
+  </section>
+</div>

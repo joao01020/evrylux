@@ -1,0 +1,291 @@
+<div
+  id="roadmap-modal"
+  class="roadmap-modal member-hidden"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="roadmap-modal-title"
+>
+  <button
+    id="roadmap-modal-backdrop"
+    class="roadmap-modal-backdrop"
+    type="button"
+    aria-label="Fechar"
+  ></button>
+
+  <section class="roadmap-modal-card">
+    <div class="roadmap-modal-head">
+      <div>
+        <div class="eyebrow">
+          Roadmap interno
+        </div>
+
+        <h2 id="roadmap-modal-title">
+          Novo item
+        </h2>
+      </div>
+
+      <button
+        id="roadmap-modal-close"
+        class="roadmap-modal-close"
+        type="button"
+        aria-label="Fechar"
+      >
+        ×
+      </button>
+    </div>
+
+    <form
+      id="roadmap-form"
+      class="roadmap-form"
+    >
+      <input
+        id="roadmap-item-id"
+        type="hidden"
+      />
+
+      <div class="roadmap-main-grid">
+        <div class="roadmap-field roadmap-title-field">
+          <label for="roadmap-title">
+            Título
+          </label>
+
+          <input
+            id="roadmap-title"
+            type="text"
+            maxlength="140"
+            required
+            placeholder="Ex.: Finalizar presença online"
+          />
+        </div>
+
+        <div class="roadmap-field">
+          <label for="roadmap-description">
+            Descrição
+          </label>
+
+          <textarea
+            id="roadmap-description"
+            maxlength="1200"
+            rows="2"
+            placeholder="Explique rapidamente o que precisa ser feito."
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="roadmap-visual-grid">
+        <div class="roadmap-visual-control">
+          <div class="roadmap-control-head">
+            <span>
+              Etapa
+            </span>
+
+            <strong id="roadmap-stage-value">
+              Agora
+            </strong>
+          </div>
+
+          <input
+            id="roadmap-stage-range"
+            class="roadmap-range"
+            type="range"
+            min="0"
+            max="3"
+            step="1"
+            value="0"
+            aria-label="Etapa do roadmap"
+          />
+
+          <div class="roadmap-range-labels roadmap-stage-labels">
+            <span>Agora</span>
+            <span>Próximo</span>
+            <span>Depois</span>
+            <span>Concluído</span>
+          </div>
+
+          <select
+            id="roadmap-stage"
+            class="roadmap-hidden-select"
+            tabindex="-1"
+            aria-hidden="true"
+          >
+            <option value="now">Agora</option>
+            <option value="next">Próximo</option>
+            <option value="later">Depois</option>
+            <option value="done">Concluído</option>
+          </select>
+        </div>
+
+        <div class="roadmap-visual-control">
+          <div class="roadmap-control-head">
+            <span>
+              Prioridade
+            </span>
+
+            <strong id="roadmap-priority-value">
+              Média
+            </strong>
+          </div>
+
+          <input
+            id="roadmap-priority-range"
+            class="roadmap-range roadmap-priority-range"
+            type="range"
+            min="0"
+            max="2"
+            step="1"
+            value="1"
+            aria-label="Prioridade"
+          />
+
+          <div class="roadmap-range-labels roadmap-priority-labels">
+            <span>Baixa</span>
+            <span>Média</span>
+            <span>Alta</span>
+          </div>
+
+          <select
+            id="roadmap-priority"
+            class="roadmap-hidden-select"
+            tabindex="-1"
+            aria-hidden="true"
+          >
+            <option value="low">Baixa</option>
+            <option value="medium" selected>Média</option>
+            <option value="high">Alta</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="roadmap-form-grid roadmap-compact-grid">
+        <div class="roadmap-field">
+          <label for="roadmap-status">
+            Status
+          </label>
+
+          <select id="roadmap-status">
+            <option value="todo">
+              A fazer
+            </option>
+            <option value="in_progress">
+              Em andamento
+            </option>
+            <option value="blocked">
+              Bloqueado
+            </option>
+            <option value="done">
+              Concluído
+            </option>
+          </select>
+        </div>
+
+        <div class="roadmap-field">
+          <label for="roadmap-assignee">
+            Responsável
+          </label>
+
+          <select id="roadmap-assignee">
+            <option value="">
+              Sem responsável
+            </option>
+          </select>
+        </div>
+
+        <div class="roadmap-field">
+          <label for="roadmap-area">
+            Área
+          </label>
+
+          <input
+            id="roadmap-area"
+            type="text"
+            maxlength="120"
+            placeholder="Ex.: Frontend"
+          />
+        </div>
+
+        <div class="roadmap-field">
+          <label for="roadmap-due-date">
+            Prazo
+          </label>
+
+          <input
+            id="roadmap-due-date"
+            type="date"
+          />
+        </div>
+      </div>
+
+      <div class="roadmap-progress-row">
+        <div class="roadmap-field roadmap-progress-field">
+          <div class="roadmap-control-head">
+            <label for="roadmap-progress">
+              Progresso
+            </label>
+
+            <strong id="roadmap-progress-value">
+              0%
+            </strong>
+          </div>
+
+          <input
+            id="roadmap-progress"
+            class="roadmap-range"
+            type="range"
+            min="0"
+            max="100"
+            step="5"
+            value="0"
+          />
+        </div>
+
+        <div class="roadmap-field roadmap-notes-field">
+          <label for="roadmap-notes">
+            Observações
+          </label>
+
+          <textarea
+            id="roadmap-notes"
+            maxlength="1200"
+            rows="2"
+            placeholder="Opcional"
+          ></textarea>
+        </div>
+      </div>
+
+      <div
+        id="roadmap-form-status"
+        class="roadmap-form-status"
+        role="status"
+        aria-live="polite"
+      ></div>
+
+      <div class="roadmap-modal-actions">
+        <button
+          id="roadmap-delete"
+          class="roadmap-button roadmap-button-danger member-hidden"
+          type="button"
+        >
+          Excluir
+        </button>
+
+        <div class="roadmap-modal-actions-right">
+          <button
+            id="roadmap-cancel"
+            class="roadmap-button roadmap-button-secondary"
+            type="button"
+          >
+            Cancelar
+          </button>
+
+          <button
+            id="roadmap-save"
+            class="roadmap-button roadmap-button-primary"
+            type="submit"
+          >
+            Criar item
+          </button>
+        </div>
+      </div>
+    </form>
+  </section>
+</div>

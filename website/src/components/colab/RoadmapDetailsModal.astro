@@ -1,0 +1,134 @@
+<div
+  id="roadmap-details-modal"
+  class="roadmap-details-modal member-hidden"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="roadmap-details-title"
+>
+  <button
+    id="roadmap-details-backdrop"
+    class="roadmap-details-backdrop"
+    type="button"
+    aria-label="Fechar detalhes"
+  ></button>
+
+  <section class="roadmap-details-card">
+    <div class="roadmap-details-head">
+      <div>
+        <div
+          id="roadmap-details-badges"
+          class="roadmap-details-badges"
+        ></div>
+
+        <h2 id="roadmap-details-title">
+          Item do roadmap
+        </h2>
+
+        <p
+          id="roadmap-details-description"
+          class="roadmap-details-description"
+        ></p>
+      </div>
+
+      <button
+        id="roadmap-details-close"
+        class="roadmap-details-close"
+        type="button"
+        aria-label="Fechar"
+      >
+        ×
+      </button>
+    </div>
+
+    <div class="roadmap-details-grid">
+      <div class="roadmap-detail-box">
+        <span>
+          Responsável
+        </span>
+
+        <div class="roadmap-detail-assignee">
+          <span
+            id="roadmap-details-avatar"
+            class="roadmap-detail-avatar"
+          ></span>
+
+          <strong
+            id="roadmap-details-assignee"
+          ></strong>
+        </div>
+      </div>
+
+      <div class="roadmap-detail-box">
+        <span>
+          Área
+        </span>
+
+        <strong
+          id="roadmap-details-area"
+        ></strong>
+      </div>
+
+      <div class="roadmap-detail-box">
+        <span>
+          Prazo
+        </span>
+
+        <strong
+          id="roadmap-details-due-date"
+        ></strong>
+      </div>
+
+      <div class="roadmap-detail-box">
+        <span>
+          Etapa
+        </span>
+
+        <strong
+          id="roadmap-details-stage"
+        ></strong>
+      </div>
+    </div>
+
+    <div class="roadmap-details-progress">
+      <div class="roadmap-progress-head">
+        <span>
+          Progresso
+        </span>
+
+        <strong
+          id="roadmap-details-progress-label"
+        >
+          0%
+        </strong>
+      </div>
+
+      <div class="roadmap-progress-track">
+        <span
+          id="roadmap-details-progress-fill"
+          class="roadmap-progress-fill"
+        ></span>
+      </div>
+    </div>
+
+    <div
+      id="roadmap-details-notes-wrap"
+      class="roadmap-details-notes member-hidden"
+    >
+      <span>
+        Observações
+      </span>
+
+      <p id="roadmap-details-notes"></p>
+    </div>
+
+    <div class="roadmap-details-actions">
+      <button
+        id="roadmap-details-edit"
+        class="roadmap-button roadmap-button-primary"
+        type="button"
+      >
+        Editar item
+      </button>
+    </div>
+  </section>
+</div>

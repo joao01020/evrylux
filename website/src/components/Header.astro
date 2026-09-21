@@ -1,47 +1,631 @@
 ---
 const nav = [
-  { label: 'Produto', href: '/' },
-  { label: 'Colaboradores', href: '/contributors' },
-  { label: 'Download', href: '/download' },
-  { label: 'Roadmap', href: '/roadmap' },
-  { label: 'Licença', href: '/license' },
+  {
+    label: 'Produto',
+    href: '/',
+  },
+  {
+    label: 'Colaboradores',
+    href: '/contributors',
+  },
+  {
+    label: 'Download',
+    href: '/download',
+  },
+  {
+    label: 'Roadmap',
+    href: '/roadmap',
+  },
+  {
+    label: 'Licença',
+    href: '/license',
+  },
 ];
 ---
 
 <header class="site-header">
   <div class="container header-inner">
-    <a class="brand" href="/" aria-label="EVRYLUX">
-      <span class="brand-mark">E</span>
-      <span>EVRYLUX</span>
+    <a
+      class="brand"
+      href="/"
+      aria-label="EVRYLUX"
+    >
+      <span class="brand-mark">
+        <img
+          src="/branding/evrylux-logo.png"
+          alt="EVRYLUX"
+          class="brand-logo"
+        />
+      </span>
+
+      <span class="brand-name">
+        EVRYLUX
+      </span>
     </a>
 
-    <nav class="nav" aria-label="Navegação principal">
-      {nav.map((item) => <a href={item.href}>{item.label}</a>)}
+    <nav
+      class="nav"
+      aria-label="Navegação principal"
+    >
+      {
+        nav.map(
+          (item) => (
+            <a href={item.href}>
+              {item.label}
+            </a>
+          ),
+        )
+      }
     </nav>
 
-    <a class="github" href="#" aria-label="GitHub do projeto">GitHub ↗</a>
+    <div class="header-actions">
+      <a
+        class="github"
+        href="https://github.com/joao01020/ghost-core"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="GitHub do projeto EVRYLUX"
+      >
+        <span>
+          GitHub
+        </span>
+
+        <span
+          class="external-arrow"
+          aria-hidden="true"
+        >
+          ↗
+        </span>
+      </a>
+
+      <a
+        id="collaborator-access"
+        class="collaborator-access"
+        href="/login"
+        aria-label="Entrar na área de colaboradores"
+      >
+        <span
+          id="collaborator-access-icon"
+          class="collaborator-access-icon"
+          aria-hidden="true"
+        >
+          ↗
+        </span>
+
+        <span id="collaborator-access-label">
+          Entrar
+        </span>
+      </a>
+    </div>
   </div>
 </header>
 
+<script>
+  import {
+    supabase,
+  } from '../lib/supabase';
+
+  const collaboratorAccess =
+    document.querySelector<HTMLAnchorElement>(
+      '#collaborator-access',
+    );
+
+  const collaboratorAccessLabel =
+    document.querySelector<HTMLElement>(
+      '#collaborator-access-label',
+    );
+
+  const collaboratorAccessIcon =
+    document.querySelector<HTMLElement>(
+      '#collaborator-access-icon',
+    );
+
+  function updateCollaboratorAccess(
+    authenticated: boolean,
+  ) {
+    if (
+      !collaboratorAccess ||
+      !collaboratorAccessLabel ||
+      !collaboratorAccessIcon
+    ) {
+      return;
+    }
+
+    if (authenticated) {
+      collaboratorAccess.href =
+        '/colab';
+
+      collaboratorAccessLabel.textContent =
+        'Minha área';
+
+      collaboratorAccessIcon.textContent =
+        '●';
+
+      collaboratorAccess.classList.add(
+        'authenticated',
+      );
+
+      collaboratorAccess.setAttribute(
+        'aria-label',
+        'Abrir minha área de colaborador',
+      );
+
+      return;
+    }
+
+    collaboratorAccess.href =
+      '/login';
+
+    collaboratorAccessLabel.textContent =
+      'Entrar';
+
+    collaboratorAccessIcon.textContent =
+      '↗';
+
+    collaboratorAccess.classList.remove(
+      'authenticated',
+    );
+
+    collaboratorAccess.setAttribute(
+      'aria-label',
+      'Entrar na área de colaboradores',
+    );
+  }
+
+  async function loadCollaboratorState() {
+    try {
+      const {
+        data: {
+          session,
+        },
+      } =
+        await supabase.auth.getSession();
+
+      updateCollaboratorAccess(
+        Boolean(session),
+      );
+    } catch (error) {
+      console.warn(
+        '[EVRYLUX] Não foi possível verificar a sessão:',
+        error,
+      );
+
+      updateCollaboratorAccess(
+        false,
+      );
+    }
+  }
+
+  await loadCollaboratorState();
+
+  supabase.auth.onAuthStateChange(
+    (
+      _event,
+      session,
+    ) => {
+      updateCollaboratorAccess(
+        Boolean(session),
+      );
+    },
+  );
+</script>
+
 <style>
-.site-header {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  padding: 14px 0;
-  backdrop-filter: blur(18px);
-  background: rgba(247, 251, 244, 0.72);
-  border-bottom: 1px solid rgba(65, 104, 62, 0.08);
-}
-.header-inner { display:flex; align-items:center; justify-content:space-between; gap:22px; }
-.brand { display:inline-flex; align-items:center; gap:10px; font-weight:850; letter-spacing:-.02em; }
-.brand-mark {
-  width:34px; height:34px; display:grid; place-items:center; border-radius:11px;
-  background:linear-gradient(145deg,var(--primary-soft),var(--primary)); color:var(--primary-deep);
-}
-.nav { display:flex; align-items:center; gap:6px; }
-.nav a,.github { padding:10px 12px; border-radius:12px; color:var(--text-soft); font-size:14px; font-weight:650; }
-.nav a:hover,.github:hover { color:var(--text); background:rgba(255,255,255,.72); }
-.github { color:var(--primary-deep); }
-@media (max-width:900px){ .nav{display:none;} }
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+
+    padding: 14px 0;
+
+    background:
+      rgba(
+        247,
+        251,
+        244,
+        0.78
+      );
+
+    border-bottom:
+      1px solid
+      rgba(
+        65,
+        104,
+        62,
+        0.08
+      );
+
+    backdrop-filter:
+      blur(18px);
+
+    -webkit-backdrop-filter:
+      blur(18px);
+  }
+
+  .header-inner {
+    display: flex;
+
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 22px;
+  }
+
+  .brand {
+    flex: 0 0 auto;
+
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    font-weight: 850;
+
+    letter-spacing:
+      -0.02em;
+  }
+
+  .brand-mark {
+    width: 34px;
+    height: 34px;
+
+    display: grid;
+
+    place-items: center;
+
+    overflow: hidden;
+
+    border-radius: 11px;
+
+    background:
+      linear-gradient(
+        145deg,
+        var(--primary-soft),
+        var(--primary)
+      );
+
+    box-shadow:
+      inset 0 0 0 1px
+      rgba(
+        54,
+        92,
+        51,
+        0.06
+      );
+  }
+
+  .brand-logo {
+    width: 100%;
+    height: 100%;
+
+    display: block;
+
+    object-fit: contain;
+
+    padding: 4px;
+  }
+
+  .brand-name {
+    color:
+      var(--text);
+  }
+
+  .nav {
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    gap: 4px;
+  }
+
+  .nav a {
+    padding:
+      10px
+      12px;
+
+    border-radius:
+      12px;
+
+    color:
+      var(--text-soft);
+
+    font-size:
+      14px;
+
+    font-weight:
+      650;
+
+    transition:
+      color 0.2s ease,
+      background 0.2s ease;
+  }
+
+  .nav a:hover {
+    color:
+      var(--text);
+
+    background:
+      rgba(
+        255,
+        255,
+        255,
+        0.72
+      );
+  }
+
+  .header-actions {
+    flex: 0 0 auto;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+  }
+
+  .github {
+    min-height: 42px;
+
+    padding:
+      0
+      12px;
+
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 7px;
+
+    border-radius:
+      12px;
+
+    color:
+      var(--primary-deep);
+
+    font-size:
+      14px;
+
+    font-weight:
+      700;
+
+    transition:
+      color 0.2s ease,
+      background 0.2s ease;
+  }
+
+  .github:hover {
+    color:
+      var(--text);
+
+    background:
+      rgba(
+        255,
+        255,
+        255,
+        0.72
+      );
+  }
+
+  .external-arrow {
+    font-size:
+      14px;
+
+    transition:
+      transform 0.2s ease;
+  }
+
+  .github:hover
+  .external-arrow {
+    transform:
+      translate(
+        2px,
+        -2px
+      );
+  }
+
+  .collaborator-access {
+    min-height: 42px;
+
+    padding:
+      0
+      15px;
+
+    display: inline-flex;
+
+    align-items: center;
+    justify-content: center;
+
+    gap: 8px;
+
+    border:
+      1px solid
+      rgba(
+        65,
+        104,
+        62,
+        0.14
+      );
+
+    border-radius:
+      13px;
+
+    background:
+      rgba(
+        255,
+        255,
+        255,
+        0.76
+      );
+
+    color:
+      var(--text);
+
+    box-shadow:
+      0 7px 22px
+      rgba(
+        54,
+        92,
+        51,
+        0.045
+      );
+
+    font-size:
+      14px;
+
+    font-weight:
+      750;
+
+    transition:
+      transform 0.2s ease,
+      background 0.2s ease,
+      border-color 0.2s ease,
+      box-shadow 0.2s ease;
+  }
+
+  .collaborator-access:hover {
+    transform:
+      translateY(-1px);
+
+    background:
+      var(--surface-solid);
+
+    border-color:
+      var(--border-strong);
+
+    box-shadow:
+      0 9px 26px
+      rgba(
+        54,
+        92,
+        51,
+        0.08
+      );
+  }
+
+  .collaborator-access-icon {
+    width: 21px;
+    height: 21px;
+
+    display: grid;
+
+    place-items: center;
+
+    border-radius:
+      7px;
+
+    background:
+      var(--primary-soft);
+
+    color:
+      var(--primary-deep);
+
+    font-size:
+      11px;
+
+    font-weight:
+      900;
+  }
+
+  .collaborator-access.authenticated {
+    background:
+      linear-gradient(
+        180deg,
+        rgba(
+          223,
+          241,
+          218,
+          0.9
+        ),
+        rgba(
+          204,
+          232,
+          197,
+          0.86
+        )
+      );
+
+    border-color:
+      rgba(
+        95,
+        157,
+        89,
+        0.18
+      );
+
+    color:
+      var(--primary-deep);
+  }
+
+  .collaborator-access.authenticated
+  .collaborator-access-icon {
+    background:
+      var(--primary);
+
+    color:
+      var(--primary-deep);
+  }
+
+  @media (
+    max-width: 1040px
+  ) {
+    .nav {
+      gap: 0;
+    }
+
+    .nav a {
+      padding:
+        10px
+        8px;
+
+      font-size:
+        13px;
+    }
+
+    .github span:first-child {
+      display: none;
+    }
+  }
+
+  @media (
+    max-width: 880px
+  ) {
+    .nav {
+      display: none;
+    }
+
+    .header-inner {
+      gap: 12px;
+    }
+  }
+
+  @media (
+    max-width: 520px
+  ) {
+    .site-header {
+      padding:
+        11px
+        0;
+    }
+
+    .brand-name {
+      display: none;
+    }
+
+    .github {
+      width: 40px;
+
+      padding: 0;
+
+      justify-content:
+        center;
+    }
+
+    .collaborator-access {
+      padding:
+        0
+        12px;
+    }
+  }
 </style>

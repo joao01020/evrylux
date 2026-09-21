@@ -5,22 +5,47 @@ import Footer from '../components/Footer.astro';
 
 const {
   title = 'EVRYLUX',
-  description = 'EVRYLUX transforma conceitos, perguntas, revisões e conexões em um sistema de conhecimento vivo.',
+  description =
+    'EVRYLUX transforma conceitos, perguntas, revisões e conexões em um sistema de conhecimento vivo.',
 } = Astro.props;
 ---
 
 <!doctype html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width" />
-    <meta name="description" content={description} />
-    <meta name="theme-color" content="#f7fbf4" />
-    <title>{title}</title>
-  </head>
+ <head>
+  <meta charset="UTF-8" />
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  />
+
+  <meta
+    name="description"
+    content={description}
+  />
+
+  <meta
+    name="theme-color"
+    content="#f7fbf4"
+  />
+
+  <link
+    rel="icon"
+    href="/favicon.ico"
+    sizes="any"
+  />
+
+  <title>{title}</title>
+</head>
+
   <body>
     <Header />
-    <div class="page-shell"><slot /></div>
+
+    <div class="page-shell">
+      <slot />
+    </div>
+
     <Footer />
   </body>
 </html>

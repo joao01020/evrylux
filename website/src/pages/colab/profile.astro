@@ -1,0 +1,544 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import ColabNav from '../../components/colab/ColabNav.astro';
+import '../../styles/members.css';
+---
+
+<Layout
+  title="Meu perfil — EVRYLUX Colab"
+  description="Perfil interno de colaborador do projeto EVRYLUX."
+>
+  <main class="member-shell">
+    <div
+      id="profile-loading"
+      class="member-container member-loading"
+    >
+      Carregando perfil...
+    </div>
+
+    <div
+      id="profile-content"
+      class="member-container member-hidden"
+    >
+      <div class="member-topbar">
+        <div class="member-title-block">
+          <div class="eyebrow">
+            EVRYLUX Colab
+          </div>
+
+          <h1>
+            Meu perfil
+          </h1>
+
+          <p>
+            Essas informações serão usadas para organizar
+            sua participação como colaborador no projeto.
+          </p>
+        </div>
+
+        <ColabNav />
+      </div>
+
+      <div class="member-grid">
+        <section class="member-card">
+          <div class="member-card-inner">
+            <form
+              id="profile-form"
+              class="member-form"
+            >
+              <div class="member-row">
+                <div class="member-field">
+                  <label for="display-name">
+                    Nome público
+                  </label>
+
+                  <input
+                    id="display-name"
+                    type="text"
+                    maxlength="80"
+                    placeholder="Como você quer aparecer"
+                  />
+                </div>
+
+                <div class="member-field">
+                  <label for="github-login">
+                    GitHub
+                  </label>
+
+                  <input
+                    id="github-login"
+                    type="text"
+                    maxlength="80"
+                    placeholder="seu-usuario"
+                  />
+                </div>
+              </div>
+
+              <div class="member-field">
+                <label for="bio">
+                  Sobre você
+                </label>
+
+                <textarea
+                  id="bio"
+                  maxlength="500"
+                  placeholder="Uma descrição curta sobre você e sua participação no projeto."
+                ></textarea>
+              </div>
+
+              <div class="member-row">
+                <div class="member-field">
+                  <label for="area">
+                    Área principal
+                  </label>
+
+                  <input
+                    id="area"
+                    type="text"
+                    maxlength="120"
+                    placeholder="Ex.: Flutter / UI / Backend / Docs"
+                  />
+                </div>
+
+                <div class="member-field">
+                  <label for="availability">
+                    Disponibilidade
+                  </label>
+
+                  <input
+                    id="availability"
+                    type="text"
+                    maxlength="120"
+                    placeholder="Ex.: fins de semana"
+                  />
+                </div>
+              </div>
+
+              <div class="member-field">
+                <label for="skills">
+                  Tecnologias / habilidades
+                </label>
+
+                <input
+                  id="skills"
+                  type="text"
+                  maxlength="240"
+                  placeholder="Flutter, Dart, Astro, Supabase..."
+                />
+              </div>
+
+              <div class="member-field">
+                <label for="avatar-url">
+                  URL da foto/avatar
+                </label>
+
+                <input
+                  id="avatar-url"
+                  type="url"
+                  maxlength="500"
+                  placeholder="https://..."
+                />
+              </div>
+
+              <button
+                id="save-profile"
+                class="member-button member-button-primary"
+                type="submit"
+              >
+                Salvar perfil
+              </button>
+            </form>
+
+            <div
+              id="profile-status"
+              class="member-status"
+              role="status"
+            ></div>
+          </div>
+        </section>
+
+        <aside class="member-card">
+          <div class="member-card-inner">
+            <div class="member-profile-head">
+              <div
+                id="profile-avatar-placeholder"
+                class="member-avatar-placeholder"
+              >
+                E
+              </div>
+
+              <img
+                id="profile-avatar-preview"
+                class="member-avatar member-hidden"
+                alt=""
+              />
+
+              <div>
+                <span class="member-badge">
+                  Perfil
+                </span>
+
+                <h2 id="preview-name">
+                  Colaborador EVRYLUX
+                </h2>
+
+                <p
+                  id="preview-github"
+                  class="member-muted"
+                >
+                  GitHub não informado
+                </p>
+              </div>
+            </div>
+
+            <p
+              id="preview-bio"
+              class="profile-preview-bio"
+            >
+              Sua descrição aparecerá aqui.
+            </p>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  import {
+    supabase,
+  } from '../../lib/supabase';
+
+  import {
+    requireMemberSession,
+  } from '../../lib/member-auth';
+
+  const session =
+    await requireMemberSession();
+
+  const loading =
+    document.querySelector<HTMLElement>(
+      '#profile-loading',
+    );
+
+  const content =
+    document.querySelector<HTMLElement>(
+      '#profile-content',
+    );
+
+  const form =
+    document.querySelector<HTMLFormElement>(
+      '#profile-form',
+    );
+
+  const displayName =
+    document.querySelector<HTMLInputElement>(
+      '#display-name',
+    );
+
+  const githubLogin =
+    document.querySelector<HTMLInputElement>(
+      '#github-login',
+    );
+
+  const bio =
+    document.querySelector<HTMLTextAreaElement>(
+      '#bio',
+    );
+
+  const area =
+    document.querySelector<HTMLInputElement>(
+      '#area',
+    );
+
+  const availability =
+    document.querySelector<HTMLInputElement>(
+      '#availability',
+    );
+
+  const skills =
+    document.querySelector<HTMLInputElement>(
+      '#skills',
+    );
+
+  const avatarUrl =
+    document.querySelector<HTMLInputElement>(
+      '#avatar-url',
+    );
+
+  const saveButton =
+    document.querySelector<HTMLButtonElement>(
+      '#save-profile',
+    );
+
+  const status =
+    document.querySelector<HTMLDivElement>(
+      '#profile-status',
+    );
+
+  const previewName =
+    document.querySelector<HTMLElement>(
+      '#preview-name',
+    );
+
+  const previewGithub =
+    document.querySelector<HTMLElement>(
+      '#preview-github',
+    );
+
+  const previewBio =
+    document.querySelector<HTMLElement>(
+      '#preview-bio',
+    );
+
+  const previewAvatar =
+    document.querySelector<HTMLImageElement>(
+      '#profile-avatar-preview',
+    );
+
+  const previewPlaceholder =
+    document.querySelector<HTMLElement>(
+      '#profile-avatar-placeholder',
+    );
+
+  function showStatus(
+    message: string,
+    type: 'success' | 'error',
+  ) {
+    if (!status) {
+      return;
+    }
+
+    status.textContent = message;
+    status.className =
+      `member-status show ${type}`;
+  }
+
+  function updatePreview() {
+    if (previewName) {
+      previewName.textContent =
+        displayName?.value.trim() ||
+        'Colaborador EVRYLUX';
+    }
+
+    if (previewGithub) {
+      previewGithub.textContent =
+        githubLogin?.value.trim()
+          ? `@${githubLogin.value.trim()}`
+          : 'GitHub não informado';
+    }
+
+    if (previewBio) {
+      previewBio.textContent =
+        bio?.value.trim() ||
+        'Sua descrição aparecerá aqui.';
+    }
+
+    const avatar =
+      avatarUrl?.value.trim();
+
+    if (
+      avatar &&
+      previewAvatar
+    ) {
+      previewAvatar.src =
+        avatar;
+
+      previewAvatar.alt =
+        `Avatar de ${displayName?.value.trim() || 'colaborador EVRYLUX'}`;
+
+      previewAvatar.classList.remove(
+        'member-hidden',
+      );
+
+      previewPlaceholder?.classList.add(
+        'member-hidden',
+      );
+    } else {
+      previewAvatar?.classList.add(
+        'member-hidden',
+      );
+
+      previewPlaceholder?.classList.remove(
+        'member-hidden',
+      );
+    }
+  }
+
+  [
+    displayName,
+    githubLogin,
+    bio,
+    avatarUrl,
+  ].forEach(
+    (input) => {
+      input?.addEventListener(
+        'input',
+        updatePreview,
+      );
+    },
+  );
+
+  if (session) {
+    const {
+      data: profile,
+      error,
+    } =
+      await supabase
+        .from('member_profiles')
+        .select(
+          'display_name, github_login, bio, avatar_url, area, skills, availability',
+        )
+        .eq(
+          'user_id',
+          session.user.id,
+        )
+        .maybeSingle();
+
+    if (error) {
+      showStatus(
+        `Não foi possível carregar o perfil: ${error.message}`,
+        'error',
+      );
+    }
+
+    if (profile) {
+      if (displayName) {
+        displayName.value =
+          profile.display_name ?? '';
+      }
+
+      if (githubLogin) {
+        githubLogin.value =
+          profile.github_login ?? '';
+      }
+
+      if (bio) {
+        bio.value =
+          profile.bio ?? '';
+      }
+
+      if (area) {
+        area.value =
+          profile.area ?? '';
+      }
+
+      if (availability) {
+        availability.value =
+          profile.availability ?? '';
+      }
+
+      if (skills) {
+        skills.value =
+          profile.skills ?? '';
+      }
+
+      if (avatarUrl) {
+        avatarUrl.value =
+          profile.avatar_url ?? '';
+      }
+    }
+
+    updatePreview();
+
+    loading?.classList.add(
+      'member-hidden',
+    );
+
+    content?.classList.remove(
+      'member-hidden',
+    );
+  }
+
+  form?.addEventListener(
+    'submit',
+    async (event) => {
+      event.preventDefault();
+
+      if (!session) {
+        return;
+      }
+
+      if (saveButton) {
+        saveButton.disabled = true;
+        saveButton.textContent =
+          'Salvando...';
+      }
+
+      const {
+        error,
+      } =
+        await supabase
+          .from('member_profiles')
+          .upsert(
+            {
+              user_id:
+                session.user.id,
+
+              display_name:
+                displayName?.value.trim() ||
+                null,
+
+              github_login:
+                githubLogin?.value.trim() ||
+                null,
+
+              bio:
+                bio?.value.trim() ||
+                null,
+
+              avatar_url:
+                avatarUrl?.value.trim() ||
+                null,
+
+              area:
+                area?.value.trim() ||
+                null,
+
+              skills:
+                skills?.value.trim() ||
+                null,
+
+              availability:
+                availability?.value.trim() ||
+                null,
+
+              updated_at:
+                new Date().toISOString(),
+            },
+            {
+              onConflict:
+                'user_id',
+            },
+          );
+
+      if (error) {
+        showStatus(
+          error.message,
+          'error',
+        );
+      } else {
+        showStatus(
+          'Perfil atualizado.',
+          'success',
+        );
+
+        updatePreview();
+      }
+
+      if (saveButton) {
+        saveButton.disabled = false;
+        saveButton.textContent =
+          'Salvar perfil';
+      }
+    },
+  );
+</script>
+
+<style>
+  .profile-preview-bio {
+    margin: 24px 0 0;
+    color: var(--text-soft);
+    line-height: 1.75;
+  }
+</style>

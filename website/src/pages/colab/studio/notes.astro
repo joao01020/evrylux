@@ -1,0 +1,1276 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import ColabNav from '../../../components/colab/ColabNav.astro';
+import QuickNoteCard from '../../../components/colab/QuickNoteCard.astro';
+import QuickNoteModal from '../../../components/colab/QuickNoteModal.astro';
+import '../../../styles/members.css';
+---
+
+<Layout
+  title="Notas rápidas — EVRYLUX Colab"
+  description="Notas rápidas compartilhadas do projeto EVRYLUX."
+>
+  <main class="member-shell">
+    <div
+      id="notes-loading"
+      class="member-container member-loading"
+    >
+      Carregando notas...
+    </div>
+
+    <div
+      id="notes-content"
+      class="member-container member-hidden"
+    >
+      <div class="member-topbar">
+        <div class="member-title-block">
+          <div class="eyebrow">
+            Studio / Notas rápidas
+          </div>
+
+          <h1>
+            Notas rápidas
+          </h1>
+
+          <p>
+            Ideias, lembretes e observações compartilhadas pela equipe.
+          </p>
+        </div>
+
+        <ColabNav />
+      </div>
+
+      <div class="notes-toolbar">
+        <div class="notes-summary">
+          <span id="notes-count">
+            0 notas
+          </span>
+
+          <span id="notes-pinned-count">
+            0 fixadas
+          </span>
+        </div>
+
+        <button
+          id="new-note"
+          class="notes-new-button"
+          type="button"
+        >
+          <span>＋</span>
+          Nova nota
+        </button>
+      </div>
+
+      <div
+        id="notes-error"
+        class="notes-error member-hidden"
+        role="status"
+      ></div>
+
+      <section
+        id="pinned-section"
+        class="notes-section member-hidden"
+      >
+        <div class="notes-section-head">
+          <div>
+            <span class="notes-section-kicker">
+              Importantes
+            </span>
+
+            <h2>
+              Fixadas
+            </h2>
+          </div>
+        </div>
+
+        <div
+          id="pinned-notes"
+          class="notes-grid"
+        ></div>
+      </section>
+
+      <section class="notes-section">
+        <div class="notes-section-head">
+          <div>
+            <span class="notes-section-kicker">
+              Compartilhadas
+            </span>
+
+            <h2>
+              Recentes
+            </h2>
+          </div>
+        </div>
+
+        <div
+          id="recent-notes"
+          class="notes-grid"
+        ></div>
+      </section>
+    </div>
+
+    <QuickNoteCard />
+    <QuickNoteModal />
+  </main>
+</Layout>
+
+<script>
+  import {
+    requireMemberSession,
+  } from '../../../lib/member-auth';
+
+  import {
+    createQuickNote,
+    deleteQuickNote,
+    getQuickNotes,
+    updateQuickNote,
+    type QuickNote,
+    type QuickNoteInput,
+  } from '../../../lib/colab-notes';
+
+  import {
+    getCollaboratorProfiles,
+    type CollaboratorProfile,
+  } from '../../../lib/colab-roadmap';
+
+  const session =
+    await requireMemberSession();
+
+  const loading =
+    document.querySelector<HTMLElement>(
+      '#notes-loading',
+    );
+
+  const content =
+    document.querySelector<HTMLElement>(
+      '#notes-content',
+    );
+
+  const errorBox =
+    document.querySelector<HTMLElement>(
+      '#notes-error',
+    );
+
+  const newButton =
+    document.querySelector<HTMLButtonElement>(
+      '#new-note',
+    );
+
+  const notesCount =
+    document.querySelector<HTMLElement>(
+      '#notes-count',
+    );
+
+  const pinnedCount =
+    document.querySelector<HTMLElement>(
+      '#notes-pinned-count',
+    );
+
+  const pinnedSection =
+    document.querySelector<HTMLElement>(
+      '#pinned-section',
+    );
+
+  const pinnedNotes =
+    document.querySelector<HTMLElement>(
+      '#pinned-notes',
+    );
+
+  const recentNotes =
+    document.querySelector<HTMLElement>(
+      '#recent-notes',
+    );
+
+  const cardTemplate =
+    document.querySelector<HTMLTemplateElement>(
+      '#quick-note-card-template',
+    );
+
+  const modal =
+    document.querySelector<HTMLElement>(
+      '#quick-note-modal',
+    );
+
+  const modalBackdrop =
+    document.querySelector<HTMLButtonElement>(
+      '#quick-note-modal-backdrop',
+    );
+
+  const modalClose =
+    document.querySelector<HTMLButtonElement>(
+      '#quick-note-modal-close',
+    );
+
+  const modalCancel =
+    document.querySelector<HTMLButtonElement>(
+      '#quick-note-cancel',
+    );
+
+  const modalTitle =
+    document.querySelector<HTMLElement>(
+      '#quick-note-modal-title',
+    );
+
+  const form =
+    document.querySelector<HTMLFormElement>(
+      '#quick-note-form',
+    );
+
+  const noteId =
+    document.querySelector<HTMLInputElement>(
+      '#quick-note-id',
+    );
+
+  const titleInput =
+    document.querySelector<HTMLInputElement>(
+      '#quick-note-title',
+    );
+
+  const contentInput =
+    document.querySelector<HTMLTextAreaElement>(
+      '#quick-note-content',
+    );
+
+  const pinnedInput =
+    document.querySelector<HTMLInputElement>(
+      '#quick-note-pinned',
+    );
+
+  const saveButton =
+    document.querySelector<HTMLButtonElement>(
+      '#quick-note-save',
+    );
+
+  const deleteButton =
+    document.querySelector<HTMLButtonElement>(
+      '#quick-note-delete',
+    );
+
+  const formStatus =
+    document.querySelector<HTMLElement>(
+      '#quick-note-form-status',
+    );
+
+  let notes:
+    QuickNote[] =
+      [];
+
+  let collaborators:
+    CollaboratorProfile[] =
+      [];
+
+  function showError(
+    message: string,
+  ) {
+    if (!errorBox) {
+      return;
+    }
+
+    errorBox.textContent =
+      message;
+
+    errorBox.classList.remove(
+      'member-hidden',
+    );
+  }
+
+  function clearError() {
+    errorBox?.classList.add(
+      'member-hidden',
+    );
+  }
+
+  function showFormStatus(
+    message: string,
+    type:
+      'error' |
+      'success' |
+      '',
+  ) {
+    if (!formStatus) {
+      return;
+    }
+
+    formStatus.textContent =
+      message;
+
+    formStatus.className =
+      type
+        ? `quick-note-form-status ${type}`
+        : 'quick-note-form-status';
+  }
+
+  function authorName(
+    userId: string,
+  ) {
+    const profile =
+      collaborators.find(
+        (item) =>
+          item.user_id ===
+          userId,
+      );
+
+    return (
+      profile?.display_name?.trim() ||
+      profile?.github_login?.trim() ||
+      'Colaborador EVRYLUX'
+    );
+  }
+
+  function formatRelativeDate(
+    value: string,
+  ) {
+    const date =
+      new Date(value);
+
+    const now =
+      new Date();
+
+    const diffMs =
+      now.getTime() -
+      date.getTime();
+
+    const diffMinutes =
+      Math.floor(
+        diffMs / 60000,
+      );
+
+    if (diffMinutes < 1) {
+      return 'agora';
+    }
+
+    if (diffMinutes < 60) {
+      return `há ${diffMinutes} min`;
+    }
+
+    const diffHours =
+      Math.floor(
+        diffMinutes / 60,
+      );
+
+    if (diffHours < 24) {
+      return `há ${diffHours} h`;
+    }
+
+    const diffDays =
+      Math.floor(
+        diffHours / 24,
+      );
+
+    if (diffDays === 1) {
+      return 'ontem';
+    }
+
+    if (diffDays < 7) {
+      return `há ${diffDays} dias`;
+    }
+
+    return date.toLocaleDateString(
+      'pt-BR',
+    );
+  }
+
+  function createCard(
+    note: QuickNote,
+  ) {
+    if (!cardTemplate) {
+      return null;
+    }
+
+    const fragment =
+      cardTemplate.content.cloneNode(
+        true,
+      ) as DocumentFragment;
+
+    const card =
+      fragment.querySelector<HTMLElement>(
+        '.quick-note-card',
+      );
+
+    if (!card) {
+      return null;
+    }
+
+    const title =
+      card.querySelector<HTMLElement>(
+        '[data-role="title"]',
+      );
+
+    const noteContent =
+      card.querySelector<HTMLElement>(
+        '[data-role="content"]',
+      );
+
+    const author =
+      card.querySelector<HTMLElement>(
+        '[data-role="author"]',
+      );
+
+    const date =
+      card.querySelector<HTMLElement>(
+        '[data-role="date"]',
+      );
+
+    const pin =
+      card.querySelector<HTMLElement>(
+        '[data-role="pin"]',
+      );
+
+    if (title) {
+      title.textContent =
+        note.title;
+    }
+
+    if (noteContent) {
+      noteContent.textContent =
+        note.content;
+    }
+
+    if (author) {
+      author.textContent =
+        authorName(
+          note.created_by,
+        );
+    }
+
+    if (date) {
+      date.textContent =
+        formatRelativeDate(
+          note.updated_at,
+        );
+    }
+
+    if (
+      note.is_pinned &&
+      pin
+    ) {
+      pin.classList.remove(
+        'member-hidden',
+      );
+    }
+
+    const open =
+      () => {
+        openEditModal(
+          note,
+        );
+      };
+
+    card.addEventListener(
+      'click',
+      open,
+    );
+
+    card.addEventListener(
+      'keydown',
+      (event) => {
+        if (
+          event.key === 'Enter' ||
+          event.key === ' '
+        ) {
+          event.preventDefault();
+          open();
+        }
+      },
+    );
+
+    return card;
+  }
+
+  function renderNotes() {
+    const pinned =
+      notes.filter(
+        (note) =>
+          note.is_pinned,
+      );
+
+    const recent =
+      notes.filter(
+        (note) =>
+          !note.is_pinned,
+      );
+
+    if (notesCount) {
+      notesCount.textContent =
+        `${notes.length} ${
+          notes.length === 1
+            ? 'nota'
+            : 'notas'
+        }`;
+    }
+
+    if (pinnedCount) {
+      pinnedCount.textContent =
+        `${pinned.length} ${
+          pinned.length === 1
+            ? 'fixada'
+            : 'fixadas'
+        }`;
+    }
+
+    if (
+      pinnedSection &&
+      pinnedNotes
+    ) {
+      pinnedNotes.innerHTML =
+        '';
+
+      if (pinned.length) {
+        pinnedSection.classList.remove(
+          'member-hidden',
+        );
+
+        pinned.forEach(
+          (note) => {
+            const card =
+              createCard(
+                note,
+              );
+
+            if (card) {
+              pinnedNotes.appendChild(
+                card,
+              );
+            }
+          },
+        );
+      } else {
+        pinnedSection.classList.add(
+          'member-hidden',
+        );
+      }
+    }
+
+    if (!recentNotes) {
+      return;
+    }
+
+    recentNotes.innerHTML =
+      '';
+
+    if (!recent.length) {
+      const empty =
+        document.createElement(
+          'div',
+        );
+
+      empty.className =
+        'notes-empty';
+
+      empty.innerHTML = `
+        <strong>
+          Nenhuma nota recente.
+        </strong>
+
+        <span>
+          Crie uma nota para compartilhar com a equipe.
+        </span>
+      `;
+
+      recentNotes.appendChild(
+        empty,
+      );
+
+      return;
+    }
+
+    recent.forEach(
+      (note) => {
+        const card =
+          createCard(
+            note,
+          );
+
+        if (card) {
+          recentNotes.appendChild(
+            card,
+          );
+        }
+      },
+    );
+  }
+
+  function resetForm() {
+    form?.reset();
+
+    if (noteId) {
+      noteId.value =
+        '';
+    }
+
+    showFormStatus(
+      '',
+      '',
+    );
+
+    deleteButton?.classList.add(
+      'member-hidden',
+    );
+
+    if (saveButton) {
+      saveButton.textContent =
+        'Salvar nota';
+    }
+  }
+
+  function openCreateModal() {
+    resetForm();
+
+    if (modalTitle) {
+      modalTitle.textContent =
+        'Nova nota';
+    }
+
+    modal?.classList.remove(
+      'member-hidden',
+    );
+
+    document.body.classList.add(
+      'quick-note-modal-open',
+    );
+
+    titleInput?.focus();
+  }
+
+  function openEditModal(
+    note: QuickNote,
+  ) {
+    resetForm();
+
+    if (modalTitle) {
+      modalTitle.textContent =
+        'Editar nota';
+    }
+
+    if (noteId) {
+      noteId.value =
+        note.id;
+    }
+
+    if (titleInput) {
+      titleInput.value =
+        note.title;
+    }
+
+    if (contentInput) {
+      contentInput.value =
+        note.content;
+    }
+
+    if (pinnedInput) {
+      pinnedInput.checked =
+        note.is_pinned;
+    }
+
+    deleteButton?.classList.remove(
+      'member-hidden',
+    );
+
+    modal?.classList.remove(
+      'member-hidden',
+    );
+
+    document.body.classList.add(
+      'quick-note-modal-open',
+    );
+  }
+
+  function closeModal() {
+    modal?.classList.add(
+      'member-hidden',
+    );
+
+    document.body.classList.remove(
+      'quick-note-modal-open',
+    );
+
+    resetForm();
+  }
+
+  async function loadNotes() {
+    clearError();
+
+    try {
+      notes =
+        await getQuickNotes();
+    } catch (error) {
+      console.error(
+        '[EVRYLUX] Erro ao carregar notas:',
+        error,
+      );
+
+      notes =
+        [];
+
+      showError(
+        'Não foi possível carregar as notas rápidas.',
+      );
+    }
+
+    try {
+      collaborators =
+        await getCollaboratorProfiles();
+    } catch (error) {
+      console.warn(
+        '[EVRYLUX] Não foi possível carregar os colaboradores:',
+        error,
+      );
+
+      collaborators =
+        [];
+    }
+
+    renderNotes();
+  }
+
+  newButton?.addEventListener(
+    'click',
+    openCreateModal,
+  );
+
+  modalClose?.addEventListener(
+    'click',
+    closeModal,
+  );
+
+  modalCancel?.addEventListener(
+    'click',
+    closeModal,
+  );
+
+  modalBackdrop?.addEventListener(
+    'click',
+    closeModal,
+  );
+
+  form?.addEventListener(
+    'submit',
+    async (event) => {
+      event.preventDefault();
+
+      if (
+        !session ||
+        !titleInput?.value.trim() ||
+        !contentInput?.value.trim()
+      ) {
+        showFormStatus(
+          'Preencha título e nota.',
+          'error',
+        );
+
+        return;
+      }
+
+      const input:
+        QuickNoteInput = {
+        title:
+          titleInput.value.trim(),
+
+        content:
+          contentInput.value.trim(),
+
+        is_pinned:
+          Boolean(
+            pinnedInput?.checked,
+          ),
+      };
+
+      const editingId =
+        noteId?.value ??
+        '';
+
+      if (saveButton) {
+        saveButton.disabled =
+          true;
+
+        saveButton.textContent =
+          'Salvando...';
+      }
+
+      try {
+        if (editingId) {
+          await updateQuickNote(
+            editingId,
+            input,
+          );
+        } else {
+          await createQuickNote(
+            input,
+            session.user.id,
+          );
+        }
+
+        await loadNotes();
+        closeModal();
+      } catch (error) {
+        console.error(
+          '[EVRYLUX] Erro ao salvar nota:',
+          error,
+        );
+
+        showFormStatus(
+          'Não foi possível salvar a nota.',
+          'error',
+        );
+      } finally {
+        if (saveButton) {
+          saveButton.disabled =
+            false;
+
+          saveButton.textContent =
+            'Salvar nota';
+        }
+      }
+    },
+  );
+
+  deleteButton?.addEventListener(
+    'click',
+    async () => {
+      const id =
+        noteId?.value;
+
+      if (!id) {
+        return;
+      }
+
+      if (
+        !window.confirm(
+          'Excluir esta nota?',
+        )
+      ) {
+        return;
+      }
+
+      deleteButton.disabled =
+        true;
+
+      try {
+        await deleteQuickNote(
+          id,
+        );
+
+        await loadNotes();
+        closeModal();
+      } catch (error) {
+        console.error(
+          '[EVRYLUX] Erro ao excluir nota:',
+          error,
+        );
+
+        showFormStatus(
+          'Não foi possível excluir a nota.',
+          'error',
+        );
+      } finally {
+        deleteButton.disabled =
+          false;
+      }
+    },
+  );
+
+  document.addEventListener(
+    'keydown',
+    (event) => {
+      if (
+        event.key === 'Escape' &&
+        modal &&
+        !modal.classList.contains(
+          'member-hidden',
+        )
+      ) {
+        closeModal();
+      }
+    },
+  );
+
+  if (session) {
+    await loadNotes();
+
+    loading?.classList.add(
+      'member-hidden',
+    );
+
+    content?.classList.remove(
+      'member-hidden',
+    );
+  }
+</script>
+
+<style is:global>
+  body.quick-note-modal-open {
+    overflow: hidden;
+  }
+
+  .quick-note-card {
+    min-height: 190px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: 0 10px 32px rgba(54, 92, 51, 0.05);
+    cursor: pointer;
+    transition:
+      transform .18s ease,
+      border-color .18s ease,
+      box-shadow .18s ease;
+  }
+
+  .quick-note-card:hover,
+  .quick-note-card:focus-visible {
+    transform: translateY(-2px);
+    border-color: var(--border-strong);
+    box-shadow: 0 14px 38px rgba(54, 92, 51, 0.08);
+    outline: none;
+  }
+
+  .quick-note-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .quick-note-pin {
+    min-height: 24px;
+    padding: 0 8px;
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font-size: 10px;
+    font-weight: 800;
+  }
+
+  .quick-note-arrow {
+    color: var(--text-soft);
+    font-size: 13px;
+  }
+
+  .quick-note-card h3 {
+    margin: 16px 0 0;
+    font-size: 18px;
+    letter-spacing: -.025em;
+  }
+
+  .quick-note-content {
+    display: -webkit-box;
+    margin: 8px 0 0;
+    overflow: hidden;
+    color: var(--text-soft);
+    font-size: 13px;
+    line-height: 1.65;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+  }
+
+  .quick-note-footer {
+    margin-top: auto;
+    padding-top: 18px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-soft);
+    font-size: 11px;
+  }
+
+  .quick-note-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 150;
+    display: grid;
+    place-items: center;
+    padding: 18px;
+  }
+
+  .quick-note-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: rgba(23, 32, 25, 0.25);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .quick-note-modal-card {
+    position: relative;
+    z-index: 1;
+    width: min(100%, 620px);
+    padding: 28px;
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 28px 90px rgba(23, 32, 25, 0.18);
+  }
+
+  .quick-note-modal-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 22px;
+  }
+
+  .quick-note-modal-head h2 {
+    margin: 8px 0 0;
+    font-size: 29px;
+    letter-spacing: -.04em;
+  }
+
+  .quick-note-modal-close {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-muted);
+    color: var(--text);
+    font: inherit;
+    font-size: 22px;
+    cursor: pointer;
+  }
+
+  .quick-note-form {
+    display: grid;
+    gap: 16px;
+  }
+
+  .quick-note-field {
+    display: grid;
+    gap: 7px;
+  }
+
+  .quick-note-field label {
+    font-size: 12px;
+    font-weight: 750;
+  }
+
+  .quick-note-field input,
+  .quick-note-field textarea {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-solid);
+    color: var(--text);
+    font: inherit;
+    font-size: 14px;
+    outline: none;
+  }
+
+  .quick-note-field input {
+    min-height: 44px;
+    padding: 0 12px;
+  }
+
+  .quick-note-field textarea {
+    padding: 12px;
+    resize: vertical;
+  }
+
+  .quick-note-field input:focus,
+  .quick-note-field textarea:focus {
+    border-color: rgba(95, 157, 89, .5);
+    box-shadow: 0 0 0 3px rgba(159, 211, 149, .14);
+  }
+
+  .quick-note-pin-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    color: var(--text-soft);
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .quick-note-pin-toggle input {
+    accent-color: var(--primary-strong);
+  }
+
+  .quick-note-form-status {
+    min-height: 18px;
+    font-size: 12px;
+  }
+
+  .quick-note-form-status.error {
+    color: #a24537;
+  }
+
+  .quick-note-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .quick-note-actions-right {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+  }
+
+  .quick-note-button {
+    min-height: 40px;
+    padding: 0 14px;
+    border-radius: 11px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 750;
+    cursor: pointer;
+  }
+
+  .quick-note-button-primary {
+    border: 1px solid rgba(95, 157, 89, .2);
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+  }
+
+  .quick-note-button-secondary {
+    border: 1px solid var(--border);
+    background: var(--surface-muted);
+    color: var(--text);
+  }
+
+  .quick-note-button-danger {
+    border: 1px solid rgba(162, 69, 55, .15);
+    background: #fff0ed;
+    color: #9a4638;
+  }
+
+  @media (max-width: 620px) {
+    .quick-note-modal-card {
+      max-height: calc(100vh - 24px);
+      overflow-y: auto;
+      padding: 22px;
+    }
+  }
+</style>
+
+<style>
+  .notes-toolbar {
+    margin-top: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .notes-summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .notes-summary span {
+    min-height: 34px;
+    padding: 0 11px;
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, .7);
+    color: var(--text-soft);
+    font-size: 11px;
+    font-weight: 750;
+  }
+
+  .notes-new-button {
+    min-height: 42px;
+    padding: 0 15px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border: 1px solid rgba(95, 157, 89, .18);
+    border-radius: 12px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .notes-error {
+    margin-top: 18px;
+    padding: 14px 16px;
+    border: 1px solid rgba(162, 69, 55, .15);
+    border-radius: 14px;
+    background: #fff0ed;
+    color: #923f32;
+    font-size: 13px;
+  }
+
+  .notes-section {
+    margin-top: 38px;
+  }
+
+  .notes-section-head {
+    margin-bottom: 14px;
+  }
+
+  .notes-section-kicker {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--text-soft);
+    font-size: 10px;
+    font-weight: 750;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+
+  .notes-section h2 {
+    margin: 0;
+    font-size: 28px;
+    letter-spacing: -.04em;
+  }
+
+  .notes-grid {
+    display: grid;
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .notes-empty {
+    min-height: 160px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    grid-column: 1 / -1;
+    border: 1px dashed var(--border-strong);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, .42);
+  }
+
+  .notes-empty strong {
+    font-size: 14px;
+  }
+
+  .notes-empty span {
+    margin-top: 5px;
+    color: var(--text-soft);
+    font-size: 12px;
+  }
+
+  @media (max-width: 950px) {
+    .notes-grid {
+      grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 620px) {
+    .notes-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

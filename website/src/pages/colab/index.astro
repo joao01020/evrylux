@@ -1,0 +1,509 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import ColabNav from '../../components/colab/ColabNav.astro';
+import '../../styles/members.css';
+---
+
+<Layout
+  title="EVRYLUX Colab — Dashboard"
+  description="Dashboard interno dos colaboradores do EVRYLUX."
+>
+  <main class="member-shell">
+    <div
+      id="colab-loading"
+      class="member-container member-loading"
+    >
+      Carregando sua área...
+    </div>
+
+    <div
+      id="colab-content"
+      class="member-container member-hidden"
+    >
+      <div class="member-topbar">
+        <div class="member-title-block">
+          <div class="eyebrow">
+            EVRYLUX Colab
+          </div>
+
+          <h1>
+            Dashboard
+          </h1>
+
+          <p id="dashboard-welcome">
+            Sua área dentro do projeto.
+          </p>
+        </div>
+
+        <ColabNav />
+      </div>
+
+      <div class="member-grid">
+        <section class="member-card">
+          <div class="member-card-inner">
+            <div class="dashboard-profile">
+              <div
+                id="dashboard-avatar-placeholder"
+                class="member-avatar-placeholder"
+              >
+                E
+              </div>
+
+              <img
+                id="dashboard-avatar"
+                class="member-avatar member-hidden"
+                alt=""
+              />
+
+              <div>
+                <span class="member-badge">
+                  Colaborador
+                </span>
+
+                <h2 id="dashboard-name">
+                  Perfil EVRYLUX
+                </h2>
+
+                <p
+                  id="dashboard-area"
+                  class="member-muted"
+                >
+                  Configure seu perfil para completar suas informações.
+                </p>
+              </div>
+            </div>
+
+            <div class="dashboard-summary">
+              <div class="summary-box">
+                <span>
+                  GitHub
+                </span>
+
+                <strong id="dashboard-github">
+                  —
+                </strong>
+              </div>
+
+              <div class="summary-box">
+                <span>
+                  Disponibilidade
+                </span>
+
+                <strong id="dashboard-availability">
+                  —
+                </strong>
+              </div>
+
+              <div class="summary-box">
+                <span>
+                  Skills
+                </span>
+
+                <strong id="dashboard-skills">
+                  —
+                </strong>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="member-card">
+          <div class="member-card-inner">
+            <h2>
+              Acesso rápido
+            </h2>
+
+            <div class="member-links">
+              <a
+                class="member-link-card"
+                href="/colab/profile"
+              >
+                <span>
+                  Editar meu perfil
+                </span>
+
+                <span>
+                  →
+                </span>
+              </a>
+
+              <a
+                class="member-link-card"
+                href="/contributors"
+              >
+                <span>
+                  Colaboradores públicos
+                </span>
+
+                <span>
+                  →
+                </span>
+              </a>
+
+              <a
+                class="member-link-card"
+                href="https://github.com/joao01020/ghost-core"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <span>
+                  Repositório
+                </span>
+
+                <span>
+                  ↗
+                </span>
+              </a>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <section class="next-section">
+        <div class="next-heading">
+          <div>
+            <div class="eyebrow">
+              Próximas áreas
+            </div>
+
+            <h2>
+              O portal pode crescer junto com a equipe.
+            </h2>
+          </div>
+        </div>
+
+        <div class="next-grid">
+          <article class="member-card next-card">
+            <span class="member-badge">
+              Em breve
+            </span>
+
+            <h3>
+              Tarefas e progresso
+            </h3>
+
+            <p>
+              Organização do que cada pessoa está fazendo
+              e acompanhamento do progresso.
+            </p>
+          </article>
+
+          <article class="member-card next-card">
+            <span class="member-badge">
+              Em breve
+            </span>
+
+            <h3>
+              Atualizações
+            </h3>
+
+            <p>
+              Um mural interno para compartilhar avanços
+              e decisões do projeto.
+            </p>
+          </article>
+
+          <article class="member-card next-card">
+            <span class="member-badge">
+              Em breve
+            </span>
+
+            <h3>
+              Votações
+            </h3>
+
+            <p>
+              Decisões e prioridades que podem ser votadas
+              pelos colaboradores autenticados.
+            </p>
+          </article>
+        </div>
+      </section>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  import {
+    supabase,
+  } from '../../lib/supabase';
+
+  import {
+    requireMemberSession,
+  } from '../../lib/member-auth';
+
+  const session =
+    await requireMemberSession();
+
+  if (session) {
+    const loading =
+      document.querySelector<HTMLElement>(
+        '#colab-loading',
+      );
+
+    const content =
+      document.querySelector<HTMLElement>(
+        '#colab-content',
+      );
+
+    const {
+      data: profile,
+      error,
+    } =
+      await supabase
+        .from('member_profiles')
+        .select(
+          'display_name, github_login, bio, avatar_url, area, skills, availability',
+        )
+        .eq(
+          'user_id',
+          session.user.id,
+        )
+        .maybeSingle();
+
+    if (error) {
+      console.warn(
+        '[EVRYLUX] Não foi possível carregar o perfil:',
+        error.message,
+      );
+    }
+
+    const welcome =
+      document.querySelector<HTMLElement>(
+        '#dashboard-welcome',
+      );
+
+    const name =
+      document.querySelector<HTMLElement>(
+        '#dashboard-name',
+      );
+
+    const area =
+      document.querySelector<HTMLElement>(
+        '#dashboard-area',
+      );
+
+    const github =
+      document.querySelector<HTMLElement>(
+        '#dashboard-github',
+      );
+
+    const availability =
+      document.querySelector<HTMLElement>(
+        '#dashboard-availability',
+      );
+
+    const skills =
+      document.querySelector<HTMLElement>(
+        '#dashboard-skills',
+      );
+
+    const avatar =
+      document.querySelector<HTMLImageElement>(
+        '#dashboard-avatar',
+      );
+
+    const placeholder =
+      document.querySelector<HTMLElement>(
+        '#dashboard-avatar-placeholder',
+      );
+
+    const displayName =
+      profile?.display_name?.trim() ||
+      session.user.email ||
+      'Colaborador EVRYLUX';
+
+    if (welcome) {
+      welcome.textContent =
+        `Olá, ${displayName}. Esta é sua área dentro do projeto.`;
+    }
+
+    if (name) {
+      name.textContent =
+        displayName;
+    }
+
+    if (area) {
+      area.textContent =
+        profile?.area?.trim() ||
+        'Configure sua área principal no perfil.';
+    }
+
+    if (github) {
+      github.textContent =
+        profile?.github_login
+          ? `@${profile.github_login}`
+          : 'Não informado';
+    }
+
+    if (availability) {
+      availability.textContent =
+        profile?.availability?.trim() ||
+        'Não informada';
+    }
+
+    if (skills) {
+      skills.textContent =
+        profile?.skills?.trim() ||
+        'Não informadas';
+    }
+
+    if (
+      profile?.avatar_url?.trim() &&
+      avatar
+    ) {
+      avatar.src =
+        profile.avatar_url;
+
+      avatar.alt =
+        `Avatar de ${displayName}`;
+
+      avatar.classList.remove(
+        'member-hidden',
+      );
+
+      placeholder?.classList.add(
+        'member-hidden',
+      );
+    }
+
+    loading?.classList.add(
+      'member-hidden',
+    );
+
+    content?.classList.remove(
+      'member-hidden',
+    );
+  }
+</script>
+
+<style>
+  .dashboard-profile {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+
+  .dashboard-profile h2 {
+    margin: 10px 0 0;
+  }
+
+  .dashboard-profile p {
+    margin: 7px 0 0;
+  }
+
+  .dashboard-summary {
+    margin-top: 28px;
+
+    display: grid;
+
+    grid-template-columns:
+      repeat(
+        3,
+        minmax(0, 1fr)
+      );
+
+    gap: 10px;
+  }
+
+  .summary-box {
+    padding: 17px;
+
+    border-radius: 16px;
+
+    background:
+      var(--surface-muted);
+
+    border:
+      1px solid
+      rgba(
+        65,
+        104,
+        62,
+        0.08
+      );
+  }
+
+  .summary-box span,
+  .summary-box strong {
+    display: block;
+  }
+
+  .summary-box span {
+    color:
+      var(--text-soft);
+
+    font-size:
+      11px;
+  }
+
+  .summary-box strong {
+    margin-top: 7px;
+
+    font-size:
+      14px;
+  }
+
+  .next-section {
+    margin-top: 54px;
+  }
+
+  .next-heading h2 {
+    margin: 0;
+
+    font-size:
+      clamp(
+        28px,
+        4vw,
+        42px
+      );
+
+    letter-spacing:
+      -0.04em;
+  }
+
+  .next-grid {
+    margin-top: 22px;
+
+    display: grid;
+
+    grid-template-columns:
+      repeat(
+        3,
+        minmax(0, 1fr)
+      );
+
+    gap: 16px;
+  }
+
+  .next-card {
+    padding: 24px;
+  }
+
+  .next-card h3 {
+    margin:
+      18px
+      0
+      8px;
+  }
+
+  .next-card p {
+    margin: 0;
+
+    color:
+      var(--text-soft);
+
+    line-height:
+      1.7;
+  }
+
+  @media (
+    max-width: 860px
+  ) {
+    .dashboard-summary,
+    .next-grid {
+      grid-template-columns:
+        1fr;
+    }
+  }
+</style>

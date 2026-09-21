@@ -1,0 +1,38 @@
+<template id="quick-note-card-template">
+  <article
+    class="quick-note-card"
+    tabindex="0"
+    role="button"
+  >
+    <div class="quick-note-top">
+      <div class="quick-note-badge-wrap">
+        <span
+          class="quick-note-pin member-hidden"
+          data-role="pin"
+        >
+          Fixada
+        </span>
+      </div>
+
+      <span
+        class="quick-note-arrow"
+        aria-hidden="true"
+      >
+        ↗
+      </span>
+    </div>
+
+    <h3 data-role="title"></h3>
+
+    <p
+      class="quick-note-content"
+      data-role="content"
+    ></p>
+
+    <div class="quick-note-footer">
+      <span data-role="author"></span>
+      <span>·</span>
+      <span data-role="date"></span>
+    </div>
+  </article>
+</template>

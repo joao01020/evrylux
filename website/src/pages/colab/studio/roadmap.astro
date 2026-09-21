@@ -1,0 +1,2058 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import ColabNav from '../../../components/colab/ColabNav.astro';
+import RoadmapCard from '../../../components/colab/RoadmapCard.astro';
+import RoadmapModal from '../../../components/colab/RoadmapModal.astro';
+import RoadmapDetailsModal from '../../../components/colab/RoadmapDetailsModal.astro';
+import '../../../styles/members.css';
+---
+
+<Layout
+  title="Roadmap interno — EVRYLUX Colab"
+  description="Roadmap interno detalhado do projeto EVRYLUX."
+>
+  <main class="member-shell">
+    <div id="roadmap-loading" class="member-container member-loading">
+      Carregando roadmap...
+    </div>
+
+    <div id="roadmap-content" class="member-container member-hidden">
+      <div class="member-topbar">
+        <div class="member-title-block">
+          <div class="eyebrow">
+            Studio / Roadmap
+          </div>
+
+          <h1>
+            Roadmap interno
+          </h1>
+
+          <p>
+            Veja todas as etapas do projeto em uma única visão.
+          </p>
+        </div>
+
+        <ColabNav />
+      </div>
+
+      <div class="roadmap-toolbar">
+        <div class="roadmap-filter-row">
+          <button class="roadmap-filter active" type="button" data-filter="all">
+            Todos
+          </button>
+
+          <button class="roadmap-filter" type="button" data-filter="mine">
+            Meus itens
+          </button>
+
+          <button class="roadmap-filter" type="button" data-filter="in_progress">
+            Em andamento
+          </button>
+
+          <button class="roadmap-filter" type="button" data-filter="done">
+            Concluídos
+          </button>
+        </div>
+
+        <button id="new-roadmap-item" class="roadmap-new-button" type="button">
+          <span>＋</span>
+          Novo item
+        </button>
+      </div>
+
+      <div
+        id="roadmap-error"
+        class="roadmap-error member-hidden"
+        role="status"
+      ></div>
+
+      <section class="roadmap-board" aria-label="Roadmap do projeto">
+        {
+          [
+            { id: 'now', kicker: 'Foco atual', title: 'Agora' },
+            { id: 'next', kicker: 'Próximos passos', title: 'Próximo' },
+            { id: 'later', kicker: 'Planejado', title: 'Depois' },
+            { id: 'done', kicker: 'Histórico', title: 'Concluído' },
+          ].map((stage) => (
+            <section class="roadmap-column">
+              <div class="roadmap-column-head">
+                <div>
+                  <span class="roadmap-column-kicker">
+                    {stage.kicker}
+                  </span>
+
+                  <h2>
+                    {stage.title}
+                  </h2>
+                </div>
+
+                <span
+                  id={`stage-count-${stage.id}`}
+                  class="roadmap-column-count"
+                >
+                  0
+                </span>
+              </div>
+
+              <div
+                id={`stage-${stage.id}`}
+                class="roadmap-column-list"
+              ></div>
+            </section>
+          ))
+        }
+      </section>
+    </div>
+
+    <RoadmapCard />
+    <RoadmapModal />
+    <RoadmapDetailsModal />
+  </main>
+</Layout>
+
+<script>
+  import {
+    requireMemberSession,
+  } from '../../../lib/member-auth';
+
+  import {
+    createRoadmapItem,
+    deleteRoadmapItem,
+    getCollaboratorProfiles,
+    getRoadmapItems,
+    priorityLabels,
+    stageLabels,
+    statusLabels,
+    updateRoadmapItem,
+    type CollaboratorProfile,
+    type RoadmapItem,
+    type RoadmapItemInput,
+    type RoadmapPriority,
+    type RoadmapStage,
+    type RoadmapStatus,
+  } from '../../../lib/colab-roadmap';
+
+  const session =
+    await requireMemberSession();
+
+  const loading =
+    document.querySelector<HTMLElement>('#roadmap-loading');
+
+  const content =
+    document.querySelector<HTMLElement>('#roadmap-content');
+
+  const errorBox =
+    document.querySelector<HTMLElement>('#roadmap-error');
+
+  const newButton =
+    document.querySelector<HTMLButtonElement>('#new-roadmap-item');
+
+  const cardTemplate =
+    document.querySelector<HTMLTemplateElement>('#roadmap-card-template');
+
+  const modal =
+    document.querySelector<HTMLElement>('#roadmap-modal');
+
+  const modalBackdrop =
+    document.querySelector<HTMLButtonElement>('#roadmap-modal-backdrop');
+
+  const modalClose =
+    document.querySelector<HTMLButtonElement>('#roadmap-modal-close');
+
+  const modalCancel =
+    document.querySelector<HTMLButtonElement>('#roadmap-cancel');
+
+  const modalTitle =
+    document.querySelector<HTMLElement>('#roadmap-modal-title');
+
+  const form =
+    document.querySelector<HTMLFormElement>('#roadmap-form');
+
+  const itemId =
+    document.querySelector<HTMLInputElement>('#roadmap-item-id');
+
+  const titleInput =
+    document.querySelector<HTMLInputElement>('#roadmap-title');
+
+  const descriptionInput =
+    document.querySelector<HTMLTextAreaElement>('#roadmap-description');
+
+  const stageInput =
+    document.querySelector<HTMLSelectElement>('#roadmap-stage');
+
+  const stageRange =
+    document.querySelector<HTMLInputElement>('#roadmap-stage-range');
+
+  const stageValue =
+    document.querySelector<HTMLElement>('#roadmap-stage-value');
+
+  const statusInput =
+    document.querySelector<HTMLSelectElement>('#roadmap-status');
+
+  const priorityInput =
+    document.querySelector<HTMLSelectElement>('#roadmap-priority');
+
+  const priorityRange =
+    document.querySelector<HTMLInputElement>('#roadmap-priority-range');
+
+  const priorityValue =
+    document.querySelector<HTMLElement>('#roadmap-priority-value');
+
+  const assigneeInput =
+    document.querySelector<HTMLSelectElement>('#roadmap-assignee');
+
+  const areaInput =
+    document.querySelector<HTMLInputElement>('#roadmap-area');
+
+  const dueDateInput =
+    document.querySelector<HTMLInputElement>('#roadmap-due-date');
+
+  const progressInput =
+    document.querySelector<HTMLInputElement>('#roadmap-progress');
+
+  const progressValue =
+    document.querySelector<HTMLElement>('#roadmap-progress-value');
+
+  const notesInput =
+    document.querySelector<HTMLTextAreaElement>('#roadmap-notes');
+
+  const saveButton =
+    document.querySelector<HTMLButtonElement>('#roadmap-save');
+
+  const deleteButton =
+    document.querySelector<HTMLButtonElement>('#roadmap-delete');
+
+  const formStatus =
+    document.querySelector<HTMLElement>('#roadmap-form-status');
+
+  const filterButtons =
+    Array.from(
+      document.querySelectorAll<HTMLButtonElement>(
+        '.roadmap-filter',
+      ),
+    );
+
+  const detailsModal =
+    document.querySelector<HTMLElement>('#roadmap-details-modal');
+
+  const detailsBackdrop =
+    document.querySelector<HTMLButtonElement>('#roadmap-details-backdrop');
+
+  const detailsClose =
+    document.querySelector<HTMLButtonElement>('#roadmap-details-close');
+
+  const detailsEdit =
+    document.querySelector<HTMLButtonElement>('#roadmap-details-edit');
+
+  const detailsTitle =
+    document.querySelector<HTMLElement>('#roadmap-details-title');
+
+  const detailsDescription =
+    document.querySelector<HTMLElement>('#roadmap-details-description');
+
+  const detailsBadges =
+    document.querySelector<HTMLElement>('#roadmap-details-badges');
+
+  const detailsAvatar =
+    document.querySelector<HTMLElement>('#roadmap-details-avatar');
+
+  const detailsAssignee =
+    document.querySelector<HTMLElement>('#roadmap-details-assignee');
+
+  const detailsArea =
+    document.querySelector<HTMLElement>('#roadmap-details-area');
+
+  const detailsDueDate =
+    document.querySelector<HTMLElement>('#roadmap-details-due-date');
+
+  const detailsStage =
+    document.querySelector<HTMLElement>('#roadmap-details-stage');
+
+  const detailsProgressLabel =
+    document.querySelector<HTMLElement>('#roadmap-details-progress-label');
+
+  const detailsProgressFill =
+    document.querySelector<HTMLElement>('#roadmap-details-progress-fill');
+
+  const detailsNotesWrap =
+    document.querySelector<HTMLElement>('#roadmap-details-notes-wrap');
+
+  const detailsNotes =
+    document.querySelector<HTMLElement>('#roadmap-details-notes');
+
+  const stages:
+    RoadmapStage[] = [
+      'now',
+      'next',
+      'later',
+      'done',
+    ];
+
+  const stageRangeMap:
+    RoadmapStage[] = [
+      'now',
+      'next',
+      'later',
+      'done',
+    ];
+
+  const priorityRangeMap:
+    RoadmapPriority[] = [
+      'low',
+      'medium',
+      'high',
+    ];
+
+  let roadmapItems:
+    RoadmapItem[] =
+      [];
+
+  let collaborators:
+    CollaboratorProfile[] =
+      [];
+
+  let activeFilter:
+    'all' |
+    'mine' |
+    'in_progress' |
+    'done' =
+      'all';
+
+  let detailsItem:
+    RoadmapItem | null =
+      null;
+
+  function syncStageVisualFromRange() {
+    if (
+      !stageRange ||
+      !stageInput ||
+      !stageValue
+    ) {
+      return;
+    }
+
+    const index =
+      Math.max(
+        0,
+        Math.min(
+          3,
+          Number(stageRange.value),
+        ),
+      );
+
+    const stage =
+      stageRangeMap[index];
+
+    stageInput.value =
+      stage;
+
+    stageValue.textContent =
+      stageLabels[stage];
+  }
+
+  function syncStageVisualFromSelect() {
+    if (
+      !stageRange ||
+      !stageInput ||
+      !stageValue
+    ) {
+      return;
+    }
+
+    const stage =
+      stageInput.value as RoadmapStage;
+
+    const index =
+      Math.max(
+        0,
+        stageRangeMap.indexOf(stage),
+      );
+
+    stageRange.value =
+      String(index);
+
+    stageValue.textContent =
+      stageLabels[stage];
+  }
+
+  function syncPriorityVisualFromRange() {
+    if (
+      !priorityRange ||
+      !priorityInput ||
+      !priorityValue
+    ) {
+      return;
+    }
+
+    const index =
+      Math.max(
+        0,
+        Math.min(
+          2,
+          Number(priorityRange.value),
+        ),
+      );
+
+    const priority =
+      priorityRangeMap[index];
+
+    priorityInput.value =
+      priority;
+
+    priorityValue.textContent =
+      priorityLabels[priority];
+  }
+
+  function syncPriorityVisualFromSelect() {
+    if (
+      !priorityRange ||
+      !priorityInput ||
+      !priorityValue
+    ) {
+      return;
+    }
+
+    const priority =
+      priorityInput.value as RoadmapPriority;
+
+    const index =
+      Math.max(
+        0,
+        priorityRangeMap.indexOf(priority),
+      );
+
+    priorityRange.value =
+      String(index);
+
+    priorityValue.textContent =
+      priorityLabels[priority];
+  }
+
+  function showError(
+    message: string,
+  ) {
+    if (!errorBox) {
+      return;
+    }
+
+    errorBox.textContent =
+      message;
+
+    errorBox.classList.remove(
+      'member-hidden',
+    );
+  }
+
+  function clearError() {
+    errorBox?.classList.add(
+      'member-hidden',
+    );
+  }
+
+  function showFormStatus(
+    message: string,
+    type:
+      'success' |
+      'error' |
+      '',
+  ) {
+    if (!formStatus) {
+      return;
+    }
+
+    formStatus.textContent =
+      message;
+
+    formStatus.className =
+      type
+        ? `roadmap-form-status ${type}`
+        : 'roadmap-form-status';
+  }
+
+  function initials(
+    name: string,
+  ) {
+    const parts =
+      name
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+
+    if (!parts.length) {
+      return 'EV';
+    }
+
+    if (parts.length === 1) {
+      return parts[0]
+        .slice(0, 2)
+        .toUpperCase();
+    }
+
+    return (
+      parts[0][0] +
+      parts[
+        parts.length - 1
+      ][0]
+    ).toUpperCase();
+  }
+
+  function formatDate(
+    value: string | null,
+  ) {
+    if (!value) {
+      return 'Sem prazo';
+    }
+
+    return new Date(
+      `${value}T12:00:00`,
+    ).toLocaleDateString(
+      'pt-BR',
+    );
+  }
+
+  function collaboratorFor(
+    userId: string | null,
+  ) {
+    if (!userId) {
+      return null;
+    }
+
+    return (
+      collaborators.find(
+        (profile) =>
+          profile.user_id ===
+          userId,
+      ) ??
+      null
+    );
+  }
+
+  function collaboratorName(
+    userId: string | null,
+  ) {
+    const profile =
+      collaboratorFor(
+        userId,
+      );
+
+    if (!profile) {
+      return 'Sem responsável';
+    }
+
+    return (
+      profile.display_name?.trim() ||
+      profile.github_login?.trim() ||
+      'Colaborador EVRYLUX'
+    );
+  }
+
+  function filteredItems() {
+    if (!session) {
+      return roadmapItems;
+    }
+
+    if (activeFilter === 'mine') {
+      return roadmapItems.filter(
+        (item) =>
+          item.assignee_user_id ===
+          session.user.id,
+      );
+    }
+
+    if (
+      activeFilter ===
+      'in_progress'
+    ) {
+      return roadmapItems.filter(
+        (item) =>
+          item.status ===
+          'in_progress',
+      );
+    }
+
+    if (activeFilter === 'done') {
+      return roadmapItems.filter(
+        (item) =>
+          item.status === 'done' ||
+          item.stage === 'done',
+      );
+    }
+
+    return roadmapItems;
+  }
+
+  function createEmpty(
+    stage: RoadmapStage,
+  ) {
+    const empty =
+      document.createElement(
+        'div',
+      );
+
+    empty.className =
+      'roadmap-empty';
+
+    const strong =
+      document.createElement(
+        'strong',
+      );
+
+    strong.textContent =
+      `Nenhum item em ${stageLabels[stage]}.`;
+
+    const span =
+      document.createElement(
+        'span',
+      );
+
+    span.textContent =
+      activeFilter === 'all'
+        ? 'Crie um item para começar.'
+        : 'Nenhum item corresponde ao filtro atual.';
+
+    empty.append(
+      strong,
+      span,
+    );
+
+    return empty;
+  }
+
+  function createCard(
+    item: RoadmapItem,
+  ) {
+    if (!cardTemplate) {
+      return null;
+    }
+
+    const fragment =
+      cardTemplate.content.cloneNode(
+        true,
+      ) as DocumentFragment;
+
+    const card =
+      fragment.querySelector<HTMLElement>(
+        '.roadmap-item-card',
+      );
+
+    if (!card) {
+      return null;
+    }
+
+    const profile =
+      collaboratorFor(
+        item.assignee_user_id,
+      );
+
+    const name =
+      collaboratorName(
+        item.assignee_user_id,
+      );
+
+    const setText = (
+      selector: string,
+      value: string,
+    ) => {
+      const element =
+        card.querySelector<HTMLElement>(
+          selector,
+        );
+
+      if (element) {
+        element.textContent =
+          value;
+      }
+
+      return element;
+    };
+
+    setText(
+      '[data-role="title"]',
+      item.title,
+    );
+
+    setText(
+      '[data-role="description"]',
+      item.description?.trim() ||
+        'Sem descrição.',
+    );
+
+    const priority =
+      setText(
+        '[data-role="priority"]',
+        priorityLabels[item.priority],
+      );
+
+    if (priority) {
+      priority.dataset.priority =
+        item.priority;
+    }
+
+    const status =
+      setText(
+        '[data-role="status"]',
+        statusLabels[item.status],
+      );
+
+    if (status) {
+      status.dataset.status =
+        item.status;
+    }
+
+    setText(
+      '[data-role="assignee"]',
+      name,
+    );
+
+    setText(
+      '[data-role="progress-label"]',
+      `${item.progress}%`,
+    );
+
+    const avatar =
+      card.querySelector<HTMLElement>(
+        '[data-role="assignee-avatar"]',
+      );
+
+    if (avatar) {
+      avatar.textContent =
+        initials(name);
+
+      if (
+        profile?.avatar_url?.trim()
+      ) {
+        avatar.style.backgroundImage =
+          `url("${profile.avatar_url}")`;
+
+        avatar.classList.add(
+          'has-image',
+        );
+      }
+    }
+
+    const fill =
+      card.querySelector<HTMLElement>(
+        '[data-role="progress-fill"]',
+      );
+
+    if (fill) {
+      fill.style.width =
+        `${item.progress}%`;
+    }
+
+    const openDetails =
+      () => {
+        openDetailsModal(
+          item,
+        );
+      };
+
+    card.addEventListener(
+      'click',
+      openDetails,
+    );
+
+    card.addEventListener(
+      'keydown',
+      (event) => {
+        if (
+          event.key === 'Enter' ||
+          event.key === ' '
+        ) {
+          event.preventDefault();
+          openDetails();
+        }
+      },
+    );
+
+    return card;
+  }
+
+  function renderRoadmap() {
+    const items =
+      filteredItems();
+
+    stages.forEach(
+      (stage) => {
+        const container =
+          document.querySelector<HTMLElement>(
+            `#stage-${stage}`,
+          );
+
+        const count =
+          document.querySelector<HTMLElement>(
+            `#stage-count-${stage}`,
+          );
+
+        if (!container) {
+          return;
+        }
+
+        const stageItems =
+          items.filter(
+            (item) =>
+              item.stage ===
+              stage,
+          );
+
+        if (count) {
+          count.textContent =
+            String(
+              stageItems.length,
+            );
+        }
+
+        container.innerHTML =
+          '';
+
+        if (!stageItems.length) {
+          container.appendChild(
+            createEmpty(
+              stage,
+            ),
+          );
+
+          return;
+        }
+
+        stageItems.forEach(
+          (item) => {
+            const card =
+              createCard(
+                item,
+              );
+
+            if (card) {
+              container.appendChild(
+                card,
+              );
+            }
+          },
+        );
+      },
+    );
+  }
+
+  function fillCollaborators() {
+    if (!assigneeInput) {
+      return;
+    }
+
+    assigneeInput.innerHTML =
+      '';
+
+    const emptyOption =
+      document.createElement(
+        'option',
+      );
+
+    emptyOption.value = '';
+    emptyOption.textContent =
+      'Sem responsável';
+
+    assigneeInput.appendChild(
+      emptyOption,
+    );
+
+    collaborators.forEach(
+      (profile) => {
+        const option =
+          document.createElement(
+            'option',
+          );
+
+        option.value =
+          profile.user_id;
+
+        option.textContent =
+          profile.display_name?.trim() ||
+          profile.github_login?.trim() ||
+          'Colaborador EVRYLUX';
+
+        assigneeInput.appendChild(
+          option,
+        );
+      },
+    );
+  }
+
+  function syncProgress() {
+    if (
+      progressInput &&
+      progressValue
+    ) {
+      progressValue.textContent =
+        `${progressInput.value}%`;
+    }
+  }
+
+  function resetForm() {
+    form?.reset();
+
+    if (itemId) {
+      itemId.value =
+        '';
+    }
+
+    if (stageInput) {
+      stageInput.value =
+        'now';
+    }
+
+    if (statusInput) {
+      statusInput.value =
+        'todo';
+    }
+
+    if (priorityInput) {
+      priorityInput.value =
+        'medium';
+    }
+
+    if (progressInput) {
+      progressInput.value =
+        '0';
+    }
+
+    syncStageVisualFromSelect();
+    syncPriorityVisualFromSelect();
+    syncProgress();
+
+    showFormStatus(
+      '',
+      '',
+    );
+
+    deleteButton?.classList.add(
+      'member-hidden',
+    );
+
+    if (saveButton) {
+      saveButton.textContent =
+        'Criar item';
+    }
+  }
+
+  function openCreateModal() {
+    resetForm();
+
+    if (modalTitle) {
+      modalTitle.textContent =
+        'Novo item';
+    }
+
+    modal?.classList.remove(
+      'member-hidden',
+    );
+
+    document.body.classList.add(
+      'roadmap-modal-open',
+    );
+
+    titleInput?.focus();
+  }
+
+  function openEditModal(
+    item: RoadmapItem,
+  ) {
+    resetForm();
+
+    if (modalTitle) {
+      modalTitle.textContent =
+        'Editar item';
+    }
+
+    if (itemId) {
+      itemId.value =
+        item.id;
+    }
+
+    if (titleInput) {
+      titleInput.value =
+        item.title;
+    }
+
+    if (descriptionInput) {
+      descriptionInput.value =
+        item.description ??
+        '';
+    }
+
+    if (stageInput) {
+      stageInput.value =
+        item.stage;
+    }
+
+    if (statusInput) {
+      statusInput.value =
+        item.status;
+    }
+
+    if (priorityInput) {
+      priorityInput.value =
+        item.priority;
+    }
+
+    if (assigneeInput) {
+      assigneeInput.value =
+        item.assignee_user_id ??
+        '';
+    }
+
+    if (areaInput) {
+      areaInput.value =
+        item.area ??
+        '';
+    }
+
+    if (dueDateInput) {
+      dueDateInput.value =
+        item.due_date ??
+        '';
+    }
+
+    if (progressInput) {
+      progressInput.value =
+        String(
+          item.progress,
+        );
+    }
+
+    if (notesInput) {
+      notesInput.value =
+        item.notes ??
+        '';
+    }
+
+    syncStageVisualFromSelect();
+    syncPriorityVisualFromSelect();
+    syncProgress();
+
+    deleteButton?.classList.remove(
+      'member-hidden',
+    );
+
+    if (saveButton) {
+      saveButton.textContent =
+        'Salvar alterações';
+    }
+
+    modal?.classList.remove(
+      'member-hidden',
+    );
+
+    document.body.classList.add(
+      'roadmap-modal-open',
+    );
+  }
+
+  function closeModal() {
+    modal?.classList.add(
+      'member-hidden',
+    );
+
+    document.body.classList.remove(
+      'roadmap-modal-open',
+    );
+
+    resetForm();
+  }
+
+  function openDetailsModal(
+    item: RoadmapItem,
+  ) {
+    detailsItem =
+      item;
+
+    const profile =
+      collaboratorFor(
+        item.assignee_user_id,
+      );
+
+    const name =
+      collaboratorName(
+        item.assignee_user_id,
+      );
+
+    if (detailsTitle) {
+      detailsTitle.textContent =
+        item.title;
+    }
+
+    if (detailsDescription) {
+      detailsDescription.textContent =
+        item.description?.trim() ||
+        'Sem descrição.';
+    }
+
+    if (detailsBadges) {
+      detailsBadges.innerHTML =
+        '';
+
+      const priority =
+        document.createElement(
+          'span',
+        );
+
+      priority.className =
+        'roadmap-pill roadmap-priority';
+
+      priority.dataset.priority =
+        item.priority;
+
+      priority.textContent =
+        priorityLabels[item.priority];
+
+      const status =
+        document.createElement(
+          'span',
+        );
+
+      status.className =
+        'roadmap-pill roadmap-status';
+
+      status.dataset.status =
+        item.status;
+
+      status.textContent =
+        statusLabels[item.status];
+
+      detailsBadges.append(
+        priority,
+        status,
+      );
+    }
+
+    if (detailsAvatar) {
+      detailsAvatar.textContent =
+        initials(name);
+
+      detailsAvatar.style.backgroundImage =
+        '';
+
+      detailsAvatar.classList.remove(
+        'has-image',
+      );
+
+      if (
+        profile?.avatar_url?.trim()
+      ) {
+        detailsAvatar.style.backgroundImage =
+          `url("${profile.avatar_url}")`;
+
+        detailsAvatar.classList.add(
+          'has-image',
+        );
+      }
+    }
+
+    if (detailsAssignee) {
+      detailsAssignee.textContent =
+        name;
+    }
+
+    if (detailsArea) {
+      detailsArea.textContent =
+        item.area?.trim() ||
+        profile?.area?.trim() ||
+        'Não informada';
+    }
+
+    if (detailsDueDate) {
+      detailsDueDate.textContent =
+        formatDate(
+          item.due_date,
+        );
+    }
+
+    if (detailsStage) {
+      detailsStage.textContent =
+        stageLabels[item.stage];
+    }
+
+    if (detailsProgressLabel) {
+      detailsProgressLabel.textContent =
+        `${item.progress}%`;
+    }
+
+    if (detailsProgressFill) {
+      detailsProgressFill.style.width =
+        `${item.progress}%`;
+    }
+
+    if (
+      detailsNotesWrap &&
+      detailsNotes
+    ) {
+      if (item.notes?.trim()) {
+        detailsNotes.textContent =
+          item.notes;
+
+        detailsNotesWrap.classList.remove(
+          'member-hidden',
+        );
+      } else {
+        detailsNotes.textContent =
+          '';
+
+        detailsNotesWrap.classList.add(
+          'member-hidden',
+        );
+      }
+    }
+
+    detailsModal?.classList.remove(
+      'member-hidden',
+    );
+
+    document.body.classList.add(
+      'roadmap-details-open',
+    );
+
+    detailsClose?.focus();
+  }
+
+  function closeDetailsModal() {
+    detailsModal?.classList.add(
+      'member-hidden',
+    );
+
+    document.body.classList.remove(
+      'roadmap-details-open',
+    );
+
+    detailsItem =
+      null;
+  }
+
+  function getFormInput():
+    RoadmapItemInput {
+    const rawProgress =
+      Math.min(
+        100,
+        Math.max(
+          0,
+          Number(
+            progressInput?.value ??
+            0,
+          ),
+        ),
+      );
+
+    let stage =
+      (
+        stageInput?.value ??
+        'now'
+      ) as RoadmapStage;
+
+    let status =
+      (
+        statusInput?.value ??
+        'todo'
+      ) as RoadmapStatus;
+
+    if (
+      stage === 'done' ||
+      status === 'done'
+    ) {
+      stage =
+        'done';
+
+      status =
+        'done';
+    }
+
+    return {
+      title:
+        titleInput?.value.trim() ??
+        '',
+
+      description:
+        descriptionInput?.value.trim() ||
+        null,
+
+      stage,
+
+      status,
+
+      priority:
+        (
+          priorityInput?.value ??
+          'medium'
+        ) as RoadmapPriority,
+
+      assignee_user_id:
+        assigneeInput?.value ||
+        null,
+
+      area:
+        areaInput?.value.trim() ||
+        null,
+
+      progress:
+        status === 'done'
+          ? 100
+          : rawProgress,
+
+      due_date:
+        dueDateInput?.value ||
+        null,
+
+      notes:
+        notesInput?.value.trim() ||
+        null,
+    };
+  }
+
+  async function loadRoadmap() {
+    clearError();
+
+    try {
+      roadmapItems =
+        await getRoadmapItems();
+    } catch (error) {
+      console.error(
+        '[EVRYLUX] Erro ao carregar roadmap:',
+        error,
+      );
+
+      showError(
+        'Não foi possível carregar os itens do roadmap.',
+      );
+
+      roadmapItems =
+        [];
+    }
+
+    try {
+      collaborators =
+        await getCollaboratorProfiles();
+
+      fillCollaborators();
+    } catch (error) {
+      console.warn(
+        '[EVRYLUX] Não foi possível carregar colaboradores:',
+        error,
+      );
+
+      collaborators =
+        [];
+
+      fillCollaborators();
+    }
+
+    renderRoadmap();
+  }
+
+  stageRange?.addEventListener(
+    'input',
+    syncStageVisualFromRange,
+  );
+
+  priorityRange?.addEventListener(
+    'input',
+    syncPriorityVisualFromRange,
+  );
+
+  newButton?.addEventListener(
+    'click',
+    openCreateModal,
+  );
+
+  modalClose?.addEventListener(
+    'click',
+    closeModal,
+  );
+
+  modalCancel?.addEventListener(
+    'click',
+    closeModal,
+  );
+
+  modalBackdrop?.addEventListener(
+    'click',
+    closeModal,
+  );
+
+  detailsClose?.addEventListener(
+    'click',
+    closeDetailsModal,
+  );
+
+  detailsBackdrop?.addEventListener(
+    'click',
+    closeDetailsModal,
+  );
+
+  detailsEdit?.addEventListener(
+    'click',
+    () => {
+      if (!detailsItem) {
+        return;
+      }
+
+      const item =
+        detailsItem;
+
+      closeDetailsModal();
+      openEditModal(item);
+    },
+  );
+
+  progressInput?.addEventListener(
+    'input',
+    syncProgress,
+  );
+
+  statusInput?.addEventListener(
+    'change',
+    () => {
+      if (
+        statusInput.value ===
+        'done'
+      ) {
+        if (stageInput) {
+          stageInput.value =
+            'done';
+        }
+
+        syncStageVisualFromSelect();
+
+        if (progressInput) {
+          progressInput.value =
+            '100';
+        }
+
+        syncProgress();
+      }
+    },
+  );
+
+  filterButtons.forEach(
+    (button) => {
+      button.addEventListener(
+        'click',
+        () => {
+          activeFilter =
+            (
+              button.dataset.filter ??
+              'all'
+            ) as typeof activeFilter;
+
+          filterButtons.forEach(
+            (item) => {
+              item.classList.toggle(
+                'active',
+                item === button,
+              );
+            },
+          );
+
+          renderRoadmap();
+        },
+      );
+    },
+  );
+
+  form?.addEventListener(
+    'submit',
+    async (event) => {
+      event.preventDefault();
+
+      if (
+        !session ||
+        !titleInput?.value.trim()
+      ) {
+        showFormStatus(
+          'Informe um título.',
+          'error',
+        );
+
+        return;
+      }
+
+      const editingId =
+        itemId?.value ??
+        '';
+
+      if (saveButton) {
+        saveButton.disabled =
+          true;
+
+        saveButton.textContent =
+          'Salvando...';
+      }
+
+      try {
+        const input =
+          getFormInput();
+
+        if (editingId) {
+          await updateRoadmapItem(
+            editingId,
+            input,
+          );
+        } else {
+          await createRoadmapItem(
+            input,
+            session.user.id,
+          );
+        }
+
+        await loadRoadmap();
+        closeModal();
+      } catch (error) {
+        console.error(
+          '[EVRYLUX] Erro ao salvar item:',
+          error,
+        );
+
+        showFormStatus(
+          'Não foi possível salvar o item.',
+          'error',
+        );
+      } finally {
+        if (saveButton) {
+          saveButton.disabled =
+            false;
+
+          saveButton.textContent =
+            editingId
+              ? 'Salvar alterações'
+              : 'Criar item';
+        }
+      }
+    },
+  );
+
+  deleteButton?.addEventListener(
+    'click',
+    async () => {
+      const id =
+        itemId?.value;
+
+      if (!id) {
+        return;
+      }
+
+      if (
+        !window.confirm(
+          'Excluir este item do roadmap?',
+        )
+      ) {
+        return;
+      }
+
+      deleteButton.disabled =
+        true;
+
+      try {
+        await deleteRoadmapItem(id);
+
+        await loadRoadmap();
+        closeModal();
+      } catch (error) {
+        console.error(
+          '[EVRYLUX] Erro ao excluir item:',
+          error,
+        );
+
+        showFormStatus(
+          'Não foi possível excluir o item.',
+          'error',
+        );
+      } finally {
+        deleteButton.disabled =
+          false;
+      }
+    },
+  );
+
+  document.addEventListener(
+    'keydown',
+    (event) => {
+      if (
+        event.key === 'Escape'
+      ) {
+        if (
+          detailsModal &&
+          !detailsModal.classList.contains(
+            'member-hidden',
+          )
+        ) {
+          closeDetailsModal();
+          return;
+        }
+
+        if (
+          modal &&
+          !modal.classList.contains(
+            'member-hidden',
+          )
+        ) {
+          closeModal();
+        }
+      }
+    },
+  );
+
+  if (session) {
+    await loadRoadmap();
+
+    loading?.classList.add(
+      'member-hidden',
+    );
+
+    content?.classList.remove(
+      'member-hidden',
+    );
+  }
+</script>
+
+<style is:global>
+  body.roadmap-modal-open,
+  body.roadmap-details-open {
+    overflow: hidden;
+  }
+
+  .roadmap-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 150;
+    display: grid;
+    place-items: center;
+    padding: 12px;
+  }
+
+  .roadmap-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: rgba(23,32,25,.25);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .roadmap-modal-card {
+    position: relative;
+    z-index: 1;
+    width: min(100%,760px);
+    max-height: calc(100vh - 24px);
+    padding: 18px 22px;
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    background: rgba(255,255,255,.985);
+    box-shadow:
+      0 28px 90px
+      rgba(23,32,25,.18);
+  }
+
+  .roadmap-modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 12px;
+  }
+
+  .roadmap-modal-head h2 {
+    margin: 6px 0 0;
+    font-size: 26px;
+    letter-spacing: -.04em;
+  }
+
+  .roadmap-modal-close {
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: var(--surface-muted);
+    color: var(--text);
+    font: inherit;
+    font-size: 20px;
+    cursor: pointer;
+  }
+
+  .roadmap-form {
+    display: grid;
+    gap: 11px;
+  }
+
+  .roadmap-main-grid {
+    display: grid;
+    grid-template-columns:
+      .95fr 1.35fr;
+    gap: 10px;
+  }
+
+  .roadmap-visual-grid {
+    display: grid;
+    grid-template-columns:
+      1fr 1fr;
+    gap: 10px;
+  }
+
+  .roadmap-visual-control {
+    padding: 10px 12px 8px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface-muted);
+  }
+
+  .roadmap-control-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 7px;
+  }
+
+  .roadmap-control-head span,
+  .roadmap-control-head label {
+    color: var(--text);
+    font-size: 11px;
+    font-weight: 750;
+  }
+
+  .roadmap-control-head strong {
+    color: var(--primary-deep);
+    font-size: 12px;
+  }
+
+  .roadmap-range {
+    width: 100%;
+    accent-color: var(--primary-strong);
+  }
+
+  .roadmap-range-labels {
+    margin-top: 3px;
+    display: grid;
+    color: var(--text-soft);
+    font-size: 8px;
+    font-weight: 650;
+  }
+
+  .roadmap-stage-labels {
+    grid-template-columns: repeat(4,1fr);
+  }
+
+  .roadmap-priority-labels {
+    grid-template-columns: repeat(3,1fr);
+  }
+
+  .roadmap-range-labels span {
+    text-align: center;
+  }
+
+  .roadmap-range-labels span:first-child {
+    text-align: left;
+  }
+
+  .roadmap-range-labels span:last-child {
+    text-align: right;
+  }
+
+  .roadmap-hidden-select {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .roadmap-form-grid {
+    display: grid;
+    grid-template-columns:
+      repeat(2,minmax(0,1fr));
+    gap: 10px;
+  }
+
+  .roadmap-progress-row {
+    display: grid;
+    grid-template-columns:
+      .9fr 1.1fr;
+    gap: 10px;
+    align-items: end;
+  }
+
+  .roadmap-field {
+    display: grid;
+    gap: 5px;
+  }
+
+  .roadmap-field label {
+    color: var(--text);
+    font-size: 11px;
+    font-weight: 750;
+  }
+
+  .roadmap-field input:not([type="range"]),
+  .roadmap-field textarea,
+  .roadmap-field select {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: var(--surface-solid);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+    outline: none;
+  }
+
+  .roadmap-field input:not([type="range"]),
+  .roadmap-field select {
+    min-height: 40px;
+    padding: 0 11px;
+  }
+
+  .roadmap-field textarea {
+    min-height: 58px;
+    padding: 9px 11px;
+    resize: none;
+  }
+
+  .roadmap-title-field input {
+    min-height: 58px !important;
+  }
+
+  .roadmap-field input:focus,
+  .roadmap-field textarea:focus,
+  .roadmap-field select:focus {
+    border-color: rgba(95,157,89,.5);
+    box-shadow:
+      0 0 0 3px
+      rgba(159,211,149,.14);
+  }
+
+  .roadmap-progress-field {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface-muted);
+  }
+
+  .roadmap-notes-field textarea {
+    min-height: 66px;
+  }
+
+  .roadmap-form-status {
+    min-height: 14px;
+    font-size: 11px;
+  }
+
+  .roadmap-form-status.error {
+    color: #a24537;
+  }
+
+  .roadmap-modal-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .roadmap-modal-actions-right {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+  }
+
+  .roadmap-button {
+    min-height: 38px;
+    padding: 0 13px;
+    border-radius: 11px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 750;
+    cursor: pointer;
+  }
+
+  .roadmap-button-primary {
+    border: 1px solid rgba(95,157,89,.2);
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+  }
+
+  .roadmap-button-secondary {
+    border: 1px solid var(--border);
+    background: var(--surface-muted);
+    color: var(--text);
+  }
+
+  .roadmap-button-danger {
+    border: 1px solid rgba(162,69,55,.15);
+    background: #fff0ed;
+    color: #9a4638;
+  }
+
+  @media (max-width: 720px) {
+    .roadmap-modal-card {
+      max-height: calc(100vh - 16px);
+      overflow-y: auto;
+      padding: 18px;
+    }
+
+    .roadmap-main-grid,
+    .roadmap-visual-grid,
+    .roadmap-form-grid,
+    .roadmap-progress-row {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<style>
+  .roadmap-toolbar {
+    margin-top: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .roadmap-filter-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+  }
+
+  .roadmap-filter {
+    min-height: 38px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: rgba(255,255,255,.66);
+    color: var(--text-soft);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 750;
+    cursor: pointer;
+  }
+
+  .roadmap-filter.active {
+    border-color: rgba(95,157,89,.2);
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+  }
+
+  .roadmap-new-button {
+    min-height: 42px;
+    padding: 0 15px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border: 1px solid rgba(95,157,89,.18);
+    border-radius: 12px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .roadmap-error {
+    margin-top: 18px;
+    padding: 14px 16px;
+    border: 1px solid rgba(162,69,55,.15);
+    border-radius: 14px;
+    background: #fff0ed;
+    color: #923f32;
+    font-size: 13px;
+  }
+
+  .roadmap-board {
+    margin-top: 24px;
+    display: grid;
+    grid-template-columns:
+      repeat(4,minmax(0,1fr));
+    gap: 12px;
+    align-items: start;
+  }
+
+  .roadmap-column {
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: rgba(255,255,255,.45);
+  }
+
+  .roadmap-column-head {
+    min-height: 56px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .roadmap-column-kicker {
+    display: block;
+    margin-bottom: 3px;
+    color: var(--text-soft);
+    font-size: 9px;
+    font-weight: 750;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+  }
+
+  .roadmap-column h2 {
+    margin: 0;
+    font-size: 22px;
+    letter-spacing: -.035em;
+  }
+
+  .roadmap-column-count {
+    min-width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    background: var(--surface-muted);
+    color: var(--text-soft);
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .roadmap-column-list {
+    max-height:
+      calc(100vh - 360px);
+    min-height: 150px;
+    overflow-y: auto;
+    padding-right: 3px;
+    display: grid;
+    align-content: start;
+    gap: 10px;
+    scrollbar-width: thin;
+  }
+
+  @media (max-width: 1120px) {
+    .roadmap-board {
+      grid-template-columns:
+        repeat(2,minmax(0,1fr));
+    }
+
+    .roadmap-column-list {
+      max-height: 440px;
+    }
+  }
+
+  @media (max-width: 650px) {
+    .roadmap-board {
+      grid-template-columns: 1fr;
+    }
+
+    .roadmap-column-list {
+      max-height: 420px;
+    }
+  }
+</style>

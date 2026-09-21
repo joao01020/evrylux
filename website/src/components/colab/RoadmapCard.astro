@@ -1,0 +1,71 @@
+<template id="roadmap-card-template">
+  <article
+    class="roadmap-item-card"
+    tabindex="0"
+    role="button"
+  >
+    <div class="roadmap-card-top">
+      <div class="roadmap-card-badges">
+        <span
+          class="roadmap-pill roadmap-priority"
+          data-role="priority"
+        ></span>
+
+        <span
+          class="roadmap-pill roadmap-status"
+          data-role="status"
+        ></span>
+      </div>
+
+      <span
+        class="roadmap-card-arrow"
+        aria-hidden="true"
+      >
+        ↗
+      </span>
+    </div>
+
+    <h3 data-role="title"></h3>
+
+    <p
+      class="roadmap-card-description"
+      data-role="description"
+    ></p>
+
+    <div class="roadmap-card-footer">
+      <div class="roadmap-assignee">
+        <span
+          class="roadmap-assignee-avatar"
+          data-role="assignee-avatar"
+        ></span>
+
+        <div class="roadmap-assignee-copy">
+          <span>
+            Responsável
+          </span>
+
+          <strong data-role="assignee"></strong>
+        </div>
+      </div>
+
+      <div class="roadmap-card-progress">
+        <div class="roadmap-progress-head">
+          <span>
+            Progresso
+          </span>
+
+          <strong
+            data-role="progress-label"
+          ></strong>
+        </div>
+
+        <div class="roadmap-progress-track">
+          <span
+            class="roadmap-progress-fill"
+            data-role="progress-fill"
+          ></span>
+        </div>
+      </div>
+    </div>
+  </article>
+</template>
