@@ -22,8 +22,9 @@ import Layout from '../layouts/Layout.astro';
 
         <button
           id="roadmap-admin-add"
-          class="roadmap-admin-add member-hidden"
+          class="roadmap-admin-add"
           type="button"
+          hidden
         >
           ＋ Adicionar item
         </button>
@@ -68,10 +69,11 @@ import Layout from '../layouts/Layout.astro';
 
     <div
       id="roadmap-editor-modal"
-      class="roadmap-editor-modal member-hidden"
+      class="roadmap-editor-modal"
       role="dialog"
       aria-modal="true"
       aria-labelledby="roadmap-editor-title"
+      hidden
     >
       <button
         id="roadmap-editor-backdrop"
@@ -168,8 +170,9 @@ import Layout from '../layouts/Layout.astro';
           <div class="roadmap-editor-actions">
             <button
               id="roadmap-editor-delete"
-              class="roadmap-editor-delete member-hidden"
+              class="roadmap-editor-delete"
               type="button"
+              hidden
             >
               Excluir
             </button>
@@ -308,6 +311,21 @@ import Layout from '../layouts/Layout.astro';
     document.querySelector<HTMLElement>(
       '#roadmap-editor-status',
     );
+
+  // Estado seguro por padrão:
+  // visitantes e colaboradores comuns nunca veem controles administrativos
+  // enquanto a sessão/permissão ainda está sendo verificada.
+  if (addButton) {
+    addButton.hidden = true;
+  }
+
+  if (modal) {
+    modal.hidden = true;
+  }
+
+  if (deleteButton) {
+    deleteButton.hidden = true;
+  }
 
   let items:
     PublicRoadmapItem[] =
@@ -500,9 +518,9 @@ import Layout from '../layouts/Layout.astro';
       '',
     );
 
-    deleteButton?.classList.add(
-      'member-hidden',
-    );
+    if (deleteButton) {
+      deleteButton.hidden = true;
+    }
 
     if (modalTitle) {
       modalTitle.textContent =
@@ -517,9 +535,9 @@ import Layout from '../layouts/Layout.astro';
 
     resetForm();
 
-    modal?.classList.remove(
-      'member-hidden',
-    );
+    if (modal) {
+      modal.hidden = false;
+    }
 
     document.body.classList.add(
       'public-roadmap-modal-open',
@@ -564,13 +582,13 @@ import Layout from '../layouts/Layout.astro';
         );
     }
 
-    deleteButton?.classList.remove(
-      'member-hidden',
-    );
+    if (deleteButton) {
+      deleteButton.hidden = false;
+    }
 
-    modal?.classList.remove(
-      'member-hidden',
-    );
+    if (modal) {
+      modal.hidden = false;
+    }
 
     document.body.classList.add(
       'public-roadmap-modal-open',
@@ -578,9 +596,9 @@ import Layout from '../layouts/Layout.astro';
   }
 
   function closeModal() {
-    modal?.classList.add(
-      'member-hidden',
-    );
+    if (modal) {
+      modal.hidden = true;
+    }
 
     document.body.classList.remove(
       'public-roadmap-modal-open',
@@ -745,9 +763,7 @@ import Layout from '../layouts/Layout.astro';
         event.key ===
           'Escape' &&
         modal &&
-        !modal.classList.contains(
-          'member-hidden',
-        )
+        !modal.hidden
       ) {
         closeModal();
       }
@@ -758,15 +774,36 @@ import Layout from '../layouts/Layout.astro';
     admin =
       await isCurrentUserAdmin();
 
-    if (
-      admin &&
-      addButton
-    ) {
-      addButton.classList.remove(
-        'member-hidden',
+    if (addButton) {
+      addButton.hidden =
+        !admin;
+    }
+
+    if (!admin) {
+      if (modal) {
+        modal.hidden = true;
+      }
+
+      document.body.classList.remove(
+        'public-roadmap-modal-open',
       );
     }
   } catch (error) {
+    admin =
+      false;
+
+    if (addButton) {
+      addButton.hidden = true;
+    }
+
+    if (modal) {
+      modal.hidden = true;
+    }
+
+    document.body.classList.remove(
+      'public-roadmap-modal-open',
+    );
+
     console.warn(
       '[EVRYLUX] Não foi possível determinar permissões administrativas:',
       error,
@@ -777,6 +814,10 @@ import Layout from '../layouts/Layout.astro';
 </script>
 
 <style is:global>
+  [hidden] {
+    display: none !important;
+  }
+
   body.public-roadmap-modal-open {
     overflow: hidden;
   }
