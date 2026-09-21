@@ -6,20 +6,10 @@ import '../../styles/members.css';
 
 <Layout
   title="Administradores — EVRYLUX Colab"
-  description="Gerenciamento de administradores do EVRYLUX."
+  description="Gerencie administradores e permissões do EVRYLUX Colab."
 >
-  <main class="member-shell">
-    <div
-      id="admin-loading"
-      class="member-container member-loading"
-    >
-      Verificando permissões...
-    </div>
-
-    <div
-      id="admin-content"
-      class="member-container member-hidden"
-    >
+  <main class="member-shell admin-access-page">
+    <div class="member-container">
       <div class="member-topbar">
         <div class="member-title-block">
           <div class="eyebrow">
@@ -31,102 +21,306 @@ import '../../styles/members.css';
           </h1>
 
           <p>
-            Controle quem pode administrar o site e editar o roadmap público.
+            Controle quem pode acessar cada área administrativa sem entregar
+            controle total da conta.
           </p>
         </div>
 
         <ColabNav />
       </div>
 
-      <section class="admin-panel">
-        <div class="admin-add-card">
+      <div
+        id="admin-loading"
+        class="member-card admin-loading-card"
+      >
+        <div class="member-card-inner">
+          Verificando suas permissões...
+        </div>
+      </div>
+
+      <section
+        id="owner-setup"
+        class="owner-setup member-hidden"
+      >
+        <article class="owner-setup-card">
+          <div class="owner-shield" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M12 3 5.5 6v5.2c0 4.1 2.7 7.7 6.5 9.8 3.8-2.1 6.5-5.7 6.5-9.8V6L12 3Z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M9 12.3 11.1 14.4 15.5 9.5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </div>
+
           <div>
-            <span class="admin-kicker">
-              Acesso administrativo
+            <span class="owner-kicker">
+              Configuração inicial
             </span>
 
             <h2>
-              Adicionar administrador
+              Defina o proprietário do EVRYLUX Colab
             </h2>
 
             <p>
-              Informe o e-mail de um usuário que já existe
-              em Authentication → Users.
+              Esta ação só funciona uma vez e apenas para uma conta que já
+              possua papel de administrador. O proprietário terá controle total
+              e não poderá ser removido por outros administradores.
             </p>
-          </div>
-
-          <form
-            id="admin-add-form"
-            class="admin-add-form"
-          >
-            <input
-              id="admin-email"
-              type="email"
-              required
-              autocomplete="email"
-              placeholder="usuario@evrylux.com"
-            />
 
             <button
-              id="admin-add-button"
-              type="submit"
+              id="claim-owner"
+              type="button"
+              class="member-button member-button-primary"
             >
-              Adicionar
+              Tornar esta conta proprietária
             </button>
-          </form>
+          </div>
+        </article>
+      </section>
 
-          <div
-            id="admin-status"
-            class="admin-status"
-            role="status"
-          ></div>
-        </div>
-
-        <div class="admin-list-card">
-          <div class="admin-list-head">
-            <div>
-              <span class="admin-kicker">
-                Permissões
-              </span>
-
-              <h2>
-                Administradores atuais
-              </h2>
-            </div>
-
-            <span
-              id="admin-count"
-              class="admin-count"
-            >
-              0
+      <div
+        id="admin-content"
+        class="member-hidden"
+      >
+        <section class="admin-summary-grid">
+          <article class="summary-card summary-card-owner">
+            <span class="summary-label">
+              Proprietário
             </span>
+
+            <strong id="owner-name">
+              —
+            </strong>
+
+            <p>
+              Controle total e permanente sobre a administração.
+            </p>
+          </article>
+
+          <article class="summary-card">
+            <span class="summary-label">
+              Administradores
+            </span>
+
+            <strong id="admin-count">
+              0
+            </strong>
+
+            <p>
+              Contas com algum nível de acesso administrativo.
+            </p>
+          </article>
+
+          <article class="summary-card">
+            <span class="summary-label">
+              Seu acesso
+            </span>
+
+            <strong id="my-admin-level">
+              Administrador
+            </strong>
+
+            <p id="my-admin-copy">
+              As ações disponíveis seguem suas permissões.
+            </p>
+          </article>
+        </section>
+
+        <section class="admin-layout">
+          <div class="admin-main-column">
+            <article
+              id="add-admin-card"
+              class="member-card member-hidden"
+            >
+              <div class="member-card-inner">
+                <div class="section-heading">
+                  <div>
+                    <span class="section-kicker">
+                      Novo acesso
+                    </span>
+
+                    <h2>
+                      Adicionar administrador
+                    </h2>
+
+                    <p>
+                      A conta precisa já existir no Supabase Auth.
+                      O novo administrador começa sem permissões.
+                    </p>
+                  </div>
+                </div>
+
+                <form id="add-admin-form" class="add-admin-form">
+                  <label for="admin-email">
+                    E-mail da conta
+                  </label>
+
+                  <div class="add-admin-row">
+                    <input
+                      id="admin-email"
+                      type="email"
+                      autocomplete="email"
+                      placeholder="colaborador@exemplo.com"
+                      required
+                    />
+
+                    <button
+                      id="add-admin-submit"
+                      type="submit"
+                      class="member-button member-button-primary"
+                    >
+                      Adicionar
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </article>
+
+            <article class="member-card administrators-card">
+              <div class="member-card-inner">
+                <div class="section-heading">
+                  <div>
+                    <span class="section-kicker">
+                      Controle de acesso
+                    </span>
+
+                    <h2>
+                      Equipe administrativa
+                    </h2>
+
+                    <p>
+                      O proprietário tem acesso total. Os demais só recebem
+                      as permissões selecionadas manualmente.
+                    </p>
+                  </div>
+                </div>
+
+                <div
+                  id="admins-list"
+                  class="admins-list"
+                ></div>
+              </div>
+            </article>
           </div>
 
-          <div
-            id="admin-list"
-            class="admin-list"
-          ></div>
-        </div>
-      </section>
+          <aside class="admin-side-column">
+            <article class="member-card">
+              <div class="member-card-inner">
+                <div class="side-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path
+                      d="M12 3 5.5 6v5.2c0 4.1 2.7 7.7 6.5 9.8 3.8-2.1 6.5-5.7 6.5-9.8V6L12 3Z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </div>
+
+                <div class="eyebrow">
+                  Regra principal
+                </div>
+
+                <h2>
+                  Menor privilégio
+                </h2>
+
+                <p class="member-muted">
+                  Cada pessoa recebe apenas o acesso necessário para realizar
+                  sua função. A autenticação AAL2 continua sendo uma camada
+                  separada de segurança.
+                </p>
+
+                <div class="rule-list">
+                  <div>
+                    <span>01</span>
+                    <strong>Proprietário não pode ser removido</strong>
+                  </div>
+
+                  <div>
+                    <span>02</span>
+                    <strong>Admins começam sem permissões</strong>
+                  </div>
+
+                  <div>
+                    <span>03</span>
+                    <strong>Só o proprietário altera permissões</strong>
+                  </div>
+
+                  <div>
+                    <span>04</span>
+                    <strong>Ações ficam registradas na auditoria</strong>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article
+              id="audit-card"
+              class="member-card member-hidden"
+            >
+              <div class="member-card-inner">
+                <div class="section-heading compact">
+                  <div>
+                    <span class="section-kicker">
+                      Auditoria
+                    </span>
+
+                    <h2>
+                      Atividade recente
+                    </h2>
+                  </div>
+                </div>
+
+                <div
+                  id="audit-list"
+                  class="audit-list"
+                ></div>
+              </div>
+            </article>
+          </aside>
+        </section>
+      </div>
+
+      <div
+        id="admin-status"
+        class="member-status"
+        role="status"
+      ></div>
     </div>
   </main>
 </Layout>
 
 <script>
   import {
-    requireMemberSession,
-  } from '../../lib/member-auth';
+    supabase,
+  } from '../../lib/supabase';
 
   import {
+    ADMIN_PERMISSION_DEFINITIONS,
     addColabAdminByEmail,
-    getColabAdmins,
-    isCurrentUserAdmin,
+    claimOwner,
+    hasAdminPermission,
+    isCurrentUserOwner,
+    listAdminAudit,
+    listColabAdmins,
     removeColabAdmin,
+    setColabAdminPermissions,
+    type AdminPermission,
     type ColabAdmin,
-  } from '../../lib/colab-admin';
-
-  const session =
-    await requireMemberSession();
+  } from '../../lib/admin-permissions';
 
   const loading =
     document.querySelector<HTMLElement>(
@@ -138,19 +332,69 @@ import '../../styles/members.css';
       '#admin-content',
     );
 
-  const form =
-    document.querySelector<HTMLFormElement>(
-      '#admin-add-form',
+  const ownerSetup =
+    document.querySelector<HTMLElement>(
+      '#owner-setup',
     );
 
-  const emailInput =
+  const claimOwnerButton =
+    document.querySelector<HTMLButtonElement>(
+      '#claim-owner',
+    );
+
+  const ownerName =
+    document.querySelector<HTMLElement>(
+      '#owner-name',
+    );
+
+  const adminCount =
+    document.querySelector<HTMLElement>(
+      '#admin-count',
+    );
+
+  const myAdminLevel =
+    document.querySelector<HTMLElement>(
+      '#my-admin-level',
+    );
+
+  const myAdminCopy =
+    document.querySelector<HTMLElement>(
+      '#my-admin-copy',
+    );
+
+  const addAdminCard =
+    document.querySelector<HTMLElement>(
+      '#add-admin-card',
+    );
+
+  const addAdminForm =
+    document.querySelector<HTMLFormElement>(
+      '#add-admin-form',
+    );
+
+  const adminEmail =
     document.querySelector<HTMLInputElement>(
       '#admin-email',
     );
 
-  const addButton =
+  const addAdminSubmit =
     document.querySelector<HTMLButtonElement>(
-      '#admin-add-button',
+      '#add-admin-submit',
+    );
+
+  const adminsList =
+    document.querySelector<HTMLElement>(
+      '#admins-list',
+    );
+
+  const auditCard =
+    document.querySelector<HTMLElement>(
+      '#audit-card',
+    );
+
+  const auditList =
+    document.querySelector<HTMLElement>(
+      '#audit-list',
     );
 
   const status =
@@ -158,22 +402,25 @@ import '../../styles/members.css';
       '#admin-status',
     );
 
-  const list =
-    document.querySelector<HTMLElement>(
-      '#admin-list',
-    );
+  let currentUserId =
+    '';
 
-  const count =
-    document.querySelector<HTMLElement>(
-      '#admin-count',
-    );
+  let currentIsOwner =
+    false;
+
+  let canManageAdmins =
+    false;
+
+  let canViewAudit =
+    false;
 
   function showStatus(
     message: string,
     type:
-      'success' |
-      'error' |
-      '',
+      | 'success'
+      | 'error'
+      | '' =
+        '',
   ) {
     if (!status) {
       return;
@@ -184,99 +431,358 @@ import '../../styles/members.css';
 
     status.className =
       type
-        ? `admin-status ${type}`
-        : 'admin-status';
+        ? `member-status show ${type}`
+        : 'member-status';
   }
 
   function escapeHtml(
-    value: string,
+    value: unknown,
   ) {
+    return String(
+      value ??
+      '',
+    )
+      .replaceAll(
+        '&',
+        '&amp;',
+      )
+      .replaceAll(
+        '<',
+        '&lt;',
+      )
+      .replaceAll(
+        '>',
+        '&gt;',
+      )
+      .replaceAll(
+        '"',
+        '&quot;',
+      )
+      .replaceAll(
+        "'",
+        '&#039;',
+      );
+  }
+
+  function initials(
+    admin: ColabAdmin,
+  ) {
+    const value =
+      admin.display_name ||
+      admin.email ||
+      'EV';
+
     return value
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#039;');
+      .trim()
+      .split(/\s+/)
+      .slice(
+        0,
+        2,
+      )
+      .map(
+        (
+          part,
+        ) =>
+          part[0]?.toUpperCase() ??
+          '',
+      )
+      .join('');
+  }
+
+  function permissionGroups(
+    admin: ColabAdmin,
+  ) {
+    const groups =
+      new Map<
+        string,
+        typeof ADMIN_PERMISSION_DEFINITIONS[number][]
+      >();
+
+    for (
+      const definition
+      of ADMIN_PERMISSION_DEFINITIONS
+    ) {
+      const list =
+        groups.get(
+          definition.group,
+        ) ??
+        [];
+
+      list.push(
+        definition,
+      );
+
+      groups.set(
+        definition.group,
+        list,
+      );
+    }
+
+    return Array.from(
+      groups.entries(),
+    )
+      .map(
+        (
+          [
+            group,
+            permissions,
+          ],
+        ) => `
+          <div class="permission-group">
+            <div class="permission-group-title">
+              ${escapeHtml(group)}
+            </div>
+
+            <div class="permission-options">
+              ${
+                permissions
+                  .map(
+                    (
+                      permission,
+                    ) => {
+                      const checked =
+                        admin.permissions.includes(
+                          permission.key,
+                        );
+
+                      return `
+                        <label class="permission-option">
+                          <span>
+                            <strong>
+                              ${escapeHtml(permission.label)}
+                            </strong>
+
+                            <small>
+                              ${escapeHtml(permission.description)}
+                            </small>
+                          </span>
+
+                          <input
+                            type="checkbox"
+                            data-permission="${permission.key}"
+                            ${checked ? 'checked' : ''}
+                          />
+
+                          <span class="permission-switch" aria-hidden="true"></span>
+                        </label>
+                      `;
+                    },
+                  )
+                  .join('')
+              }
+            </div>
+          </div>
+        `,
+      )
+      .join('');
   }
 
   function renderAdmins(
     admins: ColabAdmin[],
   ) {
-    if (count) {
-      count.textContent =
+    if (!adminsList) {
+      return;
+    }
+
+    const owner =
+      admins.find(
+        (
+          admin,
+        ) =>
+          admin.is_owner,
+      );
+
+    if (
+      ownerName
+    ) {
+      ownerName.textContent =
+        owner?.display_name ||
+        owner?.email ||
+        'Não definido';
+    }
+
+    if (
+      adminCount
+    ) {
+      adminCount.textContent =
         String(
           admins.length,
         );
     }
 
-    if (!list) {
-      return;
-    }
-
-    if (!admins.length) {
-      list.innerHTML = `
-        <div class="admin-empty">
-          Nenhum administrador encontrado.
-        </div>
-      `;
-
-      return;
-    }
-
-    list.innerHTML =
+    adminsList.innerHTML =
       admins
         .map(
-          (admin) => {
-            const name =
-              admin.display_name?.trim() ||
-              admin.github_login?.trim() ||
-              admin.email ||
-              'Administrador EVRYLUX';
-
+          (
+            admin,
+          ) => {
             const isSelf =
-              session?.user.id ===
-              admin.user_id;
+              admin.user_id ===
+              currentUserId;
+
+            const avatar =
+              admin.avatar_url
+                ? `
+                  <img
+                    src="${escapeHtml(admin.avatar_url)}"
+                    alt=""
+                    class="admin-avatar-image"
+                  />
+                `
+                : `
+                  <span class="admin-avatar-fallback">
+                    ${escapeHtml(initials(admin))}
+                  </span>
+                `;
+
+            if (
+              admin.is_owner
+            ) {
+              return `
+                <article class="admin-person-card owner-person-card">
+                  <div class="admin-person-head">
+                    <div class="admin-avatar">
+                      ${avatar}
+                    </div>
+
+                    <div class="admin-person-identity">
+                      <div class="admin-role-row">
+                        <span class="role-pill role-owner">
+                          Proprietário
+                        </span>
+
+                        ${isSelf ? '<span class="role-pill role-self">Você</span>' : ''}
+                      </div>
+
+                      <h3>
+                        ${escapeHtml(admin.display_name || admin.email || 'Proprietário')}
+                      </h3>
+
+                      <p>
+                        ${escapeHtml(admin.email || '')}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="owner-access-note">
+                    <strong>
+                      Controle total
+                    </strong>
+
+                    <span>
+                      O proprietário possui todas as permissões e não pode ser removido por outros administradores.
+                    </span>
+                  </div>
+                </article>
+              `;
+            }
 
             return `
-              <article class="admin-row">
-                <div class="admin-avatar">
-                  ${escapeHtml(
-                    name
-                      .slice(0, 2)
-                      .toUpperCase(),
-                  )}
-                </div>
+              <article
+                class="admin-person-card"
+                data-admin-card="${escapeHtml(admin.user_id)}"
+              >
+                <div class="admin-person-head">
+                  <div class="admin-avatar">
+                    ${avatar}
+                  </div>
 
-                <div class="admin-info">
-                  <strong>
-                    ${escapeHtml(name)}
-                  </strong>
+                  <div class="admin-person-identity">
+                    <div class="admin-role-row">
+                      <span class="role-pill">
+                        Administrador
+                      </span>
 
-                  <span>
-                    ${escapeHtml(
-                      admin.email ??
-                      'E-mail não disponível',
-                    )}
-                  </span>
+                      ${isSelf ? '<span class="role-pill role-self">Você</span>' : ''}
+                    </div>
+
+                    <h3>
+                      ${escapeHtml(admin.display_name || admin.email || 'Administrador')}
+                    </h3>
+
+                    <p>
+                      ${escapeHtml(admin.email || '')}
+                    </p>
+                  </div>
+
+                  ${
+                    canManageAdmins &&
+                    !isSelf
+                      ? `
+                        <button
+                          class="remove-admin-button"
+                          type="button"
+                          data-remove-admin="${escapeHtml(admin.user_id)}"
+                        >
+                          Remover
+                        </button>
+                      `
+                      : ''
+                  }
                 </div>
 
                 ${
-                  isSelf
+                  currentIsOwner
                     ? `
-                      <span class="admin-self">
-                        Você
-                      </span>
+                      <div class="permissions-editor">
+                        <div class="permissions-editor-head">
+                          <div>
+                            <strong>
+                              Permissões
+                            </strong>
+
+                            <p>
+                              Selecione exatamente o que esta pessoa pode fazer.
+                            </p>
+                          </div>
+
+                          <span class="permissions-count">
+                            ${admin.permissions.length} ativa${admin.permissions.length === 1 ? '' : 's'}
+                          </span>
+                        </div>
+
+                        ${permissionGroups(admin)}
+
+                        <div class="permissions-actions">
+                          <button
+                            type="button"
+                            class="member-button member-button-primary"
+                            data-save-permissions="${escapeHtml(admin.user_id)}"
+                          >
+                            Salvar permissões
+                          </button>
+                        </div>
+                      </div>
                     `
                     : `
-                      <button
-                        class="admin-remove"
-                        type="button"
-                        data-user-id="${escapeHtml(
-                          admin.user_id,
-                        )}"
-                      >
-                        Remover
-                      </button>
+                      <div class="permission-summary">
+                        ${
+                          admin.permissions.length
+                            ? admin.permissions
+                                .map(
+                                  (
+                                    permission,
+                                  ) => {
+                                    const definition =
+                                      ADMIN_PERMISSION_DEFINITIONS.find(
+                                        (
+                                          item,
+                                        ) =>
+                                          item.key ===
+                                          permission,
+                                      );
+
+                                    return `
+                                      <span>
+                                        ${escapeHtml(definition?.label || permission)}
+                                      </span>
+                                    `;
+                                  },
+                                )
+                                .join('')
+                            : '<em>Nenhuma permissão concedida</em>'
+                        }
+                      </div>
                     `
                 }
               </article>
@@ -285,27 +791,121 @@ import '../../styles/members.css';
         )
         .join('');
 
-    list
+    bindDynamicActions();
+  }
+
+  function bindDynamicActions() {
+    document
       .querySelectorAll<HTMLButtonElement>(
-        '.admin-remove',
+        '[data-save-permissions]',
       )
       .forEach(
-        (button) => {
+        (
+          button,
+        ) => {
           button.addEventListener(
             'click',
             async () => {
               const userId =
-                button.dataset.userId;
+                button.dataset.savePermissions;
 
               if (!userId) {
                 return;
               }
 
-              if (
-                !window.confirm(
-                  'Remover este administrador?',
+              const card =
+                document.querySelector<HTMLElement>(
+                  `[data-admin-card="${CSS.escape(userId)}"]`,
+                );
+
+              if (!card) {
+                return;
+              }
+
+              const permissions =
+                Array.from(
+                  card.querySelectorAll<HTMLInputElement>(
+                    '[data-permission]:checked',
+                  ),
                 )
+                  .map(
+                    (
+                      input,
+                    ) =>
+                      input.dataset.permission,
+                  )
+                  .filter(
+                    (
+                      permission,
+                    ): permission is AdminPermission =>
+                      Boolean(
+                        permission,
+                      ),
+                  );
+
+              button.disabled =
+                true;
+
+              button.textContent =
+                'Salvando...';
+
+              try {
+                await setColabAdminPermissions(
+                  userId,
+                  permissions,
+                );
+
+                showStatus(
+                  'Permissões atualizadas.',
+                  'success',
+                );
+
+                await refreshAdmins();
+              } catch (
+                error
               ) {
+                showStatus(
+                  error instanceof Error
+                    ? error.message
+                    : 'Não foi possível atualizar as permissões.',
+                  'error',
+                );
+              } finally {
+                button.disabled =
+                  false;
+
+                button.textContent =
+                  'Salvar permissões';
+              }
+            },
+          );
+        },
+      );
+
+    document
+      .querySelectorAll<HTMLButtonElement>(
+        '[data-remove-admin]',
+      )
+      .forEach(
+        (
+          button,
+        ) => {
+          button.addEventListener(
+            'click',
+            async () => {
+              const userId =
+                button.dataset.removeAdmin;
+
+              if (!userId) {
+                return;
+              }
+
+              const confirmed =
+                window.confirm(
+                  'Remover este administrador? Ele perderá todo o acesso administrativo.',
+                );
+
+              if (!confirmed) {
                 return;
               }
 
@@ -317,15 +917,19 @@ import '../../styles/members.css';
                   userId,
                 );
 
-                await loadAdmins();
-              } catch (error) {
-                console.error(
-                  '[EVRYLUX] Não foi possível remover administrador:',
-                  error,
+                showStatus(
+                  'Administrador removido.',
+                  'success',
                 );
 
+                await refreshAdmins();
+              } catch (
+                error
+              ) {
                 showStatus(
-                  'Não foi possível remover o administrador.',
+                  error instanceof Error
+                    ? error.message
+                    : 'Não foi possível remover o administrador.',
                   'error',
                 );
               } finally {
@@ -338,37 +942,167 @@ import '../../styles/members.css';
       );
   }
 
-  async function loadAdmins() {
+  function formatAuditAction(
+    action: string,
+  ) {
+    const labels:
+      Record<
+        string,
+        string
+      > = {
+        owner_claimed:
+          'Proprietário definido',
+        admin_added:
+          'Administrador adicionado',
+        permissions_updated:
+          'Permissões atualizadas',
+        admin_removed:
+          'Administrador removido',
+      };
+
+    return labels[action] ??
+      action;
+  }
+
+  async function refreshAudit() {
+    if (
+      !canViewAudit ||
+      !auditList
+    ) {
+      return;
+    }
+
     try {
-      const admins =
-        await getColabAdmins();
+      const entries =
+        await listAdminAudit(
+          20,
+        );
 
-      renderAdmins(
-        admins,
-      );
-    } catch (error) {
-      console.error(
-        '[EVRYLUX] Não foi possível carregar administradores:',
+      auditList.innerHTML =
+        entries.length
+          ? entries
+              .map(
+                (
+                  entry,
+                ) => `
+                  <div class="audit-entry">
+                    <span class="audit-dot"></span>
+
+                    <div>
+                      <strong>
+                        ${escapeHtml(formatAuditAction(entry.action))}
+                      </strong>
+
+                      <p>
+                        ${escapeHtml(entry.actor_email || 'Sistema')}
+                        ${entry.target_email ? ` → ${escapeHtml(entry.target_email)}` : ''}
+                      </p>
+
+                      <time>
+                        ${escapeHtml(new Date(entry.created_at).toLocaleString('pt-BR'))}
+                      </time>
+                    </div>
+                  </div>
+                `,
+              )
+              .join('')
+          : `
+              <div class="audit-empty">
+                Nenhuma ação administrativa registrada ainda.
+              </div>
+            `;
+    } catch (
+      error
+    ) {
+      console.warn(
+        '[EVRYLUX] Falha ao carregar auditoria:',
         error,
-      );
-
-      showStatus(
-        'Não foi possível carregar os administradores.',
-        'error',
       );
     }
   }
 
-  if (session) {
-    const admin =
-      await isCurrentUserAdmin();
+  async function refreshAdmins() {
+    const admins =
+      await listColabAdmins();
 
-    if (!admin) {
-      window.location.replace(
-        '/colab',
+    renderAdmins(
+      admins,
+    );
+
+    await refreshAudit();
+  }
+
+  async function initialize() {
+    const {
+      data: sessionData,
+      error: sessionError,
+    } =
+      await supabase.auth.getSession();
+
+    if (
+      sessionError ||
+      !sessionData.session
+    ) {
+      window.location.href =
+        `/login?next=${encodeURIComponent('/colab/admins')}`;
+
+      return;
+    }
+
+    currentUserId =
+      sessionData.session.user.id;
+
+    try {
+      currentIsOwner =
+        await isCurrentUserOwner();
+
+      canManageAdmins =
+        currentIsOwner ||
+        await hasAdminPermission(
+          'manage_admins',
+        ).catch(
+          () =>
+            false,
+        );
+
+      canViewAudit =
+        currentIsOwner ||
+        await hasAdminPermission(
+          'view_audit_logs',
+        ).catch(
+          () =>
+            false,
+        );
+
+      if (
+        currentIsOwner
+      ) {
+        if (
+          myAdminLevel
+        ) {
+          myAdminLevel.textContent =
+            'Proprietário';
+        }
+
+        if (
+          myAdminCopy
+        ) {
+          myAdminCopy.textContent =
+            'Você possui controle total da administração.';
+        }
+      }
+
+      addAdminCard?.classList.toggle(
+        'member-hidden',
+        !canManageAdmins,
       );
-    } else {
-      await loadAdmins();
+
+      auditCard?.classList.toggle(
+        'member-hidden',
+        !canViewAudit,
+      );
+
+      await refreshAdmins();
 
       loading?.classList.add(
         'member-hidden',
@@ -377,262 +1111,787 @@ import '../../styles/members.css';
       content?.classList.remove(
         'member-hidden',
       );
-    }
-  }
+    } catch (
+      error
+    ) {
+      // Caso ainda não exista owner, oferecemos o claim inicial.
+      const message =
+        error instanceof Error
+          ? error.message
+          : String(
+              error,
+            );
 
-  form?.addEventListener(
-    'submit',
-    async (event) => {
-      event.preventDefault();
+      if (
+        /propriet|permiss|administr/i.test(
+          message,
+        )
+      ) {
+        loading?.classList.add(
+          'member-hidden',
+        );
 
-      const email =
-        emailInput?.value.trim() ??
-        '';
-
-      if (!email) {
-        showStatus(
-          'Informe um e-mail.',
-          'error',
+        ownerSetup?.classList.remove(
+          'member-hidden',
         );
 
         return;
       }
 
-      if (addButton) {
-        addButton.disabled =
-          true;
+      showStatus(
+        message ||
+        'Não foi possível carregar a administração.',
+        'error',
+      );
+    }
+  }
 
-        addButton.textContent =
-          'Adicionando...';
+  claimOwnerButton?.addEventListener(
+    'click',
+    async () => {
+      if (
+        !claimOwnerButton
+      ) {
+        return;
       }
+
+      claimOwnerButton.disabled =
+        true;
+
+      claimOwnerButton.textContent =
+        'Configurando...';
+
+      try {
+        await claimOwner();
+
+        window.location.reload();
+      } catch (
+        error
+      ) {
+        showStatus(
+          error instanceof Error
+            ? error.message
+            : 'Não foi possível definir esta conta como proprietária.',
+          'error',
+        );
+
+        claimOwnerButton.disabled =
+          false;
+
+        claimOwnerButton.textContent =
+          'Tornar esta conta proprietária';
+      }
+    },
+  );
+
+  addAdminForm?.addEventListener(
+    'submit',
+    async (
+      event,
+    ) => {
+      event.preventDefault();
+
+      const email =
+        adminEmail?.value.trim() ??
+        '';
+
+      if (
+        !email ||
+        !addAdminSubmit
+      ) {
+        return;
+      }
+
+      addAdminSubmit.disabled =
+        true;
+
+      addAdminSubmit.textContent =
+        'Adicionando...';
 
       try {
         await addColabAdminByEmail(
           email,
         );
 
-        if (emailInput) {
-          emailInput.value =
+        if (
+          adminEmail
+        ) {
+          adminEmail.value =
             '';
         }
 
         showStatus(
-          'Administrador adicionado.',
+          'Administrador adicionado. Agora escolha as permissões.',
           'success',
         );
 
-        await loadAdmins();
-      } catch (error: any) {
-        console.error(
-          '[EVRYLUX] Não foi possível adicionar administrador:',
-          error,
-        );
-
+        await refreshAdmins();
+      } catch (
+        error
+      ) {
         showStatus(
-          error?.message ||
-          'Não foi possível adicionar o administrador.',
+          error instanceof Error
+            ? error.message
+            : 'Não foi possível adicionar o administrador.',
           'error',
         );
       } finally {
-        if (addButton) {
-          addButton.disabled =
-            false;
+        addAdminSubmit.disabled =
+          false;
 
-          addButton.textContent =
-            'Adicionar';
-        }
+        addAdminSubmit.textContent =
+          'Adicionar';
       }
     },
   );
+
+  await initialize();
 </script>
 
 <style is:global>
-  .admin-list {
-    display: grid;
-    gap: 10px;
+  .admin-access-page {
+    position: relative;
   }
 
-  .admin-row {
-    padding: 14px;
+  .admin-loading-card {
+    margin-top: 28px;
+    color: var(--text-soft);
+  }
+
+  .owner-setup {
+    margin-top: 28px;
+  }
+
+  .owner-setup-card {
+    padding: 28px;
     display: flex;
-    align-items: center;
-    gap: 12px;
-    border: 1px solid var(--border);
-    border-radius: 15px;
-    background: var(--surface-muted);
+    align-items: flex-start;
+    gap: 18px;
+    border: 1px solid rgba(95,157,89,.18);
+    border-radius: 24px;
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255,255,255,.94),
+        rgba(223,241,218,.62)
+      );
+    box-shadow: 0 18px 54px rgba(54,92,51,.07);
   }
 
-  .admin-avatar {
-    width: 40px;
-    height: 40px;
+  .owner-shield,
+  .side-icon {
+    width: 52px;
+    height: 52px;
+    flex: 0 0 auto;
     display: grid;
     place-items: center;
-    flex: 0 0 auto;
-    border-radius: 12px;
-    background: var(--primary-soft);
+    border: 1px solid rgba(95,157,89,.14);
+    border-radius: 16px;
+    background: #fff;
     color: var(--primary-deep);
-    font-size: 11px;
-    font-weight: 900;
   }
 
-  .admin-info {
-    min-width: 0;
-    flex: 1;
+  .owner-shield svg,
+  .side-icon svg {
+    width: 26px;
+    height: 26px;
   }
 
-  .admin-info strong,
-  .admin-info span {
+  .owner-kicker,
+  .section-kicker {
+    color: var(--primary-deep);
+    font-size: 9px;
+    font-weight: 850;
+    letter-spacing: .055em;
+    text-transform: uppercase;
+  }
+
+  .owner-setup-card h2 {
+    margin: 7px 0 0;
+  }
+
+  .owner-setup-card p {
+    max-width: 720px;
+    color: var(--text-soft);
+    line-height: 1.7;
+  }
+
+  .owner-setup-card .member-button {
+    margin-top: 12px;
+  }
+
+  .admin-summary-grid {
+    margin-top: 28px;
+    display: grid;
+    grid-template-columns: repeat(3,minmax(0,1fr));
+    gap: 13px;
+  }
+
+  .summary-card {
+    min-height: 150px;
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: rgba(255,255,255,.74);
+    box-shadow: 0 13px 34px rgba(54,92,51,.035);
+  }
+
+  .summary-card-owner {
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255,255,255,.94),
+        rgba(223,241,218,.62)
+      );
+  }
+
+  .summary-label {
+    color: var(--text-soft);
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+  }
+
+  .summary-card strong {
     display: block;
+    margin-top: 10px;
+    font-size: 21px;
+    letter-spacing: -.035em;
   }
 
-  .admin-info strong {
-    font-size: 14px;
-  }
-
-  .admin-info span {
-    margin-top: 3px;
+  .summary-card p {
+    margin: 7px 0 0;
     color: var(--text-soft);
     font-size: 11px;
+    line-height: 1.55;
   }
 
-  .admin-self {
-    color: var(--primary-deep);
-    font-size: 11px;
-    font-weight: 800;
-  }
-
-  .admin-remove {
-    min-height: 34px;
-    padding: 0 10px;
-    border: 1px solid rgba(162,69,55,.15);
-    border-radius: 10px;
-    background: #fff0ed;
-    color: #9a4638;
-    font: inherit;
-    font-size: 11px;
-    font-weight: 750;
-    cursor: pointer;
-  }
-</style>
-
-<style>
-  .admin-panel {
-    margin-top: 34px;
+  .admin-layout {
+    margin-top: 16px;
     display: grid;
-    grid-template-columns: minmax(0,.8fr) minmax(0,1.2fr);
+    grid-template-columns: minmax(0,1.45fr) minmax(300px,.55fr);
+    gap: 16px;
+    align-items: start;
+  }
+
+  .admin-main-column,
+  .admin-side-column {
+    display: grid;
     gap: 16px;
   }
 
-  .admin-add-card,
-  .admin-list-card {
-    padding: 26px;
-    border: 1px solid var(--border);
-    border-radius: 22px;
-    background: rgba(255,255,255,.84);
-    box-shadow: 0 14px 42px rgba(54,92,51,.05);
-  }
-
-  .admin-kicker {
-    display: block;
-    margin-bottom: 6px;
-    color: var(--primary-deep);
-    font-size: 10px;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: .08em;
-  }
-
-  .admin-add-card h2,
-  .admin-list-card h2 {
-    margin: 0;
+  .section-heading h2 {
+    margin: 6px 0 0;
     font-size: 24px;
     letter-spacing: -.035em;
   }
 
-  .admin-add-card p {
-    margin: 9px 0 0;
+  .section-heading p {
+    max-width: 650px;
+    margin: 8px 0 0;
     color: var(--text-soft);
-    font-size: 13px;
+    font-size: 12px;
     line-height: 1.65;
   }
 
-  .admin-add-form {
-    margin-top: 22px;
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 8px;
+  .section-heading.compact h2 {
+    font-size: 20px;
   }
 
-  .admin-add-form input {
-    min-height: 44px;
-    padding: 0 12px;
+  .add-admin-form {
+    margin-top: 20px;
+  }
+
+  .add-admin-form label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .add-admin-row {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) auto;
+    gap: 9px;
+  }
+
+  .add-admin-row input {
+    min-height: 46px;
+    padding: 0 14px;
     border: 1px solid var(--border);
     border-radius: 12px;
     background: var(--surface-solid);
     color: var(--text);
     font: inherit;
-    font-size: 13px;
     outline: none;
   }
 
-  .admin-add-form button {
-    min-height: 44px;
-    padding: 0 14px;
-    border: 1px solid rgba(95,157,89,.18);
-    border-radius: 12px;
+  .add-admin-row input:focus {
+    border-color: rgba(95,157,89,.36);
+    box-shadow: 0 0 0 4px rgba(159,211,149,.11);
+  }
+
+  .admins-list {
+    margin-top: 22px;
+    display: grid;
+    gap: 12px;
+  }
+
+  .admin-person-card {
+    padding: 17px;
+    border: 1px solid rgba(65,104,62,.1);
+    border-radius: 18px;
+    background: var(--surface-muted);
+  }
+
+  .owner-person-card {
+    border-color: rgba(95,157,89,.19);
+    background:
+      linear-gradient(
+        145deg,
+        rgba(247,251,244,.98),
+        rgba(223,241,218,.55)
+      );
+  }
+
+  .admin-person-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .admin-avatar {
+    width: 48px;
+    height: 48px;
+    flex: 0 0 auto;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
     background: var(--primary-soft);
     color: var(--primary-deep);
-    font: inherit;
     font-size: 12px;
+    font-weight: 850;
+  }
+
+  .admin-avatar-image {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+  }
+
+  .admin-person-identity {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .admin-person-identity h3 {
+    margin: 7px 0 0;
+    font-size: 15px;
+  }
+
+  .admin-person-identity p {
+    margin: 3px 0 0;
+    color: var(--text-soft);
+    font-size: 10px;
+  }
+
+  .admin-role-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+
+  .role-pill {
+    min-height: 23px;
+    padding: 0 8px;
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--text-soft);
+    font-size: 8px;
+    font-weight: 800;
+  }
+
+  .role-owner {
+    border-color: rgba(95,157,89,.2);
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+  }
+
+  .role-self {
+    background: rgba(255,255,255,.62);
+  }
+
+  .remove-admin-button {
+    min-height: 34px;
+    padding: 0 10px;
+    border: 1px solid rgba(155,72,72,.15);
+    border-radius: 10px;
+    background: rgba(255,255,255,.72);
+    color: #945454;
+    font: inherit;
+    font-size: 9px;
     font-weight: 800;
     cursor: pointer;
   }
 
-  .admin-status {
-    min-height: 18px;
-    margin-top: 12px;
-    font-size: 12px;
+  .owner-access-note {
+    margin-top: 14px;
+    padding: 13px;
+    border: 1px solid rgba(95,157,89,.13);
+    border-radius: 13px;
+    background: rgba(255,255,255,.58);
   }
 
-  .admin-status.success {
+  .owner-access-note strong,
+  .owner-access-note span {
+    display: block;
+  }
+
+  .owner-access-note strong {
     color: var(--primary-deep);
+    font-size: 11px;
   }
 
-  .admin-status.error {
-    color: #a24537;
+  .owner-access-note span {
+    margin-top: 4px;
+    color: var(--text-soft);
+    font-size: 9px;
+    line-height: 1.55;
   }
 
-  .admin-list-head {
-    margin-bottom: 18px;
+  .permissions-editor {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .permissions-editor-head {
     display: flex;
-    align-items: flex-end;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 12px;
   }
 
-  .admin-count {
-    min-width: 34px;
-    height: 34px;
-    display: grid;
-    place-items: center;
-    border-radius: 11px;
-    background: var(--surface-muted);
-    color: var(--text-soft);
+  .permissions-editor-head strong {
     font-size: 12px;
+  }
+
+  .permissions-editor-head p {
+    margin: 4px 0 0;
+    color: var(--text-soft);
+    font-size: 9px;
+  }
+
+  .permissions-count {
+    color: var(--text-soft);
+    font-size: 8px;
     font-weight: 800;
   }
 
-  .admin-empty {
-    padding: 18px;
-    border: 1px dashed var(--border-strong);
-    border-radius: 14px;
-    color: var(--text-soft);
-    font-size: 12px;
+  .permission-group {
+    margin-top: 16px;
   }
 
-  @media (max-width: 900px) {
-    .admin-panel {
+  .permission-group-title {
+    margin-bottom: 7px;
+    color: var(--primary-deep);
+    font-size: 8px;
+    font-weight: 850;
+    letter-spacing: .055em;
+    text-transform: uppercase;
+  }
+
+  .permission-options {
+    display: grid;
+    gap: 6px;
+  }
+
+  .permission-option {
+    min-height: 58px;
+    padding: 10px 11px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid rgba(65,104,62,.09);
+    border-radius: 12px;
+    background: rgba(255,255,255,.62);
+    cursor: pointer;
+  }
+
+  .permission-option > span:first-child {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .permission-option strong,
+  .permission-option small {
+    display: block;
+  }
+
+  .permission-option strong {
+    font-size: 10px;
+  }
+
+  .permission-option small {
+    margin-top: 3px;
+    color: var(--text-soft);
+    font-size: 8px;
+    line-height: 1.4;
+  }
+
+  .permission-option input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .permission-switch {
+    position: relative;
+    width: 35px;
+    height: 21px;
+    flex: 0 0 auto;
+    border-radius: 999px;
+    background: rgba(104,114,105,.18);
+    transition: background .2s ease;
+  }
+
+  .permission-switch::after {
+    content: "";
+    position: absolute;
+    width: 15px;
+    height: 15px;
+    left: 3px;
+    top: 3px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 2px 7px rgba(0,0,0,.12);
+    transition: transform .2s ease;
+  }
+
+  .permission-option input:checked + .permission-switch {
+    background: var(--primary-strong);
+  }
+
+  .permission-option input:checked + .permission-switch::after {
+    transform: translateX(14px);
+  }
+
+  .permissions-actions {
+    margin-top: 15px;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .permission-summary {
+    margin-top: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .permission-summary span {
+    padding: 6px 8px;
+    border-radius: 999px;
+    background: #fff;
+    color: var(--primary-deep);
+    font-size: 8px;
+    font-weight: 750;
+  }
+
+  .permission-summary em {
+    color: var(--text-soft);
+    font-size: 9px;
+  }
+
+  .side-icon {
+    margin-bottom: 15px;
+  }
+
+  .admin-side-column h2 {
+    margin: 9px 0 0;
+    font-size: 22px;
+    letter-spacing: -.03em;
+  }
+
+  .admin-side-column p {
+    line-height: 1.65;
+  }
+
+  .rule-list {
+    margin-top: 18px;
+    display: grid;
+    gap: 7px;
+  }
+
+  .rule-list div {
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: var(--surface-muted);
+  }
+
+  .rule-list span {
+    color: var(--primary-strong);
+    font-size: 8px;
+    font-weight: 850;
+  }
+
+  .rule-list strong {
+    font-size: 9px;
+  }
+
+  .audit-list {
+    margin-top: 15px;
+    display: grid;
+    gap: 10px;
+  }
+
+  .audit-entry {
+    display: grid;
+    grid-template-columns: 8px minmax(0,1fr);
+    gap: 9px;
+  }
+
+  .audit-dot {
+    width: 7px;
+    height: 7px;
+    margin-top: 5px;
+    border-radius: 50%;
+    background: var(--primary-strong);
+    box-shadow: 0 0 0 4px rgba(159,211,149,.13);
+  }
+
+  .audit-entry strong,
+  .audit-entry p,
+  .audit-entry time {
+    display: block;
+  }
+
+  .audit-entry strong {
+    font-size: 9px;
+  }
+
+  .audit-entry p {
+    margin: 3px 0 0;
+    color: var(--text-soft);
+    font-size: 8px;
+    line-height: 1.45;
+  }
+
+  .audit-entry time {
+    margin-top: 3px;
+    color: var(--text-soft);
+    font-size: 7px;
+  }
+
+  .audit-empty {
+    color: var(--text-soft);
+    font-size: 9px;
+  }
+
+  #admin-status.show {
+    margin-top: 16px;
+  }
+
+  @media (max-width: 980px) {
+    .admin-summary-grid,
+    .admin-layout {
       grid-template-columns: 1fr;
     }
+
+    .admin-summary-grid {
+      grid-template-columns: repeat(2,minmax(0,1fr));
+    }
   }
+
+  @media (max-width: 620px) {
+    .admin-summary-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .owner-setup-card {
+      flex-direction: column;
+    }
+
+    .add-admin-row {
+      grid-template-columns: 1fr;
+    }
+
+    .admin-person-head {
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+
+    .remove-admin-button {
+      margin-left: 60px;
+    }
+  }
+
+  /* ============================================================
+     CONTEÚDO DINÂMICO
+     Estes elementos são criados pelo JavaScript via innerHTML.
+     O style global é intencional para que recebam o visual correto.
+     ============================================================ */
+
+  .admins-list *,
+  .audit-list * {
+    box-sizing: border-box;
+  }
+
+  .admin-avatar-fallback {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: center;
+  }
+
+  .admin-person-card button,
+  .admin-person-card input {
+    font-family: inherit;
+  }
+
+  .admin-person-card h3,
+  .admin-person-card p,
+  .owner-access-note strong,
+  .owner-access-note span,
+  .audit-entry strong,
+  .audit-entry p,
+  .audit-entry time {
+    overflow-wrap: anywhere;
+  }
+
+  .owner-person-card .admin-person-head {
+    min-height: 58px;
+  }
+
+  .owner-person-card .admin-avatar {
+    box-shadow:
+      0 8px 22px
+      rgba(54,92,51,.08);
+  }
+
+  .role-owner {
+    box-shadow:
+      inset 0 0 0 1px
+      rgba(95,157,89,.05);
+  }
+
+  .permissions-editor {
+    overflow: hidden;
+  }
+
+  .audit-entry {
+    position: relative;
+  }
+
 </style>
