@@ -6,6 +6,7 @@ const areas = [
     slug: 'cerebro',
     eyebrow: 'Conhecimento',
     title: 'Cérebro',
+    icon: '🧠',
     intro: 'Transforme o que você aprende em um histórico vivo, pesquisável e conectado.',
     problem: 'Informações importantes se perdem entre notas, abas, conversas e arquivos desconectados.',
     solution: 'O Cérebro reúne conceitos, perguntas, revisões, relações e histórico em um único espaço. A proposta é construir, ao longo do tempo, um mapa do que você registrou, estudou, questionou e conectou.',
@@ -15,13 +16,14 @@ const areas = [
       'Busca e recuperação do histórico',
       'Mapa visual de relações entre conhecimentos',
       'Organização automática por áreas e assuntos',
-      'Experiência offline-first',
+      'Funciona mesmo sem internet',
     ],
   },
   {
     slug: 'finance',
     eyebrow: 'Objetivos',
     title: 'Financeiro',
+    icon: '💸',
     intro: 'Transforme uma meta financeira distante em uma linha de chegada visível.',
     problem: 'Guardar dinheiro durante meses pode parecer abstrato quando o progresso não está claro.',
     solution: 'Você define um objetivo, registra o que está guardando e acompanha uma barra de progresso que cresce conforme você avança. O sistema também pode estimar o tempo restante de acordo com o ritmo atual, tornando a evolução mais concreta.',
@@ -38,6 +40,7 @@ const areas = [
     slug: 'training',
     eyebrow: 'Consistência',
     title: 'Treino',
+    icon: '🏋️',
     intro: 'Veja sua rotina de treino como um histórico que cresce semana após semana.',
     problem: 'Sem registro, é difícil perceber frequência, consistência e mudanças na rotina ao longo do tempo.',
     solution: 'O módulo de treino permite registrar sessões e acompanhar um mapa da semana, dos meses e do histórico geral. Assim, a rotina deixa de depender apenas da memória e passa a ficar visível dentro do aplicativo.',
@@ -54,6 +57,7 @@ const areas = [
     slug: 'routine',
     eyebrow: 'Organização',
     title: 'Rotina',
+    icon: '🗂️',
     intro: 'Um espaço flexível para organizar ideias, tarefas e estruturas do dia a dia.',
     problem: 'Anotações, lembretes e planejamentos acabam espalhados em ferramentas diferentes.',
     solution: 'A área de rotina funciona como um espaço visual onde você pode criar lousas, organizar anotações, montar mapas mentais e acompanhar elementos importantes do cotidiano. A proposta inclui lembretes integrados ao Telegram.',
@@ -116,16 +120,8 @@ const areas = [
                   {String(index + 1).padStart(2, '0')}
                 </div>
 
-                <div class="area-symbol">
-                  {
-                    area.slug === 'cerebro'
-                      ? 'B'
-                      : area.slug === 'finance'
-                        ? 'F'
-                        : area.slug === 'training'
-                          ? 'T'
-                          : 'R'
-                  }
+                <div class="area-symbol" aria-hidden="true">
+                  <span>{area.icon}</span>
                 </div>
 
                 <div class="area-visual-lines" aria-hidden="true">
@@ -197,7 +193,8 @@ const areas = [
               A arquitetura de segurança do Cérebro foi pensada para evitar
               que a proteção dependa apenas do servidor. O projeto trabalha
               com criptografia de ponta a ponta, Vault local e chaves
-              protegidas no dispositivo, mantendo o princípio offline-first.
+              protegidas no dispositivo, mantendo a proposta de uso local
+              e continuidade mesmo sem internet.
             </p>
           </div>
 
@@ -227,11 +224,10 @@ const areas = [
             <article>
               <span class="security-icon">03</span>
               <div>
-                <strong>Offline-first</strong>
+                <strong>Mesmo sem internet</strong>
                 <p>
                   Funções fundamentais continuam sendo pensadas para
-                  funcionar localmente, sem depender de uma IA externa
-                  ou conexão permanente.
+                  funcionar localmente, sem depender de conexão permanente.
                 </p>
               </div>
             </article>
@@ -429,9 +425,13 @@ const areas = [
     color: var(--primary-deep);
     box-shadow: 0 24px 60px rgba(54,92,51,.08);
     transform: translate(-50%,-50%) rotate(-3deg);
-    font-size: 52px;
-    font-weight: 850;
-    letter-spacing: -.05em;
+  }
+
+  .area-symbol span {
+    display: block;
+    font-size: 58px;
+    line-height: 1;
+    filter: saturate(.9);
   }
 
   .area-visual-lines {
@@ -669,6 +669,15 @@ const areas = [
     .explore-cta-card {
       align-items: flex-start;
       flex-direction: column;
+    }
+
+    .area-symbol {
+      width: 124px;
+      height: 124px;
+    }
+
+    .area-symbol span {
+      font-size: 46px;
     }
   }
 </style>
