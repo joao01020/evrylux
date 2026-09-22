@@ -113,86 +113,37 @@ import EvryluxLogoLoader from '../../components/ui/EvryluxLogoLoader.astro';
             </div>
           </div>
 
-          <section
-                id="dashboard-tasks-section"
-                class="dashboard-tasks-section dashboard-tasks-embedded"
-                aria-labelledby="dashboard-tasks-title"
-              >
-            <div class="dashboard-tasks-head">
-              <div>
-                <div class="dashboard-tasks-kicker">
-                  <span class="dashboard-tasks-kicker-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24">
-                      <path
-                        d="M7 4.8h10a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6.8a2 2 0 0 1 2-2Z"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.7"
-                      />
-                      <path
-                        d="m8.5 12 2.1 2.1 4.9-5"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.8"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      />
-                    </svg>
-                  </span>
-          
-                  Trabalho atribuído
-                </div>
-          
-                <h2 id="dashboard-tasks-title">
-                  Minhas tarefas
-                </h2>
-          
-                <p>
-                  Itens do Roadmap em que você foi marcado como responsável.
-                </p>
-              </div>
-          
-              <div class="dashboard-tasks-head-actions">
-                <span
-                  id="dashboard-task-unread"
-                  class="dashboard-task-unread member-hidden"
-                >
-                  0 novas
-                </span>
-          
-                <a
-                  class="dashboard-task-roadmap-link"
-                  href="/colab/studio/roadmap"
-                >
-                  Ver Roadmap
-                  <span aria-hidden="true">→</span>
-                </a>
-              </div>
+          <div class="dashboard-summary">
+            <div class="summary-box">
+              <span>
+                GitHub
+              </span>
+
+              <strong id="dashboard-github">
+                —
+              </strong>
             </div>
-          
-            <div
-              id="dashboard-task-list"
-              class="dashboard-task-list"
-              aria-live="polite"
-            >
-              <div class="dashboard-task-empty">
-                <span class="dashboard-task-empty-icon" aria-hidden="true">
-                  ✓
-                </span>
-          
-                <div>
-                  <strong>
-                    Verificando suas tarefas...
-                  </strong>
-          
-                  <p>
-                    As tarefas atribuídas a você aparecerão aqui.
-                  </p>
-                </div>
-              </div>
+
+            <div class="summary-box">
+              <span>
+                Disponibilidade
+              </span>
+
+              <strong id="dashboard-availability">
+                —
+              </strong>
             </div>
-          </section>
-          
+
+            <div class="summary-box">
+              <span>
+                Habilidades
+              </span>
+
+              <strong id="dashboard-skills">
+                —
+              </strong>
+            </div>
+          </div>
         </article>
 
         <aside class="quick-access-card">
@@ -321,6 +272,86 @@ import EvryluxLogoLoader from '../../components/ui/EvryluxLogoLoader.astro';
         </aside>
       </section>
 
+
+      <section
+        id="dashboard-tasks-section"
+        class="dashboard-tasks-section"
+        aria-labelledby="dashboard-tasks-title"
+      >
+        <div class="dashboard-tasks-head">
+          <div>
+            <div class="dashboard-tasks-kicker">
+              <span class="dashboard-tasks-kicker-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path
+                    d="M7 4.8h10a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6.8a2 2 0 0 1 2-2Z"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                  />
+                  <path
+                    d="m8.5 12 2.1 2.1 4.9-5"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </span>
+
+              Trabalho atribuído
+            </div>
+
+            <h2 id="dashboard-tasks-title">
+              Minhas tarefas
+            </h2>
+
+            <p>
+              Itens do Roadmap em que você foi marcado como responsável.
+            </p>
+          </div>
+
+          <div class="dashboard-tasks-head-actions">
+            <span
+              id="dashboard-task-unread"
+              class="dashboard-task-unread member-hidden"
+            >
+              0 novas
+            </span>
+
+            <a
+              class="dashboard-task-roadmap-link"
+              href="/colab/studio/roadmap"
+            >
+              Ver Roadmap
+              <span aria-hidden="true">→</span>
+            </a>
+          </div>
+        </div>
+
+        <div
+          id="dashboard-task-list"
+          class="dashboard-task-list"
+          aria-live="polite"
+        >
+          <div class="dashboard-task-empty">
+            <span class="dashboard-task-empty-icon" aria-hidden="true">
+              ✓
+            </span>
+
+            <div>
+              <strong>
+                Verificando suas tarefas...
+              </strong>
+
+              <p>
+                As tarefas atribuídas a você aparecerão aqui.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <div
         id="task-assignment-toast-region"
@@ -3403,163 +3434,6 @@ import EvryluxLogoLoader from '../../components/ui/EvryluxLogoLoader.astro';
 
     .task-assignment-toast-close {
       display: none;
-    }
-  }
-</style>
-
-
-<style is:global>
-  /* ==========================================================
-     EVRYLUX DASHBOARD — TAREFAS NO LUGAR DO RESUMO DO PERFIL
-     Remove visualmente GitHub / Disponibilidade / Habilidades
-     da página principal e usa esse espaço para trabalho atribuído.
-     ========================================================== */
-
-  .dashboard-profile-card {
-    display: flex !important;
-    flex-direction: column !important;
-  }
-
-  .dashboard-profile-card
-  .dashboard-tasks-embedded {
-    margin-top: 22px !important;
-    padding: 18px !important;
-    border-radius: 18px !important;
-    border:
-      1px solid rgba(65,104,62,.09) !important;
-    background:
-      radial-gradient(
-        circle at 94% 0%,
-        rgba(222,241,217,.52),
-        transparent 30%
-      ),
-      linear-gradient(
-        145deg,
-        rgba(248,252,246,.93),
-        rgba(252,254,251,.96)
-      ) !important;
-    box-shadow: none !important;
-  }
-
-  .dashboard-profile-card
-  .dashboard-tasks-head {
-    align-items: center !important;
-  }
-
-  .dashboard-profile-card
-  .dashboard-tasks-kicker {
-    font-size: 7px !important;
-  }
-
-  .dashboard-profile-card
-  .dashboard-tasks-kicker-icon {
-    width: 22px !important;
-    height: 22px !important;
-    border-radius: 7px !important;
-  }
-
-  .dashboard-profile-card
-  .dashboard-tasks-kicker-icon svg {
-    width: 13px !important;
-    height: 13px !important;
-  }
-
-  .dashboard-profile-card
-  .dashboard-tasks-head h2 {
-    margin-top: 6px !important;
-    font-size: 18px !important;
-  }
-
-  .dashboard-profile-card
-  .dashboard-tasks-head p {
-    margin-top: 4px !important;
-    font-size: 8px !important;
-  }
-
-  .dashboard-profile-card
-  .dashboard-tasks-head-actions {
-    flex: 0 0 auto !important;
-  }
-
-  .dashboard-profile-card
-  .dashboard-task-roadmap-link {
-    min-height: 34px !important;
-    background: rgba(255,255,255,.90) !important;
-  }
-
-  .dashboard-profile-card
-  .dashboard-task-list {
-    margin-top: 14px !important;
-    grid-template-columns:
-      repeat(2,minmax(0,1fr)) !important;
-    gap: 8px !important;
-  }
-
-  .dashboard-profile-card
-  .dashboard-task-card {
-    padding: 13px !important;
-    border-radius: 14px !important;
-    min-height: 164px !important;
-  }
-
-  .dashboard-profile-card
-  .dashboard-task-card h3 {
-    font-size: 11px !important;
-  }
-
-  .dashboard-profile-card
-  .dashboard-task-card > p {
-    font-size: 8px !important;
-  }
-
-  .dashboard-profile-card
-  .dashboard-task-empty {
-    min-height: 70px !important;
-    padding: 13px !important;
-    border-radius: 13px !important;
-  }
-
-  .dashboard-profile-card
-  .dashboard-task-empty-icon {
-    width: 31px !important;
-    height: 31px !important;
-    flex-basis: 31px !important;
-  }
-
-  /* O resumo antigo deixa de fazer parte do Dashboard principal. */
-  .dashboard-summary {
-    display: none !important;
-  }
-
-  @media (max-width: 980px) {
-    .dashboard-profile-card
-    .dashboard-task-list {
-      grid-template-columns: 1fr !important;
-    }
-  }
-
-  @media (max-width: 650px) {
-    .dashboard-profile-card
-    .dashboard-tasks-embedded {
-      margin-top: 17px !important;
-      padding: 14px !important;
-      border-radius: 15px !important;
-    }
-
-    .dashboard-profile-card
-    .dashboard-tasks-head {
-      align-items: flex-start !important;
-    }
-
-    .dashboard-profile-card
-    .dashboard-tasks-head-actions {
-      width: 100% !important;
-    }
-
-    .dashboard-profile-card
-    .dashboard-task-roadmap-link {
-      flex: 1 !important;
-      justify-content: center !important;
     }
   }
 </style>

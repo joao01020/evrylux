@@ -3014,39 +3014,6 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
     content?.classList.remove(
       'member-hidden',
     );
-
-    const requestedTaskId =
-      new URLSearchParams(
-        window.location.search,
-      ).get(
-        'task',
-      );
-
-    if (
-      requestedTaskId
-    ) {
-      const requestedTask =
-        roadmapItems.find(
-          (
-            item,
-          ) =>
-            item.id ===
-            requestedTaskId,
-        );
-
-      if (
-        requestedTask
-      ) {
-        window.setTimeout(
-          () => {
-            openDetailsModal(
-              requestedTask,
-            );
-          },
-          80,
-        );
-      }
-    }
   }
 </script>
 
