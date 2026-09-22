@@ -72,31 +72,16 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
           </button>
         </div>
 
-        
         <a
           class="studio-validation-button"
           href="/colab/studio/validation"
           data-studio-validation-button
         >
-          <span class="studio-validation-button-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-              <path
-                d="M5 12.5 9.2 17 19 7"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.9"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-          </span>
-
-          <span>
-            Validação
-          </span>
+          <span class="studio-validation-button-icon" aria-hidden="true">✓</span>
+          <span>Validação</span>
         </a>
 
-<button
+        <button
           id="new-roadmap-item"
           class="roadmap-new-button"
           type="button"
@@ -183,7 +168,17 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
         aria-expanded="false"
       >
         <div class="roadmap-card-summary">
-          <h3 data-role="title"></h3>
+          <div class="roadmap-card-title-row">
+            <h3 data-role="title"></h3>
+
+            <span
+              class="roadmap-my-assignment-marker member-hidden"
+              data-role="my-assignment-marker"
+              title="Você está marcado nesta tarefa"
+              aria-label="Você está marcado nesta tarefa"
+              role="img"
+            ></span>
+          </div>
 
           <button
             class="roadmap-card-toggle"
@@ -198,7 +193,7 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
               aria-hidden="true"
             >
               <path
-                d="m7 14 5-5 5 5"
+                d="m7 10 5 5 5-5"
                 fill="none"
                 stroke="currentColor"
                 stroke-width="1.8"
@@ -238,7 +233,7 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
 
             <div>
               <span>
-                Responsável
+                Responsáveis
               </span>
 
               <strong data-role="assignee"></strong>
@@ -458,16 +453,59 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
               </select>
             </div>
 
-            <div class="roadmap-field">
-              <label for="roadmap-assignee">
-                Responsável
+            <div class="roadmap-field roadmap-assignees-field">
+              <label>
+                Responsáveis
               </label>
 
-              <select id="roadmap-assignee">
-                <option value="">
-                  Sem responsável
-                </option>
-              </select>
+              <div
+                id="roadmap-assignees-picker"
+                class="roadmap-assignees-picker"
+              >
+                <button
+                  id="roadmap-assignees-trigger"
+                  class="roadmap-assignees-trigger"
+                  type="button"
+                  aria-expanded="false"
+                >
+                  <span id="roadmap-assignees-trigger-label">
+                    Selecionar responsáveis
+                  </span>
+
+                  <span
+                    class="roadmap-assignees-chevron"
+                    aria-hidden="true"
+                  >
+                    ▾
+                  </span>
+                </button>
+
+                <div
+                  id="roadmap-assignees-menu"
+                  class="roadmap-assignees-menu member-hidden"
+                ></div>
+
+                <div
+                  id="roadmap-assignees-chips"
+                  class="roadmap-assignees-chips"
+                ></div>
+
+                <!--
+                  Mantido como campo primário para compatibilidade
+                  com o Roadmap e a Validação já existentes.
+                  O primeiro responsável selecionado é gravado aqui.
+                -->
+                <select
+                  id="roadmap-assignee"
+                  class="roadmap-primary-assignee-select"
+                  tabindex="-1"
+                  aria-hidden="true"
+                >
+                  <option value="">
+                    Sem responsável
+                  </option>
+                </select>
+              </div>
             </div>
 
             <div class="roadmap-field">
@@ -626,7 +664,7 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
 
             <div>
               <span>
-                Responsável
+                Responsáveis
               </span>
 
               <strong id="roadmap-details-assignee">
@@ -737,11 +775,16 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
   } from '../../../lib/colab-roadmap';
 
   import {
+    getRoadmapAssigneeMap,
+    setRoadmapAssignees,
+    type RoadmapAssigneeMap,
+  } from '../../../lib/colab-roadmap-assignees';
+
+  import {
     getValidationItems,
     sendRoadmapToValidation,
     type ValidationItem,
   } from '../../../lib/colab-validation';
-
 
   const session =
     await requireMemberSession();
@@ -811,6 +854,22 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
 
   const assigneeInput =
     document.querySelector<HTMLSelectElement>('#roadmap-assignee');
+
+
+  const assigneesPicker =
+    document.querySelector<HTMLElement>('#roadmap-assignees-picker');
+
+  const assigneesTrigger =
+    document.querySelector<HTMLButtonElement>('#roadmap-assignees-trigger');
+
+  const assigneesTriggerLabel =
+    document.querySelector<HTMLElement>('#roadmap-assignees-trigger-label');
+
+  const assigneesMenu =
+    document.querySelector<HTMLElement>('#roadmap-assignees-menu');
+
+  const assigneesChips =
+    document.querySelector<HTMLElement>('#roadmap-assignees-chips');
 
   const areaInput =
     document.querySelector<HTMLInputElement>('#roadmap-area');
@@ -924,6 +983,15 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
 
   let validationItems:
     ValidationItem[] =
+      [];
+
+
+  let roadmapAssigneeMap:
+    RoadmapAssigneeMap =
+      {};
+
+  let selectedAssigneeIds:
+    string[] =
       [];
 
   let activeFilter:
@@ -1192,6 +1260,422 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
     );
   }
 
+
+  function assigneeIdsForItem(
+    item: RoadmapItem,
+  ) {
+    const ids =
+      roadmapAssigneeMap[item.id] ??
+      [];
+
+    if (
+      ids.length >
+      0
+    ) {
+      return ids;
+    }
+
+    return item.assignee_user_id
+      ? [item.assignee_user_id]
+      : [];
+  }
+
+  function assigneeNamesForItem(
+    item: RoadmapItem,
+  ) {
+    const ids =
+      assigneeIdsForItem(
+        item,
+      );
+
+    if (
+      ids.length ===
+      0
+    ) {
+      return 'Sem responsável';
+    }
+
+    return ids
+      .map(
+        (
+          id,
+        ) =>
+          collaboratorName(
+            id,
+          ),
+      )
+      .join(', ');
+  }
+
+  function renderRoadmapAvatarStack(
+    target: HTMLElement | null,
+    userIds: string[],
+  ) {
+    if (!target) {
+      return;
+    }
+
+    target.innerHTML =
+      '';
+
+    target.classList.add(
+      'roadmap-avatar-stack',
+    );
+
+    const ids =
+      userIds.slice(
+        0,
+        3,
+      );
+
+    if (
+      ids.length ===
+      0
+    ) {
+      renderRoadmapAvatar(
+        target,
+        null,
+        'Sem responsável',
+      );
+
+      return;
+    }
+
+    ids.forEach(
+      (
+        userId,
+        index,
+      ) => {
+        const profile =
+          collaboratorFor(
+            userId,
+          );
+
+        const name =
+          collaboratorName(
+            userId,
+          );
+
+        const item =
+          document.createElement(
+            'span',
+          );
+
+        item.className =
+          'roadmap-stacked-avatar';
+
+        item.style.zIndex =
+          String(
+            10 -
+            index,
+          );
+
+        renderRoadmapAvatar(
+          item,
+          profile,
+          name,
+        );
+
+        target.appendChild(
+          item,
+        );
+      },
+    );
+
+    if (
+      userIds.length >
+      3
+    ) {
+      const more =
+        document.createElement(
+          'span',
+        );
+
+      more.className =
+        'roadmap-stacked-avatar roadmap-stacked-avatar-more';
+
+      more.textContent =
+        `+${userIds.length - 3}`;
+
+      target.appendChild(
+        more,
+      );
+    }
+  }
+
+  function syncPrimaryAssignee() {
+    if (!assigneeInput) {
+      return;
+    }
+
+    assigneeInput.value =
+      selectedAssigneeIds[0] ??
+      '';
+  }
+
+  function renderAssigneePicker() {
+    if (
+      !assigneesMenu ||
+      !assigneesChips
+    ) {
+      return;
+    }
+
+    assigneesMenu.innerHTML =
+      '';
+
+    if (
+      collaborators.length ===
+      0
+    ) {
+      const empty =
+        document.createElement(
+          'div',
+        );
+
+      empty.className =
+        'roadmap-assignees-empty';
+
+      empty.textContent =
+        'Nenhum colaborador disponível.';
+
+      assigneesMenu.appendChild(
+        empty,
+      );
+    }
+
+    collaborators.forEach(
+      (
+        profile,
+      ) => {
+        const selected =
+          selectedAssigneeIds.includes(
+            profile.user_id,
+          );
+
+        const option =
+          document.createElement(
+            'button',
+          );
+
+        option.type =
+          'button';
+
+        option.className =
+          `roadmap-assignee-option${selected ? ' selected' : ''}`;
+
+        option.dataset.userId =
+          profile.user_id;
+
+        const avatar =
+          document.createElement(
+            'span',
+          );
+
+        avatar.className =
+          'roadmap-assignee-option-avatar';
+
+        renderRoadmapAvatar(
+          avatar,
+          profile,
+          profile.display_name?.trim() ||
+            profile.github_login?.trim() ||
+            'Colaborador EVRYLUX',
+        );
+
+        const copy =
+          document.createElement(
+            'span',
+          );
+
+        copy.className =
+          'roadmap-assignee-option-copy';
+
+        const strong =
+          document.createElement(
+            'strong',
+          );
+
+        strong.textContent =
+          profile.display_name?.trim() ||
+          profile.github_login?.trim() ||
+          'Colaborador EVRYLUX';
+
+        const small =
+          document.createElement(
+            'small',
+          );
+
+        small.textContent =
+          profile.github_login?.trim() ||
+          profile.area?.trim() ||
+          'Colaborador';
+
+        copy.append(
+          strong,
+          small,
+        );
+
+        const check =
+          document.createElement(
+            'span',
+          );
+
+        check.className =
+          'roadmap-assignee-option-check';
+
+        check.textContent =
+          selected
+            ? '✓'
+            : '';
+
+        option.append(
+          avatar,
+          copy,
+          check,
+        );
+
+        option.addEventListener(
+          'click',
+          () => {
+            const exists =
+              selectedAssigneeIds.includes(
+                profile.user_id,
+              );
+
+            selectedAssigneeIds =
+              exists
+                ? selectedAssigneeIds.filter(
+                    (
+                      id,
+                    ) =>
+                      id !==
+                      profile.user_id,
+                  )
+                : [
+                    ...selectedAssigneeIds,
+                    profile.user_id,
+                  ];
+
+            syncPrimaryAssignee();
+            renderAssigneePicker();
+          },
+        );
+
+        assigneesMenu.appendChild(
+          option,
+        );
+      },
+    );
+
+    assigneesChips.innerHTML =
+      '';
+
+    selectedAssigneeIds.forEach(
+      (
+        userId,
+      ) => {
+        const profile =
+          collaboratorFor(
+            userId,
+          );
+
+        const chip =
+          document.createElement(
+            'button',
+          );
+
+        chip.type =
+          'button';
+
+        chip.className =
+          'roadmap-assignee-chip';
+
+        chip.title =
+          'Remover responsável';
+
+        const label =
+          profile?.display_name?.trim() ||
+          profile?.github_login?.trim() ||
+          'Colaborador';
+
+        chip.innerHTML =
+          `<span>${label}</span><b aria-hidden="true">×</b>`;
+
+        chip.addEventListener(
+          'click',
+          () => {
+            selectedAssigneeIds =
+              selectedAssigneeIds.filter(
+                (
+                  id,
+                ) =>
+                  id !==
+                  userId,
+              );
+
+            syncPrimaryAssignee();
+            renderAssigneePicker();
+          },
+        );
+
+        assigneesChips.appendChild(
+          chip,
+        );
+      },
+    );
+
+    if (
+      assigneesTriggerLabel
+    ) {
+      assigneesTriggerLabel.textContent =
+        selectedAssigneeIds.length ===
+        0
+          ? 'Selecionar responsáveis'
+          : selectedAssigneeIds.length ===
+              1
+            ? collaboratorName(
+                selectedAssigneeIds[0],
+              )
+            : `${selectedAssigneeIds.length} responsáveis selecionados`;
+    }
+  }
+
+  function openAssigneePicker() {
+    if (
+      !assigneesMenu ||
+      !assigneesTrigger
+    ) {
+      return;
+    }
+
+    const opening =
+      assigneesMenu.classList.contains(
+        'member-hidden',
+      );
+
+    assigneesMenu.classList.toggle(
+      'member-hidden',
+      !opening,
+    );
+
+    assigneesTrigger.setAttribute(
+      'aria-expanded',
+      String(opening),
+    );
+  }
+
+  function closeAssigneePicker() {
+    assigneesMenu?.classList.add(
+      'member-hidden',
+    );
+
+    assigneesTrigger?.setAttribute(
+      'aria-expanded',
+      'false',
+    );
+  }
+
   function filteredItems() {
     if (!session) {
       return roadmapItems;
@@ -1200,8 +1684,11 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
     if (activeFilter === 'mine') {
       return roadmapItems.filter(
         (item) =>
-          item.assignee_user_id ===
-          session.user.id,
+          assigneeIdsForItem(
+            item,
+          ).includes(
+            session.user.id,
+          ),
       );
     }
 
@@ -1285,14 +1772,51 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
       return null;
     }
 
-    const profile =
-      collaboratorFor(
-        item.assignee_user_id,
+    const assigneeIds =
+      assigneeIdsForItem(
+        item,
       );
 
+    const myAssignmentMarker =
+      card.querySelector<HTMLElement>(
+        '[data-role="my-assignment-marker"]',
+      );
+
+    const isAssignedToMe =
+      Boolean(
+        session?.user?.id,
+      ) &&
+      assigneeIds.includes(
+        session.user.id,
+      );
+
+    myAssignmentMarker?.classList.toggle(
+      'member-hidden',
+      !isAssignedToMe,
+    );
+
+    if (
+      myAssignmentMarker
+    ) {
+      myAssignmentMarker.setAttribute(
+        'aria-hidden',
+        String(
+          !isAssignedToMe,
+        ),
+      );
+    }
+
+    const profile =
+      assigneeIds.length >
+      0
+        ? collaboratorFor(
+            assigneeIds[0],
+          )
+        : null;
+
     const name =
-      collaboratorName(
-        item.assignee_user_id,
+      assigneeNamesForItem(
+        item,
       );
 
     const setText = (
@@ -1312,48 +1836,10 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
       return element;
     };
 
-    const titleElement =
-      setText(
-        '[data-role="title"]',
-        item.title,
-      );
-
-    // EVRYLUX_STUDIO_MY_TASK_MARKER_V1
-    // Usa exatamente a mesma regra do filtro "Meus itens"
-    // desta página: item.assignee_user_id === session.user.id.
-    const isMyTask =
-      Boolean(
-        session?.user?.id,
-      ) &&
-      item.assignee_user_id ===
-        session.user.id;
-
-    if (
-      titleElement &&
-      isMyTask
-    ) {
-      const myTaskDot =
-        document.createElement(
-          'span',
-        );
-
-      myTaskDot.className =
-        'roadmap-my-task-dot';
-
-      myTaskDot.setAttribute(
-        'title',
-        'Você está marcado nesta tarefa',
-      );
-
-      myTaskDot.setAttribute(
-        'aria-label',
-        'Você está marcado nesta tarefa',
-      );
-
-      titleElement.appendChild(
-        myTaskDot,
-      );
-    }
+    setText(
+      '[data-role="title"]',
+      item.title,
+    );
 
     setText(
       '[data-role="description"]',
@@ -1398,10 +1884,9 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
         '[data-role="assignee-avatar"]',
       );
 
-    renderRoadmapAvatar(
+    renderRoadmapAvatarStack(
       avatar,
-      profile,
-      name,
+      assigneeIds,
     );
 
     const fill =
@@ -1424,8 +1909,8 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
         '[data-role="toggle-card"]',
       );
 
-    // O item começa recolhido e mostra somente o título.
-    // O conteúdo completo aparece apenas quando o usuário expandir.
+    // O item começa recolhido para ocupar o mínimo de espaço.
+    // O usuário expande somente quando quiser ver os detalhes.
     card.classList.remove(
       'is-expanded',
     );
@@ -1440,10 +1925,21 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
       'true',
     );
 
-    if (toggleButton) {
-      toggleButton.setAttribute('aria-expanded', 'false');
-      toggleButton.setAttribute('aria-label', 'Expandir item');
-      toggleButton.title = 'Expandir';
+    if (
+      toggleButton
+    ) {
+      toggleButton.setAttribute(
+        'aria-expanded',
+        'false',
+      );
+
+      toggleButton.setAttribute(
+        'aria-label',
+        'Expandir item',
+      );
+
+      toggleButton.title =
+        'Expandir';
     }
 
     const setExpanded =
@@ -1518,39 +2014,31 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
       },
     );
 
-
     const validationButton =
       card.querySelector<HTMLButtonElement>(
         '[data-role="send-validation"]',
       );
 
-    const refreshValidationButton =
-      () => {
-        if (!validationButton) {
-          return;
-        }
+    const alreadyInValidation =
+      validationItems.some(
+        (
+          validation,
+        ) =>
+          validation.roadmap_item_id ===
+          item.id,
+      );
 
-        const alreadyInValidation =
-          validationItems.some(
-            (
-              validation,
-            ) =>
-              validation.roadmap_item_id ===
-              item.id,
-          );
+    if (
+      validationButton &&
+      alreadyInValidation
+    ) {
+      validationButton.textContent =
+        'Em validação →';
 
-        validationButton.textContent =
-          alreadyInValidation
-            ? 'Em validação →'
-            : 'Enviar para validação';
-
-        validationButton.classList.toggle(
-          'already-sent',
-          alreadyInValidation,
-        );
-      };
-
-    refreshValidationButton();
+      validationButton.classList.add(
+        'already-sent',
+      );
+    }
 
     validationButton?.addEventListener(
       'click',
@@ -1559,23 +2047,26 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
       ) => {
         event.stopPropagation();
 
-        const alreadyInValidation =
+        if (
           validationItems.some(
             (
               validation,
             ) =>
               validation.roadmap_item_id ===
               item.id,
-          );
-
-        if (alreadyInValidation) {
+          )
+        ) {
           window.location.href =
             '/colab/studio/validation';
+
           return;
         }
 
-        validationButton.disabled = true;
-        validationButton.textContent = 'Enviando...';
+        validationButton.disabled =
+          true;
+
+        validationButton.textContent =
+          'Enviando...';
 
         try {
           await sendRoadmapToValidation(
@@ -1591,31 +2082,28 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
           validationItems =
             await getValidationItems();
 
-          refreshValidationButton();
-          validationButton.disabled = false;
-        } catch (error: any) {
+          validationButton.textContent =
+            'Em validação →';
+
+          validationButton.classList.add(
+            'already-sent',
+          );
+
+          validationButton.disabled =
+            false;
+        } catch (
+          error
+        ) {
           console.error(
-            '[EVRYLUX] Não foi possível enviar para validação:',
+            '[EVRYLUX] Erro ao enviar para validação:',
             error,
           );
 
           validationButton.textContent =
             'Tentar novamente';
-          validationButton.disabled = false;
 
-          const roadmapError =
-            document.querySelector<HTMLElement>(
-              '#roadmap-error',
-            );
-
-          if (roadmapError) {
-            roadmapError.textContent =
-              error?.message ||
-              'Não foi possível enviar o item para validação.';
-            roadmapError.classList.remove(
-              'member-hidden',
-            );
-          }
+          validationButton.disabled =
+            false;
         }
       },
     );
@@ -1729,6 +2217,9 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
         );
       },
     );
+
+    syncPrimaryAssignee();
+    renderAssigneePicker();
   }
 
   function syncProgress() {
@@ -1743,6 +2234,13 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
 
   function resetForm() {
     form?.reset();
+
+    selectedAssigneeIds =
+      [];
+
+    syncPrimaryAssignee();
+    renderAssigneePicker();
+    closeAssigneePicker();
 
     if (itemId) {
       itemId.value =
@@ -1848,11 +2346,15 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
         item.priority;
     }
 
-    if (assigneeInput) {
-      assigneeInput.value =
-        item.assignee_user_id ??
-        '';
-    }
+    selectedAssigneeIds =
+      [
+        ...assigneeIdsForItem(
+          item,
+        ),
+      ];
+
+    syncPrimaryAssignee();
+    renderAssigneePicker();
 
     if (areaInput) {
       areaInput.value =
@@ -1919,14 +2421,22 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
     detailsItem =
       item;
 
-    const profile =
-      collaboratorFor(
-        item.assignee_user_id,
+    const assigneeIds =
+      assigneeIdsForItem(
+        item,
       );
 
+    const profile =
+      assigneeIds.length >
+      0
+        ? collaboratorFor(
+            assigneeIds[0],
+          )
+        : null;
+
     const name =
-      collaboratorName(
-        item.assignee_user_id,
+      assigneeNamesForItem(
+        item,
       );
 
     if (detailsTitle) {
@@ -1978,10 +2488,9 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
       );
     }
 
-    renderRoadmapAvatar(
+    renderRoadmapAvatarStack(
       detailsAvatar,
-      profile,
-      name,
+      assigneeIds,
     );
 
     if (detailsAssignee) {
@@ -2120,7 +2629,7 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
         ) as RoadmapPriority,
 
       assignee_user_id:
-        assigneeInput?.value ||
+        selectedAssigneeIds[0] ??
         null,
 
       area:
@@ -2179,6 +2688,36 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
       fillCollaborators();
     }
 
+    try {
+      roadmapAssigneeMap =
+        await getRoadmapAssigneeMap();
+    } catch (
+      error
+    ) {
+      console.warn(
+        '[EVRYLUX] Não foi possível carregar múltiplos responsáveis:',
+        error,
+      );
+
+      roadmapAssigneeMap =
+        {};
+    }
+
+    try {
+      validationItems =
+        await getValidationItems();
+    } catch (
+      error
+    ) {
+      console.warn(
+        '[EVRYLUX] Não foi possível carregar validações:',
+        error,
+      );
+
+      validationItems =
+        [];
+    }
+
     renderRoadmap();
   }
 
@@ -2190,6 +2729,32 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
   priorityRange?.addEventListener(
     'input',
     syncPriorityVisualFromRange,
+  );
+
+  assigneesTrigger?.addEventListener(
+    'click',
+    (
+      event,
+    ) => {
+      event.stopPropagation();
+      openAssigneePicker();
+    },
+  );
+
+  document.addEventListener(
+    'click',
+    (
+      event,
+    ) => {
+      if (
+        assigneesPicker &&
+        !assigneesPicker.contains(
+          event.target as Node,
+        )
+      ) {
+        closeAssigneePicker();
+      }
+    },
   );
 
   newButton?.addEventListener(
@@ -2325,15 +2890,59 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
         const input =
           getFormInput();
 
+        let savedItemId =
+          editingId;
+
         if (editingId) {
           await updateRoadmapItem(
             editingId,
             input,
           );
         } else {
-          await createRoadmapItem(
-            input,
-            session.user.id,
+          const createdItem:
+            any =
+              await createRoadmapItem(
+                input,
+                session.user.id,
+              );
+
+          savedItemId =
+            createdItem?.id ??
+            '';
+        }
+
+        if (
+          !savedItemId
+        ) {
+          const refreshedItems =
+            await getRoadmapItems();
+
+          const matching =
+            refreshedItems.find(
+              (
+                candidate,
+              ) =>
+                candidate.title ===
+                  input.title &&
+                candidate.stage ===
+                  input.stage &&
+                candidate.status ===
+                  input.status &&
+                candidate.assignee_user_id ===
+                  input.assignee_user_id,
+            );
+
+          savedItemId =
+            matching?.id ??
+            '';
+        }
+
+        if (
+          savedItemId
+        ) {
+          await setRoadmapAssignees(
+            savedItemId,
+            selectedAssigneeIds,
           );
         }
 
@@ -2444,6 +3053,39 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
     content?.classList.remove(
       'member-hidden',
     );
+
+    const requestedTaskId =
+      new URLSearchParams(
+        window.location.search,
+      ).get(
+        'task',
+      );
+
+    if (
+      requestedTaskId
+    ) {
+      const requestedTask =
+        roadmapItems.find(
+          (
+            item,
+          ) =>
+            item.id ===
+            requestedTaskId,
+        );
+
+      if (
+        requestedTask
+      ) {
+        window.setTimeout(
+          () => {
+            openDetailsModal(
+              requestedTask,
+            );
+          },
+          80,
+        );
+      }
+    }
   }
 </script>
 
@@ -3800,110 +4442,56 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
 
 
 <style is:global>
-  /* EVRYLUX STUDIO — BOTÃO VALIDAÇÃO */
-  .studio-validation-button {
-    min-height: 42px;
-    padding: 0 14px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    border: 1px solid rgba(95,157,89,.18);
-    border-radius: 11px;
-    background: linear-gradient(145deg,rgba(239,248,235,.96),rgba(223,241,218,.90));
-    color: var(--primary-deep,#3b6939);
-    font-size: 9px;
-    font-weight: 850;
-    text-decoration: none;
-    box-shadow: 0 7px 20px rgba(54,92,51,.045);
-    transition: transform .16s ease,border-color .16s ease,box-shadow .16s ease,background .16s ease;
+  /* ==========================================================
+     ROADMAP — INICIA RECOLHIDO
+     ========================================================== */
+
+  .roadmap-item-card.roadmap-item-collapsible:not(.is-expanded) {
+    min-height: 48px !important;
+    height: 48px !important;
+    overflow: hidden !important;
   }
-  .studio-validation-button:hover {
-    transform: translateY(-1px);
-    border-color: rgba(95,157,89,.30);
-    background: linear-gradient(145deg,rgba(231,246,226,1),rgba(213,237,206,.96));
-    box-shadow: 0 10px 24px rgba(54,92,51,.07);
+
+  .roadmap-item-card.roadmap-item-collapsible:not(.is-expanded)
+  .roadmap-card-expanded {
+    display: none !important;
   }
-  .studio-validation-button-icon {
-    width: 20px;
-    height: 20px;
-    display: grid;
-    place-items: center;
-    border-radius: 7px;
-    background: rgba(255,255,255,.68);
+
+  .roadmap-item-card.roadmap-item-collapsible:not(.is-expanded)
+  .roadmap-card-summary {
+    min-height: 48px !important;
+    height: 48px !important;
+    padding: 8px 10px 8px 12px !important;
+    box-sizing: border-box !important;
   }
-  .studio-validation-button-icon svg {
-    width: 13px;
-    height: 13px;
-    display: block;
+
+  .roadmap-item-card.roadmap-item-collapsible:not(.is-expanded)
+  .roadmap-card-summary h3 {
+    margin: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
   }
-  .studio-validation-top-action {
-    margin-top: 10px;
-    display: flex;
-    justify-content: flex-end;
+
+  .roadmap-item-card.roadmap-item-collapsible.is-expanded {
+    height: auto !important;
   }
-  .roadmap-toolbar > .studio-validation-button {
-    margin-left: auto;
-  }
-  .roadmap-toolbar > .studio-validation-button + #new-roadmap-item {
-    margin-left: 0;
-  }
-  @media (max-width: 720px) {
-    .roadmap-toolbar > .studio-validation-button {
-      width: 100%;
-      order: 2;
-    }
-    .roadmap-toolbar > #new-roadmap-item {
-      width: 100%;
-      order: 3;
-    }
+
+  .roadmap-item-card.roadmap-item-collapsible.is-expanded
+  .roadmap-card-expanded {
+    display: block !important;
   }
 </style>
 
 
 
 <style is:global>
-  /* EVRYLUX ROADMAP -> VALIDACAO */
-  .roadmap-validation-actions {
-    margin-top: 11px;
-    display: grid;
-    grid-template-columns: minmax(0,1fr) minmax(0,1fr);
-    gap: 6px;
-  }
-
-  .roadmap-validation-actions .roadmap-card-details-button {
-    margin-top: 0 !important;
-  }
-
-  .roadmap-card-validation-button {
-    width: 100%;
-    min-height: 32px;
-    padding: 0 10px;
-    border: 1px solid rgba(95,157,89,.18);
-    border-radius: 9px;
-    background: var(--primary-deep,#365f35);
-    color: #fff;
-    font: inherit;
-    font-size: 8px;
-    font-weight: 850;
-    cursor: pointer;
-  }
-
-  .roadmap-card-validation-button.already-sent {
-    background: var(--primary-soft,#e2f2dd);
-    color: var(--primary-deep,#365f35);
-  }
-
-  .roadmap-card-validation-button:disabled {
-    opacity: .58;
-    cursor: wait;
-  }
-
-  @media (max-width: 650px) {
-    .roadmap-validation-actions {
-      grid-template-columns: 1fr;
-    }
-  }
+  .roadmap-validation-actions{margin-top:11px;display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .roadmap-validation-actions .roadmap-card-details-button{margin-top:0!important}
+  .roadmap-card-validation-button{width:100%;min-height:32px;border:1px solid rgba(95,157,89,.16);border-radius:9px;background:var(--primary-deep,#3b6939);color:#fff;font:inherit;font-size:8px;font-weight:850;cursor:pointer}
+  .roadmap-card-validation-button.already-sent{background:var(--primary-soft,#dff1da);color:var(--primary-deep,#3b6939)}
+  .roadmap-card-validation-button:disabled{opacity:.58}
+  @media(max-width:650px){.roadmap-validation-actions{grid-template-columns:1fr}}
 </style>
 <style is:global>
   /* EVRYLUX PERSISTENT VALIDATION FIX */
@@ -3920,34 +4508,278 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
   @media(max-width:720px){.roadmap-toolbar>.studio-validation-button,.roadmap-toolbar>#new-roadmap-item{width:100%}}
 </style>
 
-<style is:global>
-  /* EVRYLUX_STUDIO_MY_TASK_MARKER_CSS_V1 */
 
-  .roadmap-card-summary
-  [data-role="title"] {
+<style is:global>
+  /* ==========================================================
+     EVRYLUX ROADMAP — MÚLTIPLOS RESPONSÁVEIS
+     ========================================================== */
+
+  .roadmap-assignees-field {
+    position: relative;
+  }
+
+  .roadmap-assignees-picker {
+    position: relative;
+  }
+
+  .roadmap-primary-assignee-select {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
+  .roadmap-assignees-trigger {
+    width: 100%;
+    min-height: 42px;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    border: 1px solid rgba(65,104,62,.15);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--text);
+    font: inherit;
+    font-size: 10px;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .roadmap-assignees-trigger[aria-expanded="true"] {
+    border-color: rgba(95,157,89,.42);
+    box-shadow: 0 0 0 3px rgba(159,211,149,.11);
+  }
+
+  .roadmap-assignees-chevron {
+    color: var(--text-soft);
+    font-size: 10px;
+  }
+
+  .roadmap-assignees-menu {
+    width: 100%;
+    max-height: 230px;
+    position: absolute;
+    left: 0;
+    top: calc(100% + 6px);
+    z-index: 80;
+    overflow-y: auto;
+    padding: 6px;
+    box-sizing: border-box;
+    border: 1px solid rgba(65,104,62,.13);
+    border-radius: 12px;
+    background: rgba(255,255,255,.99);
+    box-shadow: 0 18px 46px rgba(23,32,25,.14);
+  }
+
+  .roadmap-assignee-option {
+    width: 100%;
+    min-height: 48px;
+    padding: 6px 8px;
+    display: grid;
+    grid-template-columns: 32px minmax(0,1fr) 22px;
+    align-items: center;
+    gap: 9px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .roadmap-assignee-option:hover,
+  .roadmap-assignee-option.selected {
+    background: var(--primary-soft);
+  }
+
+  .roadmap-assignee-option-avatar {
+    width: 30px;
+    height: 30px;
+    display: block;
+    overflow: hidden;
+    border-radius: 50%;
+    border: 1px solid rgba(65,104,62,.10);
+  }
+
+  .roadmap-assignee-option-copy {
     min-width: 0;
   }
 
-  .roadmap-my-task-dot {
-    width: 8px;
-    height: 8px;
-    margin-left: 8px;
-    display: inline-block;
-    vertical-align: middle;
+  .roadmap-assignee-option-copy strong,
+  .roadmap-assignee-option-copy small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .roadmap-assignee-option-copy strong {
+    font-size: 9px;
+  }
+
+  .roadmap-assignee-option-copy small {
+    margin-top: 2px;
+    color: var(--text-soft);
+    font-size: 7px;
+  }
+
+  .roadmap-assignee-option-check {
+    width: 20px;
+    height: 20px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(65,104,62,.14);
+    border-radius: 6px;
+    color: var(--primary-deep);
+    font-size: 9px;
+    font-weight: 900;
+  }
+
+  .roadmap-assignee-option.selected
+  .roadmap-assignee-option-check {
+    border-color: rgba(95,157,89,.28);
+    background: #fff;
+  }
+
+  .roadmap-assignees-empty {
+    padding: 10px;
+    color: var(--text-soft);
+    font-size: 8px;
+    text-align: center;
+  }
+
+  .roadmap-assignees-chips {
+    margin-top: 7px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .roadmap-assignee-chip {
+    min-height: 25px;
+    padding: 0 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid rgba(95,157,89,.15);
     border-radius: 999px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font: inherit;
+    font-size: 7px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .roadmap-assignee-chip b {
+    font-size: 10px;
+    line-height: 1;
+  }
+
+  .roadmap-card-avatar.roadmap-avatar-stack,
+  .roadmap-details-avatar.roadmap-avatar-stack {
+    width: auto !important;
+    min-width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    overflow: visible !important;
+    border: 0 !important;
+    background: transparent !important;
+  }
+
+  .roadmap-stacked-avatar {
+    width: 30px;
+    height: 30px;
+    display: block;
+    position: relative;
+    overflow: hidden;
+    flex: 0 0 30px;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    background: #f5f8f2;
+  }
+
+  .roadmap-stacked-avatar + .roadmap-stacked-avatar {
+    margin-left: -9px;
+  }
+
+  .roadmap-stacked-avatar-more {
+    display: grid;
+    place-items: center;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font-size: 7px;
+    font-weight: 900;
+  }
+
+  .roadmap-stacked-avatar
+  .roadmap-profile-avatar-image {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: 50% !important;
+  }
+
+  @media (max-width: 650px) {
+    .roadmap-assignees-menu {
+      max-height: 200px;
+    }
+  }
+</style>
+
+
+<style is:global>
+  /* ==========================================================
+     EVRYLUX ROADMAP — MARCAÇÃO "ATRIBUÍDA A MIM"
+     Aparece somente quando o usuário logado está entre os
+     responsáveis da tarefa.
+     ========================================================== */
+
+  .roadmap-card-title-row {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    flex: 1 1 auto;
+  }
+
+  .roadmap-card-title-row > h3 {
+    min-width: 0;
+    margin: 0;
+    flex: 0 1 auto;
+  }
+
+  .roadmap-my-assignment-marker {
+    width: 9px;
+    height: 9px;
+    flex: 0 0 9px;
+    display: inline-block;
+    border-radius: 50%;
     background: #20e426;
-    border: 1px solid rgba(18, 165, 25, .28);
+    border: 1px solid rgba(22, 177, 29, .24);
     box-shadow:
-      0 0 0 2px rgba(32, 228, 38, .07),
-      0 0 6px rgba(32, 228, 38, .32);
-    transform: translateY(-1px);
+      0 0 0 2px rgba(32, 228, 38, .08),
+      0 0 7px rgba(32, 228, 38, .34);
+  }
+
+  .roadmap-my-assignment-marker.member-hidden {
+    display: none !important;
   }
 
   @media (max-width: 620px) {
-    .roadmap-my-task-dot {
-      width: 7px;
-      height: 7px;
-      margin-left: 6px;
+    .roadmap-card-title-row {
+      gap: 7px;
+    }
+
+    .roadmap-my-assignment-marker {
+      width: 8px;
+      height: 8px;
+      flex-basis: 8px;
     }
   }
 </style>

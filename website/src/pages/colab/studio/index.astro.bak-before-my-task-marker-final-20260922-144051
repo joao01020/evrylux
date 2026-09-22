@@ -1312,48 +1312,10 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
       return element;
     };
 
-    const titleElement =
-      setText(
-        '[data-role="title"]',
-        item.title,
-      );
-
-    // EVRYLUX_STUDIO_MY_TASK_MARKER_V1
-    // Usa exatamente a mesma regra do filtro "Meus itens"
-    // desta página: item.assignee_user_id === session.user.id.
-    const isMyTask =
-      Boolean(
-        session?.user?.id,
-      ) &&
-      item.assignee_user_id ===
-        session.user.id;
-
-    if (
-      titleElement &&
-      isMyTask
-    ) {
-      const myTaskDot =
-        document.createElement(
-          'span',
-        );
-
-      myTaskDot.className =
-        'roadmap-my-task-dot';
-
-      myTaskDot.setAttribute(
-        'title',
-        'Você está marcado nesta tarefa',
-      );
-
-      myTaskDot.setAttribute(
-        'aria-label',
-        'Você está marcado nesta tarefa',
-      );
-
-      titleElement.appendChild(
-        myTaskDot,
-      );
-    }
+    setText(
+      '[data-role="title"]',
+      item.title,
+    );
 
     setText(
       '[data-role="description"]',
@@ -3918,37 +3880,5 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
   .roadmap-toolbar>.studio-validation-button{margin-left:auto}
   .roadmap-toolbar>.studio-validation-button+#new-roadmap-item{margin-left:0}
   @media(max-width:720px){.roadmap-toolbar>.studio-validation-button,.roadmap-toolbar>#new-roadmap-item{width:100%}}
-</style>
-
-<style is:global>
-  /* EVRYLUX_STUDIO_MY_TASK_MARKER_CSS_V1 */
-
-  .roadmap-card-summary
-  [data-role="title"] {
-    min-width: 0;
-  }
-
-  .roadmap-my-task-dot {
-    width: 8px;
-    height: 8px;
-    margin-left: 8px;
-    display: inline-block;
-    vertical-align: middle;
-    border-radius: 999px;
-    background: #20e426;
-    border: 1px solid rgba(18, 165, 25, .28);
-    box-shadow:
-      0 0 0 2px rgba(32, 228, 38, .07),
-      0 0 6px rgba(32, 228, 38, .32);
-    transform: translateY(-1px);
-  }
-
-  @media (max-width: 620px) {
-    .roadmap-my-task-dot {
-      width: 7px;
-      height: 7px;
-      margin-left: 6px;
-    }
-  }
 </style>
 
