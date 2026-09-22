@@ -232,25 +232,6 @@ import EvryluxLogoLoader from '../../components/ui/EvryluxLogoLoader.astro';
 
             <a
               class="quick-access-item"
-              href="/colab/core"
-            >
-              <span class="quick-access-item-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
-                  <path d="M12 3.8v3M12 17.2v3M3.8 12h3M17.2 12h3M6.2 6.2l2.1 2.1M15.7 15.7l2.1 2.1M17.8 6.2l-2.1 2.1M8.3 15.7l-2.1 2.1" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-                </svg>
-              </span>
-
-              <span>
-                <strong>Núcleo</strong>
-                <small>Direção central e decisões do projeto</small>
-              </span>
-
-              <span class="quick-access-arrow">→</span>
-            </a>
-
-            <a
-              class="quick-access-item"
               href="https://github.com/joao01020/ghost-core"
               target="_blank"
               rel="noopener noreferrer"
@@ -404,38 +385,6 @@ import EvryluxLogoLoader from '../../components/ui/EvryluxLogoLoader.astro';
 
               <p>
                 Organize etapas, responsáveis, prioridades e progresso do desenvolvimento.
-              </p>
-            </div>
-          </a>
-
-          <a
-            class="tool-card"
-            href="/colab/core"
-          >
-            <div class="tool-card-top">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
-                  <path d="M12 3.5v3.2M12 17.3v3.2M3.5 12h3.2M17.3 12h3.2M6 6l2.3 2.3M15.7 15.7 18 18M18 6l-2.3 2.3M8.3 15.7 6 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-                </svg>
-              </span>
-
-              <span class="tool-arrow">
-                →
-              </span>
-            </div>
-
-            <div class="tool-card-copy">
-              <span class="tool-card-kicker">
-                Direção do produto
-              </span>
-
-              <h3>
-                Núcleo
-              </h3>
-
-              <p>
-                Registre princípios, decisões e partes essenciais que não podem se perder durante a evolução do EVRYLUX.
               </p>
             </div>
           </a>
@@ -2249,39 +2198,6 @@ import EvryluxLogoLoader from '../../components/ui/EvryluxLogoLoader.astro';
       left: 14px;
       width: auto;
     }
-  }
-</style>
-
-
-<style is:global>
-  /* EVRYLUX DASHBOARD — NÚCLEO */
-
-  a.quick-access-item[href="/colab/core"] .quick-access-item-icon {
-    background:
-      linear-gradient(
-        145deg,
-        rgba(226,243,220,.98),
-        rgba(210,235,204,.90)
-      );
-  }
-
-  a.tool-card[href="/colab/core"] {
-    background:
-      radial-gradient(
-        circle at 88% 10%,
-        rgba(217,239,211,.68),
-        transparent 34%
-      ),
-      rgba(255,255,255,.90);
-  }
-
-  a.tool-card[href="/colab/core"] .tool-icon {
-    background:
-      linear-gradient(
-        145deg,
-        rgba(231,246,226,.98),
-        rgba(213,237,206,.94)
-      );
   }
 </style>
 

@@ -83,52 +83,6 @@ import '../../styles/members.css';
       <div id="core-status" class="member-status" role="status" aria-live="polite"></div>
     </div>
 
-
-    <!-- ===================================================== -->
-    <!-- LEITURA DA NOTA — DADOS REAIS DE ProjectCoreNote     -->
-    <!-- ===================================================== -->
-    <div
-      id="core-view-modal"
-      class="core-view-modal member-hidden"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="core-view-title"
-    >
-      <button
-        id="core-view-backdrop"
-        class="core-view-backdrop"
-        type="button"
-        aria-label="Fechar nota"
-      ></button>
-
-      <section class="core-view-card">
-        <div class="core-view-head">
-          <div class="core-view-heading-copy">
-            <span id="core-view-type" class="core-view-type">Nota do Núcleo</span>
-            <h2 id="core-view-title">Nota</h2>
-          </div>
-
-          <button
-            id="core-view-close"
-            class="core-view-close"
-            type="button"
-            aria-label="Fechar"
-          >×</button>
-        </div>
-
-        <div id="core-view-content" class="core-view-content"></div>
-
-        <div class="core-view-footer">
-          <span id="core-view-updated"></span>
-
-          <div class="core-view-actions">
-            <button id="core-view-dismiss" class="core-view-secondary" type="button">Fechar</button>
-            <button id="core-view-edit" class="core-view-primary member-hidden" type="button">Editar nota</button>
-          </div>
-        </div>
-      </section>
-    </div>
-
     <div id="core-modal" class="core-modal member-hidden" role="dialog" aria-modal="true" aria-labelledby="core-modal-title">
       <button id="core-modal-backdrop" class="core-modal-backdrop" type="button" aria-label="Fechar"></button>
       <section class="core-modal-card">
@@ -176,6 +130,586 @@ import '../../styles/members.css';
     </div>
   </main>
 
+<style is:global>
+  /* ==========================================================
+     EVRYLUX NÚCLEO — NOTAS MODERNAS COM RESUMO + MODAL
+     ========================================================== */
+  .evx-core-notes-shell {
+    margin-top: 1.35rem;
+    display: grid;
+    gap: 1rem;
+  }
+
+  .evx-core-notes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+    align-items: start;
+  }
+
+  .evx-core-note-preview {
+    position: relative;
+    border: 1px solid rgba(45, 76, 46, 0.10);
+    background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(247,250,246,0.96));
+    border-radius: 24px;
+    padding: 1rem 1rem 1rem;
+    box-shadow: 0 20px 50px rgba(30, 44, 31, 0.08);
+    transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+    cursor: pointer;
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+
+  .evx-core-note-preview:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 24px 60px rgba(30, 44, 31, 0.11);
+    border-color: rgba(54, 102, 60, 0.18);
+  }
+
+  .evx-core-note-preview-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .evx-core-note-preview-kicker {
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #5a745e;
+  }
+
+  .evx-core-note-preview-title {
+    margin: 0.15rem 0 0;
+    font-size: 1.02rem;
+    line-height: 1.35;
+    font-weight: 800;
+    color: #18231a;
+  }
+
+  .evx-core-note-open-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 14px;
+    display: inline-grid;
+    place-items: center;
+    background: #eef5eb;
+    color: #345f39;
+    flex: 0 0 40px;
+    border: 1px solid rgba(52,95,57,0.10);
+  }
+
+  .evx-core-note-open-icon svg {
+    width: 18px !important;
+    height: 18px !important;
+    max-width: 18px !important;
+    max-height: 18px !important;
+  }
+
+  .evx-core-note-preview-summary {
+    margin: 0;
+    color: #5d685e;
+    font-size: 0.94rem;
+    line-height: 1.6;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .evx-core-note-preview-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-top: auto;
+  }
+
+  .evx-core-note-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.38rem;
+    min-height: 30px;
+    padding: 0.42rem 0.72rem;
+    border-radius: 999px;
+    background: #f3f7f1;
+    color: #46644b;
+    font-size: 0.76rem;
+    font-weight: 700;
+    border: 1px solid rgba(52,95,57,0.08);
+  }
+
+  .evx-core-note-chip--pinned {
+    background: rgba(159, 213, 145, 0.18);
+    color: #2f5b33;
+  }
+
+  .evx-core-note-chip svg {
+    width: 14px !important;
+    height: 14px !important;
+    max-width: 14px !important;
+    max-height: 14px !important;
+    flex: 0 0 14px;
+  }
+
+  .evx-core-note-preview-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-top: 0.2rem;
+    color: #4a5f4e;
+  }
+
+  .evx-core-note-preview-link {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #2f5b33;
+  }
+
+  .evx-core-note-preview-length {
+    font-size: 0.78rem;
+    color: #79857b;
+  }
+
+  .evx-core-hidden-source-note {
+    display: none !important;
+  }
+
+  .evx-core-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(14, 18, 14, 0.56);
+    backdrop-filter: blur(8px);
+    z-index: 80;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.25rem;
+  }
+
+  .evx-core-modal {
+    width: min(860px, 100%);
+    max-height: min(88vh, 920px);
+    overflow: hidden;
+    border-radius: 28px;
+    background: linear-gradient(180deg, #ffffff, #f8fbf7);
+    box-shadow: 0 32px 100px rgba(0,0,0,0.22);
+    border: 1px solid rgba(45, 76, 46, 0.12);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .evx-core-modal-header {
+    padding: 1.1rem 1.2rem;
+    border-bottom: 1px solid rgba(45, 76, 46, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    background: rgba(248, 251, 247, 0.88);
+  }
+
+  .evx-core-modal-header-copy {
+    min-width: 0;
+  }
+
+  .evx-core-modal-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 30px;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    background: #eef5eb;
+    color: #3d5f43;
+    font-size: 0.74rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .evx-core-modal-title {
+    margin: 0.55rem 0 0;
+    font-size: clamp(1.25rem, 1rem + 1vw, 1.75rem);
+    line-height: 1.2;
+    color: #18231a;
+  }
+
+  .evx-core-modal-close {
+    width: 46px;
+    height: 46px;
+    border-radius: 16px;
+    border: 1px solid rgba(45, 76, 46, 0.12);
+    background: #ffffff;
+    color: #263227;
+    display: inline-grid;
+    place-items: center;
+    cursor: pointer;
+    transition: transform 140ms ease, background 140ms ease;
+  }
+
+  .evx-core-modal-close:hover {
+    transform: translateY(-1px);
+    background: #f6faf5;
+  }
+
+  .evx-core-modal-close svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  .evx-core-modal-body {
+    padding: 1.2rem;
+    overflow: auto;
+  }
+
+  .evx-core-modal-body > * {
+    max-width: 100%;
+  }
+
+  .evx-core-modal-body article,
+  .evx-core-modal-body section,
+  .evx-core-modal-body .core-note-card,
+  .evx-core-modal-body [data-core-note],
+  .evx-core-modal-body > div {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .evx-core-modal-body h1,
+  .evx-core-modal-body h2,
+  .evx-core-modal-body h3,
+  .evx-core-modal-body h4 {
+    margin: 0 0 1rem;
+    color: #172219;
+    line-height: 1.25;
+  }
+
+  .evx-core-modal-body p,
+  .evx-core-modal-body li,
+  .evx-core-modal-body blockquote {
+    color: #3d4740;
+    line-height: 1.8;
+    font-size: 1rem;
+  }
+
+  .evx-core-modal-body ul,
+  .evx-core-modal-body ol {
+    padding-left: 1.3rem;
+  }
+
+  .evx-core-modal-body button,
+  .evx-core-modal-body a[role="button"],
+  .evx-core-modal-body .button,
+  .evx-core-modal-body .btn {
+    border-radius: 14px;
+    min-height: 42px;
+    padding: 0.72rem 1rem;
+  }
+
+  .evx-core-empty-state {
+    padding: 1rem 1.1rem;
+    border: 1px dashed rgba(52,95,57,0.18);
+    border-radius: 20px;
+    color: #627063;
+    background: rgba(255,255,255,0.7);
+  }
+
+  @media (max-width: 720px) {
+    .evx-core-note-preview {
+      border-radius: 20px;
+      padding: 0.9rem;
+      min-height: 165px;
+    }
+
+    .evx-core-modal-overlay {
+      padding: 0.75rem;
+    }
+
+    .evx-core-modal {
+      width: 100%;
+      max-height: 92vh;
+      border-radius: 22px;
+    }
+
+    .evx-core-modal-header,
+    .evx-core-modal-body {
+      padding: 1rem;
+    }
+  }
+</style>
+
+<script is:inline>
+  (() => {
+    const MARKER = 'evx-core-notes-modern-ready';
+
+    const getText = (el) => (el?.textContent || '').replace(/\s+/g, ' ').trim();
+
+    const truncate = (text, max = 180) => {
+      const clean = (text || '').replace(/\s+/g, ' ').trim();
+      if (clean.length <= max) return clean;
+      return clean.slice(0, max).trimEnd() + '…';
+    };
+
+    const createEl = (tag, className, html) => {
+      const el = document.createElement(tag);
+      if (className) el.className = className;
+      if (html != null) el.innerHTML = html;
+      return el;
+    };
+
+    const findCoreRoot = () => {
+      return document.querySelector('.core-page')
+        || document.querySelector('main.member-shell')
+        || document.querySelector('main');
+    };
+
+    const findHeading = (root) => {
+      return [...root.querySelectorAll('h1,h2,h3')].find((el) => /o que está no centro do evrylux/i.test(getText(el)));
+    };
+
+    const climbCandidate = (start, stopAt) => {
+      let node = start;
+      while (node && node !== stopAt && node !== document.body) {
+        const tag = node.tagName?.toLowerCase();
+        const hasFields = node.querySelector?.('input,textarea,select');
+        const hasHeading = node.querySelector?.('h1,h2,h3,h4,strong');
+        const txt = getText(node);
+        if (['article','section','div','li'].includes(tag) && !hasFields && hasHeading && txt.length > 80) {
+          return node;
+        }
+        node = node.parentElement;
+      }
+      return null;
+    };
+
+    const findNoteCandidates = (root, heading) => {
+      const set = new Set();
+      const editButtons = [...root.querySelectorAll('button, a')].filter((el) => /editar/i.test(getText(el)));
+      for (const btn of editButtons) {
+        const candidate = climbCandidate(btn, root);
+        if (candidate) set.add(candidate);
+      }
+
+      if (!set.size && heading) {
+        const blocks = [...root.querySelectorAll('article, section, div')].filter((el) => {
+          if (el === root) return false;
+          if (el.querySelector('input,textarea,select')) return false;
+          if (!el.querySelector('h1,h2,h3,h4,strong')) return false;
+          const txt = getText(el);
+          if (txt.length < 120) return false;
+          if (/o que está no centro do evrylux/i.test(txt)) return false;
+          return true;
+        });
+        for (const block of blocks) set.add(block);
+      }
+
+      return [...set].filter((el) => !el.closest('.evx-core-notes-shell'));
+    };
+
+    const extractTitle = (node) => {
+      const titleEl = node.querySelector('h1,h2,h3,h4,strong');
+      return getText(titleEl) || 'Nota do Núcleo';
+    };
+
+    const extractSummary = (node, title) => {
+      const pieces = [];
+      node.querySelectorAll('p, li').forEach((el) => {
+        const text = getText(el);
+        if (!text) return;
+        if (/^fixado$/i.test(text)) return;
+        if (/^editar$/i.test(text)) return;
+        pieces.push(text);
+      });
+      let summary = pieces.join(' ');
+      if (!summary) {
+        summary = getText(node).replace(title, '').replace(/Fixado/gi, '').replace(/Editar/gi, '');
+      }
+      return truncate(summary, 180);
+    };
+
+    const extractTags = (node) => {
+      const tags = [];
+      if (/fixado/i.test(getText(node))) {
+        tags.push({ type: 'pinned', label: 'Fixado' });
+      }
+      const editExists = [...node.querySelectorAll('button,a')].some((el) => /editar/i.test(getText(el)));
+      if (editExists) tags.push({ type: 'editable', label: 'Editável' });
+      return tags;
+    };
+
+    const countReadingTime = (node) => {
+      const words = getText(node).split(/\s+/).filter(Boolean).length;
+      const min = Math.max(1, Math.round(words / 180));
+      return `${min} min leitura`;
+    };
+
+    const createPreviewCard = ({ title, summary, tags, readingTime }) => {
+      const card = createEl('article', 'evx-core-note-preview');
+      card.innerHTML = `
+        <div class="evx-core-note-preview-head">
+          <div>
+            <div class="evx-core-note-preview-kicker">Núcleo</div>
+            <h3 class="evx-core-note-preview-title"></h3>
+          </div>
+          <span class="evx-core-note-open-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M7 12h10M13 8l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+        </div>
+        <p class="evx-core-note-preview-summary"></p>
+        <div class="evx-core-note-preview-meta"></div>
+        <div class="evx-core-note-preview-actions">
+          <span class="evx-core-note-preview-link">Abrir nota</span>
+          <span class="evx-core-note-preview-length"></span>
+        </div>
+      `;
+      card.querySelector('.evx-core-note-preview-title').textContent = title;
+      card.querySelector('.evx-core-note-preview-summary').textContent = summary;
+      card.querySelector('.evx-core-note-preview-length').textContent = readingTime;
+
+      const meta = card.querySelector('.evx-core-note-preview-meta');
+      (tags || []).forEach((tag) => {
+        const chip = createEl('span', `evx-core-note-chip ${tag.type === 'pinned' ? 'evx-core-note-chip--pinned' : ''}`);
+        if (tag.type === 'pinned') {
+          chip.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M9 3h6l-1 6 4 4v2H6v-2l4-4-1-6Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+              <path d="M12 15v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            <span>${tag.label}</span>
+          `;
+        } else {
+          chip.textContent = tag.label;
+        }
+        meta.appendChild(chip);
+      });
+      return card;
+    };
+
+    const openModalWithNode = (title, node, placeholder) => {
+      const overlay = createEl('div', 'evx-core-modal-overlay');
+      const dialog = createEl('div', 'evx-core-modal');
+      dialog.setAttribute('role', 'dialog');
+      dialog.setAttribute('aria-modal', 'true');
+      dialog.setAttribute('aria-label', title);
+
+      const header = createEl('div', 'evx-core-modal-header');
+      const copy = createEl('div', 'evx-core-modal-header-copy');
+      copy.innerHTML = `
+        <div class="evx-core-modal-kicker">Nota do Núcleo</div>
+        <h3 class="evx-core-modal-title"></h3>
+      `;
+      copy.querySelector('.evx-core-modal-title').textContent = title;
+
+      const closeBtn = createEl('button', 'evx-core-modal-close', `
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      `);
+      closeBtn.type = 'button';
+      closeBtn.setAttribute('aria-label', 'Fechar nota');
+
+      header.appendChild(copy);
+      header.appendChild(closeBtn);
+
+      const body = createEl('div', 'evx-core-modal-body');
+      dialog.appendChild(header);
+      dialog.appendChild(body);
+      overlay.appendChild(dialog);
+      document.body.appendChild(overlay);
+      document.body.style.overflow = 'hidden';
+
+      const originalParent = node.parentElement;
+      const nextSibling = node.nextSibling;
+      body.appendChild(node);
+      node.classList.remove('evx-core-hidden-source-note');
+
+      const cleanup = () => {
+        if (placeholder?.parentNode) {
+          placeholder.parentNode.insertBefore(node, placeholder.nextSibling);
+        } else if (originalParent) {
+          if (nextSibling && originalParent.contains(nextSibling)) {
+            originalParent.insertBefore(node, nextSibling);
+          } else {
+            originalParent.appendChild(node);
+          }
+        }
+        node.classList.add('evx-core-hidden-source-note');
+        overlay.remove();
+        document.body.style.overflow = '';
+        document.removeEventListener('keydown', onKeyDown);
+      };
+
+      const onKeyDown = (event) => {
+        if (event.key === 'Escape') cleanup();
+      };
+
+      closeBtn.addEventListener('click', cleanup);
+      overlay.addEventListener('click', (event) => {
+        if (event.target === overlay) cleanup();
+      });
+      document.addEventListener('keydown', onKeyDown);
+    };
+
+    const init = () => {
+      const root = findCoreRoot();
+      if (!root || root.dataset[MARKER]) return;
+      if (!/\/colab\/core/.test(window.location.pathname)) return;
+
+      const heading = findHeading(root);
+      if (!heading) return;
+
+      const noteCandidates = findNoteCandidates(root, heading);
+      if (!noteCandidates.length) return;
+
+      const shell = createEl('section', 'evx-core-notes-shell');
+      const grid = createEl('div', 'evx-core-notes-grid');
+      shell.appendChild(grid);
+
+      let insertAfter = heading;
+      const headingParent = heading.parentElement;
+      const introParagraphs = headingParent ? [...headingParent.querySelectorAll('p')] : [];
+      if (introParagraphs.length) insertAfter = introParagraphs[introParagraphs.length - 1];
+      insertAfter.insertAdjacentElement('afterend', shell);
+
+      noteCandidates.forEach((node, index) => {
+        const title = extractTitle(node);
+        const summary = extractSummary(node, title);
+        const tags = extractTags(node);
+        const readingTime = countReadingTime(node);
+        const card = createPreviewCard({ title, summary, tags, readingTime });
+        const placeholder = createEl('div');
+        placeholder.style.display = 'none';
+        placeholder.dataset.notePlaceholder = String(index);
+        node.parentNode.insertBefore(placeholder, node);
+        node.classList.add('evx-core-hidden-source-note');
+        card.addEventListener('click', (event) => {
+          if (event.target.closest('button,a')) return;
+          openModalWithNode(title, node, placeholder);
+        });
+        grid.appendChild(card);
+      });
+
+      root.dataset[MARKER] = '1';
+    };
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  })();
+</script>
+
 
 </Layout>
 
@@ -210,19 +744,6 @@ import '../../styles/members.css';
   const saveButton = document.querySelector<HTMLButtonElement>('#core-save-note');
   const deleteButton = document.querySelector<HTMLButtonElement>('#core-delete-note');
   const cancelButton = document.querySelector<HTMLButtonElement>('#core-cancel-note');
-
-  const viewModal = document.querySelector<HTMLElement>('#core-view-modal');
-  const viewBackdrop = document.querySelector<HTMLButtonElement>('#core-view-backdrop');
-  const viewClose = document.querySelector<HTMLButtonElement>('#core-view-close');
-  const viewDismiss = document.querySelector<HTMLButtonElement>('#core-view-dismiss');
-  const viewEdit = document.querySelector<HTMLButtonElement>('#core-view-edit');
-  const viewType = document.querySelector<HTMLElement>('#core-view-type');
-  const viewTitle = document.querySelector<HTMLElement>('#core-view-title');
-  const viewContent = document.querySelector<HTMLElement>('#core-view-content');
-  const viewUpdated = document.querySelector<HTMLElement>('#core-view-updated');
-
-  let viewingNoteId: string | null = null;
-
 
   let notes: ProjectCoreNote[] = [];
   let canEdit = false;
@@ -260,38 +781,8 @@ import '../../styles/members.css';
     showStatus(message, 'error');
   }
 
-  function noteSummary(value: string) {
-    const clean = value.replace(/\s+/g, ' ').trim();
-    if (!clean) return 'Sem descrição.';
-    const maximum = 190;
-    return clean.length > maximum
-      ? `${clean.slice(0, maximum).trimEnd()}…`
-      : clean;
-  }
-
-  function openViewModal(note: ProjectCoreNote) {
-    if (!viewModal || !viewTitle || !viewContent || !viewType || !viewUpdated) return;
-
-    viewingNoteId = note.id;
-    viewType.textContent = note.is_pinned ? 'Nota fixada' : 'Nota do Núcleo';
-    viewType.classList.toggle('is-pinned', note.is_pinned);
-    viewTitle.textContent = note.title;
-    viewContent.textContent = note.content.trim() || 'Sem descrição.';
-    viewUpdated.textContent = `Atualizado em ${formatDate(note.updated_at)}`;
-    viewEdit?.classList.toggle('member-hidden', !canEdit);
-    viewModal.classList.remove('member-hidden');
-    document.body.classList.add('core-view-modal-open');
-  }
-
-  function closeViewModal() {
-    viewModal?.classList.add('member-hidden');
-    document.body.classList.remove('core-view-modal-open');
-    viewingNoteId = null;
-  }
-
   function renderNotes() {
     if (!notesContainer || !emptyState) return;
-
     emptyState.classList.toggle('member-hidden', notes.length > 0);
     if (!notes.length) {
       notesContainer.innerHTML = '';
@@ -299,58 +790,32 @@ import '../../styles/members.css';
     }
 
     notesContainer.innerHTML = notes.map((note) => `
-      <article
-        class="core-note-compact ${note.is_pinned ? 'is-pinned' : ''}"
-        data-open-note="${escapeHtml(note.id)}"
-        tabindex="0"
-        role="button"
-        aria-label="Abrir nota ${escapeHtml(note.title)}"
-      >
-        <div class="core-note-compact-top">
-          <div class="core-note-compact-labels">
+      <article class="core-note ${note.is_pinned ? 'is-pinned' : ''}" data-note-id="${escapeHtml(note.id)}">
+        <div class="core-note-top">
+          <div class="core-note-labels">
             ${note.is_pinned ? `
-              <span class="core-note-compact-badge is-pinned">
+              <span class="core-pin-label">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M9 3h6l-1 6 3 3v1H7v-1l3-3-1-6Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
                   <path d="M12 13v8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
                 </svg>
                 Fixado
-              </span>
-            ` : `<span class="core-note-compact-badge">Núcleo</span>`}
+              </span>` : `<span class="core-note-label">Nota</span>`}
           </div>
-
-          <span class="core-note-compact-arrow" aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-              <path d="M7 12h10M13 8l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </span>
+          ${canEdit ? `<button class="core-edit-button" type="button" data-edit-note="${escapeHtml(note.id)}">Editar</button>` : ''}
         </div>
-
         <h3>${escapeHtml(note.title)}</h3>
-
-        <p class="core-note-compact-summary">
-          ${escapeHtml(noteSummary(note.content))}
+        <p class="core-note-content ${note.content.trim() ? '' : 'core-note-empty-copy'}">
+          ${note.content.trim() ? escapeHtml(note.content).replaceAll('\n', '<br />') : 'Sem descrição.'}
         </p>
-
-        <div class="core-note-compact-footer">
-          <span class="core-note-compact-open">Abrir nota</span>
-          <span class="core-note-compact-date">${escapeHtml(formatDate(note.updated_at))}</span>
-        </div>
+        <div class="core-note-footer">Atualizado em ${escapeHtml(formatDate(note.updated_at))}</div>
       </article>
     `).join('');
 
-    document.querySelectorAll<HTMLElement>('[data-open-note]').forEach((card) => {
-      const open = () => {
-        const note = notes.find((item) => item.id === card.dataset.openNote);
-        if (note) openViewModal(note);
-      };
-
-      card.addEventListener('click', open);
-      card.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          open();
-        }
+    document.querySelectorAll<HTMLButtonElement>('[data-edit-note]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const note = notes.find((item) => item.id === button.dataset.editNote);
+        if (note) openEditModal(note);
       });
     });
   }
@@ -390,27 +855,11 @@ import '../../styles/members.css';
     renderNotes();
   }
 
-  viewBackdrop?.addEventListener('click', closeViewModal);
-  viewClose?.addEventListener('click', closeViewModal);
-  viewDismiss?.addEventListener('click', closeViewModal);
-  viewEdit?.addEventListener('click', () => {
-    if (!viewingNoteId) return;
-    const note = notes.find((item) => item.id === viewingNoteId);
-    if (!note) return;
-    closeViewModal();
-    openEditModal(note);
-  });
-
   newNoteButton?.addEventListener('click', openCreateModal);
   modalBackdrop?.addEventListener('click', closeModal);
   modalClose?.addEventListener('click', closeModal);
   cancelButton?.addEventListener('click', closeModal);
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') {
-      closeViewModal();
-      closeModal();
-    }
-  });
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeModal(); });
 
   form?.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -970,287 +1419,6 @@ import '../../styles/members.css';
       max-width: 15px !important;
       max-height: 15px !important;
     }
-  }
-</style>
-
-
-<style is:global>
-  /* ==========================================================
-     EVRYLUX NÚCLEO — NOTAS REAIS V2
-     Render direto de notes: ProjectCoreNote[]; sem mocks.
-     ========================================================== */
-
-  body.core-view-modal-open { overflow: hidden !important; }
-
-  #core-notes.core-notes {
-    margin-top: 18px !important;
-    display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    gap: 14px !important;
-    align-items: start !important;
-  }
-
-  .core-note-compact {
-    min-width: 0;
-    min-height: 190px;
-    padding: 17px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    box-sizing: border-box;
-    border: 1px solid rgba(65,104,62,.10);
-    border-radius: 20px;
-    background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(247,251,244,.90));
-    box-shadow: 0 14px 40px rgba(54,92,51,.045);
-    cursor: pointer;
-    outline: none;
-    transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
-  }
-
-  .core-note-compact:hover,
-  .core-note-compact:focus-visible {
-    transform: translateY(-3px);
-    border-color: rgba(95,157,89,.24);
-    box-shadow: 0 20px 48px rgba(54,92,51,.075);
-  }
-
-  .core-note-compact.is-pinned {
-    background:
-      radial-gradient(circle at 92% 0%, rgba(216,239,210,.65), transparent 34%),
-      linear-gradient(145deg, rgba(255,255,255,.98), rgba(243,249,240,.94));
-  }
-
-  .core-note-compact-top {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-  }
-
-  .core-note-compact-badge {
-    min-height: 25px;
-    padding: 0 8px;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    border: 1px solid rgba(65,104,62,.09);
-    border-radius: 999px;
-    background: rgba(245,249,243,.92);
-    color: #58705c;
-    font-size: 7px;
-    font-weight: 900;
-    letter-spacing: .055em;
-    text-transform: uppercase;
-  }
-
-  .core-note-compact-badge.is-pinned {
-    border-color: rgba(95,157,89,.14);
-    background: rgba(223,241,218,.90);
-    color: #365f3a;
-  }
-
-  .core-note-compact-badge svg {
-    width: 12px !important;
-    height: 12px !important;
-    min-width: 12px !important;
-    min-height: 12px !important;
-    max-width: 12px !important;
-    max-height: 12px !important;
-  }
-
-  .core-note-compact-arrow {
-    width: 36px;
-    height: 36px;
-    flex: 0 0 36px;
-    display: grid;
-    place-items: center;
-    border: 1px solid rgba(65,104,62,.09);
-    border-radius: 12px;
-    background: rgba(239,248,235,.88);
-    color: #365f3a;
-  }
-
-  .core-note-compact-arrow svg {
-    width: 16px !important;
-    height: 16px !important;
-    min-width: 16px !important;
-    min-height: 16px !important;
-    max-width: 16px !important;
-    max-height: 16px !important;
-  }
-
-  .core-note-compact h3 {
-    margin: 0;
-    color: var(--text, #172019);
-    font-size: 16px;
-    line-height: 1.3;
-    letter-spacing: -.025em;
-  }
-
-  .core-note-compact-summary {
-    margin: 0;
-    display: -webkit-box;
-    overflow: hidden;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    color: var(--text-soft, #68746b);
-    font-size: 10px;
-    line-height: 1.65;
-  }
-
-  .core-note-compact-footer {
-    margin-top: auto;
-    padding-top: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    border-top: 1px solid rgba(65,104,62,.065);
-  }
-
-  .core-note-compact-open { color: #365f3a; font-size: 8px; font-weight: 900; }
-  .core-note-compact-date { overflow: hidden; color: var(--text-soft, #68746b); font-size: 7px; white-space: nowrap; text-overflow: ellipsis; }
-
-  .core-view-modal {
-    position: fixed;
-    inset: 0;
-    z-index: 15000;
-    display: grid;
-    place-items: center;
-    padding: 22px;
-    box-sizing: border-box;
-  }
-
-  .core-view-modal.member-hidden { display: none !important; }
-
-  .core-view-backdrop {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    padding: 0;
-    border: 0;
-    background: rgba(18,27,20,.47);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-  }
-
-  .core-view-card {
-    width: min(760px, calc(100vw - 34px));
-    max-height: min(84vh, 820px);
-    position: relative;
-    z-index: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    border: 1px solid rgba(65,104,62,.12);
-    border-radius: 24px;
-    background: linear-gradient(180deg, #fff, #f8fbf7);
-    box-shadow: 0 32px 100px rgba(23,32,25,.22);
-  }
-
-  .core-view-head {
-    padding: 20px 22px 17px;
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 18px;
-    border-bottom: 1px solid rgba(65,104,62,.08);
-  }
-
-  .core-view-heading-copy { min-width: 0; }
-
-  .core-view-type {
-    min-height: 25px;
-    padding: 0 9px;
-    display: inline-flex;
-    align-items: center;
-    border: 1px solid rgba(65,104,62,.09);
-    border-radius: 999px;
-    background: #f3f8f1;
-    color: #58705c;
-    font-size: 7px;
-    font-weight: 900;
-    letter-spacing: .07em;
-    text-transform: uppercase;
-  }
-
-  .core-view-type.is-pinned { background: #e6f3e1; color: #365f3a; }
-
-  .core-view-head h2 {
-    margin: 9px 0 0;
-    color: var(--text, #172019);
-    font-size: clamp(22px, 3vw, 30px);
-    line-height: 1.15;
-    letter-spacing: -.035em;
-  }
-
-  .core-view-close {
-    width: 38px;
-    height: 38px;
-    flex: 0 0 38px;
-    display: grid;
-    place-items: center;
-    padding: 0;
-    border: 1px solid rgba(65,104,62,.10);
-    border-radius: 12px;
-    background: #f9fcf8;
-    color: #172019;
-    font: inherit;
-    font-size: 18px;
-    cursor: pointer;
-  }
-
-  .core-view-content {
-    padding: 22px;
-    overflow-y: auto;
-    color: #38443b;
-    font-size: 14px;
-    line-height: 1.82;
-    white-space: pre-wrap;
-  }
-
-  .core-view-footer {
-    padding: 14px 22px 20px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 14px;
-    border-top: 1px solid rgba(65,104,62,.08);
-  }
-
-  .core-view-footer > span { color: var(--text-soft, #68746b); font-size: 8px; }
-  .core-view-actions { display: flex; align-items: center; gap: 8px; }
-
-  .core-view-secondary,
-  .core-view-primary {
-    min-height: 40px;
-    padding: 0 15px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 11px;
-    font: inherit;
-    font-size: 9px;
-    font-weight: 850;
-    cursor: pointer;
-  }
-
-  .core-view-secondary { border: 1px solid rgba(65,104,62,.12); background: #fff; color: #172019; }
-  .core-view-primary { border: 1px solid #365f3a; background: #365f3a; color: #fff; }
-
-  @media (max-width: 980px) {
-    #core-notes.core-notes { grid-template-columns: repeat(2, minmax(0,1fr)) !important; }
-  }
-
-  @media (max-width: 650px) {
-    #core-notes.core-notes { grid-template-columns: 1fr !important; gap: 10px !important; }
-    .core-note-compact { min-height: 165px; padding: 15px; border-radius: 18px; }
-    .core-view-modal { padding: 10px; align-items: end; }
-    .core-view-card { width: 100%; max-height: 90dvh; border-radius: 22px 22px 14px 14px; }
-    .core-view-head, .core-view-content { padding: 18px; }
-    .core-view-footer { padding: 12px 18px 18px; align-items: stretch; flex-direction: column; }
-    .core-view-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
   }
 </style>
 

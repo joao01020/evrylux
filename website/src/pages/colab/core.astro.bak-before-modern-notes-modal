@@ -83,52 +83,6 @@ import '../../styles/members.css';
       <div id="core-status" class="member-status" role="status" aria-live="polite"></div>
     </div>
 
-
-    <!-- ===================================================== -->
-    <!-- LEITURA DA NOTA — DADOS REAIS DE ProjectCoreNote     -->
-    <!-- ===================================================== -->
-    <div
-      id="core-view-modal"
-      class="core-view-modal member-hidden"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="core-view-title"
-    >
-      <button
-        id="core-view-backdrop"
-        class="core-view-backdrop"
-        type="button"
-        aria-label="Fechar nota"
-      ></button>
-
-      <section class="core-view-card">
-        <div class="core-view-head">
-          <div class="core-view-heading-copy">
-            <span id="core-view-type" class="core-view-type">Nota do Núcleo</span>
-            <h2 id="core-view-title">Nota</h2>
-          </div>
-
-          <button
-            id="core-view-close"
-            class="core-view-close"
-            type="button"
-            aria-label="Fechar"
-          >×</button>
-        </div>
-
-        <div id="core-view-content" class="core-view-content"></div>
-
-        <div class="core-view-footer">
-          <span id="core-view-updated"></span>
-
-          <div class="core-view-actions">
-            <button id="core-view-dismiss" class="core-view-secondary" type="button">Fechar</button>
-            <button id="core-view-edit" class="core-view-primary member-hidden" type="button">Editar nota</button>
-          </div>
-        </div>
-      </section>
-    </div>
-
     <div id="core-modal" class="core-modal member-hidden" role="dialog" aria-modal="true" aria-labelledby="core-modal-title">
       <button id="core-modal-backdrop" class="core-modal-backdrop" type="button" aria-label="Fechar"></button>
       <section class="core-modal-card">
@@ -175,8 +129,6 @@ import '../../styles/members.css';
       </section>
     </div>
   </main>
-
-
 </Layout>
 
 <script>
@@ -210,19 +162,6 @@ import '../../styles/members.css';
   const saveButton = document.querySelector<HTMLButtonElement>('#core-save-note');
   const deleteButton = document.querySelector<HTMLButtonElement>('#core-delete-note');
   const cancelButton = document.querySelector<HTMLButtonElement>('#core-cancel-note');
-
-  const viewModal = document.querySelector<HTMLElement>('#core-view-modal');
-  const viewBackdrop = document.querySelector<HTMLButtonElement>('#core-view-backdrop');
-  const viewClose = document.querySelector<HTMLButtonElement>('#core-view-close');
-  const viewDismiss = document.querySelector<HTMLButtonElement>('#core-view-dismiss');
-  const viewEdit = document.querySelector<HTMLButtonElement>('#core-view-edit');
-  const viewType = document.querySelector<HTMLElement>('#core-view-type');
-  const viewTitle = document.querySelector<HTMLElement>('#core-view-title');
-  const viewContent = document.querySelector<HTMLElement>('#core-view-content');
-  const viewUpdated = document.querySelector<HTMLElement>('#core-view-updated');
-
-  let viewingNoteId: string | null = null;
-
 
   let notes: ProjectCoreNote[] = [];
   let canEdit = false;
@@ -260,38 +199,8 @@ import '../../styles/members.css';
     showStatus(message, 'error');
   }
 
-  function noteSummary(value: string) {
-    const clean = value.replace(/\s+/g, ' ').trim();
-    if (!clean) return 'Sem descrição.';
-    const maximum = 190;
-    return clean.length > maximum
-      ? `${clean.slice(0, maximum).trimEnd()}…`
-      : clean;
-  }
-
-  function openViewModal(note: ProjectCoreNote) {
-    if (!viewModal || !viewTitle || !viewContent || !viewType || !viewUpdated) return;
-
-    viewingNoteId = note.id;
-    viewType.textContent = note.is_pinned ? 'Nota fixada' : 'Nota do Núcleo';
-    viewType.classList.toggle('is-pinned', note.is_pinned);
-    viewTitle.textContent = note.title;
-    viewContent.textContent = note.content.trim() || 'Sem descrição.';
-    viewUpdated.textContent = `Atualizado em ${formatDate(note.updated_at)}`;
-    viewEdit?.classList.toggle('member-hidden', !canEdit);
-    viewModal.classList.remove('member-hidden');
-    document.body.classList.add('core-view-modal-open');
-  }
-
-  function closeViewModal() {
-    viewModal?.classList.add('member-hidden');
-    document.body.classList.remove('core-view-modal-open');
-    viewingNoteId = null;
-  }
-
   function renderNotes() {
     if (!notesContainer || !emptyState) return;
-
     emptyState.classList.toggle('member-hidden', notes.length > 0);
     if (!notes.length) {
       notesContainer.innerHTML = '';
@@ -299,58 +208,32 @@ import '../../styles/members.css';
     }
 
     notesContainer.innerHTML = notes.map((note) => `
-      <article
-        class="core-note-compact ${note.is_pinned ? 'is-pinned' : ''}"
-        data-open-note="${escapeHtml(note.id)}"
-        tabindex="0"
-        role="button"
-        aria-label="Abrir nota ${escapeHtml(note.title)}"
-      >
-        <div class="core-note-compact-top">
-          <div class="core-note-compact-labels">
+      <article class="core-note ${note.is_pinned ? 'is-pinned' : ''}" data-note-id="${escapeHtml(note.id)}">
+        <div class="core-note-top">
+          <div class="core-note-labels">
             ${note.is_pinned ? `
-              <span class="core-note-compact-badge is-pinned">
+              <span class="core-pin-label">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M9 3h6l-1 6 3 3v1H7v-1l3-3-1-6Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
                   <path d="M12 13v8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
                 </svg>
                 Fixado
-              </span>
-            ` : `<span class="core-note-compact-badge">Núcleo</span>`}
+              </span>` : `<span class="core-note-label">Nota</span>`}
           </div>
-
-          <span class="core-note-compact-arrow" aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-              <path d="M7 12h10M13 8l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </span>
+          ${canEdit ? `<button class="core-edit-button" type="button" data-edit-note="${escapeHtml(note.id)}">Editar</button>` : ''}
         </div>
-
         <h3>${escapeHtml(note.title)}</h3>
-
-        <p class="core-note-compact-summary">
-          ${escapeHtml(noteSummary(note.content))}
+        <p class="core-note-content ${note.content.trim() ? '' : 'core-note-empty-copy'}">
+          ${note.content.trim() ? escapeHtml(note.content).replaceAll('\n', '<br />') : 'Sem descrição.'}
         </p>
-
-        <div class="core-note-compact-footer">
-          <span class="core-note-compact-open">Abrir nota</span>
-          <span class="core-note-compact-date">${escapeHtml(formatDate(note.updated_at))}</span>
-        </div>
+        <div class="core-note-footer">Atualizado em ${escapeHtml(formatDate(note.updated_at))}</div>
       </article>
     `).join('');
 
-    document.querySelectorAll<HTMLElement>('[data-open-note]').forEach((card) => {
-      const open = () => {
-        const note = notes.find((item) => item.id === card.dataset.openNote);
-        if (note) openViewModal(note);
-      };
-
-      card.addEventListener('click', open);
-      card.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          open();
-        }
+    document.querySelectorAll<HTMLButtonElement>('[data-edit-note]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const note = notes.find((item) => item.id === button.dataset.editNote);
+        if (note) openEditModal(note);
       });
     });
   }
@@ -390,27 +273,11 @@ import '../../styles/members.css';
     renderNotes();
   }
 
-  viewBackdrop?.addEventListener('click', closeViewModal);
-  viewClose?.addEventListener('click', closeViewModal);
-  viewDismiss?.addEventListener('click', closeViewModal);
-  viewEdit?.addEventListener('click', () => {
-    if (!viewingNoteId) return;
-    const note = notes.find((item) => item.id === viewingNoteId);
-    if (!note) return;
-    closeViewModal();
-    openEditModal(note);
-  });
-
   newNoteButton?.addEventListener('click', openCreateModal);
   modalBackdrop?.addEventListener('click', closeModal);
   modalClose?.addEventListener('click', closeModal);
   cancelButton?.addEventListener('click', closeModal);
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') {
-      closeViewModal();
-      closeModal();
-    }
-  });
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeModal(); });
 
   form?.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -970,287 +837,6 @@ import '../../styles/members.css';
       max-width: 15px !important;
       max-height: 15px !important;
     }
-  }
-</style>
-
-
-<style is:global>
-  /* ==========================================================
-     EVRYLUX NÚCLEO — NOTAS REAIS V2
-     Render direto de notes: ProjectCoreNote[]; sem mocks.
-     ========================================================== */
-
-  body.core-view-modal-open { overflow: hidden !important; }
-
-  #core-notes.core-notes {
-    margin-top: 18px !important;
-    display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    gap: 14px !important;
-    align-items: start !important;
-  }
-
-  .core-note-compact {
-    min-width: 0;
-    min-height: 190px;
-    padding: 17px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    box-sizing: border-box;
-    border: 1px solid rgba(65,104,62,.10);
-    border-radius: 20px;
-    background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(247,251,244,.90));
-    box-shadow: 0 14px 40px rgba(54,92,51,.045);
-    cursor: pointer;
-    outline: none;
-    transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
-  }
-
-  .core-note-compact:hover,
-  .core-note-compact:focus-visible {
-    transform: translateY(-3px);
-    border-color: rgba(95,157,89,.24);
-    box-shadow: 0 20px 48px rgba(54,92,51,.075);
-  }
-
-  .core-note-compact.is-pinned {
-    background:
-      radial-gradient(circle at 92% 0%, rgba(216,239,210,.65), transparent 34%),
-      linear-gradient(145deg, rgba(255,255,255,.98), rgba(243,249,240,.94));
-  }
-
-  .core-note-compact-top {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-  }
-
-  .core-note-compact-badge {
-    min-height: 25px;
-    padding: 0 8px;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    border: 1px solid rgba(65,104,62,.09);
-    border-radius: 999px;
-    background: rgba(245,249,243,.92);
-    color: #58705c;
-    font-size: 7px;
-    font-weight: 900;
-    letter-spacing: .055em;
-    text-transform: uppercase;
-  }
-
-  .core-note-compact-badge.is-pinned {
-    border-color: rgba(95,157,89,.14);
-    background: rgba(223,241,218,.90);
-    color: #365f3a;
-  }
-
-  .core-note-compact-badge svg {
-    width: 12px !important;
-    height: 12px !important;
-    min-width: 12px !important;
-    min-height: 12px !important;
-    max-width: 12px !important;
-    max-height: 12px !important;
-  }
-
-  .core-note-compact-arrow {
-    width: 36px;
-    height: 36px;
-    flex: 0 0 36px;
-    display: grid;
-    place-items: center;
-    border: 1px solid rgba(65,104,62,.09);
-    border-radius: 12px;
-    background: rgba(239,248,235,.88);
-    color: #365f3a;
-  }
-
-  .core-note-compact-arrow svg {
-    width: 16px !important;
-    height: 16px !important;
-    min-width: 16px !important;
-    min-height: 16px !important;
-    max-width: 16px !important;
-    max-height: 16px !important;
-  }
-
-  .core-note-compact h3 {
-    margin: 0;
-    color: var(--text, #172019);
-    font-size: 16px;
-    line-height: 1.3;
-    letter-spacing: -.025em;
-  }
-
-  .core-note-compact-summary {
-    margin: 0;
-    display: -webkit-box;
-    overflow: hidden;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    color: var(--text-soft, #68746b);
-    font-size: 10px;
-    line-height: 1.65;
-  }
-
-  .core-note-compact-footer {
-    margin-top: auto;
-    padding-top: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    border-top: 1px solid rgba(65,104,62,.065);
-  }
-
-  .core-note-compact-open { color: #365f3a; font-size: 8px; font-weight: 900; }
-  .core-note-compact-date { overflow: hidden; color: var(--text-soft, #68746b); font-size: 7px; white-space: nowrap; text-overflow: ellipsis; }
-
-  .core-view-modal {
-    position: fixed;
-    inset: 0;
-    z-index: 15000;
-    display: grid;
-    place-items: center;
-    padding: 22px;
-    box-sizing: border-box;
-  }
-
-  .core-view-modal.member-hidden { display: none !important; }
-
-  .core-view-backdrop {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    padding: 0;
-    border: 0;
-    background: rgba(18,27,20,.47);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-  }
-
-  .core-view-card {
-    width: min(760px, calc(100vw - 34px));
-    max-height: min(84vh, 820px);
-    position: relative;
-    z-index: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    border: 1px solid rgba(65,104,62,.12);
-    border-radius: 24px;
-    background: linear-gradient(180deg, #fff, #f8fbf7);
-    box-shadow: 0 32px 100px rgba(23,32,25,.22);
-  }
-
-  .core-view-head {
-    padding: 20px 22px 17px;
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 18px;
-    border-bottom: 1px solid rgba(65,104,62,.08);
-  }
-
-  .core-view-heading-copy { min-width: 0; }
-
-  .core-view-type {
-    min-height: 25px;
-    padding: 0 9px;
-    display: inline-flex;
-    align-items: center;
-    border: 1px solid rgba(65,104,62,.09);
-    border-radius: 999px;
-    background: #f3f8f1;
-    color: #58705c;
-    font-size: 7px;
-    font-weight: 900;
-    letter-spacing: .07em;
-    text-transform: uppercase;
-  }
-
-  .core-view-type.is-pinned { background: #e6f3e1; color: #365f3a; }
-
-  .core-view-head h2 {
-    margin: 9px 0 0;
-    color: var(--text, #172019);
-    font-size: clamp(22px, 3vw, 30px);
-    line-height: 1.15;
-    letter-spacing: -.035em;
-  }
-
-  .core-view-close {
-    width: 38px;
-    height: 38px;
-    flex: 0 0 38px;
-    display: grid;
-    place-items: center;
-    padding: 0;
-    border: 1px solid rgba(65,104,62,.10);
-    border-radius: 12px;
-    background: #f9fcf8;
-    color: #172019;
-    font: inherit;
-    font-size: 18px;
-    cursor: pointer;
-  }
-
-  .core-view-content {
-    padding: 22px;
-    overflow-y: auto;
-    color: #38443b;
-    font-size: 14px;
-    line-height: 1.82;
-    white-space: pre-wrap;
-  }
-
-  .core-view-footer {
-    padding: 14px 22px 20px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 14px;
-    border-top: 1px solid rgba(65,104,62,.08);
-  }
-
-  .core-view-footer > span { color: var(--text-soft, #68746b); font-size: 8px; }
-  .core-view-actions { display: flex; align-items: center; gap: 8px; }
-
-  .core-view-secondary,
-  .core-view-primary {
-    min-height: 40px;
-    padding: 0 15px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 11px;
-    font: inherit;
-    font-size: 9px;
-    font-weight: 850;
-    cursor: pointer;
-  }
-
-  .core-view-secondary { border: 1px solid rgba(65,104,62,.12); background: #fff; color: #172019; }
-  .core-view-primary { border: 1px solid #365f3a; background: #365f3a; color: #fff; }
-
-  @media (max-width: 980px) {
-    #core-notes.core-notes { grid-template-columns: repeat(2, minmax(0,1fr)) !important; }
-  }
-
-  @media (max-width: 650px) {
-    #core-notes.core-notes { grid-template-columns: 1fr !important; gap: 10px !important; }
-    .core-note-compact { min-height: 165px; padding: 15px; border-radius: 18px; }
-    .core-view-modal { padding: 10px; align-items: end; }
-    .core-view-card { width: 100%; max-height: 90dvh; border-radius: 22px 22px 14px 14px; }
-    .core-view-head, .core-view-content { padding: 18px; }
-    .core-view-footer { padding: 12px 18px 18px; align-items: stretch; flex-direction: column; }
-    .core-view-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
   }
 </style>
 
