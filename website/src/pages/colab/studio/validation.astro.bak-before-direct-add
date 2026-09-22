@@ -42,15 +42,9 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
           <button class="validation-filter" type="button" data-filter="decision">Revisar / Remover</button>
         </div>
 
-        <div class="validation-toolbar-actions">
-          <button id="validation-new-item" class="validation-new-button" type="button">
-            ＋ Nova função
-          </button>
-
-          <a class="validation-roadmap-link" href="/colab/studio/roadmap">
-            Abrir Roadmap →
-          </a>
-        </div>
+        <a class="validation-roadmap-link" href="/colab/studio/roadmap">
+          Abrir Roadmap →
+        </a>
       </div>
 
       <div id="validation-error" class="validation-error member-hidden"></div>
@@ -62,102 +56,6 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
         <h2>Nenhum item aqui ainda</h2>
         <p>Envie uma funcionalidade pelo Roadmap para começar.</p>
         <a href="/colab/studio/roadmap">Ir para o Roadmap →</a>
-      </section>
-    </div>
-
-
-
-    <div id="validation-edit-modal" class="validation-modal member-hidden">
-      <button class="validation-backdrop" data-close-edit type="button"></button>
-
-      <section class="validation-modal-card">
-        <div class="validation-modal-head">
-          <div>
-            <span>Validação</span>
-            <h2>Editar função</h2>
-          </div>
-
-          <button data-close-edit type="button">×</button>
-        </div>
-
-        <form id="validation-edit-form">
-          <input id="validation-edit-id" type="hidden" />
-
-          <label>
-            <span>Nome da função</span>
-            <input id="validation-edit-name" maxlength="180" required />
-          </label>
-
-          <label>
-            <span>Descrição</span>
-            <textarea id="validation-edit-description" rows="5" maxlength="3000"></textarea>
-          </label>
-
-          <label>
-            <span>Área</span>
-            <input id="validation-edit-area" maxlength="120" />
-          </label>
-
-          <label>
-            <span>Responsável</span>
-            <select id="validation-edit-assignee">
-              <option value="">Sem responsável</option>
-            </select>
-          </label>
-
-          <div class="validation-modal-actions">
-            <button data-close-edit type="button">Cancelar</button>
-            <button class="primary" type="submit">Salvar alterações</button>
-          </div>
-        </form>
-      </section>
-    </div>
-
-    <div id="validation-create-modal" class="validation-modal member-hidden">
-      <button class="validation-backdrop" data-close-create type="button"></button>
-
-      <section class="validation-modal-card">
-        <div class="validation-modal-head">
-          <div>
-            <span>Validação</span>
-            <h2>Nova função</h2>
-          </div>
-
-          <button data-close-create type="button">×</button>
-        </div>
-
-        <p class="validation-create-help">
-          Adicione algo diretamente para testar, sem precisar criar primeiro no Roadmap.
-        </p>
-
-        <form id="validation-create-form">
-          <label>
-            <span>Nome da função</span>
-            <input id="validation-create-name" maxlength="180" required />
-          </label>
-
-          <label>
-            <span>Descrição</span>
-            <textarea id="validation-create-description" rows="5" maxlength="3000"></textarea>
-          </label>
-
-          <label>
-            <span>Área</span>
-            <input id="validation-create-area" maxlength="120" placeholder="Ex.: Cérebro, Segurança..." />
-          </label>
-
-          <label>
-            <span>Responsável</span>
-            <select id="validation-create-assignee">
-              <option value="">Sem responsável</option>
-            </select>
-          </label>
-
-          <div class="validation-modal-actions">
-            <button data-close-create type="button">Cancelar</button>
-            <button class="primary" type="submit">Adicionar à validação</button>
-          </div>
-        </form>
       </section>
     </div>
 
@@ -212,8 +110,6 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
 
   import {
     canFinalizeValidation,
-    createValidationItem,
-    editValidationItem,
     finalizeValidation,
     getValidationItems,
     proposeRemoval,
@@ -237,20 +133,6 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
   const statusInput = document.querySelector<HTMLSelectElement>('#validation-status');
   const notesInput = document.querySelector<HTMLTextAreaElement>('#validation-notes');
   const filters = Array.from(document.querySelectorAll<HTMLButtonElement>('.validation-filter'));
-  const newItemButton = document.querySelector<HTMLButtonElement>('#validation-new-item');
-  const createModal = document.querySelector<HTMLElement>('#validation-create-modal');
-  const createForm = document.querySelector<HTMLFormElement>('#validation-create-form');
-  const createName = document.querySelector<HTMLInputElement>('#validation-create-name');
-  const createDescription = document.querySelector<HTMLTextAreaElement>('#validation-create-description');
-  const createArea = document.querySelector<HTMLInputElement>('#validation-create-area');
-  const createAssignee = document.querySelector<HTMLSelectElement>('#validation-create-assignee');
-  const editModal = document.querySelector<HTMLElement>('#validation-edit-modal');
-  const editForm = document.querySelector<HTMLFormElement>('#validation-edit-form');
-  const editId = document.querySelector<HTMLInputElement>('#validation-edit-id');
-  const editName = document.querySelector<HTMLInputElement>('#validation-edit-name');
-  const editDescription = document.querySelector<HTMLTextAreaElement>('#validation-edit-description');
-  const editArea = document.querySelector<HTMLInputElement>('#validation-edit-area');
-  const editAssignee = document.querySelector<HTMLSelectElement>('#validation-edit-assignee');
 
   let items: ValidationItem[] = [];
   let collaborators: CollaboratorProfile[] = [];
@@ -329,7 +211,7 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
       <article class="validation-card status-${item.validation_status}">
         <div class="validation-card-top">
           <span class="validation-status">${esc(validationStatusLabels[item.validation_status])}</span>
-          <span class="validation-source">${item.source_type === 'direct' ? 'Direto' : 'Roadmap'}</span>
+          <span class="validation-source">Roadmap</span>
         </div>
 
         <h2>${esc(item.title)}</h2>
@@ -365,10 +247,6 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
 
         <div class="validation-actions">
           ${!removed ? `
-            <button type="button" data-edit-details="${esc(item.id)}">
-              Editar
-            </button>
-
             <button type="button" data-edit="${esc(item.id)}">
               Testar / atualizar
             </button>
@@ -460,36 +338,6 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
   }
 
   function bindDynamic() {
-    document
-      .querySelectorAll<HTMLButtonElement>(
-        '[data-edit-details]',
-      )
-      .forEach(
-        (
-          button,
-        ) => {
-          button.addEventListener(
-            'click',
-            () => {
-              const item =
-                items.find(
-                  (
-                    current,
-                  ) =>
-                    current.id ===
-                    button.dataset.editDetails,
-                );
-
-              if (item) {
-                openEditModal(
-                  item,
-                );
-              }
-            },
-          );
-        },
-      );
-
     document.querySelectorAll<HTMLButtonElement>('[data-edit]').forEach((button) => {
       button.addEventListener('click', () => {
         const item = items.find((i) => i.id === button.dataset.edit);
@@ -552,263 +400,6 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
     });
   }
 
-
-  function populateAssignees() {
-    const selects =
-      [
-        createAssignee,
-        editAssignee,
-      ].filter(Boolean) as HTMLSelectElement[];
-
-    selects.forEach(
-      (
-        select,
-      ) => {
-        select.innerHTML =
-          '<option value="">Sem responsável</option>';
-
-        collaborators.forEach(
-          (
-            profile,
-          ) => {
-            const option =
-              document.createElement(
-                'option',
-              );
-
-            option.value =
-              profile.user_id;
-
-            option.textContent =
-              profile.display_name?.trim() ||
-              profile.github_login?.trim() ||
-              'Colaborador';
-
-            select.appendChild(
-              option,
-            );
-          },
-        );
-      },
-    );
-  }
-
-  function openCreateModal() {
-    createForm?.reset();
-    createModal?.classList.remove('member-hidden');
-    window.setTimeout(() => createName?.focus(), 30);
-  }
-
-  function closeCreateModal() {
-    createModal?.classList.add('member-hidden');
-  }
-
-  newItemButton?.addEventListener('click', openCreateModal);
-
-  document.querySelectorAll<HTMLButtonElement>('[data-close-create]').forEach((button) => {
-    button.addEventListener('click', closeCreateModal);
-  });
-
-  createForm?.addEventListener('submit', async (event) => {
-    event.preventDefault();
-
-    const title = createName?.value.trim() || '';
-
-    if (title.length < 2) {
-      showError('Informe um nome para a função.');
-      return;
-    }
-
-    const submit =
-      createForm.querySelector<HTMLButtonElement>('button[type="submit"]');
-
-    try {
-      clearError();
-
-      if (submit) {
-        submit.disabled = true;
-        submit.textContent = 'Adicionando...';
-      }
-
-      await createValidationItem({
-        title,
-        description: createDescription?.value.trim() || null,
-        area: createArea?.value.trim() || null,
-        assignee_user_id: createAssignee?.value || null,
-      });
-
-      closeCreateModal();
-      activeFilter = 'all';
-
-      filters.forEach((item) => {
-        item.classList.toggle(
-          'active',
-          item.dataset.filter === 'all',
-        );
-      });
-
-      await refresh();
-    } catch (error: any) {
-      showError(
-        error?.message ||
-        'Não foi possível adicionar a função.',
-      );
-    } finally {
-      if (submit) {
-        submit.disabled = false;
-        submit.textContent = 'Adicionar à validação';
-      }
-    }
-  });
-
-
-  function openEditModal(
-    item: ValidationItem,
-  ) {
-    if (
-      !editModal ||
-      !editId ||
-      !editName ||
-      !editDescription ||
-      !editArea ||
-      !editAssignee
-    ) {
-      return;
-    }
-
-    editId.value =
-      item.id;
-
-    editName.value =
-      item.title ?? '';
-
-    editDescription.value =
-      item.description ?? '';
-
-    editArea.value =
-      item.area ?? '';
-
-    editAssignee.value =
-      item.assignee_user_id ?? '';
-
-    editModal.classList.remove(
-      'member-hidden',
-    );
-
-    window.setTimeout(
-      () => editName.focus(),
-      30,
-    );
-  }
-
-  function closeEditModal() {
-    editModal?.classList.add(
-      'member-hidden',
-    );
-  }
-
-  document
-    .querySelectorAll<HTMLButtonElement>(
-      '[data-close-edit]',
-    )
-    .forEach(
-      (
-        button,
-      ) => {
-        button.addEventListener(
-          'click',
-          closeEditModal,
-        );
-      },
-    );
-
-  editForm?.addEventListener(
-    'submit',
-    async (
-      event,
-    ) => {
-      event.preventDefault();
-
-      if (
-        !editId ||
-        !editName
-      ) {
-        return;
-      }
-
-      const title =
-        editName.value.trim();
-
-      if (
-        title.length <
-        2
-      ) {
-        showError(
-          'Informe um nome para a função.',
-        );
-
-        return;
-      }
-
-      const submit =
-        editForm.querySelector<HTMLButtonElement>(
-          'button[type="submit"]',
-        );
-
-      try {
-        clearError();
-
-        if (submit) {
-          submit.disabled =
-            true;
-
-          submit.textContent =
-            'Salvando...';
-        }
-
-        await editValidationItem(
-          {
-            id:
-              editId.value,
-
-            title,
-
-            description:
-              editDescription?.value.trim() ||
-              null,
-
-            area:
-              editArea?.value.trim() ||
-              null,
-
-            assignee_user_id:
-              editAssignee?.value ||
-              null,
-          },
-        );
-
-        closeEditModal();
-
-        await refresh();
-      } catch (
-        error: any
-      ) {
-        showError(
-          error?.message ||
-          'Não foi possível editar a função.',
-        );
-      } finally {
-        if (submit) {
-          submit.disabled =
-            false;
-
-          submit.textContent =
-            'Salvar alterações';
-        }
-      }
-    },
-  );
-
   filters.forEach((button) => {
     button.addEventListener('click', () => {
       activeFilter = button.dataset.filter || 'all';
@@ -853,8 +444,6 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
           getCollaboratorProfiles(),
           canFinalizeValidation(),
         ]);
-
-      populateAssignees();
 
       await refresh();
 
@@ -933,151 +522,4 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
   .validation-modal-actions button.primary{background:var(--primary-deep);color:#fff}
   @media(max-width:1000px){.validation-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
   @media(max-width:650px){.validation-cycle{flex-direction:column;align-items:stretch}.validation-cycle>i{align-self:center;transform:rotate(90deg)}.validation-grid{grid-template-columns:1fr}}
-</style>
-
-
-<style is:global>
-  /* EVRYLUX — ADICIONAR DIRETO NA VALIDAÇÃO */
-
-  .validation-toolbar-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-
-  .validation-new-button {
-    min-height: 37px;
-    padding: 0 13px;
-    border: 1px solid var(--primary-deep);
-    border-radius: 10px;
-    background: var(--primary-deep);
-    color: #fff;
-    font: inherit;
-    font-size: 9px;
-    font-weight: 850;
-    cursor: pointer;
-  }
-
-  .validation-create-help {
-    margin: 15px 0 0;
-    padding: 10px;
-    border-radius: 10px;
-    background: var(--primary-soft);
-    color: var(--text-soft);
-    font-size: 8px;
-    line-height: 1.55;
-  }
-
-  #validation-create-form {
-    margin-top: 16px;
-  }
-
-  #validation-create-form label {
-    display: block;
-    margin-top: 12px;
-  }
-
-  #validation-create-form label > span {
-    display: block;
-    margin-bottom: 5px;
-    font-size: 9px;
-    font-weight: 800;
-  }
-
-  #validation-create-form input,
-  #validation-create-form select,
-  #validation-create-form textarea {
-    width: 100%;
-    box-sizing: border-box;
-    border: 1px solid rgba(65,104,62,.12);
-    border-radius: 9px;
-    background: #fff;
-    color: var(--text);
-    font: inherit;
-    font-size: 10px;
-  }
-
-  #validation-create-form input,
-  #validation-create-form select {
-    min-height: 39px;
-    padding: 0 10px;
-  }
-
-  #validation-create-form textarea {
-    padding: 10px;
-    resize: vertical;
-  }
-
-  @media (max-width: 650px) {
-    .validation-toolbar-actions {
-      width: 100%;
-      display: grid;
-      grid-template-columns: 1fr;
-    }
-
-    .validation-new-button,
-    .validation-roadmap-link {
-      width: 100%;
-      box-sizing: border-box;
-      justify-content: center;
-    }
-  }
-</style>
-
-
-<style is:global>
-  /* EVRYLUX — EDITAR FUNÇÃO NA VALIDAÇÃO */
-
-  #validation-edit-form {
-    margin-top: 16px;
-  }
-
-  #validation-edit-form label {
-    display: block;
-    margin-top: 12px;
-  }
-
-  #validation-edit-form label > span {
-    display: block;
-    margin-bottom: 5px;
-    font-size: 9px;
-    font-weight: 800;
-  }
-
-  #validation-edit-form input,
-  #validation-edit-form select,
-  #validation-edit-form textarea {
-    width: 100%;
-    box-sizing: border-box;
-    border: 1px solid rgba(65,104,62,.12);
-    border-radius: 9px;
-    background: #fff;
-    color: var(--text);
-    font: inherit;
-    font-size: 10px;
-  }
-
-  #validation-edit-form input,
-  #validation-edit-form select {
-    min-height: 39px;
-    padding: 0 10px;
-  }
-
-  #validation-edit-form textarea {
-    padding: 10px;
-    resize: vertical;
-  }
-
-  .validation-actions {
-    grid-template-columns:
-      repeat(3,minmax(0,1fr));
-  }
-
-  @media (max-width: 650px) {
-    .validation-actions {
-      display: grid;
-      grid-template-columns: 1fr;
-    }
-  }
 </style>

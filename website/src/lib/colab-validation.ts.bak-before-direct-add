@@ -15,8 +15,7 @@ export type ValidationVote =
 
 export type ValidationItem = {
   id: string;
-  roadmap_item_id: string | null;
-  source_type: 'roadmap' | 'direct';
+  roadmap_item_id: string;
   title: string;
   description: string | null;
   area: string | null;
@@ -90,81 +89,6 @@ export async function sendRoadmapToValidation(item: {
   }
 
   return data as string;
-}
-
-
-export async function createValidationItem(
-  input: {
-    title: string;
-    description?: string | null;
-    area?: string | null;
-    assignee_user_id?: string | null;
-  },
-) {
-  const {
-    data,
-    error,
-  } =
-    await supabase.rpc(
-      'create_colab_validation_item',
-      {
-        p_title:
-          input.title,
-        p_description:
-          input.description ?? null,
-        p_area:
-          input.area ?? null,
-        p_assignee_user_id:
-          input.assignee_user_id ?? null,
-      },
-    );
-
-  if (error) {
-    fail(
-      error,
-      'Não foi possível adicionar a função.',
-    );
-  }
-
-  return data as string;
-}
-
-
-
-export async function editValidationItem(
-  input: {
-    id: string;
-    title: string;
-    description?: string | null;
-    area?: string | null;
-    assignee_user_id?: string | null;
-  },
-) {
-  const {
-    error,
-  } =
-    await supabase.rpc(
-      'edit_colab_validation_item',
-      {
-        p_validation_id:
-          input.id,
-        p_title:
-          input.title,
-        p_description:
-          input.description ?? null,
-        p_area:
-          input.area ?? null,
-        p_assignee_user_id:
-          input.assignee_user_id ?? null,
-      },
-    );
-
-  if (error) {
-    fail(
-      error,
-      'Não foi possível editar a função.',
-    );
-  }
 }
 
 export async function updateValidation(
