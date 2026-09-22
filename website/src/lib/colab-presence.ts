@@ -25,12 +25,26 @@ export type ColabPresenceHandlers = {
   ) => void;
 };
 
-type PresenceConnection = {
-  disconnect: () => Promise<void>;
+type PresenceRow = {
+  user_id: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  area: string | null;
+  github_login: string | null;
+  online_at: string;
 };
 
-function normalizePresenceState(
-  state: Record<string, unknown[]>,
+const HEARTBEAT_MS =
+  15000;
+
+const REFRESH_MS =
+  10000;
+
+function normalizeRows(
+  rows:
+    PresenceRow[] |
+    null |
+    undefined,
 ) {
   const users =
     new Map<
@@ -38,78 +52,63 @@ function normalizePresenceState(
       ColabPresenceUser
     >();
 
-  Object.values(
-    state,
+  (
+    rows ??
+    []
   ).forEach(
     (
-      presences,
+      row,
     ) => {
-      (
-        Array.isArray(
-          presences,
-        )
-          ? presences
-          : []
-      ).forEach(
-        (
-          raw,
-        ) => {
-          const item =
-            raw as Partial<ColabPresenceUser>;
+      const userId =
+        String(
+          row.user_id ??
+          '',
+        ).trim();
 
-          const userId =
-            String(
-              item.user_id ??
-              '',
-            ).trim();
+      if (
+        !userId
+      ) {
+        return;
+      }
 
-          if (
-            !userId
-          ) {
-            return;
-          }
-
-          users.set(
+      users.set(
+        userId,
+        {
+          user_id:
             userId,
-            {
-              user_id:
-                userId,
 
-              display_name:
-                String(
-                  item.display_name ??
-                  'Colaborador EVRYLUX',
-                ),
+          display_name:
+            String(
+              row.display_name ??
+              'Colaborador EVRYLUX',
+            ),
 
-              avatar_url:
-                item.avatar_url
-                  ? String(
-                      item.avatar_url,
-                    )
-                  : null,
+          avatar_url:
+            row.avatar_url
+              ? String(
+                  row.avatar_url,
+                )
+              : null,
 
-              area:
-                item.area
-                  ? String(
-                      item.area,
-                    )
-                  : null,
+          area:
+            row.area
+              ? String(
+                  row.area,
+                )
+              : null,
 
-              github_login:
-                item.github_login
-                  ? String(
-                      item.github_login,
-                    )
-                  : null,
+          github_login:
+            row.github_login
+              ? String(
+                  row.github_login,
+                )
+              : null,
 
-              online_at:
-                item.online_at
-                  ? String(
-                      item.online_at,
-                    )
-                  : new Date().toISOString(),
-            },
-          );
+          online_at:
+            String(
+              row.online_at ??
+              new Date().toISOString(),
+            ),
         },
       );
     },
@@ -137,20 +136,16 @@ export async function connectColabPresence(
   handlers: ColabPresenceHandlers =
     {},
 ): Promise<() => Promise<void>> {
-  const channel =
-    supabase.channel(
-      'evrylux-colab-presence',
-      {
-        config: {
-          presence: {
-            key:
-              currentUser.user_id,
-          },
-        },
-      },
+  const sessionId =
+    (
+      globalThis.crypto?.randomUUID?.() ??
+      `${currentUser.user_id}-${Date.now()}-${Math.random()}`
     );
 
-  let initialized =
+  let stopped =
+    false;
+
+  let refreshing =
     false;
 
   let previousUsers =
@@ -159,17 +154,78 @@ export async function connectColabPresence(
       ColabPresenceUser
     >();
 
-  const syncPresence =
-    () => {
-      const state =
-        channel.presenceState() as Record<
-          string,
-          unknown[]
-        >;
+  let initialized =
+    false;
+
+  async function heartbeat() {
+    if (
+      stopped
+    ) {
+      return;
+    }
+
+    const {
+      error,
+    } =
+      await supabase.rpc(
+        'upsert_colab_presence_session',
+        {
+          p_session_id:
+            sessionId,
+
+          p_display_name:
+            currentUser.display_name,
+
+          p_avatar_url:
+            currentUser.avatar_url,
+
+          p_area:
+            currentUser.area,
+
+          p_github_login:
+            currentUser.github_login,
+        },
+      );
+
+    if (
+      error
+    ) {
+      throw error;
+    }
+  }
+
+  async function refresh() {
+    if (
+      stopped ||
+      refreshing
+    ) {
+      return;
+    }
+
+    refreshing =
+      true;
+
+    try {
+      const {
+        data,
+        error,
+      } =
+        await supabase.rpc(
+          'list_active_colab_presence',
+        );
+
+      if (
+        error
+      ) {
+        throw error;
+      }
 
       const users =
-        normalizePresenceState(
-          state,
+        normalizeRows(
+          (
+            data ??
+            []
+          ) as PresenceRow[],
         );
 
       const nextUsers =
@@ -231,95 +287,115 @@ export async function connectColabPresence(
 
       initialized =
         true;
-    };
+    } finally {
+      refreshing =
+        false;
+    }
+  }
 
-  channel.on(
-    'presence',
-    {
-      event:
-        'sync',
-    },
-    syncPresence,
-  );
+  await heartbeat();
+  await refresh();
 
-  await new Promise<void>(
-    (
-      resolve,
-      reject,
-    ) => {
-      const timeout =
-        window.setTimeout(
-          () => {
-            reject(
-              new Error(
-                'Tempo limite ao conectar presença em tempo real.',
-              ),
-            );
-          },
-          10000,
-        );
-
-      channel.subscribe(
-        async (
-          status,
-        ) => {
-          if (
-            status ===
-            'SUBSCRIBED'
-          ) {
-            window.clearTimeout(
-              timeout,
-            );
-
-            try {
-              await channel.track(
-                {
-                  ...currentUser,
-                  online_at:
-                    new Date().toISOString(),
-                },
-              );
-
-              resolve();
-            } catch (
-              error
-            ) {
-              reject(
+  const heartbeatTimer =
+    window.setInterval(
+      () => {
+        void heartbeat()
+          .then(
+            refresh,
+          )
+          .catch(
+            (
+              error,
+            ) => {
+              console.warn(
+                '[EVRYLUX] Falha ao atualizar presença:',
                 error,
               );
-            }
-          }
+            },
+          );
+      },
+      HEARTBEAT_MS,
+    );
 
-          if (
-            status ===
-            'CHANNEL_ERROR' ||
-            status ===
-            'TIMED_OUT'
-          ) {
-            window.clearTimeout(
-              timeout,
+  const refreshTimer =
+    window.setInterval(
+      () => {
+        void refresh().catch(
+          (
+            error,
+          ) => {
+            console.warn(
+              '[EVRYLUX] Falha ao consultar usuários online:',
+              error,
             );
+          },
+        );
+      },
+      REFRESH_MS,
+    );
 
-            reject(
-              new Error(
-                `Falha na conexão de presença: ${status}`,
-              ),
-            );
-          }
-        },
-      );
-    },
+  const onVisibility =
+    () => {
+      if (
+        document.visibilityState ===
+        'visible'
+      ) {
+        void heartbeat()
+          .then(
+            refresh,
+          )
+          .catch(
+            (
+              error,
+            ) => {
+              console.warn(
+                '[EVRYLUX] Falha ao restaurar presença:',
+                error,
+              );
+            },
+          );
+      }
+    };
+
+  document.addEventListener(
+    'visibilitychange',
+    onVisibility,
   );
 
   return async () => {
-    try {
-      await channel.untrack();
-    } catch {
-      // A remoção do canal abaixo também limpa a presença.
+    if (
+      stopped
+    ) {
+      return;
     }
 
-    await supabase.removeChannel(
-      channel,
+    stopped =
+      true;
+
+    window.clearInterval(
+      heartbeatTimer,
     );
+
+    window.clearInterval(
+      refreshTimer,
+    );
+
+    document.removeEventListener(
+      'visibilitychange',
+      onVisibility,
+    );
+
+    try {
+      await supabase.rpc(
+        'remove_colab_presence_session',
+        {
+          p_session_id:
+            sessionId,
+        },
+      );
+    } catch {
+      // Mesmo se o fechamento for interrompido pelo navegador,
+      // sessões antigas expiram automaticamente no servidor.
+    }
   };
 }
