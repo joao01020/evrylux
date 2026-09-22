@@ -46,7 +46,7 @@ const nav = [
 
     <div class="header-actions">
       <div
-        id="notification-center"
+        id="admin-notification-center"
         class="notification-center header-hidden"
       >
         <button
@@ -89,7 +89,7 @@ const nav = [
           id="notification-popover"
           class="notification-popover header-hidden"
           role="dialog"
-          aria-label="Notificações"
+          aria-label="Notificações administrativas"
         >
           <div class="notification-popover-head">
             <div>
@@ -112,51 +112,8 @@ const nav = [
 
           <div class="notification-popover-list">
             <a
-              id="notification-popover-tasks"
-              class="notification-popover-item"
-              href="/colab/tasks"
-            >
-              <span class="popover-item-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24">
-                  <rect
-                    x="5"
-                    y="5"
-                    width="14"
-                    height="14"
-                    rx="3"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                  />
-                  <path
-                    d="m8.5 12 2.2 2.2 4.8-5"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-              </span>
-
-              <span class="popover-item-copy">
-                <strong>Tarefas atribuídas</strong>
-                <small id="notification-popover-task-copy">
-                  Nenhuma tarefa nova
-                </small>
-              </span>
-
-              <span
-                id="notification-popover-task-count"
-                class="popover-item-count header-hidden"
-              >
-                0
-              </span>
-            </a>
-
-            <a
               id="notification-popover-support"
-              class="notification-popover-item header-hidden"
+              class="notification-popover-item"
               href="/colab/support"
             >
               <span class="popover-item-icon" aria-hidden="true">
@@ -195,7 +152,7 @@ const nav = [
 
             <a
               id="notification-popover-demo"
-              class="notification-popover-item header-hidden"
+              class="notification-popover-item"
               href="/colab/demo"
             >
               <span class="popover-item-icon" aria-hidden="true">
@@ -245,6 +202,85 @@ const nav = [
           </div>
         </div>
       </div>
+
+      <a
+        id="support-admin-notification"
+        class="admin-notification header-hidden"
+        href="/colab/support"
+        aria-label="Novas mensagens de suporte"
+        title="Suporte"
+      >
+        <span class="notification-icon notification-support-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M7 8.5h10a3 3 0 0 1 3 3v3a3 3 0 0 1-3 3h-4.2L9 20v-2.5H7a3 3 0 0 1-3-3v-3a3 3 0 0 1 3-3Z"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M8.5 12.5h7"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+            />
+          </svg>
+        </span>
+
+        <span
+          id="support-admin-count"
+          class="notification-count header-hidden"
+        >
+          0
+        </span>
+      </a>
+
+      <a
+        id="demo-admin-notification"
+        class="admin-notification header-hidden"
+        href="/colab/demo"
+        aria-label="Novas inscrições no demo"
+        title="Fila do Demo"
+      >
+        <span class="notification-icon notification-demo-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <rect
+              x="5"
+              y="4"
+              width="14"
+              height="16"
+              rx="3"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+            />
+            <path
+              d="M9 8h6M9 12h6M9 16h3"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+            />
+            <circle
+              cx="16.8"
+              cy="16.2"
+              r="1.8"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+            />
+          </svg>
+        </span>
+
+        <span
+          id="demo-admin-count"
+          class="notification-count header-hidden"
+        >
+          0
+        </span>
+      </a>
 
       <a
         id="collaborator-access"
@@ -354,13 +390,6 @@ const nav = [
     subscribeAdminSupportNotifications,
   } from '../lib/support';
 
-  import {
-    connectTaskAssignments,
-    getMyRoadmapTasks,
-    markTaskNotificationRead,
-    type MyRoadmapTask,
-  } from '../lib/colab-task-inbox';
-
   const collaboratorAccess =
     document.querySelector<HTMLAnchorElement>(
       '#collaborator-access',
@@ -386,9 +415,29 @@ const nav = [
       '#collaborator-access-fallback-icon',
     );
 
+  const demoNotification =
+    document.querySelector<HTMLAnchorElement>(
+      '#demo-admin-notification',
+    );
+
+  const demoCount =
+    document.querySelector<HTMLElement>(
+      '#demo-admin-count',
+    );
+
+  const supportNotification =
+    document.querySelector<HTMLAnchorElement>(
+      '#support-admin-notification',
+    );
+
+  const supportCount =
+    document.querySelector<HTMLElement>(
+      '#support-admin-count',
+    );
+
   const notificationCenter =
     document.querySelector<HTMLElement>(
-      '#notification-center',
+      '#admin-notification-center',
     );
 
   const notificationCenterButton =
@@ -411,39 +460,9 @@ const nav = [
       '#notification-popover-total',
     );
 
-  const notificationPopoverTasks =
-    document.querySelector<HTMLAnchorElement>(
-      '#notification-popover-tasks',
-    );
-
-  const notificationPopoverTaskCount =
-    document.querySelector<HTMLElement>(
-      '#notification-popover-task-count',
-    );
-
-  const notificationPopoverTaskCopy =
-    document.querySelector<HTMLElement>(
-      '#notification-popover-task-copy',
-    );
-
-  const notificationPopoverSupport =
-    document.querySelector<HTMLAnchorElement>(
-      '#notification-popover-support',
-    );
-
   const notificationPopoverSupportCount =
     document.querySelector<HTMLElement>(
       '#notification-popover-support-count',
-    );
-
-  const notificationPopoverSupportCopy =
-    document.querySelector<HTMLElement>(
-      '#notification-popover-support-copy',
-    );
-
-  const notificationPopoverDemo =
-    document.querySelector<HTMLAnchorElement>(
-      '#notification-popover-demo',
     );
 
   const notificationPopoverDemoCount =
@@ -451,9 +470,24 @@ const nav = [
       '#notification-popover-demo-count',
     );
 
+  const notificationPopoverSupportCopy =
+    document.querySelector<HTMLElement>(
+      '#notification-popover-support-copy',
+    );
+
   const notificationPopoverDemoCopy =
     document.querySelector<HTMLElement>(
       '#notification-popover-demo-copy',
+    );
+
+  const notificationPopoverSupport =
+    document.querySelector<HTMLAnchorElement>(
+      '#notification-popover-support',
+    );
+
+  const notificationPopoverDemo =
+    document.querySelector<HTMLAnchorElement>(
+      '#notification-popover-demo',
     );
 
   let currentSupportUnread =
@@ -462,139 +496,11 @@ const nav = [
   let currentDemoUnread =
     0;
 
-  let currentTaskUnread:
-    MyRoadmapTask[] =
-      [];
-
-  let currentUserId:
-    string | null =
-      null;
-
-  let currentUserIsAdmin =
-    false;
-
   let supportNotifications:
     ReturnType<
       typeof subscribeAdminSupportNotifications
     > | null =
       null;
-
-  let disconnectTaskAssignments:
-    (() => Promise<void>) | null =
-      null;
-
-  let audioUnlocked =
-    false;
-
-  function unlockNotificationAudio() {
-    audioUnlocked =
-      true;
-  }
-
-  window.addEventListener(
-    'pointerdown',
-    unlockNotificationAudio,
-    {
-      once: true,
-      passive: true,
-    },
-  );
-
-  window.addEventListener(
-    'keydown',
-    unlockNotificationAudio,
-    {
-      once: true,
-    },
-  );
-
-  function playTaskNotificationSound() {
-    if (
-      !audioUnlocked
-    ) {
-      return;
-    }
-
-    try {
-      const AudioContextCtor =
-        window.AudioContext ||
-        (
-          window as typeof window & {
-            webkitAudioContext?:
-              typeof AudioContext;
-          }
-        ).webkitAudioContext;
-
-      if (
-        !AudioContextCtor
-      ) {
-        return;
-      }
-
-      const context =
-        new AudioContextCtor();
-
-      const oscillator =
-        context.createOscillator();
-
-      const gain =
-        context.createGain();
-
-      oscillator.type =
-        'sine';
-
-      oscillator.frequency.setValueAtTime(
-        720,
-        context.currentTime,
-      );
-
-      oscillator.frequency.exponentialRampToValueAtTime(
-        940,
-        context.currentTime +
-          .12,
-      );
-
-      gain.gain.setValueAtTime(
-        .0001,
-        context.currentTime,
-      );
-
-      gain.gain.exponentialRampToValueAtTime(
-        .09,
-        context.currentTime +
-          .02,
-      );
-
-      gain.gain.exponentialRampToValueAtTime(
-        .0001,
-        context.currentTime +
-          .18,
-      );
-
-      oscillator.connect(
-        gain,
-      );
-
-      gain.connect(
-        context.destination,
-      );
-
-      oscillator.start();
-      oscillator.stop(
-        context.currentTime +
-          .19,
-      );
-
-      window.setTimeout(
-        () => {
-          void context.close();
-        },
-        260,
-      );
-    } catch {
-      // O navegador pode bloquear áudio até a primeira interação.
-    }
-  }
 
   function updateCollaboratorAccess(
     authenticated: boolean,
@@ -612,9 +518,7 @@ const nav = [
       return;
     }
 
-    if (
-      authenticated
-    ) {
+    if (authenticated) {
       collaboratorAccess.href =
         '/colab';
 
@@ -713,9 +617,7 @@ const nav = [
           )
           .maybeSingle();
 
-      if (
-        error
-      ) {
+      if (error) {
         console.warn(
           '[EVRYLUX] Não foi possível carregar a foto do colaborador:',
           error.message,
@@ -728,9 +630,7 @@ const nav = [
         data?.avatar_url?.trim() ||
         null
       );
-    } catch (
-      error
-    ) {
+    } catch (error) {
       console.warn(
         '[EVRYLUX] Não foi possível carregar a foto do colaborador:',
         error,
@@ -743,22 +643,19 @@ const nav = [
   const seenStorageKeys = {
     support:
       'evrylux:admin-notifications:support-seen',
-
     demo:
       'evrylux:admin-notifications:demo-seen',
   } as const;
 
   function readSeenCount(
-    key:
-      keyof typeof seenStorageKeys,
+    key: keyof typeof seenStorageKeys,
   ) {
     try {
       const value =
         Number(
           localStorage.getItem(
             seenStorageKeys[key],
-          ) ??
-          '0',
+          ) ?? '0',
         );
 
       return Number.isFinite(
@@ -777,8 +674,7 @@ const nav = [
   }
 
   function writeSeenCount(
-    key:
-      keyof typeof seenStorageKeys,
+    key: keyof typeof seenStorageKeys,
     value: number,
   ) {
     try {
@@ -794,13 +690,12 @@ const nav = [
         ),
       );
     } catch {
-      // localStorage pode estar indisponível.
+      // localStorage pode estar indisponível em modos privados restritos.
     }
   }
 
   function visibleUnread(
-    key:
-      keyof typeof seenStorageKeys,
+    key: keyof typeof seenStorageKeys,
     rawCount: number,
   ) {
     const normalized =
@@ -845,58 +740,20 @@ const nav = [
         );
   }
 
-  function taskNotificationText() {
-    if (
-      currentTaskUnread.length ===
-      0
-    ) {
-      return 'Nenhuma tarefa nova';
-    }
-
-    const latest =
-      currentTaskUnread[0];
-
-    if (
-      currentTaskUnread.length >
-      1
-    ) {
-      return `${currentTaskUnread.length} novas tarefas atribuídas a você`;
-    }
-
-    const by =
-      latest.assigned_by_name?.trim();
-
-    if (
-      by
-    ) {
-      return `${by} marcou você em “${latest.title}”`;
-    }
-
-    return `Você foi marcado(a) em “${latest.title}”`;
-  }
-
   function updateNotificationCenter() {
     const supportVisible =
-      currentUserIsAdmin
-        ? visibleUnread(
-            'support',
-            currentSupportUnread,
-          )
-        : 0;
+      visibleUnread(
+        'support',
+        currentSupportUnread,
+      );
 
     const demoVisible =
-      currentUserIsAdmin
-        ? visibleUnread(
-            'demo',
-            currentDemoUnread,
-          )
-        : 0;
-
-    const taskVisible =
-      currentTaskUnread.length;
+      visibleUnread(
+        'demo',
+        currentDemoUnread,
+      );
 
     const total =
-      taskVisible +
       supportVisible +
       demoVisible;
 
@@ -910,65 +767,17 @@ const nav = [
 
       notificationCenterCount.classList.toggle(
         'header-hidden',
-        total <=
-          0,
+        total <= 0,
       );
     }
-
-    notificationCenterButton?.classList.toggle(
-      'has-unread',
-      total >
-        0,
-    );
 
     if (
       notificationPopoverTotal
     ) {
       notificationPopoverTotal.textContent =
-        total >
-        0
+        total > 0
           ? `${total} nova${total === 1 ? '' : 's'}`
           : 'Tudo em dia';
-    }
-
-    if (
-      notificationPopoverTaskCount
-    ) {
-      notificationPopoverTaskCount.textContent =
-        formatBadgeCount(
-          taskVisible,
-        );
-
-      notificationPopoverTaskCount.classList.toggle(
-        'header-hidden',
-        taskVisible <=
-          0,
-      );
-    }
-
-    if (
-      notificationPopoverTaskCopy
-    ) {
-      notificationPopoverTaskCopy.textContent =
-        taskNotificationText();
-    }
-
-    if (
-      notificationPopoverSupport
-    ) {
-      notificationPopoverSupport.classList.toggle(
-        'header-hidden',
-        !currentUserIsAdmin,
-      );
-    }
-
-    if (
-      notificationPopoverDemo
-    ) {
-      notificationPopoverDemo.classList.toggle(
-        'header-hidden',
-        !currentUserIsAdmin,
-      );
     }
 
     if (
@@ -981,8 +790,7 @@ const nav = [
 
       notificationPopoverSupportCount.classList.toggle(
         'header-hidden',
-        supportVisible <=
-          0,
+        supportVisible <= 0,
       );
     }
 
@@ -996,8 +804,7 @@ const nav = [
 
       notificationPopoverDemoCount.classList.toggle(
         'header-hidden',
-        demoVisible <=
-          0,
+        demoVisible <= 0,
       );
     }
 
@@ -1005,8 +812,7 @@ const nav = [
       notificationPopoverSupportCopy
     ) {
       notificationPopoverSupportCopy.textContent =
-        supportVisible >
-        0
+        supportVisible > 0
           ? `${supportVisible} conversa${supportVisible === 1 ? '' : 's'} nova${supportVisible === 1 ? '' : 's'}`
           : 'Nenhuma conversa nova';
     }
@@ -1015,14 +821,56 @@ const nav = [
       notificationPopoverDemoCopy
     ) {
       notificationPopoverDemoCopy.textContent =
-        demoVisible >
-        0
+        demoVisible > 0
           ? `${demoVisible} inscrição${demoVisible === 1 ? '' : 'ões'} nova${demoVisible === 1 ? '' : 's'}`
           : 'Nenhuma inscrição nova';
     }
+
+    if (
+      supportCount
+    ) {
+      supportCount.textContent =
+        formatBadgeCount(
+          supportVisible,
+        );
+
+      supportCount.classList.toggle(
+        'header-hidden',
+        supportVisible <= 0,
+      );
+    }
+
+    if (
+      demoCount
+    ) {
+      demoCount.textContent =
+        formatBadgeCount(
+          demoVisible,
+        );
+
+      demoCount.classList.toggle(
+        'header-hidden',
+        demoVisible <= 0,
+      );
+    }
+
+    supportNotification?.classList.toggle(
+      'has-unread',
+      supportVisible > 0,
+    );
+
+    demoNotification?.classList.toggle(
+      'has-unread',
+      demoVisible > 0,
+    );
+
+    notificationCenterButton?.classList.toggle(
+      'has-unread',
+      total > 0,
+    );
   }
 
-  function markAdminNotificationAsSeen(
+  function markNotificationAsSeen(
     type:
       | 'support'
       | 'demo',
@@ -1056,124 +904,87 @@ const nav = [
     );
   }
 
-  async function refreshTaskNotifications() {
-    try {
-      const tasks =
-        await getMyRoadmapTasks();
-
-      currentTaskUnread =
-        tasks.filter(
-          (
-            task,
-          ) =>
-            Boolean(
-              task.notification_id,
-            ) &&
-            !task.notification_is_read,
-        );
-
-      updateNotificationCenter();
-    } catch (
-      error
-    ) {
-      console.warn(
-        '[EVRYLUX] Não foi possível carregar notificações de tarefas:',
-        error,
-      );
-
-      currentTaskUnread =
-        [];
-
-      updateNotificationCenter();
-    }
-  }
-
   async function refreshSupportCount() {
     if (
-      !currentUserIsAdmin
+      !supportNotification
     ) {
-      currentSupportUnread =
-        0;
-
-      updateNotificationCenter();
-
       return;
     }
 
     currentSupportUnread =
       await getUnreadSupportCount();
 
+    supportNotification.classList.remove(
+      'header-hidden',
+    );
+
     updateNotificationCenter();
   }
 
   async function loadAdminNotifications() {
-    if (
-      !currentUserIsAdmin
-    ) {
-      currentSupportUnread =
-        0;
+    try {
+      const admin =
+        await isCurrentUserAdmin();
 
-      currentDemoUnread =
-        0;
+      if (!admin) {
+        return;
+      }
 
-      updateNotificationCenter();
+      if (
+        demoNotification
+      ) {
+        demoNotification.classList.remove(
+          'header-hidden',
+        );
 
-      return;
-    }
+        currentDemoUnread =
+          await getUnreadDemoCount();
 
-    currentDemoUnread =
-      await getUnreadDemoCount();
+        updateNotificationCenter();
+      }
 
-    await refreshSupportCount();
-
-    supportNotifications =
-      subscribeAdminSupportNotifications(
-        async () => {
-          await refreshSupportCount();
-        },
+      notificationCenter?.classList.remove(
+        'header-hidden',
       );
 
-    updateNotificationCenter();
-  }
+      await refreshSupportCount();
 
-  async function connectCurrentUserTasks(
-    userId: string,
-  ) {
-    if (
-      disconnectTaskAssignments
-    ) {
-      await disconnectTaskAssignments();
-
-      disconnectTaskAssignments =
-        null;
-    }
-
-    await refreshTaskNotifications();
-
-    try {
-      disconnectTaskAssignments =
-        await connectTaskAssignments(
-          userId,
+      supportNotifications =
+        subscribeAdminSupportNotifications(
           async () => {
-            await refreshTaskNotifications();
-
-            playTaskNotificationSound();
+            await refreshSupportCount();
           },
         );
-    } catch (
-      error
-    ) {
+    } catch (error) {
       console.warn(
-        '[EVRYLUX] Não foi possível conectar notificações em tempo real de tarefas:',
+        '[EVRYLUX] Não foi possível carregar notificações administrativas:',
         error,
       );
     }
   }
 
+  supportNotification?.addEventListener(
+    'click',
+    () => {
+      markNotificationAsSeen(
+        'support',
+      );
+    },
+  );
+
+  demoNotification?.addEventListener(
+    'click',
+    () => {
+      markNotificationAsSeen(
+        'demo',
+      );
+    },
+  );
+
   notificationPopoverSupport?.addEventListener(
     'click',
     () => {
-      markAdminNotificationAsSeen(
+      markNotificationAsSeen(
         'support',
       );
     },
@@ -1182,70 +993,15 @@ const nav = [
   notificationPopoverDemo?.addEventListener(
     'click',
     () => {
-      markAdminNotificationAsSeen(
+      markNotificationAsSeen(
         'demo',
       );
     },
   );
 
-  notificationPopoverTasks?.addEventListener(
-    'click',
-    async (
-      event,
-    ) => {
-      if (
-        currentTaskUnread.length ===
-        0
-      ) {
-        return;
-      }
-
-      event.preventDefault();
-
-      const notifications =
-        currentTaskUnread
-          .map(
-            (
-              task,
-            ) =>
-              task.notification_id,
-          )
-          .filter(
-            (
-              id,
-            ):
-              id is string =>
-                Boolean(
-                  id,
-                ),
-          );
-
-      await Promise.allSettled(
-        notifications.map(
-          (
-            id,
-          ) =>
-            markTaskNotificationRead(
-              id,
-            ),
-        ),
-      );
-
-      currentTaskUnread =
-        [];
-
-      updateNotificationCenter();
-
-      window.location.href =
-        '/colab/tasks';
-    },
-  );
-
   notificationCenterButton?.addEventListener(
     'click',
-    (
-      event,
-    ) => {
+    (event) => {
       event.stopPropagation();
 
       const isOpen =
@@ -1257,7 +1013,6 @@ const nav = [
         isOpen
       ) {
         closeNotificationPopover();
-
         return;
       }
 
@@ -1274,15 +1029,10 @@ const nav = [
 
   document.addEventListener(
     'click',
-    (
-      event,
-    ) => {
+    (event) => {
       if (
         !notificationCenter ||
-        !(
-          event.target instanceof
-          Node
-        )
+        !(event.target instanceof Node)
       ) {
         return;
       }
@@ -1299,9 +1049,7 @@ const nav = [
 
   document.addEventListener(
     'keydown',
-    (
-      event,
-    ) => {
+    (event) => {
       if (
         event.key ===
         'Escape'
@@ -1310,26 +1058,6 @@ const nav = [
       }
     },
   );
-
-  async function clearSubscriptions() {
-    try {
-      await supportNotifications?.disconnect();
-    } catch {
-      // ignora erro de encerramento
-    }
-
-    supportNotifications =
-      null;
-
-    try {
-      await disconnectTaskAssignments?.();
-    } catch {
-      // ignora erro de encerramento
-    }
-
-    disconnectTaskAssignments =
-      null;
-  }
 
   async function loadCollaboratorState() {
     try {
@@ -1349,12 +1077,9 @@ const nav = [
         authenticated &&
         session
       ) {
-        currentUserId =
-          session.user.id;
-
         const avatarUrl =
           await loadCollaboratorAvatar(
-            currentUserId,
+            session.user.id,
           );
 
         updateCollaboratorAccess(
@@ -1362,62 +1087,16 @@ const nav = [
           avatarUrl,
         );
 
-        // O sino agora é de todos os colaboradores autenticados.
-        notificationCenter?.classList.remove(
-          'header-hidden',
+        await loadAdminNotifications();
+      } else {
+        updateCollaboratorAccess(
+          false,
         );
-
-        currentUserIsAdmin =
-          await isCurrentUserAdmin();
-
-        await Promise.all([
-          loadAdminNotifications(),
-          connectCurrentUserTasks(
-            currentUserId,
-          ),
-        ]);
-
-        updateNotificationCenter();
-
-        return;
       }
-
-      currentUserId =
-        null;
-
-      currentUserIsAdmin =
-        false;
-
-      currentTaskUnread =
-        [];
-
-      currentSupportUnread =
-        0;
-
-      currentDemoUnread =
-        0;
-
-      await clearSubscriptions();
-
-      notificationCenter?.classList.add(
-        'header-hidden',
-      );
-
-      closeNotificationPopover();
-
-      updateCollaboratorAccess(
-        false,
-      );
-    } catch (
-      error
-    ) {
+    } catch (error) {
       console.warn(
         '[EVRYLUX] Não foi possível verificar a sessão:',
         error,
-      );
-
-      notificationCenter?.classList.add(
-        'header-hidden',
       );
 
       updateCollaboratorAccess(
@@ -1433,17 +1112,18 @@ const nav = [
       _event,
       session,
     ) => {
-      await clearSubscriptions();
+      const authenticated =
+        Boolean(
+          session,
+        );
 
       if (
+        authenticated &&
         session
       ) {
-        currentUserId =
-          session.user.id;
-
         const avatarUrl =
           await loadCollaboratorAvatar(
-            currentUserId,
+            session.user.id,
           );
 
         updateCollaboratorAccess(
@@ -1451,56 +1131,19 @@ const nav = [
           avatarUrl,
         );
 
-        notificationCenter?.classList.remove(
-          'header-hidden',
+        await loadAdminNotifications();
+      } else {
+        updateCollaboratorAccess(
+          false,
         );
-
-        currentUserIsAdmin =
-          await isCurrentUserAdmin();
-
-        await Promise.all([
-          loadAdminNotifications(),
-          connectCurrentUserTasks(
-            currentUserId,
-          ),
-        ]);
-
-        updateNotificationCenter();
-
-        return;
       }
-
-      currentUserId =
-        null;
-
-      currentUserIsAdmin =
-        false;
-
-      currentTaskUnread =
-        [];
-
-      currentSupportUnread =
-        0;
-
-      currentDemoUnread =
-        0;
-
-      notificationCenter?.classList.add(
-        'header-hidden',
-      );
-
-      closeNotificationPopover();
-
-      updateCollaboratorAccess(
-        false,
-      );
     },
   );
 
   window.addEventListener(
     'pagehide',
     () => {
-      void clearSubscriptions();
+      void supportNotifications?.disconnect();
     },
   );
 </script>
@@ -2045,34 +1688,3 @@ const nav = [
   }
 
 </style>
-
-
-<style is:global>
-  /* ==========================================================
-     EVRYLUX — NOTIFICAÇÕES UNIFICADAS
-     Um único sino para tarefas + suporte + demo.
-     ========================================================== */
-
-  #notification-popover-tasks {
-    background:
-      linear-gradient(
-        145deg,
-        rgba(242,249,239,.94),
-        rgba(249,252,247,.92)
-      );
-  }
-
-  #notification-popover-tasks .popover-item-icon {
-    background:
-      linear-gradient(
-        145deg,
-        rgba(215,238,209,.95),
-        rgba(232,246,228,.94)
-      );
-  }
-
-  #notification-popover-tasks:not(.header-hidden) {
-    display: flex;
-  }
-</style>
-

@@ -1,0 +1,955 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import ColabNav from '../../components/colab/ColabNav.astro';
+import EvryluxLogoLoader from '../../components/ui/EvryluxLogoLoader.astro';
+import '../../styles/members.css';
+---
+
+<Layout
+  title="Minhas tarefas — EVRYLUX Colab"
+  description="Todas as tarefas atribuídas ao colaborador no EVRYLUX."
+>
+  <main class="member-shell tasks-page">
+    <EvryluxLogoLoader
+      id="tasks-loading"
+      size="md"
+    />
+
+    <div
+      id="tasks-content"
+      class="member-container member-hidden tasks-container"
+    >
+      <section class="tasks-hero">
+        <div>
+          <div class="eyebrow">
+            EVRYLUX Colab
+          </div>
+
+          <h1>
+            Minhas tarefas
+          </h1>
+
+          <p>
+            Veja tudo o que foi atribuído a você e organize as tarefas pela proximidade do prazo.
+          </p>
+        </div>
+
+        <ColabNav />
+      </section>
+
+      <section class="tasks-toolbar">
+        <div class="tasks-filters" role="group" aria-label="Filtros das tarefas">
+          <button class="tasks-filter active" type="button" data-task-filter="all">
+            Todas
+            <span id="tasks-count-all">0</span>
+          </button>
+
+          <button class="tasks-filter" type="button" data-task-filter="near">
+            Próximas do prazo
+            <span id="tasks-count-near">0</span>
+          </button>
+
+          <button class="tasks-filter" type="button" data-task-filter="far">
+            Mais distantes
+            <span id="tasks-count-far">0</span>
+          </button>
+
+          <button class="tasks-filter" type="button" data-task-filter="no_due">
+            Sem prazo
+            <span id="tasks-count-no-due">0</span>
+          </button>
+        </div>
+
+        <a
+          class="tasks-roadmap-link"
+          href="/colab/studio/roadmap"
+        >
+          Abrir Roadmap
+          <span aria-hidden="true">→</span>
+        </a>
+      </section>
+
+      <section class="tasks-summary">
+        <article>
+          <span>Total</span>
+          <strong id="tasks-summary-total">0</strong>
+        </article>
+
+        <article>
+          <span>Próximas</span>
+          <strong id="tasks-summary-near">0</strong>
+        </article>
+
+        <article>
+          <span>Mais distantes</span>
+          <strong id="tasks-summary-far">0</strong>
+        </article>
+
+        <article>
+          <span>Sem prazo</span>
+          <strong id="tasks-summary-no-due">0</strong>
+        </article>
+      </section>
+
+      <section
+        id="tasks-list"
+        class="tasks-list"
+        aria-live="polite"
+      ></section>
+
+      <div
+        id="tasks-empty"
+        class="tasks-empty member-hidden"
+      >
+        <span>✓</span>
+
+        <div>
+          <strong>Nenhuma tarefa neste filtro</strong>
+          <p>Selecione outro filtro ou abra o Roadmap.</p>
+        </div>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  import {
+    requireMemberSession,
+  } from '../../lib/member-auth';
+
+  import {
+    getMyRoadmapTasks,
+    markTaskNotificationRead,
+    type MyRoadmapTask,
+  } from '../../lib/colab-task-inbox';
+
+  type TaskFilter =
+    | 'all'
+    | 'near'
+    | 'far'
+    | 'no_due';
+
+  const NEAR_DAYS =
+    7;
+
+  const loading =
+    document.querySelector<HTMLElement>('#tasks-loading');
+
+  const content =
+    document.querySelector<HTMLElement>('#tasks-content');
+
+  const list =
+    document.querySelector<HTMLElement>('#tasks-list');
+
+  const empty =
+    document.querySelector<HTMLElement>('#tasks-empty');
+
+  const filters =
+    Array.from(
+      document.querySelectorAll<HTMLButtonElement>(
+        '[data-task-filter]',
+      ),
+    );
+
+  let tasks:
+    MyRoadmapTask[] =
+      [];
+
+  let activeFilter:
+    TaskFilter =
+      'all';
+
+  function escapeHtml(
+    value: string,
+  ) {
+    return value
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
+  function stageLabel(
+    stage: string,
+  ) {
+    const labels:
+      Record<string,string> = {
+        now: 'Agora',
+        next: 'Próximo',
+        later: 'Depois',
+        done: 'Concluído',
+      };
+
+    return labels[stage] ?? stage;
+  }
+
+  function statusLabel(
+    status: string,
+  ) {
+    const labels:
+      Record<string,string> = {
+        todo: 'A fazer',
+        doing: 'Em andamento',
+        blocked: 'Bloqueado',
+        done: 'Concluído',
+      };
+
+    return labels[status] ?? status;
+  }
+
+  function dueDate(
+    task: MyRoadmapTask,
+  ) {
+    if (!task.due_date) {
+      return null;
+    }
+
+    const value =
+      new Date(
+        `${task.due_date}T23:59:59`,
+      );
+
+    return Number.isNaN(value.getTime())
+      ? null
+      : value;
+  }
+
+  function daysUntil(
+    task: MyRoadmapTask,
+  ) {
+    const due =
+      dueDate(task);
+
+    if (!due) {
+      return null;
+    }
+
+    const now =
+      new Date();
+
+    const today =
+      new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+      );
+
+    return Math.ceil(
+      (due.getTime() - today.getTime()) /
+      86400000,
+    );
+  }
+
+  function dueKind(
+    task: MyRoadmapTask,
+  ):
+    | 'near'
+    | 'far'
+    | 'no_due' {
+    const days =
+      daysUntil(task);
+
+    if (days === null) {
+      return 'no_due';
+    }
+
+    return days <= NEAR_DAYS
+      ? 'near'
+      : 'far';
+  }
+
+  function dueLabel(
+    task: MyRoadmapTask,
+  ) {
+    const days =
+      daysUntil(task);
+
+    if (days === null) {
+      return 'Sem prazo';
+    }
+
+    if (days < 0) {
+      const amount =
+        Math.abs(days);
+
+      return `Atrasada ${amount} ${amount === 1 ? 'dia' : 'dias'}`;
+    }
+
+    if (days === 0) {
+      return 'Vence hoje';
+    }
+
+    if (days === 1) {
+      return 'Vence amanhã';
+    }
+
+    if (days <= NEAR_DAYS) {
+      return `Vence em ${days} dias`;
+    }
+
+    return `Prazo em ${days} dias`;
+  }
+
+  function formatDate(
+    value: string | null,
+  ) {
+    if (!value) {
+      return '';
+    }
+
+    const date =
+      new Date(
+        `${value}T12:00:00`,
+      );
+
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+
+    return new Intl.DateTimeFormat(
+      'pt-BR',
+      {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      },
+    ).format(date);
+  }
+
+  function taskSort(
+    a: MyRoadmapTask,
+    b: MyRoadmapTask,
+  ) {
+    const da = dueDate(a);
+    const db = dueDate(b);
+
+    if (da && db) {
+      return da.getTime() - db.getTime();
+    }
+
+    if (da) return -1;
+    if (db) return 1;
+
+    return a.title.localeCompare(
+      b.title,
+      'pt-BR',
+    );
+  }
+
+  function filteredTasks() {
+    const sorted =
+      [...tasks].sort(taskSort);
+
+    if (activeFilter === 'all') {
+      return sorted;
+    }
+
+    return sorted.filter(
+      (task) =>
+        dueKind(task) === activeFilter,
+    );
+  }
+
+  function setText(
+    selector: string,
+    value: number,
+  ) {
+    const element =
+      document.querySelector<HTMLElement>(
+        selector,
+      );
+
+    if (element) {
+      element.textContent =
+        String(value);
+    }
+  }
+
+  function renderCounts() {
+    const near =
+      tasks.filter((task) => dueKind(task) === 'near').length;
+
+    const far =
+      tasks.filter((task) => dueKind(task) === 'far').length;
+
+    const noDue =
+      tasks.filter((task) => dueKind(task) === 'no_due').length;
+
+    setText('#tasks-count-all', tasks.length);
+    setText('#tasks-count-near', near);
+    setText('#tasks-count-far', far);
+    setText('#tasks-count-no-due', noDue);
+    setText('#tasks-summary-total', tasks.length);
+    setText('#tasks-summary-near', near);
+    setText('#tasks-summary-far', far);
+    setText('#tasks-summary-no-due', noDue);
+  }
+
+  function render() {
+    if (!list || !empty) {
+      return;
+    }
+
+    renderCounts();
+
+    const visible =
+      filteredTasks();
+
+    empty.classList.toggle(
+      'member-hidden',
+      visible.length > 0,
+    );
+
+    if (visible.length === 0) {
+      list.innerHTML = '';
+      return;
+    }
+
+    list.innerHTML =
+      visible
+        .map(
+          (task) => {
+            const isNew =
+              Boolean(task.notification_id) &&
+              !task.notification_is_read;
+
+            const area =
+              task.area?.trim()
+                ? escapeHtml(task.area)
+                : 'Roadmap';
+
+            const progress =
+              Math.max(
+                0,
+                Math.min(
+                  100,
+                  Number(task.progress) || 0,
+                ),
+              );
+
+            const dueType =
+              dueKind(task);
+
+            return `
+              <article class="task-page-card${isNew ? ' is-new' : ''}">
+                <div class="task-page-card-top">
+                  <div class="task-page-badges">
+                    ${
+                      isNew
+                        ? '<span class="task-page-badge is-new">Nova</span>'
+                        : ''
+                    }
+
+                    <span class="task-page-badge">
+                      ${area}
+                    </span>
+
+                    <span class="task-page-badge">
+                      ${escapeHtml(stageLabel(task.stage))}
+                    </span>
+                  </div>
+
+                  <span class="task-page-due ${dueType}">
+                    ${escapeHtml(dueLabel(task))}
+                  </span>
+                </div>
+
+                <h2>${escapeHtml(task.title)}</h2>
+
+                <p>
+                  ${
+                    task.description?.trim()
+                      ? escapeHtml(task.description)
+                      : 'Você foi marcado como responsável por esta tarefa.'
+                  }
+                </p>
+
+                <div class="task-page-details">
+                  <span>
+                    <b>Status</b>
+                    ${escapeHtml(statusLabel(task.status))}
+                  </span>
+
+                  <span>
+                    <b>Progresso</b>
+                    ${progress}%
+                  </span>
+
+                  ${
+                    task.due_date
+                      ? `
+                        <span>
+                          <b>Prazo</b>
+                          ${escapeHtml(formatDate(task.due_date))}
+                        </span>
+                      `
+                      : ''
+                  }
+
+                  ${
+                    task.assigned_by_name?.trim()
+                      ? `
+                        <span>
+                          <b>Atribuída por</b>
+                          ${escapeHtml(task.assigned_by_name)}
+                        </span>
+                      `
+                      : ''
+                  }
+                </div>
+
+                <div class="task-page-progress">
+                  <span style="width:${progress}%"></span>
+                </div>
+
+                <a
+                  class="task-page-open"
+                  href="/colab/studio/roadmap?task=${encodeURIComponent(task.id)}"
+                  data-notification-id="${escapeHtml(task.notification_id ?? '')}"
+                >
+                  Abrir tarefa no Roadmap
+                  <span aria-hidden="true">→</span>
+                </a>
+              </article>
+            `;
+          },
+        )
+        .join('');
+
+    list
+      .querySelectorAll<HTMLAnchorElement>(
+        '.task-page-open',
+      )
+      .forEach(
+        (link) => {
+          link.addEventListener(
+            'click',
+            () => {
+              const notificationId =
+                link.dataset.notificationId?.trim();
+
+              if (notificationId) {
+                void markTaskNotificationRead(
+                  notificationId,
+                );
+              }
+            },
+          );
+        },
+      );
+  }
+
+  filters.forEach(
+    (button) => {
+      button.addEventListener(
+        'click',
+        () => {
+          activeFilter =
+            (
+              button.dataset.taskFilter ??
+              'all'
+            ) as TaskFilter;
+
+          filters.forEach(
+            (item) => {
+              item.classList.toggle(
+                'active',
+                item === button,
+              );
+            },
+          );
+
+          render();
+        },
+      );
+    },
+  );
+
+  try {
+    await requireMemberSession();
+
+    tasks =
+      await getMyRoadmapTasks();
+
+    render();
+
+    loading?.classList.add('member-hidden');
+    content?.classList.remove('member-hidden');
+  } catch (error) {
+    console.error(
+      '[EVRYLUX] Erro ao carregar tarefas:',
+      error,
+    );
+  }
+</script>
+
+<style>
+  .tasks-page {
+    min-height: calc(100vh - 90px);
+  }
+
+  .tasks-container {
+    padding-top: 24px;
+    padding-bottom: 56px;
+  }
+
+  .tasks-hero {
+    padding: 26px 28px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 22px;
+    border: 1px solid rgba(65,104,62,.10);
+    border-radius: 22px;
+    background:
+      radial-gradient(
+        circle at 92% 0%,
+        rgba(217,239,211,.64),
+        transparent 30%
+      ),
+      #fff;
+  }
+
+  .tasks-hero h1 {
+    margin: 10px 0 0;
+    color: var(--text);
+    font-size: clamp(34px,5vw,54px);
+    line-height: .98;
+    letter-spacing: -.055em;
+  }
+
+  .tasks-hero p {
+    max-width: 620px;
+    margin: 12px 0 0;
+    color: var(--text-soft);
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .tasks-toolbar {
+    margin-top: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .tasks-filters {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+  }
+
+  .tasks-filter {
+    min-height: 38px;
+    padding: 0 11px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border: 1px solid rgba(65,104,62,.10);
+    border-radius: 11px;
+    background: #fff;
+    color: var(--text-soft);
+    font: inherit;
+    font-size: 8px;
+    font-weight: 850;
+    cursor: pointer;
+  }
+
+  .tasks-filter span {
+    min-width: 21px;
+    min-height: 21px;
+    padding: 0 5px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 999px;
+    background: #f1f5ef;
+    font-size: 7px;
+  }
+
+  .tasks-filter.active {
+    border-color: rgba(95,157,89,.20);
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+  }
+
+  .tasks-roadmap-link {
+    min-height: 38px;
+    padding: 0 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid rgba(65,104,62,.10);
+    border-radius: 11px;
+    background: #fff;
+    color: var(--text);
+    font-size: 8px;
+    font-weight: 850;
+    text-decoration: none;
+  }
+
+  .tasks-summary {
+    margin-top: 15px;
+    display: grid;
+    grid-template-columns: repeat(4,minmax(0,1fr));
+    gap: 9px;
+  }
+
+  .tasks-summary article {
+    min-height: 74px;
+    padding: 13px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    border: 1px solid rgba(65,104,62,.09);
+    border-radius: 15px;
+    background: rgba(251,253,250,.94);
+  }
+
+  .tasks-summary span {
+    color: var(--text-soft);
+    font-size: 7px;
+    font-weight: 850;
+    text-transform: uppercase;
+    letter-spacing: .055em;
+  }
+
+  .tasks-summary strong {
+    color: var(--text);
+    font-size: 22px;
+    line-height: 1;
+  }
+
+  .tasks-list {
+    margin-top: 15px;
+    display: grid;
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    gap: 10px;
+  }
+
+  .task-page-card {
+    min-width: 0;
+    padding: 17px;
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+    border: 1px solid rgba(65,104,62,.09);
+    border-radius: 17px;
+    background: #fff;
+    box-shadow: 0 12px 34px rgba(54,92,51,.035);
+  }
+
+  .task-page-card.is-new {
+    border-color: rgba(95,157,89,.26);
+    background:
+      radial-gradient(
+        circle at 94% 0%,
+        rgba(219,240,213,.62),
+        transparent 38%
+      ),
+      #fff;
+  }
+
+  .task-page-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .task-page-badges {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+
+  .task-page-badge,
+  .task-page-due {
+    min-height: 24px;
+    padding: 0 8px;
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    background: #f3f6f1;
+    color: #657168;
+    font-size: 7px;
+    font-weight: 900;
+  }
+
+  .task-page-badge.is-new {
+    background: #dff1da;
+    color: #35663a;
+  }
+
+  .task-page-due.near {
+    background: #fff0dc;
+    color: #8a5d20;
+  }
+
+  .task-page-due.far {
+    background: #edf4ea;
+    color: #4f6d53;
+  }
+
+  .task-page-due.no_due {
+    background: #f3f4f2;
+    color: #778078;
+  }
+
+  .task-page-card h2 {
+    margin: 0;
+    color: var(--text);
+    font-size: 16px;
+    line-height: 1.35;
+    letter-spacing: -.025em;
+  }
+
+  .task-page-card > p {
+    margin: 0;
+    color: var(--text-soft);
+    font-size: 9px;
+    line-height: 1.65;
+  }
+
+  .task-page-details {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    color: var(--text-soft);
+    font-size: 8px;
+  }
+
+  .task-page-details span {
+    display: inline-flex;
+    gap: 4px;
+  }
+
+  .task-page-details b {
+    color: var(--text);
+  }
+
+  .task-page-progress {
+    height: 6px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #e8eee6;
+  }
+
+  .task-page-progress span {
+    height: 100%;
+    display: block;
+    border-radius: inherit;
+    background: #5d9958;
+  }
+
+  .task-page-open {
+    min-height: 40px;
+    margin-top: auto;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid rgba(95,157,89,.14);
+    border-radius: 11px;
+    background: #eff7ec;
+    color: #315c35;
+    font-size: 8px;
+    font-weight: 900;
+    text-decoration: none;
+  }
+
+  .tasks-empty {
+    margin-top: 15px;
+    min-height: 110px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    border: 1px dashed rgba(65,104,62,.13);
+    border-radius: 18px;
+    background: rgba(249,252,247,.62);
+  }
+
+  .tasks-empty > span {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font-weight: 900;
+  }
+
+  .tasks-empty strong {
+    color: var(--text);
+    font-size: 10px;
+  }
+
+  .tasks-empty p {
+    margin: 4px 0 0;
+    color: var(--text-soft);
+    font-size: 8px;
+  }
+
+  @media (max-width: 900px) {
+    .tasks-hero {
+      flex-direction: column;
+    }
+
+    .tasks-summary {
+      grid-template-columns: repeat(2,minmax(0,1fr));
+    }
+
+    .tasks-list {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 620px) {
+    .tasks-container {
+      padding-top: 14px;
+    }
+
+    .tasks-hero {
+      padding: 20px 18px;
+      border-radius: 18px;
+    }
+
+    .tasks-toolbar {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .tasks-filters {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .tasks-filter {
+      justify-content: space-between;
+    }
+
+    .tasks-roadmap-link {
+      justify-content: center;
+    }
+
+    .tasks-summary {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .task-page-card {
+      padding: 15px;
+      border-radius: 15px;
+    }
+
+    .task-page-card-top {
+      align-items: flex-start;
+    }
+  }
+</style>
