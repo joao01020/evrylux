@@ -77,32 +77,68 @@ extension _BrainScreenVisualSearch
   }
 
   // ============================================================
-  // BUSCA NATURAL — PREFIXOS
+  // BUSCA NATURAL — ESTRUTURAS QUE EXIGEM COMPLEMENTO
   // ============================================================
   //
-  // Estes prefixos fazem parte da linguagem da interface.
+  // REGRA CENTRAL:
   //
-  // Eles NÃO representam o assunto que deve ser procurado.
+  // Estas frases são MODELOS DE PESQUISA.
   //
-  // Exemplo:
+  // Elas descrevem COMO pesquisar.
   //
-  // "onde eu falei de FL Studio"
+  // Elas não representam, sozinhas, o conteúdo procurado.
   //
-  // prefixo:
-  // "onde eu falei de"
+  // Exemplos:
   //
-  // assunto:
-  // "FL Studio"
+  // "perguntas sobre"
+  //
+  // -> incompleto
+  // -> não pesquisar
+  //
+  // "perguntas sobre eletrônica"
+  //
+  // -> estrutura = perguntas sobre
+  // -> assunto   = eletrônica
+  // -> pesquisar
+  //
+  // ------------------------------------------------------------
+  //
+  // "o que eu fiz no dia"
+  //
+  // -> incompleto
+  // -> falta uma data
+  //
+  // "o que eu fiz no dia 16"
+  //
+  // -> estrutura = o que eu fiz no dia
+  // -> data      = 16
+  // -> pesquisar
+  //
+  // ------------------------------------------------------------
+  //
+  // IMPORTANTE:
+  //
+  // Não colocamos aqui consultas que já são completas:
+  //
+  // - o que estudei ontem
+  // - o que anotei essa semana
+  // - o que vi no mês passado
+  // - o que eu estudei de manhã
+  // - o que fiz hoje à tarde
+  // - o que anotei ontem à noite
+  // - mostre só 10 resultados
+  //
+  // Essas consultas podem ser executadas diretamente.
   //
   // ============================================================
 
   static const List<
     String
   >
-  _brainSearchSubjectPrefixes = [
-    // ============================================================
+  _brainSearchRequiredCompletionPrefixes = [
+    // ==========================================================
     // BUSCA SIMPLES
-    // ============================================================
+    // ==========================================================
     'algo sobre',
 
     'onde eu falei de',
@@ -120,41 +156,228 @@ extension _BrainScreenVisualSearch
     'aquele conteúdo sobre',
     'a anotação que falava de',
 
-    // ============================================================
-    // TIPOS
-    // ============================================================
+    // ==========================================================
+    // TIPOS DE CONHECIMENTO
+    // ==========================================================
     'conceitos sobre',
     'perguntas sobre',
     'exemplos sobre',
     'atenções sobre',
 
-    // ============================================================
-    // RECÊNCIA
-    // ============================================================
+    // ==========================================================
+    // DATA QUE AINDA PRECISA SER INFORMADA
+    // ==========================================================
+    'o que eu fiz no dia',
+    'o que anotei na manhã de',
+
+    // ==========================================================
+    // RECÊNCIA + ASSUNTO
+    // ==========================================================
     'o que estudei recentemente sobre',
     'minhas últimas anotações sobre',
     'o que eu vi por último sobre',
 
-    // ============================================================
-    // CONHECIMENTO ACUMULADO
-    // ============================================================
+    // ==========================================================
+    // CONHECIMENTO ACUMULADO + ASSUNTO
+    // ==========================================================
     'o que eu já sei sobre',
     'o que eu já aprendi sobre',
     'o que eu já anotei sobre',
   ];
 
   // ============================================================
-  // NORMALIZAÇÃO LEVE
+  // QUANTIDADE + ASSUNTO
+  // ============================================================
+  //
+  // Em vez de cadastrar:
+  //
+  // me mostre 3 perguntas sobre
+  // me mostre 5 perguntas sobre
+  // me mostre 10 perguntas sobre
+  //
+  // separadamente, tratamos qualquer quantidade.
+  //
+  // Isso evita redundância.
+  //
+  // Exemplos:
+  //
+  // me mostre 5 resultados sobre
+  // me mostre 3 perguntas sobre
+  // mostre 8 conceitos sobre
+  // mostre 4 exemplos sobre
+  //
+  // Todos exigem algo DEPOIS de "sobre".
+  //
+  // ============================================================
+
+  RegExp get _brainSearchQuantitySubjectPattern {
+    return RegExp(
+      r'^(?:me\s+)?'
+      r'(?:mostre|mostra|mostrar)\s+'
+      r'\d{1,3}\s+'
+      r'(?:'
+      r'resultado|resultados|'
+      r'pergunta|perguntas|'
+      r'conceito|conceitos|'
+      r'exemplo|exemplos|'
+      r'atencao|atencoes'
+      r')\s+'
+      r'sobre'
+      r'(?:\s+(.+))?$',
+    );
+  }
+
+  // ============================================================
+  // NORMALIZAÇÃO DA ESTRUTURA
+  // ============================================================
+  //
+  // Esta normalização é apenas para reconhecer os modelos.
+  //
+  // Também removemos acentos para que:
+  //
+  // atenção
+  // atencao
+  //
+  // sejam entendidos da mesma forma.
+  //
   // ============================================================
 
   String _normalizeBrainSearchStructure(
     String value,
   ) {
-    return value.trim().toLowerCase().replaceAll(
-      RegExp(
-        r'\s+',
-      ),
-      ' ',
+    var normalized = value.trim().toLowerCase();
+
+    const replacements =
+        <
+          String,
+          String
+        >{
+          'á': 'a',
+          'à': 'a',
+          'â': 'a',
+          'ã': 'a',
+          'ä': 'a',
+          'é': 'e',
+          'è': 'e',
+          'ê': 'e',
+          'ë': 'e',
+          'í': 'i',
+          'ì': 'i',
+          'î': 'i',
+          'ï': 'i',
+          'ó': 'o',
+          'ò': 'o',
+          'ô': 'o',
+          'õ': 'o',
+          'ö': 'o',
+          'ú': 'u',
+          'ù': 'u',
+          'û': 'u',
+          'ü': 'u',
+          'ç': 'c',
+        };
+
+    replacements.forEach(
+      (
+        source,
+        target,
+      ) {
+        normalized = normalized.replaceAll(
+          source,
+          target,
+        );
+      },
+    );
+
+    return normalized
+        .replaceAll(
+          RegExp(
+            r'\s+',
+          ),
+          ' ',
+        )
+        .trim();
+  }
+
+  // ============================================================
+  // PREFIXO NORMALIZADO MAIS ESPECÍFICO
+  // ============================================================
+  //
+  // Ordenamos pelo maior primeiro.
+  //
+  // Isso evita que uma estrutura menor capture uma maior.
+  //
+  // ============================================================
+
+  List<
+    String
+  >
+  get _orderedRequiredSearchPrefixes {
+    final result =
+        <
+          String
+        >[
+          ..._brainSearchRequiredCompletionPrefixes,
+        ];
+
+    result.sort(
+      (
+        first,
+        second,
+      ) {
+        return second.length.compareTo(
+          first.length,
+        );
+      },
+    );
+
+    return result;
+  }
+
+  // ============================================================
+  // QUANTIDADE + ASSUNTO — ANALISAR
+  // ============================================================
+
+  _BrainSearchInputState? _brainQuantitySearchInputState({
+    required String original,
+    required String normalized,
+  }) {
+    final match = _brainSearchQuantitySubjectPattern.firstMatch(
+      normalized,
+    );
+
+    if (match ==
+        null) {
+      return null;
+    }
+
+    final subject =
+        (match.group(
+                  1,
+                ) ??
+                '')
+            .trim();
+
+    final matchedWithoutSubject = subject.isEmpty
+        ? normalized
+        : normalized
+              .substring(
+                0,
+                normalized.length -
+                    subject.length,
+              )
+              .trim();
+
+    if (subject.isEmpty) {
+      return _BrainSearchInputState.waitingSubject(
+        prefix: matchedWithoutSubject,
+      );
+    }
+
+    return _BrainSearchInputState.ready(
+      originalQuery: original,
+      effectiveQuery: subject,
+      recognizedPrefix: matchedWithoutSubject,
     );
   }
 
@@ -176,13 +399,43 @@ extension _BrainScreenVisualSearch
     );
 
     // ==========================================================
-    // 1. PREFIXO COMPLETO
+    // 1. QUANTIDADE + ASSUNTO
+    // ==========================================================
+    //
+    // Exemplo:
+    //
+    // me mostre 3 perguntas sobre
+    //
+    // não pode pesquisar.
+    //
+    // me mostre 3 perguntas sobre eletrônica
+    //
+    // pode pesquisar.
+    //
     // ==========================================================
 
-    for (final prefix in _brainSearchSubjectPrefixes) {
+    final quantityState = _brainQuantitySearchInputState(
+      original: original,
+      normalized: normalized,
+    );
+
+    if (quantityState !=
+        null) {
+      return quantityState;
+    }
+
+    // ==========================================================
+    // 2. PREFIXOS QUE EXIGEM COMPLEMENTO
+    // ==========================================================
+
+    for (final prefix in _orderedRequiredSearchPrefixes) {
       final normalizedPrefix = _normalizeBrainSearchStructure(
         prefix,
       );
+
+      // ========================================================
+      // PREFIXO EXATO, SEM COMPLEMENTO
+      // ========================================================
 
       if (normalized ==
           normalizedPrefix) {
@@ -192,7 +445,7 @@ extension _BrainScreenVisualSearch
       }
 
       // ========================================================
-      // PREFIXO + ASSUNTO
+      // PREFIXO + COMPLEMENTO
       // ========================================================
 
       final prefixWithSpace = '$normalizedPrefix ';
@@ -200,9 +453,41 @@ extension _BrainScreenVisualSearch
       if (normalized.startsWith(
         prefixWithSpace,
       )) {
+        final normalizedSubject = normalized
+            .substring(
+              prefixWithSpace.length,
+            )
+            .trim();
+
+        if (normalizedSubject.isEmpty) {
+          return _BrainSearchInputState.waitingSubject(
+            prefix: prefix,
+          );
+        }
+
+        // ======================================================
+        // EXTRAIR O COMPLEMENTO DO TEXTO ORIGINAL
+        // ======================================================
+        //
+        // Fazemos por quantidade de palavras.
+        //
+        // Isso preserva:
+        //
+        // - maiúsculas;
+        // - acentos;
+        // - símbolos;
+        // - nomes técnicos.
+        //
+        // ======================================================
+
         final prefixWordCount = normalizedPrefix
             .split(
               ' ',
+            )
+            .where(
+              (
+                word,
+              ) => word.trim().isNotEmpty,
             )
             .length;
 
@@ -250,10 +535,18 @@ extension _BrainScreenVisualSearch
     }
 
     // ==========================================================
-    // 2. PREFIXO AINDA SENDO DIGITADO
+    // 3. PREFIXO AINDA SENDO DIGITADO
+    // ==========================================================
+    //
+    // Exemplo:
+    //
+    // "perguntas sob"
+    //
+    // ainda não deve pesquisar.
+    //
     // ==========================================================
 
-    for (final prefix in _brainSearchSubjectPrefixes) {
+    for (final prefix in _orderedRequiredSearchPrefixes) {
       final normalizedPrefix = _normalizeBrainSearchStructure(
         prefix,
       );
@@ -268,38 +561,62 @@ extension _BrainScreenVisualSearch
     }
 
     // ==========================================================
-    // 3. BUSCA LIVRE — VALIDAR CRITÉRIO PESQUISÁVEL
+    // 4. QUANTIDADE SENDO DIGITADA
     // ==========================================================
     //
-    // REGRA DE NEGÓCIO:
+    // Evita que:
     //
-    // Uma consulta livre só pode ser executada quando, depois
-    // de interpretada pelo BrainSearchParser, existir pelo menos:
+    // me mostre 3 perguntas sobr
     //
-    // - um termo pesquisável;
-    // - um filtro de tipo;
-    // - um filtro de data/período.
+    // seja interpretado como uma busca textual.
     //
-    // Isso impede frases estruturalmente incompletas de mostrar
-    // todos os conhecimentos.
+    // ==========================================================
+
+    final looksLikeIncompleteQuantity =
+        RegExp(
+          r'^(?:me\s+)?'
+          r'(?:mostre|mostra|mostrar)'
+          r'(?:\s+\d{0,3})?'
+          r'(?:\s+(?:'
+          r'resultado|resultados|'
+          r'pergunta|perguntas|'
+          r'conceito|conceitos|'
+          r'exemplo|exemplos|'
+          r'atencao|atencoes'
+          r'))?'
+          r'(?:\s+sob(?:r(?:e)?)?)?$',
+        ).hasMatch(
+          normalized,
+        );
+
+    if (looksLikeIncompleteQuantity) {
+      return _BrainSearchInputState.incomplete(
+        expectedPrefix: 'me mostre uma quantidade sobre',
+      );
+    }
+
+    // ==========================================================
+    // 5. BUSCA LIVRE — VALIDAR CRITÉRIOS
+    // ==========================================================
     //
-    // Exemplos:
+    // Uma pesquisa pode existir por:
     //
-    // "o que eu fiz"
-    // -> nenhum termo/tipo/data
-    // -> aguarda assunto
+    // - texto;
+    // - tipo;
+    // - data;
+    // - quantidade;
+    // - recência;
+    // - intenção de conhecimento acumulado.
     //
-    // "o que eu fiz ontem"
-    // -> possui filtro de data
-    // -> pode pesquisar
+    // Exemplos válidos:
     //
-    // "perguntas"
-    // -> possui filtro de tipo
-    // -> pode pesquisar
+    // ESP32
     //
-    // "ESP32"
-    // -> possui termo
-    // -> pode pesquisar
+    // perguntas
+    //
+    // o que estudei ontem
+    //
+    // mostre só 10 resultados
     //
     // ==========================================================
 
@@ -310,7 +627,11 @@ extension _BrainScreenVisualSearch
     final hasSearchCriteria =
         parsedFreeQuery.hasTerms ||
         parsedFreeQuery.hasTypeFilter ||
-        parsedFreeQuery.hasDateFilter;
+        parsedFreeQuery.hasDateFilter ||
+        parsedFreeQuery.hasLimit ||
+        parsedFreeQuery.isNewestSort ||
+        parsedFreeQuery.isOldestSort ||
+        parsedFreeQuery.isKnowledgeOverview;
 
     if (!hasSearchCriteria) {
       return _BrainSearchInputState.waitingSubject(
@@ -327,21 +648,6 @@ extension _BrainScreenVisualSearch
   // ============================================================
   // DEBOUNCE — PESQUISA
   // ============================================================
-  //
-  // Temos agora dois estados diferentes:
-  //
-  // _searchQuery
-  //     texto que o usuário está digitando.
-  //
-  // _committedSearchQuery
-  //     texto que realmente pode ser pesquisado.
-  //
-  // Toda nova tecla cancela o timer anterior.
-  //
-  // Somente depois de 500 ms sem digitação a consulta é
-  // confirmada.
-  //
-  // ============================================================
 
   void _scheduleSearchCommit(
     String rawQuery,
@@ -349,10 +655,6 @@ extension _BrainScreenVisualSearch
     _searchDebounceTimer?.cancel();
 
     final query = rawQuery.trim();
-
-    // ==========================================================
-    // CAMPO VAZIO
-    // ==========================================================
 
     if (query.isEmpty) {
       _mutateState(
@@ -370,20 +672,7 @@ extension _BrainScreenVisualSearch
     }
 
     // ==========================================================
-    // VERIFICAR ESTRUTURA DA FRASE
-    // ==========================================================
-    //
-    // Frases incompletas não precisam esperar o debounce para
-    // sabermos que ainda não podem ser pesquisadas.
-    //
-    // Exemplo:
-    //
-    // onde eu falei d
-    //
-    // ou:
-    //
-    // onde eu falei de
-    //
+    // NÃO AGENDAR UMA ESTRUTURA INCOMPLETA
     // ==========================================================
 
     final inputState = _brainSearchInputState(
@@ -416,10 +705,6 @@ extension _BrainScreenVisualSearch
           return;
         }
 
-        // ======================================================
-        // GARANTIR QUE A CONSULTA NÃO MUDOU
-        // ======================================================
-
         if (_searchQuery.trim() !=
             query) {
           return;
@@ -444,13 +729,10 @@ extension _BrainScreenVisualSearch
           return;
         }
 
-        // ======================================================
-        // CONFIRMAR A CONSULTA
-        // ======================================================
-
         _mutateState(
           () {
             _committedSearchQuery = _searchQuery;
+
             _showAllSearchResults = false;
           },
         );
@@ -468,15 +750,6 @@ extension _BrainScreenVisualSearch
 
   // ============================================================
   // CONFIRMAR PESQUISA IMEDIATAMENTE
-  // ============================================================
-  //
-  // Usado quando:
-  //
-  // - usuário pressiona Enter;
-  // - usuário escolhe uma sugestão do modal de ajuda.
-  //
-  // Nesses casos não precisamos esperar os 500 ms.
-  //
   // ============================================================
 
   void _commitSearchImmediately(
@@ -508,9 +781,21 @@ extension _BrainScreenVisualSearch
       rawQuery,
     );
 
+    // ==========================================================
+    // MODELO INCOMPLETO
+    // ==========================================================
+    //
+    // Inclusive quando o usuário clica em "Usar".
+    //
+    // O modelo será colocado no campo, mas a pesquisa NÃO será
+    // executada até ele completar o que falta.
+    //
+    // ==========================================================
+
     if (!inputState.canSearch) {
       _mutateState(
         () {
+          _searchQuery = rawQuery;
           _committedSearchQuery = '';
           _showAllSearchResults = false;
         },
@@ -623,18 +908,6 @@ extension _BrainScreenVisualSearch
           return;
         }
 
-        // ======================================================
-        // IMPORTANTE
-        // ======================================================
-        //
-        // Agora comparamos com a consulta CONFIRMADA.
-        //
-        // Não usamos mais somente _searchQuery, porque o usuário
-        // pode estar digitando uma nova consulta enquanto uma
-        // pesquisa anterior ainda estava animando.
-        //
-        // ======================================================
-
         if (_committedSearchQuery.trim() !=
             normalizedQuery) {
           return;
@@ -660,7 +933,8 @@ extension _BrainScreenVisualSearch
         if (results.isEmpty) {
           debugPrint(
             '[BRAIN SEARCH VISUAL] '
-            'Nenhum resultado para "${currentState.effectiveQuery}".',
+            'Nenhum resultado para '
+            '"${currentState.originalQuery}".',
           );
 
           visualController.setSearching(
@@ -790,15 +1064,41 @@ extension _BrainScreenVisualSearch
   // PESQUISA
   // ============================================================
   //
-  // IMPORTANTE:
+  // CORREÇÃO IMPORTANTE:
   //
-  // Este getter NÃO usa mais _searchQuery.
+  // Antes, quando uma estrutura era reconhecida, o parser recebia
+  // somente o assunto.
   //
-  // _searchQuery é apenas a digitação atual.
+  // Exemplo:
   //
-  // O mecanismo de pesquisa recebe exclusivamente:
+  // perguntas sobre eletrônica
   //
-  // _committedSearchQuery
+  // virava:
+  //
+  // eletrônica
+  //
+  // Isso fazia o parser perder o filtro "perguntas".
+  //
+  // Agora:
+  //
+  // - effectiveQuery é usado para VALIDAR se existe complemento;
+  // - originalQuery é enviado ao BrainSearchParser.
+  //
+  // Assim:
+  //
+  // perguntas sobre eletrônica
+  //
+  // produz:
+  //
+  // type  = question
+  // terms = eletrônica
+  //
+  // O mesmo vale para:
+  //
+  // - quantidade;
+  // - datas;
+  // - recência;
+  // - conhecimento acumulado.
   //
   // ============================================================
 
@@ -817,10 +1117,6 @@ extension _BrainScreenVisualSearch
       committedQuery,
     );
 
-    // ==========================================================
-    // NÃO PESQUISAR FRASES INCOMPLETAS
-    // ==========================================================
-
     if (!inputState.canSearch) {
       return BrainSearchResponse.fromResults(
         const <
@@ -830,19 +1126,11 @@ extension _BrainScreenVisualSearch
     }
 
     // ==========================================================
-    // PARSER RECEBE SOMENTE A CONSULTA EFETIVA
-    // ==========================================================
-    //
-    // onde eu falei de FL Studio
-    //
-    // vira:
-    //
-    // FL Studio
-    //
+    // PARSER RECEBE A FRASE COMPLETA
     // ==========================================================
 
     final parsedQuery = _BrainScreenState._searchParser.parse(
-      inputState.effectiveQuery,
+      inputState.originalQuery,
     );
 
     if (parsedQuery.isEmpty) {
@@ -896,7 +1184,7 @@ extension _BrainScreenVisualSearch
   }
 
   // ============================================================
-  // PREVIEW
+  // PREVIEW — NORMALIZAÇÃO
   // ============================================================
 
   String _normalizeSearchHighlightText(
@@ -967,6 +1255,24 @@ extension _BrainScreenVisualSearch
         .trim();
   }
 
+  // ============================================================
+  // TERMOS PARA DESTAQUE
+  // ============================================================
+  //
+  // Assim como _searchResponse, o parser recebe a frase completa.
+  //
+  // O próprio BrainSearchParser remove:
+  //
+  // - "perguntas sobre";
+  // - "me mostre 3";
+  // - "recentemente";
+  // - datas;
+  // - demais estruturas.
+  //
+  // Portanto somente o assunto real será destacado.
+  //
+  // ============================================================
+
   List<
     String
   >
@@ -990,7 +1296,7 @@ extension _BrainScreenVisualSearch
     }
 
     final parsed = _BrainScreenState._searchParser.parse(
-      inputState.effectiveQuery,
+      inputState.originalQuery,
     );
 
     final uniqueTerms =
@@ -1040,6 +1346,10 @@ extension _BrainScreenVisualSearch
 
     return uniqueTerms;
   }
+
+  // ============================================================
+  // PREVIEW DO CONTEÚDO
+  // ============================================================
 
   String _previewContentForSearch(
     String content, {
@@ -1145,6 +1455,7 @@ extension _BrainScreenVisualSearch
     if (end >
         clean.length) {
       end = clean.length;
+
       start =
           end -
           maxLength;
@@ -1293,6 +1604,10 @@ extension _BrainScreenVisualSearch
     );
   }
 
+  // ============================================================
+  // TEXTO DESTACADO
+  // ============================================================
+
   Widget _buildHighlightedSearchText({
     required BuildContext context,
     required String text,
@@ -1415,6 +1730,7 @@ extension _BrainScreenVisualSearch
         merged.add(
           match,
         );
+
         continue;
       }
 
@@ -1459,6 +1775,7 @@ extension _BrainScreenVisualSearch
         <
           InlineSpan
         >[];
+
     var cursor = 0;
 
     for (final match in merged) {
@@ -1589,13 +1906,24 @@ extension _BrainScreenVisualSearch
             );
 
             // ======================================================
-            // SUGESTÃO ESCOLHIDA PELO USUÁRIO
+            // MODELO ESCOLHIDO
             // ======================================================
             //
-            // Como houve uma ação explícita no botão "Usar", podemos
-            // confirmar imediatamente a consulta.
+            // Se o modelo estiver incompleto:
             //
-            // Não precisamos esperar 500 ms.
+            // perguntas sobre
+            //
+            // ele será colocado no campo, mas NÃO pesquisará.
+            //
+            // O usuário deverá escrever:
+            //
+            // perguntas sobre eletrônica
+            //
+            // Se o modelo já for uma consulta completa:
+            //
+            // o que estudei ontem
+            //
+            // ele pode pesquisar imediatamente.
             //
             // ======================================================
 
@@ -1669,15 +1997,6 @@ extension _BrainScreenVisualSearch
             // ==================================================
             // DIGITAÇÃO
             // ==================================================
-            //
-            // Aqui NÃO pesquisamos mais imediatamente.
-            //
-            // 1. atualizamos o texto visual;
-            // 2. apagamos a consulta confirmada;
-            // 3. escondemos resultados anteriores;
-            // 4. iniciamos/reiniciamos o debounce.
-            //
-            // ==================================================
             onChanged:
                 (
                   value,
@@ -1690,19 +2009,9 @@ extension _BrainScreenVisualSearch
                     () {
                       _searchQuery = value;
 
-                      // =================================================
-                      // MUITO IMPORTANTE
-                      // =================================================
-                      //
-                      // Enquanto existe uma nova digitação, a pesquisa
-                      // anterior deixa de representar o que está no campo.
-                      //
-                      // Por isso limpamos a consulta confirmada.
-                      //
-                      // Isso impede resultados antigos de permanecerem
-                      // visíveis enquanto o usuário formula outra busca.
-                      //
-                      // =================================================
+                      // Enquanto existe uma nova digitação,
+                      // resultados anteriores deixam de representar
+                      // o conteúdo atual do campo.
 
                       _committedSearchQuery = '';
 
@@ -1726,12 +2035,6 @@ extension _BrainScreenVisualSearch
             // ==================================================
             // ENTER / SEARCH DO TECLADO
             // ==================================================
-            //
-            // Aqui a intenção do usuário é explícita.
-            //
-            // Portanto confirmamos imediatamente.
-            //
-            // ==================================================
             onSubmitted:
                 (
                   value,
@@ -1754,10 +2057,6 @@ extension _BrainScreenVisualSearch
                   : IconButton(
                       tooltip: 'Limpar pesquisa',
                       onPressed: () {
-                        // ===========================================
-                        // CANCELAR QUALQUER PESQUISA PENDENTE
-                        // ===========================================
-
                         _searchDebounceTimer?.cancel();
 
                         _brainSearchPulseStopTimer?.cancel();
@@ -1767,7 +2066,9 @@ extension _BrainScreenVisualSearch
                         _mutateState(
                           () {
                             _searchQuery = '';
+
                             _committedSearchQuery = '';
+
                             _showAllSearchResults = false;
                           },
                         );
@@ -1833,20 +2134,6 @@ extension _BrainScreenVisualSearch
   Widget _buildSearchResults(
     BuildContext context,
   ) {
-    // ==========================================================
-    // PRIMEIRO ANALISAMOS O TEXTO QUE ESTÁ NO CAMPO
-    // ==========================================================
-    //
-    // Isso é diferente da consulta confirmada.
-    //
-    // Precisamos do texto atual para saber se:
-    //
-    // - a frase está incompleta;
-    // - falta o assunto;
-    // - o usuário ainda está digitando.
-    //
-    // ==========================================================
-
     final inputState = _brainSearchInputState(
       _searchQuery,
     );
@@ -1860,13 +2147,7 @@ extension _BrainScreenVisualSearch
     }
 
     // ==========================================================
-    // FRASE AINDA SENDO FORMULADA
-    // ==========================================================
-    //
-    // Exemplo:
-    //
-    // onde eu falei d
-    //
+    // MODELO AINDA SENDO DIGITADO
     // ==========================================================
 
     if (inputState.isIncomplete) {
@@ -1874,17 +2155,23 @@ extension _BrainScreenVisualSearch
         context: context,
         icon: Icons.edit_rounded,
         title: 'Continue digitando',
-        message: 'Complete a frase para iniciar a pesquisa.',
+        message: 'Complete a estrutura para iniciar a pesquisa.',
       );
     }
 
     // ==========================================================
-    // MODELO COMPLETO, MAS SEM ASSUNTO
+    // MODELO COMPLETO, MAS FALTA COMPLEMENTO
     // ==========================================================
     //
-    // Exemplo:
+    // Usamos uma mensagem genérica para não precisar repetir:
     //
-    // onde eu falei de
+    // "digite um assunto"
+    //
+    // ou:
+    //
+    // "digite uma data"
+    //
+    // em cada tipo de estrutura.
     //
     // ==========================================================
 
@@ -1892,35 +2179,13 @@ extension _BrainScreenVisualSearch
       return _buildSearchWaitingCard(
         context: context,
         icon: Icons.search_rounded,
-        title: 'Qual assunto você procura?',
-        message: 'Complete com o assunto que deseja pesquisar.',
+        title: 'Complete a pesquisa',
+        message: 'Adicione o que falta depois da estrutura para pesquisar.',
       );
     }
 
     // ==========================================================
     // USUÁRIO AINDA ESTÁ DIGITANDO
-    // ==========================================================
-    //
-    // Este é o comportamento principal da correção.
-    //
-    // Exemplo:
-    //
-    // m
-    // me
-    // mem
-    // memó
-    // memória
-    //
-    // Enquanto o debounce ainda não terminou:
-    //
-    // NÃO mostramos:
-    //
-    // - resultados antigos;
-    // - "Nenhum resultado";
-    // - resultados parciais.
-    //
-    // A interface fica limpa.
-    //
     // ==========================================================
 
     if (_isSearchWaitingForDebounce) {
@@ -1936,7 +2201,7 @@ extension _BrainScreenVisualSearch
     }
 
     // ==========================================================
-    // EXECUTAR / MOSTRAR RESULTADO CONFIRMADO
+    // RESULTADO CONFIRMADO
     // ==========================================================
 
     final response = _searchResponse;
@@ -2334,6 +2599,7 @@ extension _BrainScreenVisualSearch
                           icon: Icons.calendar_today_outlined,
                           text: 'Criado em ${_formatSearchDate(note.createdAt)}',
                         ),
+
                         _buildSearchMeta(
                           context: context,
                           icon: Icons.update_rounded,
@@ -2346,6 +2612,7 @@ extension _BrainScreenVisualSearch
                       const SizedBox(
                         height: 8,
                       ),
+
                       _buildHighlightedSearchText(
                         context: context,
                         text: _previewContentForSearch(
@@ -2436,6 +2703,26 @@ class _BrainSearchHighlightMatch {
 //
 // Representa o estado da frase antes de enviá-la ao parser.
 //
+// effectiveQuery:
+//
+//   conteúdo que veio depois de uma estrutura obrigatória.
+//
+// originalQuery:
+//
+//   frase completa.
+//
+// IMPORTANTE:
+//
+// O effectiveQuery serve para saber se a estrutura foi completada.
+//
+// O parser recebe originalQuery para não perder:
+//
+// - tipo;
+// - data;
+// - quantidade;
+// - recência;
+// - intenção.
+//
 // ============================================================
 
 class _BrainSearchInputState {
@@ -2500,12 +2787,16 @@ class _BrainSearchInputState {
   }
 
   final String originalQuery;
+
   final String effectiveQuery;
 
   final bool canSearch;
+
   final bool isIncomplete;
+
   final bool isWaitingSubject;
 
   final String? recognizedPrefix;
+
   final String? expectedPrefix;
 }

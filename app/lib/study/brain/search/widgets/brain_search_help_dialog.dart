@@ -7,15 +7,37 @@ import 'package:flutter/services.dart';
 //
 // Modal de ajuda da busca natural.
 //
-// Objetivos:
+// OBJETIVO:
 //
-// - ensinar o usuário a pesquisar;
-// - não induzir assuntos específicos;
-// - mostrar modelos de pesquisa;
-// - manter as seções compactas por padrão;
-// - permitir expandir somente o que o usuário quiser;
-// - permitir copiar a frase;
-// - permitir usar a frase diretamente no campo de pesquisa.
+// Ensinar COMO pesquisar sem transformar os próprios modelos
+// em conteúdo pesquisável.
+//
+// REGRA VISUAL:
+//
+// modelos terminados em:
+//
+// …
+//
+// ainda precisam ser completados.
+//
+// Exemplo visual:
+//
+// perguntas sobre…
+//
+// Texto realmente enviado para o campo:
+//
+// perguntas sobre
+//
+// O caractere "…" é apenas uma indicação visual.
+//
+// Pesquisas que já são completas não recebem reticências:
+//
+// o que estudei ontem
+//
+// Dessa forma o usuário consegue distinguir imediatamente:
+//
+// - estruturas que precisam de complemento;
+// - consultas que já podem ser executadas.
 //
 // ============================================================
 
@@ -90,8 +112,6 @@ class _BrainSearchHelpDialogState
   // int:
   // somente a seção correspondente fica aberta.
   //
-  // Isso mantém o modal pequeno e evita excesso de informação.
-  //
   // ============================================================
 
   int? _expandedSectionIndex;
@@ -155,7 +175,7 @@ class _BrainSearchHelpDialogState
                           ),
 
                           Text(
-                            'Pesquise naturalmente ou use os modelos abaixo.',
+                            'Use os modelos abaixo como ponto de partida.',
                             style: theme.textTheme.bodySmall,
                           ),
                         ],
@@ -199,7 +219,7 @@ class _BrainSearchHelpDialogState
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // ==========================================
-                      // INTRO
+                      // REGRA GERAL
                       // ==========================================
                       _buildIntroCard(
                         context,
@@ -248,6 +268,16 @@ class _BrainSearchHelpDialogState
   // ============================================================
   // INTRO
   // ============================================================
+  //
+  // Uma única explicação para todo o modal.
+  //
+  // Evita repetir:
+  //
+  // "complete com..."
+  //
+  // dentro de cada categoria.
+  //
+  // ============================================================
 
   Widget _buildIntroCard(
     BuildContext context,
@@ -276,12 +306,30 @@ class _BrainSearchHelpDialogState
           ),
         ),
       ),
-      child: Text(
-        'Você não precisa decorar comandos. Escolha um modelo, '
-        'complete com o que procura e pesquise.',
-        style: theme.textTheme.bodySmall?.copyWith(
-          height: 1.4,
-        ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.info_outline_rounded,
+            size: 18,
+            color: colorScheme.primary,
+          ),
+
+          const SizedBox(
+            width: 9,
+          ),
+
+          Expanded(
+            child: Text(
+              'Os modelos definem como pesquisar. '
+              'Quando houver “…”, complete com o que estiver faltando. '
+              'A pesquisa só começa quando a estrutura estiver completa.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -471,7 +519,7 @@ class _BrainSearchHelpDialogState
 
   Widget _buildExampleCard({
     required BuildContext context,
-    required String example,
+    required _SearchHelpExample example,
   }) {
     final theme = Theme.of(
       context,
@@ -505,8 +553,23 @@ class _BrainSearchHelpDialogState
           // MODELO
           // ====================================================
           Expanded(
-            child: SelectableText(
-              example,
+            child: SelectableText.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: example.text,
+                  ),
+
+                  if (example.requiresCompletion)
+                    TextSpan(
+                      text: '…',
+                      style: TextStyle(
+                        color: colorScheme.primary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                ],
+              ),
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
@@ -520,6 +583,12 @@ class _BrainSearchHelpDialogState
           // ====================================================
           // COPIAR
           // ====================================================
+          //
+          // Copiamos somente o texto real.
+          //
+          // As reticências NÃO fazem parte da consulta.
+          //
+          // ====================================================
           IconButton(
             tooltip: 'Copiar',
             visualDensity: VisualDensity.compact,
@@ -530,7 +599,7 @@ class _BrainSearchHelpDialogState
             onPressed: () async {
               await Clipboard.setData(
                 ClipboardData(
-                  text: example,
+                  text: example.text,
                 ),
               );
 
@@ -566,6 +635,26 @@ class _BrainSearchHelpDialogState
           // ====================================================
           // USAR
           // ====================================================
+          //
+          // Modelo incompleto:
+          //
+          // "perguntas sobre"
+          //
+          // enviamos:
+          //
+          // "perguntas sobre "
+          //
+          // para o cursor ficar pronto para o complemento.
+          //
+          // ----------------------------------------------------
+          //
+          // Pesquisa completa:
+          //
+          // "o que estudei ontem"
+          //
+          // enviamos exatamente a consulta.
+          //
+          // ====================================================
           FilledButton.tonalIcon(
             style: FilledButton.styleFrom(
               visualDensity: VisualDensity.compact,
@@ -579,8 +668,12 @@ class _BrainSearchHelpDialogState
                 context,
               ).pop();
 
+              final query = example.requiresCompletion
+                  ? '${example.text} '
+                  : example.text;
+
               widget.onUseExample(
-                '$example ',
+                query,
               );
             },
             icon: const Icon(
@@ -600,20 +693,21 @@ class _BrainSearchHelpDialogState
   // DATA
   // ============================================================
   //
-  // Os exemplos abaixo são propositalmente incompletos.
+  // requiresCompletion = true
   //
-  // Não usamos:
+  // Significa que aquele modelo NÃO é uma pesquisa completa.
   //
-  // - Redis
-  // - C++
-  // - Flutter
-  // - Linux
-  // - TCP
-  // - datas específicas
-  // - assuntos inventados
+  // Visualmente mostramos:
   //
-  // Assim o Brain ensina COMO pesquisar sem sugerir O QUE
-  // o usuário deveria pesquisar.
+  // …
+  //
+  // mas isso nunca é enviado para o campo.
+  //
+  // ------------------------------------------------------------
+  //
+  // requiresCompletion = false
+  //
+  // A frase já possui informação suficiente para pesquisar.
   //
   // ============================================================
 
@@ -629,10 +723,22 @@ class _BrainSearchHelpDialogState
       description: 'Procure por qualquer assunto.',
       icon: Icons.search_rounded,
       examples: [
-        'algo sobre',
-        'onde eu falei de',
-        'aquele conteúdo sobre',
-        'a anotação que falava de',
+        _SearchHelpExample(
+          text: 'algo sobre',
+          requiresCompletion: true,
+        ),
+        _SearchHelpExample(
+          text: 'onde eu falei de',
+          requiresCompletion: true,
+        ),
+        _SearchHelpExample(
+          text: 'aquele conteúdo sobre',
+          requiresCompletion: true,
+        ),
+        _SearchHelpExample(
+          text: 'a anotação que falava de',
+          requiresCompletion: true,
+        ),
       ],
     ),
 
@@ -644,10 +750,22 @@ class _BrainSearchHelpDialogState
       description: 'Pesquise por um tipo específico.',
       icon: Icons.category_outlined,
       examples: [
-        'conceitos sobre',
-        'perguntas sobre',
-        'exemplos sobre',
-        'atenções sobre',
+        _SearchHelpExample(
+          text: 'conceitos sobre',
+          requiresCompletion: true,
+        ),
+        _SearchHelpExample(
+          text: 'perguntas sobre',
+          requiresCompletion: true,
+        ),
+        _SearchHelpExample(
+          text: 'exemplos sobre',
+          requiresCompletion: true,
+        ),
+        _SearchHelpExample(
+          text: 'atenções sobre',
+          requiresCompletion: true,
+        ),
       ],
     ),
 
@@ -659,10 +777,25 @@ class _BrainSearchHelpDialogState
       description: 'Procure pelo que registrou em um período.',
       icon: Icons.calendar_today_outlined,
       examples: [
-        'o que eu fiz no dia',
-        'o que estudei ontem',
-        'o que anotei essa semana',
-        'o que vi no mês passado',
+        _SearchHelpExample(
+          text: 'o que eu fiz no dia',
+          requiresCompletion: true,
+        ),
+
+        // Já é uma pesquisa completa.
+        _SearchHelpExample(
+          text: 'o que estudei ontem',
+        ),
+
+        // Já é uma pesquisa completa.
+        _SearchHelpExample(
+          text: 'o que anotei essa semana',
+        ),
+
+        // Já é uma pesquisa completa.
+        _SearchHelpExample(
+          text: 'o que vi no mês passado',
+        ),
       ],
     ),
 
@@ -674,10 +807,26 @@ class _BrainSearchHelpDialogState
       description: 'Combine a pesquisa com manhã, tarde ou noite.',
       icon: Icons.schedule_rounded,
       examples: [
-        'o que eu estudei de manhã',
-        'o que fiz hoje à tarde',
-        'o que anotei ontem à noite',
-        'o que anotei na manhã de',
+        // Completa.
+        _SearchHelpExample(
+          text: 'o que eu estudei de manhã',
+        ),
+
+        // Completa.
+        _SearchHelpExample(
+          text: 'o que fiz hoje à tarde',
+        ),
+
+        // Completa.
+        _SearchHelpExample(
+          text: 'o que anotei ontem à noite',
+        ),
+
+        // Precisa de uma data.
+        _SearchHelpExample(
+          text: 'o que anotei na manhã de',
+          requiresCompletion: true,
+        ),
       ],
     ),
 
@@ -689,9 +838,18 @@ class _BrainSearchHelpDialogState
       description: 'Encontre o que viu mais recentemente.',
       icon: Icons.history_rounded,
       examples: [
-        'o que estudei recentemente sobre',
-        'minhas últimas anotações sobre',
-        'o que eu vi por último sobre',
+        _SearchHelpExample(
+          text: 'o que estudei recentemente sobre',
+          requiresCompletion: true,
+        ),
+        _SearchHelpExample(
+          text: 'minhas últimas anotações sobre',
+          requiresCompletion: true,
+        ),
+        _SearchHelpExample(
+          text: 'o que eu vi por último sobre',
+          requiresCompletion: true,
+        ),
       ],
     ),
 
@@ -703,9 +861,22 @@ class _BrainSearchHelpDialogState
       description: 'Escolha quantos resultados deseja encontrar.',
       icon: Icons.format_list_numbered_rounded,
       examples: [
-        'me mostre 5 resultados sobre',
-        'me mostre 3 perguntas sobre',
-        'mostre só 10 resultados',
+        // Precisa do assunto.
+        _SearchHelpExample(
+          text: 'me mostre 5 resultados sobre',
+          requiresCompletion: true,
+        ),
+
+        // Precisa do assunto.
+        _SearchHelpExample(
+          text: 'me mostre 3 perguntas sobre',
+          requiresCompletion: true,
+        ),
+
+        // Já é completa.
+        _SearchHelpExample(
+          text: 'mostre só 10 resultados',
+        ),
       ],
     ),
 
@@ -717,9 +888,18 @@ class _BrainSearchHelpDialogState
       description: 'Consulte o que o seu Cérebro já possui.',
       icon: Icons.psychology_alt_outlined,
       examples: [
-        'o que eu já sei sobre',
-        'o que eu já aprendi sobre',
-        'o que eu já anotei sobre',
+        _SearchHelpExample(
+          text: 'o que eu já sei sobre',
+          requiresCompletion: true,
+        ),
+        _SearchHelpExample(
+          text: 'o que eu já aprendi sobre',
+          requiresCompletion: true,
+        ),
+        _SearchHelpExample(
+          text: 'o que eu já anotei sobre',
+          requiresCompletion: true,
+        ),
       ],
     ),
   ];
@@ -744,7 +924,49 @@ class _SearchHelpSection {
   final IconData icon;
 
   final List<
-    String
+    _SearchHelpExample
   >
   examples;
+}
+
+// ============================================================
+// SEARCH HELP EXAMPLE
+// ============================================================
+//
+// Representa um modelo mostrado na interface.
+//
+// text:
+//
+// texto REAL que será copiado/enviado.
+//
+// requiresCompletion:
+//
+// true:
+//
+//   o modelo ainda precisa receber informação.
+//
+//   visualmente:
+//   perguntas sobre…
+//
+//   realmente enviado:
+//   perguntas sobre
+//
+// false:
+//
+//   a consulta já é completa.
+//
+//   exemplo:
+//   o que estudei ontem
+//
+// ============================================================
+
+class _SearchHelpExample {
+  const _SearchHelpExample({
+    required this.text,
+    this.requiresCompletion = false,
+  });
+
+  final String text;
+
+  final bool requiresCompletion;
 }

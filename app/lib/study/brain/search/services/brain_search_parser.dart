@@ -53,6 +53,14 @@ import '../utils/brain_search_normalizer.dart';
 // -> período = 01/09/2026
 // -> terms = []
 //
+// "o que eu fiz no dia 16"
+// -> dia 16 do mês/ano atual
+// -> terms = []
+//
+// "o que eu fiz em 16/09"
+// -> 16/09 do ano atual
+// -> terms = []
+//
 // "o que estudei recentemente sobre C++"
 // -> sort = newest
 // -> limit = 5
@@ -111,23 +119,6 @@ class BrainSearchParser {
   // ============================================================
   // STOP WORDS
   // ============================================================
-  //
-  // Palavras estruturais da frase.
-  //
-  // Elas ajudam o usuário a escrever naturalmente, mas não
-  // representam necessariamente o assunto procurado.
-  //
-  // Exemplo:
-  //
-  // "quando eu falei de esp"
-  //
-  // quando -> estrutura
-  // eu      -> estrutura
-  // falei   -> intenção
-  // de      -> estrutura
-  // esp     -> termo pesquisável
-  //
-  // ============================================================
 
   static const Set<
     String
@@ -181,23 +172,7 @@ class BrainSearchParser {
     'quais',
 
     // ==========================================================
-    // CORREÇÃO — QUANDO
-    // ==========================================================
-    //
-    // "quando" descreve a intenção/estrutura da consulta.
-    //
-    // Não deve virar termo pesquisável.
-    //
-    // "quando eu falei de esp"
-    //
-    // deve produzir:
-    //
-    // ["esp"]
-    //
-    // e nunca:
-    //
-    // ["quando", "esp"]
-    //
+    // QUANDO
     // ==========================================================
     'quando',
 
@@ -237,12 +212,7 @@ class BrainSearchParser {
     'ja',
 
     // ==========================================================
-    // FONTES DO CONHECIMENTO
-    // ==========================================================
-    //
-    // Estas palavras representam a intenção de procurar a origem
-    // do conhecimento, não o conteúdo principal procurado.
-    //
+    // FONTES
     // ==========================================================
     'fonte',
     'fontes',
@@ -306,7 +276,7 @@ class BrainSearchParser {
     'revisao': BrainConceptType.question,
     'revisoes': BrainConceptType.question,
 
-    // Mantidos por compatibilidade com dados antigos.
+    // Compatibilidade com dados antigos.
     'exemplo': BrainConceptType.example,
     'exemplos': BrainConceptType.example,
     'pratica': BrainConceptType.example,
@@ -353,35 +323,12 @@ class BrainSearchParser {
   // ============================================================
   // NATURAL SEARCH PHRASES
   // ============================================================
-  //
-  // Frases que descrevem COMO o usuário está procurando.
-  //
-  // Elas não fazem parte do assunto.
-  //
-  // Isso complementa as stop words e torna o parser mais
-  // previsível para os modelos ensinados no modal de ajuda.
-  //
-  // Exemplo:
-  //
-  // "quando eu falei de esp"
-  //
-  // remove:
-  //
-  // "quando eu falei de"
-  //
-  // preserva:
-  //
-  // "esp"
-  //
-  // ============================================================
 
   static const Set<
     String
   >
   _naturalSearchPhrases = {
-    // ----------------------------------------------------------
     // FALAR
-    // ----------------------------------------------------------
     'onde eu falei de',
     'onde falei de',
     'quando eu falei de',
@@ -392,9 +339,7 @@ class BrainSearchParser {
     'quando eu falei sobre',
     'quando falei sobre',
 
-    // ----------------------------------------------------------
     // ANOTAR
-    // ----------------------------------------------------------
     'onde eu anotei sobre',
     'onde anotei sobre',
     'quando eu anotei sobre',
@@ -405,9 +350,7 @@ class BrainSearchParser {
     'quando eu anotei',
     'quando anotei',
 
-    // ----------------------------------------------------------
     // ESCREVER / GUARDAR
-    // ----------------------------------------------------------
     'onde eu escrevi sobre',
     'onde escrevi sobre',
     'quando eu escrevi sobre',
@@ -418,26 +361,20 @@ class BrainSearchParser {
     'quando eu guardei',
     'quando guardei',
 
-    // ----------------------------------------------------------
     // AÇÕES / HISTÓRICO
-    // ----------------------------------------------------------
     'o que eu fiz sobre',
     'o que fiz sobre',
     'o que eu fiz',
     'o que fiz',
 
-    // ----------------------------------------------------------
     // CONTEÚDO
-    // ----------------------------------------------------------
     'algo sobre',
     'aquele conteudo sobre',
     'aquela anotacao sobre',
     'a anotacao que falava de',
     'a anotacao que falava sobre',
 
-    // ----------------------------------------------------------
     // BUSCA DIRETA
-    // ----------------------------------------------------------
     'procure por',
     'procurar por',
     'pesquise por',
@@ -448,19 +385,6 @@ class BrainSearchParser {
 
   // ============================================================
   // SOURCE INTENT PHRASES
-  // ============================================================
-  //
-  // FASE 13 — FONTES DO CONHECIMENTO
-  //
-  // Não criamos um novo BrainSearchIntent ainda.
-  //
-  // O objetivo desta etapa é transformar frases de origem em
-  // termos limpos que o BrainSearchEngine já consegue procurar em:
-  //
-  // - source.title;
-  // - source.author;
-  // - source.reference.
-  //
   // ============================================================
 
   static const Set<
@@ -584,21 +508,6 @@ class BrainSearchParser {
     // ==========================================================
     // FRASES A REMOVER
     // ==========================================================
-    //
-    // Agora também removemos explicitamente as frases naturais
-    // de busca.
-    //
-    // Isso torna:
-    //
-    // quando eu falei de esp
-    //
-    // em:
-    //
-    // esp
-    //
-    // antes da tokenização.
-    //
-    // ==========================================================
 
     final phrasesToRemove =
         <
@@ -637,9 +546,7 @@ class BrainSearchParser {
         >[];
 
     for (final token in tokens) {
-      // ========================================================
       // STOP WORD
-      // ========================================================
 
       if (_stopWords.contains(
         token,
@@ -647,9 +554,7 @@ class BrainSearchParser {
         continue;
       }
 
-      // ========================================================
       // TYPE
-      // ========================================================
 
       if (_typeTokens.containsKey(
         token,
@@ -657,9 +562,7 @@ class BrainSearchParser {
         continue;
       }
 
-      // ========================================================
       // DATE
-      // ========================================================
 
       if (_dateVocabulary.contains(
         token,
@@ -667,9 +570,7 @@ class BrainSearchParser {
         continue;
       }
 
-      // ========================================================
       // LIMIT
-      // ========================================================
 
       if (_looksLikeStandaloneLimitNumber(
         token: token,
@@ -679,9 +580,7 @@ class BrainSearchParser {
         continue;
       }
 
-      // ========================================================
       // TERM
-      // ========================================================
 
       if (!terms.contains(
         token,
@@ -809,9 +708,7 @@ class BrainSearchParser {
   _BrainSearchRecencyResult _parseRecency(
     String normalized,
   ) {
-    // ==========================================================
-    // "ÚLTIMOS N DIAS" É PERÍODO, NÃO LIMIT
-    // ==========================================================
+    // "ÚLTIMOS N DIAS" É PERÍODO, NÃO LIMIT.
 
     final lastDaysPattern = RegExp(
       r'\bultim(?:os|as)\s+\d{1,3}\s+dias\b',
@@ -1028,11 +925,12 @@ class BrainSearchParser {
     );
 
     // ==========================================================
-    // DATA ABSOLUTA
+    // DATA ABSOLUTA / PARCIAL / DIA DO MÊS
     // ==========================================================
 
     final absoluteDate = _parseAbsoluteDate(
       rawQuery,
+      now: now,
     );
 
     if (absoluteDate !=
@@ -1121,34 +1019,6 @@ class BrainSearchParser {
         dayStart: today,
         normalized: normalized,
         basePhrase: 'hoje',
-      );
-    }
-
-    // ==========================================================
-    // PERÍODO DO DIA SEM DATA EXPLÍCITA
-    // ==========================================================
-    //
-    // "o que estudei de manhã?"
-    //
-    // assume hoje.
-    //
-    // ==========================================================
-
-    final standaloneDayPart = _parseDayPart(
-      normalized,
-    );
-
-    if (standaloneDayPart.value !=
-        _BrainSearchDayPart.none) {
-      final range = _applyDayPart(
-        dayStart: today,
-        dayPart: standaloneDayPart,
-      );
-
-      return _BrainSearchDateFilter(
-        startDate: range.startDate,
-        endDate: range.endDate,
-        consumedPhrases: standaloneDayPart.consumedPhrases,
       );
     }
 
@@ -1319,6 +1189,37 @@ class BrainSearchParser {
       }
     }
 
+    // ==========================================================
+    // PERÍODO DO DIA SEM DATA EXPLÍCITA
+    // ==========================================================
+    //
+    // IMPORTANTE:
+    //
+    // Isso fica depois dos períodos maiores.
+    //
+    // "o que estudei de manhã"
+    // -> hoje de manhã.
+    //
+    // ==========================================================
+
+    final standaloneDayPart = _parseDayPart(
+      normalized,
+    );
+
+    if (standaloneDayPart.value !=
+        _BrainSearchDayPart.none) {
+      final range = _applyDayPart(
+        dayStart: today,
+        dayPart: standaloneDayPart,
+      );
+
+      return _BrainSearchDateFilter(
+        startDate: range.startDate,
+        endDate: range.endDate,
+        consumedPhrases: standaloneDayPart.consumedPhrases,
+      );
+    }
+
     return const _BrainSearchDateFilter();
   }
 
@@ -1456,10 +1357,30 @@ class BrainSearchParser {
   // ============================================================
   // ABSOLUTE DATE
   // ============================================================
+  //
+  // Reconhece:
+  //
+  // 16/09/2026
+  // 16-09-2026
+  // 16.09.2026
+  //
+  // 2026-09-16
+  //
+  // 16/09
+  // 16.09
+  //
+  // dia 16
+  //
+  // ============================================================
 
   _BrainSearchAbsoluteDate? _parseAbsoluteDate(
-    String rawQuery,
-  ) {
+    String rawQuery, {
+    required DateTime now,
+  }) {
+    // ==========================================================
+    // 1. DATA COMPLETA BR — DD/MM/AAAA
+    // ==========================================================
+
     final brPattern = RegExp(
       r'(?<!\d)(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})(?!\d)',
     );
@@ -1509,6 +1430,10 @@ class BrainSearchParser {
         );
       }
     }
+
+    // ==========================================================
+    // 2. DATA ISO — AAAA-MM-DD
+    // ==========================================================
 
     final isoPattern = RegExp(
       r'(?<!\d)(\d{4})-(\d{1,2})-(\d{1,2})(?!\d)',
@@ -1560,8 +1485,130 @@ class BrainSearchParser {
       }
     }
 
+    // ==========================================================
+    // 3. DATA SEM ANO — DD/MM
+    // ==========================================================
+    //
+    // Exemplo:
+    //
+    // "o que fiz em 16/09"
+    //
+    // Assume o ano atual.
+    //
+    // ==========================================================
+
+    final dayMonthPattern = RegExp(
+      r'(?<!\d)(\d{1,2})[\/\.](\d{1,2})(?![\/\.\-\d])',
+    );
+
+    final dayMonthMatch = dayMonthPattern.firstMatch(
+      rawQuery,
+    );
+
+    if (dayMonthMatch !=
+        null) {
+      final day = int.tryParse(
+        dayMonthMatch.group(
+              1,
+            ) ??
+            '',
+      );
+
+      final month = int.tryParse(
+        dayMonthMatch.group(
+              2,
+            ) ??
+            '',
+      );
+
+      final date = _safeDate(
+        year: now.year,
+        month: month,
+        day: day,
+      );
+
+      if (date !=
+          null) {
+        return _BrainSearchAbsoluteDate(
+          date: date,
+          matchedText:
+              dayMonthMatch.group(
+                0,
+              ) ??
+              '',
+        );
+      }
+    }
+
+    // ==========================================================
+    // 4. DIA DO MÊS — "DIA 16"
+    // ==========================================================
+    //
+    // Exemplos:
+    //
+    // "o que eu fiz no dia 16"
+    // "o que fiz dia 16"
+    // "o que aprendi no dia 19"
+    //
+    // Assume mês e ano atuais.
+    //
+    // A expressão "dia 16" inteira será adicionada às frases
+    // consumidas.
+    //
+    // Assim o número "16" não chega em terms.
+    //
+    // Isso impede falsos resultados como:
+    //
+    // 192.168...
+    // 160 BPM
+    // porta 16
+    // versão 16
+    //
+    // ==========================================================
+
+    final dayOnlyPattern = RegExp(
+      r'\bdia\s+(\d{1,2})\b',
+      caseSensitive: false,
+    );
+
+    final dayOnlyMatch = dayOnlyPattern.firstMatch(
+      rawQuery,
+    );
+
+    if (dayOnlyMatch !=
+        null) {
+      final day = int.tryParse(
+        dayOnlyMatch.group(
+              1,
+            ) ??
+            '',
+      );
+
+      final date = _safeDate(
+        year: now.year,
+        month: now.month,
+        day: day,
+      );
+
+      if (date !=
+          null) {
+        return _BrainSearchAbsoluteDate(
+          date: date,
+          matchedText:
+              dayOnlyMatch.group(
+                0,
+              ) ??
+              '',
+        );
+      }
+    }
+
     return null;
   }
+
+  // ============================================================
+  // SAFE DATE
+  // ============================================================
 
   DateTime? _safeDate({
     required int? year,

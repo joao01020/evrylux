@@ -119,10 +119,8 @@ extension _BrainScreenLayout
     void
   >
   _showBrainDashboard() async {
-    // ==========================================================
-    // BLOQUEAR ABERTURA DUPLICADA
-    // ==========================================================
-
+    // O Dashboard agora abre imediatamente e não executa consultas
+    // de contagem. Por enquanto, exibe somente a área "Explorar".
     if (!mounted ||
         _controller.isSaving ||
         _isBrainDashboardOpening) {
@@ -134,37 +132,6 @@ extension _BrainScreenLayout
     );
 
     try {
-      // ========================================================
-      // CARREGAR CONTAGENS REAIS
-      // ========================================================
-
-      final results =
-          await Future.wait<
-            List<
-              BrainConcept
-            >
-          >(
-            [
-              _controller.loadConceptsByType(
-                BrainConceptType.concept,
-              ),
-              _controller.loadConceptsByType(
-                BrainConceptType.question,
-              ),
-            ],
-          );
-
-      if (!mounted) {
-        return;
-      }
-
-      final int conceptCount = results[0].length;
-      final int questionCount = results[1].length;
-
-      // ========================================================
-      // ABRIR DASHBOARD
-      // ========================================================
-
       await showDialog<
         void
       >(
@@ -187,8 +154,6 @@ extension _BrainScreenLayout
                   ),
                   child: _buildBrainDashboardContent(
                     dialogContext,
-                    conceptCount: conceptCount,
-                    questionCount: questionCount,
                   ),
                 ),
               );
@@ -206,10 +171,6 @@ extension _BrainScreenLayout
         stackTrace: stackTrace,
       );
     } finally {
-      // ========================================================
-      // LIBERAR NOVA ABERTURA
-      // ========================================================
-
       if (mounted) {
         _setBrainDashboardOpening(
           false,
@@ -225,10 +186,8 @@ extension _BrainScreenLayout
   // ============================================================
 
   Widget _buildBrainDashboardContent(
-    BuildContext dialogContext, {
-    required int conceptCount,
-    required int questionCount,
-  }) {
+    BuildContext dialogContext,
+  ) {
     return Material(
       color: Theme.of(
         dialogContext,
@@ -292,70 +251,7 @@ extension _BrainScreenLayout
             ),
 
             // ==================================================
-            // VISÃO GERAL
-            // ==================================================
-            Text(
-              'Visão geral',
-              style:
-                  Theme.of(
-                    dialogContext,
-                  ).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-
-            const SizedBox(
-              height: 10,
-            ),
-
-            Row(
-              children: [
-                // ==============================================
-                // CONCEITOS
-                // ==============================================
-                Expanded(
-                  child: _buildBrainDashboardMetric(
-                    context: dialogContext,
-                    value: conceptCount,
-                    label: 'conceitos',
-                    icon: BrainConceptType.concept.icon,
-                    color: BrainConceptType.concept.color,
-                  ),
-                ),
-
-                const SizedBox(
-                  width: 10,
-                ),
-
-                // ==============================================
-                // PERGUNTAS
-                // ==============================================
-                Expanded(
-                  child: _buildBrainDashboardMetric(
-                    context: dialogContext,
-                    value: questionCount,
-                    label: 'perguntas',
-                    icon: BrainConceptType.question.icon,
-                    color: BrainConceptType.question.color,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(
-              height: 20,
-            ),
-
-            const Divider(
-              height: 1,
-            ),
-
-            const SizedBox(
-              height: 20,
-            ),
-
-            // ==================================================
-            // EXPLORAR + ATALHOS
+            // EXPLORAR
             // ==================================================
             Row(
               children: [
@@ -371,62 +267,26 @@ extension _BrainScreenLayout
                   ),
                 ),
 
-                // ==============================================
-                // CONCEITO
-                // ==============================================
                 _buildBrainDashboardTypeShortcut(
                   context: dialogContext,
                   type: BrainConceptType.concept,
                 ),
 
-                // ==============================================
-                // PERGUNTA
-                // ==============================================
                 _buildBrainDashboardTypeShortcut(
                   context: dialogContext,
                   type: BrainConceptType.question,
                 ),
 
-                // ==============================================
-                // EXEMPLO
-                // ==============================================
                 _buildBrainDashboardTypeShortcut(
                   context: dialogContext,
                   type: BrainConceptType.example,
                 ),
 
-                // ==============================================
-                // ATENÇÃO
-                // ==============================================
                 _buildBrainDashboardTypeShortcut(
                   context: dialogContext,
                   type: BrainConceptType.warning,
                 ),
               ],
-            ),
-
-            const SizedBox(
-              height: 8,
-            ),
-
-            // ==================================================
-            // MAPA DO CONHECIMENTO
-            // ==================================================
-            _buildBrainDashboardAction(
-              context: dialogContext,
-              icon: Icons.hub_outlined,
-              iconColor: Theme.of(
-                dialogContext,
-              ).colorScheme.primary,
-              title: 'Mapa do conhecimento',
-              subtitle: 'Explore visualmente o seu Brain',
-              onTap: () {
-                Navigator.of(
-                  dialogContext,
-                ).pop();
-
-                _focusBrainVisual();
-              },
             ),
           ],
         ),
@@ -471,243 +331,6 @@ extension _BrainScreenLayout
         ),
       ),
     );
-  }
-
-  // ============================================================
-  // DASHBOARD METRIC
-  // ============================================================
-  //
-  // Versão compacta dos cards da "Visão geral".
-  //
-  // Antes:
-  // - padding 16
-  // - ícone 38 x 38
-  // - número titleLarge
-  //
-  // Agora:
-  // - padding vertical 10
-  // - ícone 30 x 30
-  // - número 18
-  //
-  // ============================================================
-
-  Widget _buildBrainDashboardMetric({
-    required BuildContext context,
-    required int value,
-    required String label,
-    required IconData icon,
-    required Color color,
-  }) {
-    final colorScheme = Theme.of(
-      context,
-    ).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 10,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(
-          alpha: 0.07,
-        ),
-        borderRadius: BorderRadius.circular(
-          12,
-        ),
-        border: Border.all(
-          color: color.withValues(
-            alpha: 0.20,
-          ),
-        ),
-      ),
-      child: Row(
-        children: [
-          // ====================================================
-          // ÍCONE COMPACTO
-          // ====================================================
-          Container(
-            width: 30,
-            height: 30,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: color.withValues(
-                alpha: 0.10,
-              ),
-              borderRadius: BorderRadius.circular(
-                8,
-              ),
-            ),
-            child: Icon(
-              icon,
-              size: 17,
-              color: color,
-            ),
-          ),
-
-          const SizedBox(
-            width: 9,
-          ),
-
-          // ====================================================
-          // NÚMERO + LABEL
-          // ====================================================
-          Expanded(
-            child: Row(
-              children: [
-                Text(
-                  '$value',
-                  style:
-                      Theme.of(
-                        context,
-                      ).textTheme.titleMedium?.copyWith(
-                        fontSize: 18,
-                        height: 1,
-                        fontWeight: FontWeight.w800,
-                        color: colorScheme.onSurface,
-                      ),
-                ),
-
-                const SizedBox(
-                  width: 6,
-                ),
-
-                Expanded(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style:
-                        Theme.of(
-                          context,
-                        ).textTheme.bodySmall?.copyWith(
-                          fontSize: 12,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // DASHBOARD ACTION
-  // ============================================================
-
-  Widget _buildBrainDashboardAction({
-    required BuildContext context,
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required VoidCallback onTap,
-    String? subtitle,
-  }) {
-    final colorScheme = Theme.of(
-      context,
-    ).colorScheme;
-
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(
-        12,
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(
-          12,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 10,
-            vertical: 10,
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: iconColor.withValues(
-                    alpha: 0.09,
-                  ),
-                  borderRadius: BorderRadius.circular(
-                    9,
-                  ),
-                ),
-                child: Icon(
-                  icon,
-                  size: 19,
-                  color: iconColor,
-                ),
-              ),
-
-              const SizedBox(
-                width: 11,
-              ),
-
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style:
-                          Theme.of(
-                            context,
-                          ).textTheme.bodyLarge?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                    ),
-
-                    if (subtitle !=
-                        null) ...[
-                      const SizedBox(
-                        height: 2,
-                      ),
-
-                      Text(
-                        subtitle,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style:
-                            Theme.of(
-                              context,
-                            ).textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-
-              const SizedBox(
-                width: 8,
-              ),
-
-              Icon(
-                Icons.chevron_right,
-                size: 20,
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // MAPA DO CONHECIMENTO
-  // ============================================================
-
-  void _focusBrainVisual() {
-    // Implementação futura do mapa do conhecimento.
   }
 
   // ============================================================
