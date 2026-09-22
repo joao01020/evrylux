@@ -361,11 +361,6 @@ const nav = [
     type MyRoadmapTask,
   } from '../lib/colab-task-inbox';
 
-  import {
-    connectColabPresence,
-    type ColabPresenceUser,
-  } from '../lib/colab-presence';
-
   const collaboratorAccess =
     document.querySelector<HTMLAnchorElement>(
       '#collaborator-access',
@@ -485,10 +480,6 @@ const nav = [
       null;
 
   let disconnectTaskAssignments:
-    (() => Promise<void>) | null =
-      null;
-
-  let globalPresenceDisconnect:
     (() => Promise<void>) | null =
       null;
 
@@ -747,150 +738,6 @@ const nav = [
 
       return null;
     }
-  }
-
-  type GlobalPresenceProfile = {
-    display_name: string | null;
-    avatar_url: string | null;
-    area: string | null;
-    github_login: string | null;
-  };
-
-  async function loadGlobalPresenceProfile(
-    userId: string,
-  ): Promise<GlobalPresenceProfile | null> {
-    try {
-      const {
-        data,
-        error,
-      } =
-        await supabase
-          .from(
-            'member_profiles',
-          )
-          .select(
-            'display_name, avatar_url, area, github_login',
-          )
-          .eq(
-            'user_id',
-            userId,
-          )
-          .maybeSingle();
-
-      if (
-        error
-      ) {
-        console.warn(
-          '[EVRYLUX] Não foi possível carregar o perfil para presença global:',
-          error.message,
-        );
-
-        return null;
-      }
-
-      return {
-        display_name:
-          data?.display_name?.trim() ||
-          null,
-
-        avatar_url:
-          data?.avatar_url?.trim() ||
-          null,
-
-        area:
-          data?.area?.trim() ||
-          null,
-
-        github_login:
-          data?.github_login?.trim() ||
-          null,
-      };
-    } catch (
-      error
-    ) {
-      console.warn(
-        '[EVRYLUX] Não foi possível carregar o perfil para presença global:',
-        error,
-      );
-
-      return null;
-    }
-  }
-
-  async function connectGlobalColabPresence(
-    userId: string,
-    email:
-      string | null |
-      undefined,
-  ) {
-    // A presença representa o portal Colab.
-    // Em páginas públicas, o usuário não é contado como ativo no Colab.
-    if (
-      !window.location.pathname.startsWith(
-        '/colab',
-      )
-    ) {
-      return;
-    }
-
-    if (
-      globalPresenceDisconnect
-    ) {
-      try {
-        await globalPresenceDisconnect();
-      } catch {
-        // Ignora erro ao substituir uma sessão anterior.
-      }
-
-      globalPresenceDisconnect =
-        null;
-    }
-
-    const profile =
-      await loadGlobalPresenceProfile(
-        userId,
-      );
-
-    const displayName =
-      profile?.display_name?.trim() ||
-      email?.trim() ||
-      'Colaborador EVRYLUX';
-
-    globalPresenceDisconnect =
-      await connectColabPresence(
-        {
-          user_id:
-            userId,
-
-          display_name:
-            displayName,
-
-          avatar_url:
-            profile?.avatar_url ||
-            null,
-
-          area:
-            profile?.area ||
-            null,
-
-          github_login:
-            profile?.github_login ||
-            null,
-        },
-      );
-
-    // Disponibiliza um sinal simples para outras páginas/componentes.
-    window.dispatchEvent(
-      new CustomEvent(
-        'evrylux:presence-connected',
-        {
-          detail: {
-            user_id:
-              userId,
-          },
-        },
-      ),
-    );
   }
 
   const seenStorageKeys = {
@@ -1482,15 +1329,6 @@ const nav = [
 
     disconnectTaskAssignments =
       null;
-
-    try {
-      await globalPresenceDisconnect?.();
-    } catch {
-      // A sessão também expira automaticamente pelo heartbeat.
-    }
-
-    globalPresenceDisconnect =
-      null;
   }
 
   async function loadCollaboratorState() {
@@ -1534,14 +1372,8 @@ const nav = [
 
         await Promise.all([
           loadAdminNotifications(),
-
           connectCurrentUserTasks(
             currentUserId,
-          ),
-
-          connectGlobalColabPresence(
-            currentUserId,
-            session.user.email,
           ),
         ]);
 
@@ -1628,14 +1460,8 @@ const nav = [
 
         await Promise.all([
           loadAdminNotifications(),
-
           connectCurrentUserTasks(
             currentUserId,
-          ),
-
-          connectGlobalColabPresence(
-            currentUserId,
-            session.user.email,
           ),
         ]);
 
