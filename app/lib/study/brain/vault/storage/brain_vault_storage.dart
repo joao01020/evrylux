@@ -15,11 +15,8 @@ import '../services/brain_vault_serializer.dart';
 // Responsável SOMENTE pela persistência física do Vault.
 //
 // Não criptografa.
-//
 // Não descriptografa.
-//
 // Não conhece BrainFile.
-//
 // Não conhece Review.
 //
 // Ele apenas lê/escreve:
@@ -27,45 +24,36 @@ import '../services/brain_vault_serializer.dart';
 // manifest.json
 // *.evobj
 //
-// IMPORTANTE SOBRE SEGURANÇA:
+// SEGURANÇA:
 //
-// - BrainVaultStorage NÃO recebe plaintext para criptografar;
+// - não recebe plaintext para criptografar;
 // - BrainVaultService entrega BrainVaultObject já criptografado;
-// - os arquivos .evobj persistem ciphertext/nonce/tag/metadata;
-// - a Master Key continua fora desta pasta, no Keychain/Keyring.
+// - .evobj contém ciphertext / nonce / tag / metadata;
+// - Master Key continua fora desta pasta;
+// - armazenamento continua isolado por UserStorageScope.
 //
-// IMPORTANTE:
+// ============================================================
 //
-// O armazenamento físico é obrigatoriamente isolado pela conta
-// atual através de UserStorageScope.
+// PERFORMANCE
+// ============================================================
 //
-// Estrutura padrão:
+// Antes:
 //
-// Documents/
-//   evrylux/
-//     users/
-//       <user_id>/
-//         brain/
-//           vault/
-//             manifest.json
-//             objects/
-//               *.evobj
+// for (final file in files) {
+//   await file.readAsString();
+// }
 //
-// Quando o usuário escolhe outro local para o Brain:
+// Todos os arquivos eram lidos sequencialmente.
 //
-// <brain-root-escolhido>/
-//   vault/
-//     manifest.json
-//     objects/
-//       *.evobj
+// Agora:
 //
-// Portanto:
+// - lista os arquivos uma vez;
+// - mantém ordenação determinística;
+// - lê em lotes concorrentes;
+// - desserializa e valida cada objeto;
+// - preserva exatamente a ordem original.
 //
-// Conta A -> Vault A
-// Conta B -> Vault B
-//
-// Uma conta nunca deve compartilhar o diretório físico do Vault
-// com outra conta.
+// Nenhum formato de arquivo foi alterado.
 //
 // ============================================================
 
@@ -74,29 +62,6 @@ class BrainVaultStorage {
     required UserStorageScope storageScope,
     BrainVaultSerializer? serializer,
     BrainVaultIdService? idService,
-
-    // ========================================================
-    // CUSTOM BRAIN ROOT PROVIDER
-    // ========================================================
-    //
-    // Retorna o ROOT FINAL do Brain escolhido pelo usuário.
-    //
-    // Exemplo:
-    //
-    // Linux:
-    // /home/joao/Documentos/EVRYLUX/Brain
-    //
-    // macOS:
-    // /Users/brenda/Documents/EVRYLUX/Brain
-    //
-    // Quando houver um caminho configurado, o Vault será:
-    //
-    // <brain-root>/vault
-    //
-    // Se não houver caminho personalizado, mantemos o diretório
-    // isolado por conta fornecido pelo UserStorageScope.
-    //
-    // ========================================================
     Future<
       String?
     >
@@ -136,6 +101,22 @@ class BrainVaultStorage {
   static const String manifestFileName = 'manifest.json';
 
   static const String objectExtension = '.evobj';
+
+  // ============================================================
+  // PERFORMANCE
+  // ============================================================
+  //
+  // Arquivos locais pequenos.
+  //
+  // 12 é um ponto inicial conservador:
+  //
+  // - reduz bastante latência de I/O;
+  // - evita abrir centenas de arquivos simultaneamente;
+  // - funciona bem em SSDs comuns.
+  //
+  // ============================================================
+
+  static const int _readConcurrency = 12;
 
   // ============================================================
   // INITIALIZED STATE
@@ -224,16 +205,13 @@ class BrainVaultStorage {
   // RESOLVE VAULT DIRECTORY
   // ============================================================
   //
-  // Regra:
+  // 1. root personalizado:
   //
-  // 1. se o usuário escolheu um Brain root personalizado:
-  //      <brain-root>/vault
+  // <brain-root>/vault
   //
-  // 2. caso contrário:
-  //      UserStorageScope.vaultDirectory
+  // 2. padrão:
   //
-  // O caminho personalizado representa o ROOT FINAL do Brain.
-  // Portanto NÃO adicionamos EVRYLUX/Brain novamente.
+  // UserStorageScope.vaultDirectory
   //
   // ============================================================
 
@@ -279,19 +257,6 @@ class BrainVaultStorage {
   // ============================================================
   // INITIALIZE
   // ============================================================
-  //
-  // A inicialização é sensível a:
-  //
-  // - usuário atual;
-  // - caminho físico atual do Brain.
-  //
-  // Isso é importante porque o usuário pode alterar a pasta local
-  // nas Configurações sem trocar de conta.
-  //
-  // Se o root mudar, o cache anterior é invalidado e o Vault passa
-  // a apontar imediatamente para a nova localização.
-  //
-  // ============================================================
 
   Future<
     void
@@ -313,13 +278,16 @@ class BrainVaultStorage {
       return;
     }
 
-    // Invalidate cached paths before resolving a different account/path.
     final generation = ++_initializationGeneration;
 
     _initialized = false;
+
     _initializedUserId = null;
+
     _initializedVaultPath = null;
+
     _vaultDirectory = null;
+
     _objectsDirectory = null;
 
     if (_initializationGeneration !=
@@ -356,9 +324,13 @@ class BrainVaultStorage {
     }
 
     _vaultDirectory = vault;
+
     _objectsDirectory = objects;
+
     _initializedUserId = requestedUserId;
+
     _initializedVaultPath = requestedVaultPath;
+
     _initialized = true;
   }
 
@@ -523,6 +495,39 @@ class BrainVaultStorage {
   // ============================================================
   // LOAD ALL OBJECTS
   // ============================================================
+  //
+  // PERFORMANCE CRITICAL.
+  //
+  // Antes:
+  //
+  // arquivo 1
+  //   ↓
+  // await readAsString
+  //
+  // arquivo 2
+  //   ↓
+  // await readAsString
+  //
+  // ...
+  //
+  // Agora:
+  //
+  // [1..12]
+  //   ↓
+  // Future.wait
+  //
+  // [13..24]
+  //   ↓
+  // Future.wait
+  //
+  // mantendo:
+  //
+  // - validação individual;
+  // - ordem determinística;
+  // - erro explícito para arquivo corrompido;
+  // - nenhuma alteração no formato .evobj.
+  //
+  // ============================================================
 
   Future<
     List<
@@ -530,7 +535,15 @@ class BrainVaultStorage {
     >
   >
   loadAllObjects() async {
+    final totalWatch = Stopwatch()..start();
+
     await initialize();
+
+    // ==========================================================
+    // LIST DIRECTORY
+    // ==========================================================
+
+    final listWatch = Stopwatch()..start();
 
     final entities = await objectsDirectory
         .list(
@@ -564,55 +577,184 @@ class BrainVaultStorage {
       },
     );
 
+    listWatch.stop();
+
+    // ==========================================================
+    // PARALLEL READ
+    // ==========================================================
+
+    final readWatch = Stopwatch()..start();
+
     final objects =
+        List<
+          BrainVaultObject?
+        >.filled(
+          files.length,
+          null,
+          growable: false,
+        );
+
+    for (
+      var start = 0;
+      start <
+          files.length;
+      start += _readConcurrency
+    ) {
+      final calculatedEnd =
+          start +
+          _readConcurrency;
+
+      final end =
+          calculatedEnd >
+              files.length
+          ? files.length
+          : calculatedEnd;
+
+      final futures =
+          <
+            Future<
+              void
+            >
+          >[];
+
+      for (
+        var index = start;
+        index <
+            end;
+        index++
+      ) {
+        futures.add(
+          _readObjectFileIntoIndex(
+            file: files[index],
+            index: index,
+            destination: objects,
+          ),
+        );
+      }
+
+      await Future.wait(
+        futures,
+      );
+    }
+
+    readWatch.stop();
+
+    // ==========================================================
+    // FINAL LIST
+    // ==========================================================
+
+    final result =
         <
           BrainVaultObject
         >[];
 
-    for (final file in files) {
-      final content = await file.readAsString();
-
-      final object = _serializer.deserializeObject(
-        content,
-      );
-
-      final expectedFileName = '${object.header.objectId}$objectExtension';
-
-      if (p.basename(
-            file.path,
-          ) !=
-          expectedFileName) {
-        throw FormatException(
-          'Arquivo do Vault não corresponde ao objectId interno.',
+    for (final object in objects) {
+      if (object ==
+          null) {
+        throw StateError(
+          'Um objeto do Vault não foi carregado corretamente.',
         );
       }
 
-      objects.add(
+      result.add(
         object,
       );
     }
 
+    totalWatch.stop();
+
+    // ==========================================================
+    // PERF
+    // ==========================================================
+
+    // ignore: avoid_print
+    print(
+      '[BRAIN PERF] '
+      'BrainVaultStorage arquivos=${files.length}',
+    );
+
+    // ignore: avoid_print
+    print(
+      '[BRAIN PERF] '
+      'BrainVaultStorage list = '
+      '${listWatch.elapsedMilliseconds} ms',
+    );
+
+    // ignore: avoid_print
+    print(
+      '[BRAIN PERF] '
+      'BrainVaultStorage batch read = '
+      '${readWatch.elapsedMilliseconds} ms '
+      '(concorrencia=$_readConcurrency)',
+    );
+
+    // ignore: avoid_print
+    print(
+      '[BRAIN PERF] '
+      'BrainVaultStorage loadAllObjects TOTAL = '
+      '${totalWatch.elapsedMilliseconds} ms',
+    );
+
     return List<
       BrainVaultObject
     >.unmodifiable(
-      objects,
+      result,
     );
+  }
+
+  // ============================================================
+  // READ ONE FILE INTO POSITION
+  // ============================================================
+  //
+  // Mantém cada resultado na posição original da lista ordenada.
+  //
+  // Assim Future.wait não altera a ordem lógica do Vault.
+  //
+  // ============================================================
+
+  Future<
+    void
+  >
+  _readObjectFileIntoIndex({
+    required File file,
+    required int index,
+    required List<
+      BrainVaultObject?
+    >
+    destination,
+  }) async {
+    final content = await file.readAsString();
+
+    final object = _serializer.deserializeObject(
+      content,
+    );
+
+    final expectedFileName =
+        '${object.header.objectId}'
+        '$objectExtension';
+
+    if (p.basename(
+          file.path,
+        ) !=
+        expectedFileName) {
+      throw FormatException(
+        'Arquivo do Vault não corresponde '
+        'ao objectId interno. '
+        'Arquivo=${p.basename(file.path)} '
+        'objectId=${object.header.objectId}',
+      );
+    }
+
+    destination[index] = object;
   }
 
   // ============================================================
   // PHYSICAL DELETE
   // ============================================================
   //
-  // NÃO é a exclusão normal do Cérebro.
+  // NÃO é exclusão normal.
   //
   // Exclusão normal deve produzir tombstone.
-  //
-  // Este método existe para:
-  //
-  // - rollback;
-  // - testes;
-  // - limpeza controlada;
-  // - manutenção futura.
   //
   // ============================================================
 
@@ -648,18 +790,6 @@ class BrainVaultStorage {
 
   // ============================================================
   // DEBUG PATH
-  // ============================================================
-  //
-  // Útil durante os testes Conta A / Conta B.
-  //
-  // Nunca imprime:
-  //
-  // - Master Key;
-  // - conteúdo;
-  // - objetos;
-  //
-  // Apenas o caminho físico usado pelo Vault.
-  //
   // ============================================================
 
   Future<

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -15,6 +16,7 @@ import '../services/supabase_brain_service.dart';
 import '../sync/services/brain_sync_queue_service.dart';
 import '../vault/stores/brain_concept_vault_store.dart';
 import '../vault/stores/brain_note_vault_store.dart';
+
 // ============================================================
 // BRAIN REPOSITORY
 // ============================================================
@@ -27,7 +29,8 @@ import '../vault/stores/brain_note_vault_store.dart';
 //  ↓
 // BrainRepository
 //  ↓
-// Vault criptografado local (BrainStorage apenas para legado/migração)
+// Vault criptografado local
+// BrainStorage apenas para legado/migração
 //  ↓
 // BrainSyncQueueService
 //  ↓
@@ -72,6 +75,26 @@ import '../vault/stores/brain_note_vault_store.dart';
 // - se houver SyncQueue legada, o DELETE remoto fica pendente até
 //   a conexão voltar.
 //
+// PERFORMANCE:
+//
+// A abertura normal do Cérebro NÃO espera mais a migração completa
+// de plaintext legado.
+//
+// Fluxo da abertura:
+//
+// BrainController
+//      ↓
+// BrainRepository.loadNotes()
+//      ↓
+// Vault criptografado
+//      ↓
+// UI liberada
+//      ↓
+// migração legada em background
+//
+// Operações de escrita/exclusão continuam aguardando a migração,
+// preservando consistência e segurança.
+//
 // ============================================================
 
 class BrainRepository {
@@ -104,15 +127,6 @@ class BrainRepository {
   // ============================================================
   // LEGACY REMOTE CLEANUP
   // ============================================================
-  //
-  // A busca remota ainda consulta brain_notes durante a migração.
-  //
-  // Por isso, ao excluir uma nota, também precisamos registrar a
-  // exclusão da cópia legada. A fila antiga é usada somente para
-  // essa limpeza transitória; o conteúdo novo continua seguindo
-  // exclusivamente pelo fluxo E2EE.
-  //
-  // ============================================================
 
   final SyncQueue? _legacySyncQueue;
 
@@ -123,6 +137,18 @@ class BrainRepository {
   final BrainConceptVaultStore? _conceptVaultStore;
 
   final BrainSyncQueueService? _brainSyncQueueService;
+
+  // ============================================================
+  // LEGACY MIGRATION FUTURE
+  // ============================================================
+  //
+  // Uma única migração pode existir por vez.
+  //
+  // Qualquer operação sensível pode aguardar este mesmo Future.
+  //
+  // A abertura normal apenas dispara o Future e segue sem esperar.
+  //
+  // ============================================================
 
   Future<
     void
@@ -150,35 +176,7 @@ class BrainRepository {
   }
 
   // ============================================================
-  // SAVE NOTE — VAULT / E2EE — FASE 09
-  // ============================================================
-  //
-  // Tema não é mais requisito de captura.
-  //
-  // O parâmetro topic permanece temporariamente na assinatura por
-  // compatibilidade binária/estrutural com o restante do projeto.
-  //
-  // Quando vazio, usamos "Sem tema" SOMENTE no mirror legado e no
-  // BrainFile atual, pois BrainStorage ainda será migrado no próximo
-  // bloco da Fase 09.
-  //
-  // A UI não deve pedir Tema ao usuário.
-  //
-  //
-  // Fluxo atual:
-  //
-  // BrainStorage (mirror Markdown local)
-  //      ↓
-  // BrainNoteVaultStore
-  //      ↓
-  // BrainVaultObjectType.note
-  //      ↓
-  // BrainSyncQueueService
-  //      ↓
-  // brain_e2ee_object
-  //
-  // Nenhum title/content entra na SyncQueue antiga.
-  //
+  // SAVE NOTE — VAULT / E2EE
   // ============================================================
 
   Future<
@@ -195,13 +193,17 @@ class BrainRepository {
   }) async {
     final store = _requireNoteVaultStore();
 
+    // Escrita continua esperando eventual migração anterior.
     await _ensureLegacyPlaintextMigrated();
 
     final rawTopic = topic.trim();
+
     final cleanTopic = rawTopic.isEmpty
         ? 'Sem tema'
         : rawTopic;
+
     final cleanTitle = title.trim();
+
     final cleanContent = content.trim();
 
     if (cleanTitle.isEmpty) {
@@ -315,7 +317,8 @@ class BrainRepository {
         verified.content !=
             note.content) {
       throw StateError(
-        'A nota foi gravada no Vault, mas a verificação de integridade falhou.',
+        'A nota foi gravada no Vault, '
+        'mas a verificação de integridade falhou.',
       );
     }
 
@@ -341,9 +344,22 @@ class BrainRepository {
   // LOAD NOTES
   // ============================================================
   //
-  // Sempre local.
+  // CAMINHO CRÍTICO DA ABERTURA.
   //
-  // Não fazemos uma chamada de rede antes de abrir a tela.
+  // IMPORTANTE:
+  //
+  // Não aguardamos mais:
+  //
+  //   await _ensureLegacyPlaintextMigrated();
+  //
+  // antes de entregar os dados para a interface.
+  //
+  // Fluxo:
+  //
+  // 1. carrega Vault;
+  // 2. converte BrainFile -> row;
+  // 3. devolve imediatamente ao Controller;
+  // 4. dispara manutenção legada em background.
   //
   // ============================================================
 
@@ -356,15 +372,27 @@ class BrainRepository {
     >
   >
   loadNotes() async {
+    final totalWatch = Stopwatch()..start();
+
     final store = _requireNoteVaultStore();
 
-    await _ensureLegacyPlaintextMigrated();
+    // ==========================================================
+    // VAULT
+    // ==========================================================
+
+    final vaultWatch = Stopwatch()..start();
 
     final notes = await store.loadNotes();
 
+    vaultWatch.stop();
+
+    // ==========================================================
+    // ROWS
+    // ==========================================================
+
     final userId = currentUserId?.trim();
 
-    return notes
+    final rows = notes
         .map(
           (
             note,
@@ -389,6 +417,40 @@ class BrainRepository {
         .toList(
           growable: false,
         );
+
+    totalWatch.stop();
+
+    // ==========================================================
+    // PERFORMANCE
+    // ==========================================================
+
+    debugPrint(
+      '[BRAIN PERF] '
+      'repository.loadNotes Vault = '
+      '${vaultWatch.elapsedMilliseconds} ms',
+    );
+
+    debugPrint(
+      '[BRAIN PERF] '
+      'repository.loadNotes TOTAL = '
+      '${totalWatch.elapsedMilliseconds} ms '
+      '(${rows.length} notas)',
+    );
+
+    // ==========================================================
+    // MIGRAÇÃO EM BACKGROUND
+    // ==========================================================
+    //
+    // A interface não espera esta etapa.
+    //
+    // A própria migração continua validando o Vault antes de
+    // remover qualquer plaintext.
+    //
+    // ==========================================================
+
+    _scheduleLegacyPlaintextMigration();
+
+    return rows;
   }
 
   // ============================================================
@@ -463,6 +525,7 @@ class BrainRepository {
     await _ensureLegacyPlaintextMigrated();
 
     final userId = currentUserId?.trim();
+
     final target = await _findVaultNoteByAnyId(
       cleanId,
     );
@@ -505,6 +568,7 @@ class BrainRepository {
             final legacyNote = await _local.openNote(
               legacyPath,
             );
+
             await _local.deleteNote(
               legacyNote,
             );
@@ -625,20 +689,6 @@ class BrainRepository {
   // ============================================================
   // DELETE LEGACY REMOTE NOTE
   // ============================================================
-  //
-  // Compatibilidade temporária com brain_notes.
-  //
-  // Prioridade:
-  //
-  // 1. SyncQueue legada
-  //    - mantém offline-first;
-  //    - retry automático;
-  //
-  // 2. fallback direto
-  //    - usado somente se a fila não foi injetada;
-  //    - falha de rede não faz a exclusão local voltar.
-  //
-  // ============================================================
 
   Future<
     void
@@ -669,7 +719,8 @@ class BrainRepository {
 
       debugPrint(
         '[BRAIN REPOSITORY] '
-        'DELETE legado enfileirado: $cleanRemoteId',
+        'DELETE legado enfileirado: '
+        '$cleanRemoteId',
       );
 
       return;
@@ -698,20 +749,18 @@ class BrainRepository {
     } catch (
       error
     ) {
-      // Não propagamos:
-      //
-      // a exclusão local + tombstone E2EE já foi concluída.
       debugPrint(
         '[BRAIN REPOSITORY] '
         'Falha ao limpar brain_notes legado. '
         'A exclusão local permanece válida. '
-        'ID=$cleanRemoteId erro=$error',
+        'ID=$cleanRemoteId '
+        'erro=$error',
       );
     }
   }
 
   // ============================================================
-  // SAVE CONCEPT — VAULT / E2EE
+  // SAVE CONCEPT
   // ============================================================
 
   Future<
@@ -738,33 +787,7 @@ class BrainRepository {
   }
 
   // ============================================================
-  // SAVE CONCEPTS BATCH — VAULT / E2EE
-  // ============================================================
-  //
-  // Otimização do caminho crítico de salvamento:
-  //
-  // Antes, BrainController chamava saveConcept() para cada item.
-  // Cada chamada:
-  //
-  // - procurava a mesma nota no Vault;
-  // - regravava a mesma nota;
-  // - relia a nota para validar integridade;
-  // - só então persistia o conceito.
-  //
-  // Para um conhecimento com conceito principal + exemplo + atenção,
-  // isso repetia a operação criptográfica da nota várias vezes.
-  //
-  // Agora o lote:
-  //
-  // 1. localiza a nota uma única vez;
-  // 2. incorpora todos os conceitos em memória;
-  // 3. grava/valida a nota criptografada uma única vez;
-  // 4. grava cada BrainConcept como objeto E2EE;
-  // 5. relê cada conceito e valida conteúdo antes de concluir.
-  //
-  // A otimização reduz I/O e criptografia repetidos sem remover
-  // nenhuma verificação de integridade.
-  //
+  // SAVE CONCEPTS BATCH
   // ============================================================
 
   Future<
@@ -844,7 +867,6 @@ class BrainRepository {
         updatedAt: DateTime.now().toLocal(),
       );
 
-      // Uma única gravação + leitura de verificação para a nota.
       updatedNote = await _saveEncryptedNoteAndVerify(
         updatedNote,
       );
@@ -870,8 +892,8 @@ class BrainRepository {
       if (encryptedConcept ==
           null) {
         throw StateError(
-          'BrainConceptVaultStore não está disponível para salvar '
-          'o conhecimento ${concept.id}.',
+          'BrainConceptVaultStore não está disponível '
+          'para salvar o conhecimento ${concept.id}.',
         );
       }
 
@@ -879,8 +901,6 @@ class BrainRepository {
         encryptedConcept,
       );
 
-      // A mensagem de "integridade validada" da UI só deve ocorrer
-      // depois que o objeto puder ser lido novamente do Vault.
       final verifiedConcept = await _conceptVaultStore!.getConcept(
         concept.id,
       );
@@ -892,7 +912,8 @@ class BrainRepository {
             verifiedConcept,
           )) {
         throw StateError(
-          'O conhecimento ${concept.id} foi gravado no Vault, '
+          'O conhecimento ${concept.id} '
+          'foi gravado no Vault, '
           'mas a verificação de integridade falhou.',
         );
       }
@@ -1012,32 +1033,6 @@ class BrainRepository {
   // ============================================================
   // DELETE CONCEPT + SOURCE NOTE
   // ============================================================
-  //
-  // Use este método nas telas:
-  //
-  // - Conceitos;
-  // - Perguntas;
-  // - Exemplos;
-  // - Atenções.
-  //
-  // Regra:
-  //
-  // ao excluir uma classificação, a anotação que originou essa
-  // classificação também é excluída.
-  //
-  // Assim o mesmo conteúdo desaparece de:
-  //
-  // - tela da categoria;
-  // - Cérebro;
-  // - calendário;
-  // - arquivos Markdown locais;
-  // - Supabase, via SyncQueue.
-  //
-  // Se a anotação possuir outras classificações, elas também são
-  // removidas, pois pertencem à mesma anotação que está sendo
-  // excluída.
-  //
-  // ============================================================
 
   Future<
     void
@@ -1054,6 +1049,7 @@ class BrainRepository {
     await _ensureLegacyPlaintextMigrated();
 
     final store = _requireNoteVaultStore();
+
     final notes = await store.loadNotes();
 
     BrainFile? sourceNote;
@@ -1078,12 +1074,14 @@ class BrainRepository {
       await deleteConcept(
         cleanId,
       );
+
       return;
     }
 
     await deleteConceptsByNoteId(
       sourceNote.path,
     );
+
     await deleteNote(
       sourceNote.path,
     );
@@ -1101,7 +1099,8 @@ class BrainRepository {
 
     if (stillExists) {
       throw StateError(
-        'A anotação de origem ainda existe após a exclusão em cascata.',
+        'A anotação de origem ainda existe '
+        'após a exclusão em cascata.',
       );
     }
 
@@ -1112,7 +1111,7 @@ class BrainRepository {
   }
 
   // ============================================================
-  // DELETE CONCEPT — TOMBSTONE E2EE
+  // DELETE CONCEPT
   // ============================================================
 
   Future<
@@ -1130,6 +1129,7 @@ class BrainRepository {
     await _ensureLegacyPlaintextMigrated();
 
     final noteStore = _requireNoteVaultStore();
+
     final notes = await noteStore.loadNotes();
 
     for (final note in notes) {
@@ -1250,19 +1250,6 @@ class BrainRepository {
   // ============================================================
   // GET SOURCES BY NOTE
   // ============================================================
-  //
-  // FASE 13 — FONTES DO CONHECIMENTO
-  //
-  // Retorna as fontes da nota a partir do Vault criptografado.
-  //
-  // BrainStorage Markdown continua sem persistir:
-  //
-  // - reference;
-  // - author;
-  // - note;
-  // - source metadata.
-  //
-  // ============================================================
 
   Future<
     List<
@@ -1315,8 +1302,6 @@ class BrainRepository {
       source,
     );
 
-    // Se addSource detectou duplicação, não criamos uma nova
-    // versão criptografada desnecessariamente.
     if (identical(
       updatedNote,
       note,
@@ -1467,13 +1452,6 @@ class BrainRepository {
   // ============================================================
   // FIND NOTE WITH SOURCES
   // ============================================================
-  //
-  // Aceita:
-  //
-  // - path Markdown local;
-  // - UUID remoto legado.
-  //
-  // ============================================================
 
   Future<
     BrainFile?
@@ -1496,16 +1474,6 @@ class BrainRepository {
 
   // ============================================================
   // PERSIST SOURCE UPDATED NOTE
-  // ============================================================
-  //
-  // Fonte é persistida apenas no Vault.
-  //
-  // Não chamamos BrainStorage.saveNote() aqui porque isso faria
-  // a source atravessar o mirror Markdown legado.
-  //
-  // O BrainFile criptografado completo é salvo no Vault e o
-  // BrainVaultObject resultante entra na BrainSyncQueueService.
-  //
   // ============================================================
 
   Future<
@@ -1572,19 +1540,6 @@ class BrainRepository {
   // ============================================================
   // OPTIONAL REMOTE HYDRATION
   // ============================================================
-  //
-  // Não é chamada automaticamente por loadNotes().
-  //
-  // Serve para uma etapa futura de:
-  //
-  // Supabase -> cache local
-  //
-  // em login novo / outro dispositivo.
-  //
-  // Mantemos aqui o acesso explícito à fonte remota sem tornar
-  // a abertura normal da tela dependente da rede.
-  //
-  // ============================================================
 
   Future<
     List<
@@ -1609,7 +1564,8 @@ class BrainRepository {
         null) {
       throw StateError(
         'BrainNoteVaultStore não está disponível. '
-        'O Brain não pode salvar conteúdo sensível sem o Vault.',
+        'O Brain não pode salvar conteúdo sensível '
+        'sem o Vault.',
       );
     }
 
@@ -1618,15 +1574,6 @@ class BrainRepository {
 
   // ============================================================
   // PUBLIC LEGACY PLAINTEXT MIGRATION
-  // ============================================================
-  //
-  // Chamado pelo startup da aplicação para garantir que:
-  //
-  // - notas Markdown legadas sejam migradas para o Vault;
-  // - conceitos Markdown em legacy/_concepts sejam migrados;
-  // - cada conceito seja validado no Vault antes da exclusão;
-  // - nenhum plaintext seja removido quando a validação falhar.
-  //
   // ============================================================
 
   Future<
@@ -1647,6 +1594,69 @@ class BrainRepository {
     return _legacyPlaintextMigrationFuture ??= _migrateLegacyPlaintextNotes();
   }
 
+  // ============================================================
+  // BACKGROUND LEGACY MIGRATION
+  // ============================================================
+  //
+  // A abertura chama este método SEM await.
+  //
+  // O mesmo Future é reutilizado por todas as operações.
+  //
+  // Se save/delete ocorrer durante a migração:
+  //
+  // await _ensureLegacyPlaintextMigrated()
+  //
+  // aguardará exatamente essa mesma execução.
+  //
+  // ============================================================
+
+  void _scheduleLegacyPlaintextMigration() {
+    final migration = _ensureLegacyPlaintextMigrated();
+
+    unawaited(
+      migration.then<
+        void
+      >(
+        (
+          _,
+        ) {
+          debugPrint(
+            '[BRAIN SECURITY] '
+            'Migração legada em background concluída.',
+          );
+        },
+        onError:
+            (
+              Object error,
+              StackTrace stackTrace,
+            ) {
+              // Não apagamos dados aqui.
+              //
+              // A rotina de migração só exclui plaintext depois de
+              // validar o objeto seguro no Vault.
+              //
+              // Logo uma falha apenas permanece registrada.
+
+              debugPrint(
+                '[BRAIN SECURITY] '
+                'Migração legada em background falhou: '
+                '$error',
+              );
+
+              debugPrint(
+                '[BRAIN SECURITY] '
+                'Stack da migração legada: '
+                '$stackTrace',
+              );
+            },
+      ),
+    );
+  }
+
+  // ============================================================
+  // MIGRATE LEGACY PLAINTEXT NOTES
+  // ============================================================
+
   Future<
     void
   >
@@ -1665,7 +1675,8 @@ class BrainRepository {
     ) {
       debugPrint(
         '[BRAIN SECURITY] '
-        'Falha ao enumerar mirror legado: $error',
+        'Falha ao enumerar mirror legado: '
+        '$error',
       );
 
       rethrow;
@@ -1673,12 +1684,14 @@ class BrainRepository {
 
     if (legacyNotes.isEmpty) {
       await _migrateLegacyPlaintextConcepts();
+
       return;
     }
 
     debugPrint(
       '[BRAIN SECURITY] '
-      'Migrando ${legacyNotes.length} nota(s) plaintext para o Vault.',
+      'Migrando ${legacyNotes.length} '
+      'nota(s) plaintext para o Vault.',
     );
 
     for (final legacyNote in legacyNotes) {
@@ -1755,25 +1768,6 @@ class BrainRepository {
   // ============================================================
   // MIGRATE LEGACY PLAINTEXT CONCEPTS
   // ============================================================
-  //
-  // Migra os espelhos Markdown antigos existentes em:
-  //
-  // legacy/_concepts/concepts
-  // legacy/_concepts/questions
-  // legacy/_concepts/examples
-  // legacy/_concepts/warnings
-  //
-  // Regra de segurança:
-  //
-  // 1. lê o BrainConcept legado;
-  // 2. grava no BrainConceptVaultStore quando necessário;
-  // 3. lê novamente do Vault;
-  // 4. valida id/title/description/type/reviewEnabled;
-  // 5. somente então remove o .md correspondente.
-  //
-  // Se qualquer validação falhar, o plaintext permanece no disco.
-  //
-  // ============================================================
 
   Future<
     void
@@ -1785,12 +1779,15 @@ class BrainRepository {
         null) {
       throw StateError(
         'BrainConceptVaultStore não está disponível. '
-        'Os conceitos legados não podem ser removidos com segurança.',
+        'Os conceitos legados não podem ser removidos '
+        'com segurança.',
       );
     }
 
     var discovered = 0;
+
     var migrated = 0;
+
     var removed = 0;
 
     for (final type in BrainConceptType.values) {
@@ -1834,6 +1831,7 @@ class BrainRepository {
         discovered++;
 
         final markdown = await entity.readAsString();
+
         final legacyId = _legacyConceptMetadataValue(
           markdown,
           'id',
@@ -1842,9 +1840,11 @@ class BrainRepository {
         if (legacyId.isEmpty) {
           debugPrint(
             '[BRAIN SECURITY] '
-            'Conceito legado sem id; plaintext preservado: '
+            'Conceito legado sem id; '
+            'plaintext preservado: '
             '${entity.path}',
           );
+
           continue;
         }
 
@@ -1854,9 +1854,12 @@ class BrainRepository {
             null) {
           debugPrint(
             '[BRAIN SECURITY] '
-            'Não foi possível reconstruir o conceito $legacyId; '
-            'plaintext preservado: ${entity.path}',
+            'Não foi possível reconstruir '
+            'o conceito $legacyId; '
+            'plaintext preservado: '
+            '${entity.path}',
           );
+
           continue;
         }
 
@@ -1880,6 +1883,7 @@ class BrainRepository {
           );
 
           migrated++;
+
           verified = await store.getConcept(
             legacyId,
           );
@@ -1892,8 +1896,10 @@ class BrainRepository {
               verified,
             )) {
           throw StateError(
-            'Falha ao validar o conceito legado $legacyId no Vault. '
-            'O plaintext foi preservado em ${entity.path}.',
+            'Falha ao validar o conceito legado '
+            '$legacyId no Vault. '
+            'O plaintext foi preservado em '
+            '${entity.path}.',
           );
         }
 
@@ -1901,8 +1907,8 @@ class BrainRepository {
 
         if (await entity.exists()) {
           throw FileSystemException(
-            'O conceito plaintext continuou existindo após '
-            'a validação segura.',
+            'O conceito plaintext continuou existindo '
+            'após a validação segura.',
             entity.path,
           );
         }
@@ -1915,11 +1921,17 @@ class BrainRepository {
         0) {
       debugPrint(
         '[BRAIN SECURITY] '
-        'Conceitos legados: encontrados=$discovered, '
-        'gravados_no_vault=$migrated, removidos=$removed.',
+        'Conceitos legados: '
+        'encontrados=$discovered, '
+        'gravados_no_vault=$migrated, '
+        'removidos=$removed.',
       );
     }
   }
+
+  // ============================================================
+  // LEGACY CONCEPT METADATA
+  // ============================================================
 
   String _legacyConceptMetadataValue(
     String markdown,
@@ -1999,6 +2011,10 @@ class BrainRepository {
     return '';
   }
 
+  // ============================================================
+  // LEGACY CONCEPT SOURCE NOTE PATH
+  // ============================================================
+
   String? _legacyConceptSourceNotePath(
     String markdown,
   ) {
@@ -2030,12 +2046,18 @@ class BrainRepository {
     ) {
       debugPrint(
         '[BRAIN SECURITY] '
-        'Origem legada do conceito não pôde ser decodificada: $error',
+        'Origem legada do conceito '
+        'não pôde ser decodificada: '
+        '$error',
       );
 
       return null;
     }
   }
+
+  // ============================================================
+  // SAME CONCEPT CONTENT
+  // ============================================================
 
   bool _sameConceptContent(
     BrainConcept first,
@@ -2052,6 +2074,10 @@ class BrainRepository {
         first.reviewEnabled ==
             second.reviewEnabled;
   }
+
+  // ============================================================
+  // FIND VAULT NOTE BY ANY ID
+  // ============================================================
 
   Future<
     BrainFile?
@@ -2077,6 +2103,7 @@ class BrainRepository {
     }
 
     final userId = currentUserId?.trim();
+
     final notes = await store.loadNotes();
 
     if (userId !=
@@ -2097,6 +2124,10 @@ class BrainRepository {
 
     return null;
   }
+
+  // ============================================================
+  // SAVE ENCRYPTED NOTE AND VERIFY
+  // ============================================================
 
   Future<
     BrainFile
@@ -2138,7 +2169,8 @@ class BrainRepository {
         verified.content !=
             note.content) {
       throw StateError(
-        'Falha ao verificar a nota criptografada no Vault.',
+        'Falha ao verificar a nota '
+        'criptografada no Vault.',
       );
     }
 
@@ -2148,6 +2180,10 @@ class BrainRepository {
 
     return verified;
   }
+
+  // ============================================================
+  // DELETE PLAINTEXT MIRROR
+  // ============================================================
 
   Future<
     void
@@ -2190,8 +2226,10 @@ class BrainRepository {
     ) {
       debugPrint(
         '[BRAIN SECURITY] '
-        'BrainStorage.deleteNote falhou; tentando remover o arquivo '
-        'plaintext diretamente: $error',
+        'BrainStorage.deleteNote falhou; '
+        'tentando remover o arquivo '
+        'plaintext diretamente: '
+        '$error',
       );
 
       if (await file.exists()) {
@@ -2201,11 +2239,16 @@ class BrainRepository {
 
     if (await file.exists()) {
       throw FileSystemException(
-        'O arquivo plaintext continuou existindo após a migração segura.',
+        'O arquivo plaintext continuou existindo '
+        'após a migração segura.',
         legacyPath,
       );
     }
   }
+
+  // ============================================================
+  // NEW VAULT NOTE PATH
+  // ============================================================
 
   String _newVaultNotePath() {
     final now = DateTime.now().toUtc();
@@ -2215,8 +2258,13 @@ class BrainRepository {
         '${now.toIso8601String()}|'
         '${identityHashCode(this)}';
 
-    return 'vault://note/${_deterministicUuid(seed)}';
+    return 'vault://note/'
+        '${_deterministicUuid(seed)}';
   }
+
+  // ============================================================
+  // IS VAULT NOTE PATH
+  // ============================================================
 
   bool _isVaultNotePath(
     String value,
@@ -2243,29 +2291,18 @@ class BrainRepository {
       String,
       dynamic
     >{
-      // BrainController.path recebe o caminho local.
       'id': note.path,
 
       'remote_id': remoteId,
 
       'user_id': userId,
 
-      // Campo legado mantido durante a Fase 09.
       'topic': note.topic,
 
       'title': note.title,
 
       'content': note.content,
 
-      // ========================================================
-      // FASE 13 — FONTES DO CONHECIMENTO
-      // ========================================================
-      //
-      // As fontes vêm do Vault local criptografado.
-      //
-      // Não são persistidas pelo BrainStorage Markdown.
-      //
-      // ========================================================
       'sources': note.sources
           .map(
             (
@@ -2293,6 +2330,7 @@ class BrainRepository {
     String second,
   ) {
     final a = first.trim();
+
     final b = second.trim();
 
     if (a.isEmpty ||
@@ -2354,7 +2392,6 @@ class BrainRepository {
   }) {
     final cleanOriginal = originalId?.trim();
 
-    // Preserva UUID remoto antigo durante migração.
     if (cleanOriginal !=
             null &&
         _looksLikeUuid(
@@ -2380,13 +2417,6 @@ class BrainRepository {
 
   // ============================================================
   // DETERMINISTIC UUID
-  // ============================================================
-  //
-  // Solução transitória enquanto BrainFile ainda não possui
-  // um campo "id" persistido.
-  //
-  // Gera sempre o mesmo UUID para o mesmo user/path.
-  //
   // ============================================================
 
   String _deterministicUuid(
@@ -2414,7 +2444,6 @@ class BrainRepository {
         '${_hex32(c)}'
         '${_hex32(d)}';
 
-    // UUID version 4 / variant RFC 4122 visualmente válido.
     final versioned =
         '${hex.substring(0, 12)}'
         '4'
@@ -2428,6 +2457,10 @@ class BrainRepository {
         '${versioned.substring(16, 20)}-'
         '${versioned.substring(20, 32)}';
   }
+
+  // ============================================================
+  // FNV32
+  // ============================================================
 
   int _fnv32(
     String value,
@@ -2446,6 +2479,10 @@ class BrainRepository {
     return hash;
   }
 
+  // ============================================================
+  // HEX32
+  // ============================================================
+
   String _hex32(
     int value,
   ) {
@@ -2458,6 +2495,10 @@ class BrainRepository {
           '0',
         );
   }
+
+  // ============================================================
+  // UUID VARIANT
+  // ============================================================
 
   String _variantNibble(
     String original,
@@ -2478,6 +2519,10 @@ class BrainRepository {
       16,
     );
   }
+
+  // ============================================================
+  // LOOKS LIKE UUID
+  // ============================================================
 
   bool _looksLikeUuid(
     String value,
