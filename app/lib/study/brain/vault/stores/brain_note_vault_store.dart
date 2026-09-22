@@ -18,7 +18,7 @@ import '../services/brain_vault_service.dart';
 //
 // FASE 13:
 //
-// - sources passam a ser persistidas dentro do payload criptografado;
+// - sources são persistidas dentro do payload criptografado;
 // - payloads antigos sem sources continuam válidos;
 // - referência/autor/observação não entram no mirror Markdown aqui.
 //
@@ -29,37 +29,15 @@ import '../services/brain_vault_service.dart';
 //
 // PRIMEIRA OTIMIZAÇÃO:
 //
-// path / legacyRemoteId passaram a utilizar índice em memória.
+// path / legacyRemoteId utilizam índice em memória.
 //
-// Isso eliminou buscas repetidas que varriam o Vault inteiro.
+// Isso elimina buscas repetidas que varriam o Vault inteiro.
 //
 // ------------------------------------------------------------
 //
 // SEGUNDA OTIMIZAÇÃO:
 //
 // Na construção inicial do índice:
-//
-// ANTES:
-//
-// loadAllEncryptedObjects()
-//        ↓
-// para cada objeto
-//        ↓
-// readObject(id)
-//        ↓
-// relê objeto do disco
-//        ↓
-// reabre Vault
-//        ↓
-// relê Master Key
-//        ↓
-// decrypt
-//
-// tudo sequencial.
-//
-// ------------------------------------------------------------
-//
-// AGORA:
 //
 // loadAllEncryptedObjects()
 //        ↓
@@ -69,9 +47,24 @@ import '../services/brain_vault_service.dart';
 //        ↓
 // Vault aberto uma vez
 // Master Key obtida uma vez
-// sem reler objeto do disco
+// sem reler cada objeto do disco
 //        ↓
 // lotes de 6 objetos em paralelo
+//
+// ------------------------------------------------------------
+//
+// SCHEMA ATUAL
+// ============================================================
+//
+// Toda nota utiliza:
+//
+//   path
+//
+// O suporte temporário a:
+//
+//   legacy_path
+//
+// foi removido depois da limpeza dos objetos legados.
 //
 // ------------------------------------------------------------
 //
@@ -79,7 +72,7 @@ import '../services/brain_vault_service.dart';
 //
 // - E2EE continua obrigatório;
 // - nenhum conteúdo é persistido em plaintext;
-// - verifyBinding continua sendo executado;
+// - verifyBinding continua sendo executado pelo Vault;
 // - keyVersion continua validada;
 // - tombstones continuam ignorados;
 // - cache continua somente em memória.
@@ -87,8 +80,9 @@ import '../services/brain_vault_service.dart';
 // ============================================================
 
 class BrainNoteVaultStore {
-  BrainNoteVaultStore({required BrainVaultService vaultService})
-    : _vaultService = vaultService;
+  BrainNoteVaultStore({
+    required BrainVaultService vaultService,
+  }) : _vaultService = vaultService;
 
   final BrainVaultService _vaultService;
 
@@ -104,25 +98,75 @@ class BrainNoteVaultStore {
 
   bool _indexLoaded = false;
 
-  Future<void>? _indexLoadFuture;
+  Future<
+    void
+  >?
+  _indexLoadFuture;
 
-  final Map<String, BrainVaultObject> _objectById =
-      <String, BrainVaultObject>{};
+  final Map<
+    String,
+    BrainVaultObject
+  >
+  _objectById =
+      <
+        String,
+        BrainVaultObject
+      >{};
 
-  final Map<String, String> _pathToObjectId = <String, String>{};
+  final Map<
+    String,
+    String
+  >
+  _pathToObjectId =
+      <
+        String,
+        String
+      >{};
 
-  final Map<String, String> _legacyRemoteIdToObjectId = <String, String>{};
+  final Map<
+    String,
+    String
+  >
+  _legacyRemoteIdToObjectId =
+      <
+        String,
+        String
+      >{};
 
-  final Map<String, Map<String, dynamic>> _dataByObjectId =
-      <String, Map<String, dynamic>>{};
+  final Map<
+    String,
+    Map<
+      String,
+      dynamic
+    >
+  >
+  _dataByObjectId =
+      <
+        String,
+        Map<
+          String,
+          dynamic
+        >
+      >{};
 
-  final Map<String, BrainFile> _noteByObjectId = <String, BrainFile>{};
+  final Map<
+    String,
+    BrainFile
+  >
+  _noteByObjectId =
+      <
+        String,
+        BrainFile
+      >{};
 
   // ============================================================
   // INITIALIZE
   // ============================================================
 
-  Future<void> initialize() async {
+  Future<
+    void
+  >
+  initialize() async {
     await _vaultService.getOrCreateVault();
   }
 
@@ -138,7 +182,10 @@ class BrainNoteVaultStore {
   // CACHE — REFRESH
   // ============================================================
 
-  Future<void> refreshCache() async {
+  Future<
+    void
+  >
+  refreshCache() async {
     _clearIndex();
 
     await _ensureIndexLoaded();
@@ -166,14 +213,20 @@ class BrainNoteVaultStore {
   // CACHE — ENSURE
   // ============================================================
 
-  Future<void> _ensureIndexLoaded() {
+  Future<
+    void
+  >
+  _ensureIndexLoaded() {
     if (_indexLoaded) {
-      return Future<void>.value();
+      return Future<
+        void
+      >.value();
     }
 
     final existingFuture = _indexLoadFuture;
 
-    if (existingFuture != null) {
+    if (existingFuture !=
+        null) {
       return existingFuture;
     }
 
@@ -181,18 +234,26 @@ class BrainNoteVaultStore {
 
     _indexLoadFuture = future;
 
-    return future.whenComplete(() {
-      if (identical(_indexLoadFuture, future)) {
-        _indexLoadFuture = null;
-      }
-    });
+    return future.whenComplete(
+      () {
+        if (identical(
+          _indexLoadFuture,
+          future,
+        )) {
+          _indexLoadFuture = null;
+        }
+      },
+    );
   }
 
   // ============================================================
   // CACHE — BUILD
   // ============================================================
 
-  Future<void> _buildIndex() async {
+  Future<
+    void
+  >
+  _buildIndex() async {
     final totalWatch = Stopwatch()..start();
 
     await initialize();
@@ -224,18 +285,15 @@ class BrainNoteVaultStore {
     // ==========================================================
     // FILTER ACTIVE OBJECTS
     // ==========================================================
-    //
-    // Não enviamos tombstones para decrypt.
-    //
-    // Também ignoramos objectId inválido.
-    //
-    // ==========================================================
 
     var deletedObjects = 0;
 
     var invalidObjectIds = 0;
 
-    final activeObjects = <BrainVaultObject>[];
+    final activeObjects =
+        <
+          BrainVaultObject
+        >[];
 
     for (final object in objects) {
       if (object.isDeleted) {
@@ -252,25 +310,13 @@ class BrainNoteVaultStore {
         continue;
       }
 
-      activeObjects.add(object);
+      activeObjects.add(
+        object,
+      );
     }
 
     // ==========================================================
     // BATCH DECODE
-    // ==========================================================
-    //
-    // Esta é a mudança principal.
-    //
-    // Não fazemos mais:
-    //
-    // for (...) {
-    //   await readObject(id);
-    // }
-    //
-    // readObject() releria o objeto do disco e reabriria o Vault.
-    //
-    // Os objetos já estão carregados.
-    //
     // ==========================================================
 
     final decodeWatch = Stopwatch()..start();
@@ -292,16 +338,23 @@ class BrainNoteVaultStore {
 
     var nonNoteObjects = 0;
 
-    for (var index = 0; index < activeObjects.length; index++) {
+    for (
+      var index = 0;
+      index <
+          activeObjects.length;
+      index++
+    ) {
       final object = activeObjects[index];
 
       final decoded = decodedObjects[index];
 
-      if (decoded == null) {
+      if (decoded ==
+          null) {
         continue;
       }
 
-      if (decoded.type != BrainVaultObjectType.note) {
+      if (decoded.type !=
+          BrainVaultObjectType.note) {
         nonNoteObjects++;
 
         continue;
@@ -309,7 +362,13 @@ class BrainNoteVaultStore {
 
       final objectId = object.header.objectId.trim();
 
-      final data = Map<String, dynamic>.from(decoded.data);
+      final data =
+          Map<
+            String,
+            dynamic
+          >.from(
+            decoded.data,
+          );
 
       _objectById[objectId] = object;
 
@@ -319,20 +378,37 @@ class BrainNoteVaultStore {
       // PATH INDEX
       // ========================================================
 
-      final path = data['path']?.toString().trim() ?? '';
+      final path =
+          data['path']?.toString().trim() ??
+          '';
 
       if (path.isNotEmpty) {
-        _pathToObjectId.putIfAbsent(path, () => objectId);
+        _pathToObjectId.putIfAbsent(
+          path,
+          () => objectId,
+        );
       }
 
       // ========================================================
       // LEGACY REMOTE ID INDEX
       // ========================================================
+      //
+      // legacy_remote_id continua existindo porque é outra
+      // compatibilidade, relacionada ao identificador remoto.
+      //
+      // Não possui relação com legacy_path.
+      //
+      // ========================================================
 
-      final legacyRemoteId = data['legacy_remote_id']?.toString().trim() ?? '';
+      final legacyRemoteId =
+          data['legacy_remote_id']?.toString().trim() ??
+          '';
 
       if (legacyRemoteId.isNotEmpty) {
-        _legacyRemoteIdToObjectId.putIfAbsent(legacyRemoteId, () => objectId);
+        _legacyRemoteIdToObjectId.putIfAbsent(
+          legacyRemoteId,
+          () => objectId,
+        );
       }
 
       // ========================================================
@@ -340,13 +416,23 @@ class BrainNoteVaultStore {
       // ========================================================
 
       try {
-        final note = _fromVaultData(data);
+        final note = _fromVaultData(
+          data,
+        );
 
         _noteByObjectId[objectId] = note;
 
         decodedNotes++;
-      } catch (_) {
+      } catch (
+        error
+      ) {
         invalidNotes++;
+
+        _logInvalidNoteDiagnostic(
+          objectId: objectId,
+          data: data,
+          error: error,
+        );
       }
     }
 
@@ -394,30 +480,228 @@ class BrainNoteVaultStore {
   }
 
   // ============================================================
+  // INVALID NOTE DIAGNOSTIC
+  // ============================================================
+  //
+  // Não imprime:
+  //
+  // - título;
+  // - conteúdo;
+  // - path;
+  // - valores das fontes;
+  // - valores dos conceitos.
+  //
+  // Apenas informações estruturais.
+  //
+  // ============================================================
+
+  void _logInvalidNoteDiagnostic({
+    required String objectId,
+    required Map<
+      String,
+      dynamic
+    >
+    data,
+    required Object error,
+  }) {
+    final model =
+        data['model']?.toString().trim() ??
+        '';
+
+    final title =
+        data['title']?.toString().trim() ??
+        '';
+
+    final path =
+        data['path']?.toString().trim() ??
+        '';
+
+    final content =
+        data['content']?.toString() ??
+        '';
+
+    final createdAtRaw =
+        data['created_at']?.toString().trim() ??
+        '';
+
+    final updatedAtRaw =
+        data['updated_at']?.toString().trim() ??
+        '';
+
+    final createdAt = DateTime.tryParse(
+      createdAtRaw,
+    );
+
+    final updatedAt = DateTime.tryParse(
+      updatedAtRaw,
+    );
+
+    final sources = data['sources'];
+
+    final concepts = data['concepts'];
+
+    final legacyRemoteId = data['legacy_remote_id'];
+
+    final hasModel = data.containsKey(
+      'model',
+    );
+
+    final hasTopic = data.containsKey(
+      'topic',
+    );
+
+    final hasTitle = data.containsKey(
+      'title',
+    );
+
+    final hasPath = data.containsKey(
+      'path',
+    );
+
+    final hasContent = data.containsKey(
+      'content',
+    );
+
+    final hasConcepts = data.containsKey(
+      'concepts',
+    );
+
+    final hasSources = data.containsKey(
+      'sources',
+    );
+
+    final hasCreatedAt = data.containsKey(
+      'created_at',
+    );
+
+    final hasUpdatedAt = data.containsKey(
+      'updated_at',
+    );
+
+    final hasLegacyRemoteId = data.containsKey(
+      'legacy_remote_id',
+    );
+
+    final sourcesCount =
+        sources
+            is Iterable
+        ? sources.length
+        : null;
+
+    final conceptsCount =
+        concepts
+            is Iterable
+        ? concepts.length
+        : null;
+
+    // ==========================================================
+    // CLASSIFICAÇÃO
+    // ==========================================================
+
+    String reason;
+
+    if (!hasTitle ||
+        title.isEmpty) {
+      reason = 'title_ausente_ou_vazio';
+    } else if (!hasPath ||
+        path.isEmpty) {
+      reason = 'path_ausente_ou_vazio';
+    } else if (!hasContent ||
+        content.trim().isEmpty) {
+      reason = 'content_ausente_ou_vazio';
+    } else if (!hasUpdatedAt ||
+        updatedAtRaw.isEmpty) {
+      reason = 'updated_at_ausente_ou_vazio';
+    } else if (updatedAt ==
+        null) {
+      reason = 'updated_at_invalido';
+    } else if (sources !=
+            null &&
+        sources
+            is! Iterable) {
+      reason = 'sources_nao_iteravel';
+    } else {
+      reason = 'erro_durante_mapper';
+    }
+
+    // ignore: avoid_print
+    print(
+      '[BRAIN INVALID NOTE] '
+      'objectId=$objectId '
+      'reason=$reason '
+      'modelPresent=$hasModel '
+      'model=${model.isEmpty ? "(vazio)" : model} '
+      'topicPresent=$hasTopic '
+      'titlePresent=$hasTitle '
+      'titleEmpty=${title.isEmpty} '
+      'pathPresent=$hasPath '
+      'pathEmpty=${path.isEmpty} '
+      'contentPresent=$hasContent '
+      'contentEmpty=${content.trim().isEmpty} '
+      'contentLength=${content.length} '
+      'createdAtPresent=$hasCreatedAt '
+      'createdAtEmpty=${createdAtRaw.isEmpty} '
+      'createdAtValid=${createdAt != null} '
+      'updatedAtPresent=$hasUpdatedAt '
+      'updatedAtEmpty=${updatedAtRaw.isEmpty} '
+      'updatedAtValid=${updatedAt != null} '
+      'conceptsPresent=$hasConcepts '
+      'conceptsType=${concepts?.runtimeType ?? "null"} '
+      'conceptsCount=${conceptsCount ?? -1} '
+      'sourcesPresent=$hasSources '
+      'sourcesType=${sources?.runtimeType ?? "null"} '
+      'sourcesCount=${sourcesCount ?? -1} '
+      'legacyRemoteIdPresent=$hasLegacyRemoteId '
+      'legacyRemoteIdType=${legacyRemoteId?.runtimeType ?? "null"} '
+      'errorType=${error.runtimeType}',
+    );
+
+    // ignore: avoid_print
+    print(
+      '[BRAIN INVALID NOTE KEYS] '
+      'objectId=$objectId '
+      'keys=${data.keys.toList(growable: false)}',
+    );
+  }
+
+  // ============================================================
   // SAVE / UPSERT
   // ============================================================
 
-  Future<BrainVaultObject> saveNote(
+  Future<
+    BrainVaultObject
+  >
+  saveNote(
     BrainFile note, {
     String? legacyRemoteId,
   }) async {
     await _ensureIndexLoaded();
 
-    final data = _toVaultData(note, legacyRemoteId: legacyRemoteId);
+    final data = _toVaultData(
+      note,
+      legacyRemoteId: legacyRemoteId,
+    );
 
-    final existing = _findEncryptedObjectByPathFromIndex(note.path);
+    final existing = _findEncryptedObjectByPathFromIndex(
+      note.path,
+    );
 
     // ==========================================================
     // CREATE
     // ==========================================================
 
-    if (existing == null) {
+    if (existing ==
+        null) {
       final created = await _vaultService.createObject(
         type: BrainVaultObjectType.note,
         data: data,
       );
 
-      _upsertCachedNote(object: created, data: data, note: note);
+      _upsertCachedNote(
+        object: created,
+        data: data,
+        note: note,
+      );
 
       return created;
     }
@@ -430,7 +714,12 @@ class BrainNoteVaultStore {
 
     final cachedData = _dataByObjectId[objectId];
 
-    if (cachedData != null && _mapsEquivalent(cachedData, data)) {
+    if (cachedData !=
+            null &&
+        _mapsEquivalent(
+          cachedData,
+          data,
+        )) {
       return existing;
     }
 
@@ -438,15 +727,29 @@ class BrainNoteVaultStore {
     // DEFENSIVE SINGLE READ
     // ==========================================================
 
-    if (cachedData == null) {
-      final decoded = await _vaultService.readObject(objectId);
+    if (cachedData ==
+        null) {
+      final decoded = await _vaultService.readObject(
+        objectId,
+      );
 
-      if (decoded != null &&
-          decoded.type == BrainVaultObjectType.note &&
-          _mapsEquivalent(decoded.data, data)) {
+      if (decoded !=
+              null &&
+          decoded.type ==
+              BrainVaultObjectType.note &&
+          _mapsEquivalent(
+            decoded.data,
+            data,
+          )) {
         _upsertCachedNote(
           object: existing,
-          data: Map<String, dynamic>.from(decoded.data),
+          data:
+              Map<
+                String,
+                dynamic
+              >.from(
+                decoded.data,
+              ),
           note: note,
         );
 
@@ -464,7 +767,11 @@ class BrainNoteVaultStore {
       data: data,
     );
 
-    _upsertCachedNote(object: updated, data: data, note: note);
+    _upsertCachedNote(
+      object: updated,
+      data: data,
+      note: note,
+    );
 
     return updated;
   }
@@ -473,16 +780,33 @@ class BrainNoteVaultStore {
   // LOAD
   // ============================================================
 
-  Future<List<BrainFile>> loadNotes() async {
+  Future<
+    List<
+      BrainFile
+    >
+  >
+  loadNotes() async {
     final totalWatch = Stopwatch()..start();
 
     await _ensureIndexLoaded();
 
-    final result = List<BrainFile>.from(_noteByObjectId.values);
+    final result =
+        List<
+          BrainFile
+        >.from(
+          _noteByObjectId.values,
+        );
 
-    result.sort((first, second) {
-      return second.updatedAt.compareTo(first.updatedAt);
-    });
+    result.sort(
+      (
+        first,
+        second,
+      ) {
+        return second.updatedAt.compareTo(
+          first.updatedAt,
+        );
+      },
+    );
 
     totalWatch.stop();
 
@@ -501,7 +825,12 @@ class BrainNoteVaultStore {
   // GET NOTE BY PATH
   // ============================================================
 
-  Future<BrainFile?> getNoteByPath(String path) async {
+  Future<
+    BrainFile?
+  >
+  getNoteByPath(
+    String path,
+  ) async {
     final cleanPath = path.trim();
 
     if (cleanPath.isEmpty) {
@@ -512,41 +841,62 @@ class BrainNoteVaultStore {
 
     final objectId = _pathToObjectId[cleanPath];
 
-    if (objectId == null || objectId.isEmpty) {
+    if (objectId ==
+            null ||
+        objectId.isEmpty) {
       return null;
     }
 
     final object = _objectById[objectId];
 
-    if (object == null || object.isDeleted) {
+    if (object ==
+            null ||
+        object.isDeleted) {
       return null;
     }
 
     final cachedNote = _noteByObjectId[objectId];
 
-    if (cachedNote != null) {
+    if (cachedNote !=
+        null) {
       return cachedNote;
     }
 
     final cachedData = _dataByObjectId[objectId];
 
-    if (cachedData != null) {
-      return _fromVaultData(cachedData);
+    if (cachedData !=
+        null) {
+      return _fromVaultData(
+        cachedData,
+      );
     }
 
     // ==========================================================
     // FALLBACK SINGLE OBJECT
     // ==========================================================
 
-    final decoded = await _vaultService.readObject(objectId);
+    final decoded = await _vaultService.readObject(
+      objectId,
+    );
 
-    if (decoded == null || decoded.type != BrainVaultObjectType.note) {
+    if (decoded ==
+            null ||
+        decoded.type !=
+            BrainVaultObjectType.note) {
       return null;
     }
 
-    final data = Map<String, dynamic>.from(decoded.data);
+    final data =
+        Map<
+          String,
+          dynamic
+        >.from(
+          decoded.data,
+        );
 
-    final note = _fromVaultData(data);
+    final note = _fromVaultData(
+      data,
+    );
 
     _dataByObjectId[objectId] = data;
 
@@ -559,7 +909,12 @@ class BrainNoteVaultStore {
   // FIND RAW — PATH
   // ============================================================
 
-  Future<BrainVaultObject?> findEncryptedObjectByPath(String path) async {
+  Future<
+    BrainVaultObject?
+  >
+  findEncryptedObjectByPath(
+    String path,
+  ) async {
     final cleanPath = path.trim();
 
     if (cleanPath.isEmpty) {
@@ -568,14 +923,18 @@ class BrainNoteVaultStore {
 
     await _ensureIndexLoaded();
 
-    return _findEncryptedObjectByPathFromIndex(cleanPath);
+    return _findEncryptedObjectByPathFromIndex(
+      cleanPath,
+    );
   }
 
   // ============================================================
   // FIND RAW — PATH — INDEX ONLY
   // ============================================================
 
-  BrainVaultObject? _findEncryptedObjectByPathFromIndex(String path) {
+  BrainVaultObject? _findEncryptedObjectByPathFromIndex(
+    String path,
+  ) {
     final cleanPath = path.trim();
 
     if (cleanPath.isEmpty) {
@@ -584,13 +943,17 @@ class BrainNoteVaultStore {
 
     final objectId = _pathToObjectId[cleanPath];
 
-    if (objectId == null || objectId.isEmpty) {
+    if (objectId ==
+            null ||
+        objectId.isEmpty) {
       return null;
     }
 
     final object = _objectById[objectId];
 
-    if (object == null || object.isDeleted) {
+    if (object ==
+            null ||
+        object.isDeleted) {
       return null;
     }
 
@@ -600,8 +963,20 @@ class BrainNoteVaultStore {
   // ============================================================
   // FIND RAW — LEGACY REMOTE ID
   // ============================================================
+  //
+  // Atenção:
+  //
+  // legacy_remote_id não é legacy_path.
+  //
+  // Este campo continua necessário para compatibilidade com
+  // identificadores remotos antigos.
+  //
+  // ============================================================
 
-  Future<BrainVaultObject?> findEncryptedObjectByLegacyRemoteId(
+  Future<
+    BrainVaultObject?
+  >
+  findEncryptedObjectByLegacyRemoteId(
     String remoteId,
   ) async {
     final cleanId = remoteId.trim();
@@ -614,13 +989,17 @@ class BrainNoteVaultStore {
 
     final objectId = _legacyRemoteIdToObjectId[cleanId];
 
-    if (objectId == null || objectId.isEmpty) {
+    if (objectId ==
+            null ||
+        objectId.isEmpty) {
       return null;
     }
 
     final object = _objectById[objectId];
 
-    if (object == null || object.isDeleted) {
+    if (object ==
+            null ||
+        object.isDeleted) {
       return null;
     }
 
@@ -631,18 +1010,30 @@ class BrainNoteVaultStore {
   // DELETE / TOMBSTONE — PATH
   // ============================================================
 
-  Future<BrainVaultObject?> deleteNoteByPath(String path) async {
-    final object = await findEncryptedObjectByPath(path);
+  Future<
+    BrainVaultObject?
+  >
+  deleteNoteByPath(
+    String path,
+  ) async {
+    final object = await findEncryptedObjectByPath(
+      path,
+    );
 
-    if (object == null) {
+    if (object ==
+        null) {
       return null;
     }
 
     final objectId = object.header.objectId.trim();
 
-    final tombstone = await _vaultService.deleteObject(objectId);
+    final tombstone = await _vaultService.deleteObject(
+      objectId,
+    );
 
-    _removeCachedObject(objectId);
+    _removeCachedObject(
+      objectId,
+    );
 
     return tombstone;
   }
@@ -651,18 +1042,30 @@ class BrainNoteVaultStore {
   // DELETE / TOMBSTONE — LEGACY REMOTE ID
   // ============================================================
 
-  Future<BrainVaultObject?> deleteNoteByLegacyRemoteId(String remoteId) async {
-    final object = await findEncryptedObjectByLegacyRemoteId(remoteId);
+  Future<
+    BrainVaultObject?
+  >
+  deleteNoteByLegacyRemoteId(
+    String remoteId,
+  ) async {
+    final object = await findEncryptedObjectByLegacyRemoteId(
+      remoteId,
+    );
 
-    if (object == null) {
+    if (object ==
+        null) {
       return null;
     }
 
     final objectId = object.header.objectId.trim();
 
-    final tombstone = await _vaultService.deleteObject(objectId);
+    final tombstone = await _vaultService.deleteObject(
+      objectId,
+    );
 
-    _removeCachedObject(objectId);
+    _removeCachedObject(
+      objectId,
+    );
 
     return tombstone;
   }
@@ -673,7 +1076,11 @@ class BrainNoteVaultStore {
 
   void _upsertCachedNote({
     required BrainVaultObject object,
-    required Map<String, dynamic> data,
+    required Map<
+      String,
+      dynamic
+    >
+    data,
     required BrainFile note,
   }) {
     final objectId = object.header.objectId.trim();
@@ -684,24 +1091,35 @@ class BrainNoteVaultStore {
       return;
     }
 
-    _removeCachedObject(objectId);
+    _removeCachedObject(
+      objectId,
+    );
 
     _objectById[objectId] = object;
 
-    final copiedData = Map<String, dynamic>.from(data);
+    final copiedData =
+        Map<
+          String,
+          dynamic
+        >.from(
+          data,
+        );
 
     _dataByObjectId[objectId] = copiedData;
 
     _noteByObjectId[objectId] = note;
 
-    final path = copiedData['path']?.toString().trim() ?? '';
+    final path =
+        copiedData['path']?.toString().trim() ??
+        '';
 
     if (path.isNotEmpty) {
       _pathToObjectId[path] = objectId;
     }
 
     final legacyRemoteId =
-        copiedData['legacy_remote_id']?.toString().trim() ?? '';
+        copiedData['legacy_remote_id']?.toString().trim() ??
+        '';
 
     if (legacyRemoteId.isNotEmpty) {
       _legacyRemoteIdToObjectId[legacyRemoteId] = objectId;
@@ -714,7 +1132,9 @@ class BrainNoteVaultStore {
   // CACHE — REMOVE OBJECT
   // ============================================================
 
-  void _removeCachedObject(String objectId) {
+  void _removeCachedObject(
+    String objectId,
+  ) {
     final cleanObjectId = objectId.trim();
 
     if (cleanObjectId.isEmpty) {
@@ -723,58 +1143,117 @@ class BrainNoteVaultStore {
 
     final data = _dataByObjectId[cleanObjectId];
 
-    if (data != null) {
-      final path = data['path']?.toString().trim() ?? '';
+    if (data !=
+        null) {
+      final path =
+          data['path']?.toString().trim() ??
+          '';
 
-      if (path.isNotEmpty && _pathToObjectId[path] == cleanObjectId) {
-        _pathToObjectId.remove(path);
+      if (path.isNotEmpty &&
+          _pathToObjectId[path] ==
+              cleanObjectId) {
+        _pathToObjectId.remove(
+          path,
+        );
       }
 
-      final legacyRemoteId = data['legacy_remote_id']?.toString().trim() ?? '';
+      final legacyRemoteId =
+          data['legacy_remote_id']?.toString().trim() ??
+          '';
 
       if (legacyRemoteId.isNotEmpty &&
-          _legacyRemoteIdToObjectId[legacyRemoteId] == cleanObjectId) {
-        _legacyRemoteIdToObjectId.remove(legacyRemoteId);
+          _legacyRemoteIdToObjectId[legacyRemoteId] ==
+              cleanObjectId) {
+        _legacyRemoteIdToObjectId.remove(
+          legacyRemoteId,
+        );
       }
     }
 
-    _pathToObjectId.removeWhere((_, value) => value == cleanObjectId);
+    // Segurança adicional contra referências residuais.
 
-    _legacyRemoteIdToObjectId.removeWhere((_, value) => value == cleanObjectId);
+    _pathToObjectId.removeWhere(
+      (
+        _,
+        value,
+      ) =>
+          value ==
+          cleanObjectId,
+    );
 
-    _objectById.remove(cleanObjectId);
+    _legacyRemoteIdToObjectId.removeWhere(
+      (
+        _,
+        value,
+      ) =>
+          value ==
+          cleanObjectId,
+    );
 
-    _dataByObjectId.remove(cleanObjectId);
+    _objectById.remove(
+      cleanObjectId,
+    );
 
-    _noteByObjectId.remove(cleanObjectId);
+    _dataByObjectId.remove(
+      cleanObjectId,
+    );
+
+    _noteByObjectId.remove(
+      cleanObjectId,
+    );
   }
 
   // ============================================================
   // MAPPER — NOTE -> VAULT
   // ============================================================
 
-  Map<String, dynamic> _toVaultData(BrainFile note, {String? legacyRemoteId}) {
+  Map<
+    String,
+    dynamic
+  >
+  _toVaultData(
+    BrainFile note, {
+    String? legacyRemoteId,
+  }) {
     final concepts = note.concepts
-        .map((concept) {
-          return <String, dynamic>{
-            'id': concept.id,
-            'title': concept.title,
-            'description': concept.description,
-            'type': concept.type.name,
-            'review_enabled': concept.reviewEnabled,
-          };
-        })
-        .toList(growable: false);
+        .map(
+          (
+            concept,
+          ) {
+            return <
+              String,
+              dynamic
+            >{
+              'id': concept.id,
+              'title': concept.title,
+              'description': concept.description,
+              'type': concept.type.name,
+              'review_enabled': concept.reviewEnabled,
+            };
+          },
+        )
+        .toList(
+          growable: false,
+        );
 
     final sources = note.sources
-        .map((source) {
-          return source.toJson();
-        })
-        .toList(growable: false);
+        .map(
+          (
+            source,
+          ) {
+            return source.toJson();
+          },
+        )
+        .toList(
+          growable: false,
+        );
 
     final cleanLegacyRemoteId = legacyRemoteId?.trim();
 
-    return <String, dynamic>{
+    return <
+      String,
+      dynamic
+    >{
       'model': 'brain_note',
 
       'topic': note.topic.trim(),
@@ -790,7 +1269,9 @@ class BrainNoteVaultStore {
       'sources': sources,
 
       'legacy_remote_id':
-          cleanLegacyRemoteId == null || cleanLegacyRemoteId.isEmpty
+          cleanLegacyRemoteId ==
+                  null ||
+              cleanLegacyRemoteId.isEmpty
           ? null
           : cleanLegacyRemoteId,
 
@@ -804,61 +1285,104 @@ class BrainNoteVaultStore {
   // MAPPER — VAULT -> NOTE
   // ============================================================
 
-  BrainFile _fromVaultData(Map<String, dynamic> data) {
-    final topic = data['topic']?.toString().trim() ?? '';
+  BrainFile _fromVaultData(
+    Map<
+      String,
+      dynamic
+    >
+    data,
+  ) {
+    final topic =
+        data['topic']?.toString().trim() ??
+        '';
 
-    final title = data['title']?.toString().trim() ?? '';
+    final title =
+        data['title']?.toString().trim() ??
+        '';
 
-    final path = data['path']?.toString().trim() ?? '';
+    final path =
+        data['path']?.toString().trim() ??
+        '';
 
-    final content = data['content']?.toString() ?? '';
+    final content =
+        data['content']?.toString() ??
+        '';
 
     final createdAt = DateTime.tryParse(
-      data['created_at']?.toString().trim() ?? '',
+      data['created_at']?.toString().trim() ??
+          '',
     )?.toLocal();
 
     final updatedAt = DateTime.tryParse(
-      data['updated_at']?.toString().trim() ?? '',
+      data['updated_at']?.toString().trim() ??
+          '',
     )?.toLocal();
 
     if (title.isEmpty ||
         path.isEmpty ||
         content.trim().isEmpty ||
-        updatedAt == null) {
-      throw const FormatException('Nota do Vault inválida.');
+        updatedAt ==
+            null) {
+      throw const FormatException(
+        'Nota do Vault inválida.',
+      );
     }
 
     // ==========================================================
     // CONCEPTS
     // ==========================================================
 
-    final concepts = <BrainConcept>[];
+    final concepts =
+        <
+          BrainConcept
+        >[];
 
     final rawConcepts = data['concepts'];
 
-    if (rawConcepts is Iterable) {
+    if (rawConcepts
+        is Iterable) {
       for (final raw in rawConcepts) {
-        if (raw is! Map) {
+        if (raw
+            is! Map) {
           continue;
         }
 
-        final map = Map<String, dynamic>.from(raw);
+        final map =
+            Map<
+              String,
+              dynamic
+            >.from(
+              raw,
+            );
 
-        final id = map['id']?.toString().trim() ?? '';
+        final id =
+            map['id']?.toString().trim() ??
+            '';
 
-        final conceptTitle = map['title']?.toString().trim() ?? '';
+        final conceptTitle =
+            map['title']?.toString().trim() ??
+            '';
 
-        final description = map['description']?.toString().trim() ?? '';
+        final description =
+            map['description']?.toString().trim() ??
+            '';
 
-        final typeName = map['type']?.toString().trim() ?? '';
+        final typeName =
+            map['type']?.toString().trim() ??
+            '';
 
-        if (id.isEmpty || conceptTitle.isEmpty || description.isEmpty) {
+        if (id.isEmpty ||
+            conceptTitle.isEmpty ||
+            description.isEmpty) {
           continue;
         }
 
         final type = BrainConceptType.values.firstWhere(
-          (value) {
-            return value.name == typeName;
+          (
+            value,
+          ) {
+            return value.name ==
+                typeName;
           },
           orElse: () {
             return BrainConceptType.concept;
@@ -883,25 +1407,38 @@ class BrainNoteVaultStore {
     // SOURCES
     // ==========================================================
 
-    final sources = <BrainSource>[];
+    final sources =
+        <
+          BrainSource
+        >[];
 
     final rawSources = data['sources'];
 
-    if (rawSources != null) {
-      if (rawSources is! Iterable) {
+    if (rawSources !=
+        null) {
+      if (rawSources
+          is! Iterable) {
         throw const FormatException(
           'Campo sources da nota do Vault é inválido.',
         );
       }
 
       for (final raw in rawSources) {
-        if (raw is! Map) {
+        if (raw
+            is! Map) {
           throw const FormatException(
             'BrainSource inválida dentro da nota do Vault.',
           );
         }
 
-        final source = BrainSource.fromJson(Map<String, dynamic>.from(raw));
+        final source = BrainSource.fromJson(
+          Map<
+            String,
+            dynamic
+          >.from(
+            raw,
+          ),
+        );
 
         if (!source.isValid) {
           throw const FormatException(
@@ -909,7 +1446,9 @@ class BrainNoteVaultStore {
           );
         }
 
-        sources.add(source);
+        sources.add(
+          source,
+        );
       }
     }
 
@@ -922,8 +1461,18 @@ class BrainNoteVaultStore {
       title: title,
       path: path,
       content: content,
-      concepts: List<BrainConcept>.unmodifiable(concepts),
-      sources: List<BrainSource>.unmodifiable(sources),
+      concepts:
+          List<
+            BrainConcept
+          >.unmodifiable(
+            concepts,
+          ),
+      sources:
+          List<
+            BrainSource
+          >.unmodifiable(
+            sources,
+          ),
       createdAt: createdAt,
       updatedAt: updatedAt,
     );
@@ -934,18 +1483,35 @@ class BrainNoteVaultStore {
   // ============================================================
 
   bool _mapsEquivalent(
-    Map<String, dynamic> first,
-    Map<String, dynamic> second,
+    Map<
+      String,
+      dynamic
+    >
+    first,
+    Map<
+      String,
+      dynamic
+    >
+    second,
   ) {
-    return _deepEqual(first, second);
+    return _deepEqual(
+      first,
+      second,
+    );
   }
 
   // ============================================================
   // DEEP EQUAL
   // ============================================================
 
-  bool _deepEqual(dynamic first, dynamic second) {
-    if (identical(first, second)) {
+  bool _deepEqual(
+    dynamic first,
+    dynamic second,
+  ) {
+    if (identical(
+      first,
+      second,
+    )) {
       return true;
     }
 
@@ -953,17 +1519,26 @@ class BrainNoteVaultStore {
     // MAP
     // ==========================================================
 
-    if (first is Map && second is Map) {
-      if (first.length != second.length) {
+    if (first
+            is Map &&
+        second
+            is Map) {
+      if (first.length !=
+          second.length) {
         return false;
       }
 
       for (final key in first.keys) {
-        if (!second.containsKey(key)) {
+        if (!second.containsKey(
+          key,
+        )) {
           return false;
         }
 
-        if (!_deepEqual(first[key], second[key])) {
+        if (!_deepEqual(
+          first[key],
+          second[key],
+        )) {
           return false;
         }
       }
@@ -975,17 +1550,29 @@ class BrainNoteVaultStore {
     // ITERABLE
     // ==========================================================
 
-    if (first is Iterable && second is Iterable) {
+    if (first
+            is Iterable &&
+        second
+            is Iterable) {
       final firstList = first.toList();
 
       final secondList = second.toList();
 
-      if (firstList.length != secondList.length) {
+      if (firstList.length !=
+          secondList.length) {
         return false;
       }
 
-      for (var index = 0; index < firstList.length; index++) {
-        if (!_deepEqual(firstList[index], secondList[index])) {
+      for (
+        var index = 0;
+        index <
+            firstList.length;
+        index++
+      ) {
+        if (!_deepEqual(
+          firstList[index],
+          secondList[index],
+        )) {
           return false;
         }
       }
@@ -993,6 +1580,7 @@ class BrainNoteVaultStore {
       return true;
     }
 
-    return first == second;
+    return first ==
+        second;
   }
 }

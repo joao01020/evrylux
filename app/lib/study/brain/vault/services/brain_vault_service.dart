@@ -2,6 +2,7 @@ import '../../security/crypto/brain_crypto_service.dart';
 import '../../security/keys/brain_key_service.dart';
 import '../../security/models/brain_crypto_version.dart';
 import '../../security/models/brain_key_bundle.dart';
+
 import '../models/brain_vault_manifest.dart';
 import '../models/brain_vault_object.dart';
 import '../models/brain_vault_object_header.dart';
@@ -9,6 +10,7 @@ import '../models/brain_vault_object_type.dart';
 import '../models/brain_vault_object_version.dart';
 import '../models/brain_vault_tombstone.dart';
 import '../storage/brain_vault_storage.dart';
+
 import 'brain_vault_id_service.dart';
 import 'brain_vault_serializer.dart';
 
@@ -72,9 +74,15 @@ class BrainVaultService {
     BrainVaultIdService? idService,
     BrainVaultSerializer? serializer,
   }) : _keyService = keyService,
-       _cryptoService = cryptoService ?? BrainCryptoService(),
-       _idService = idService ?? BrainVaultIdService(),
-       _serializer = serializer ?? const BrainVaultSerializer(),
+       _cryptoService =
+           cryptoService ??
+           BrainCryptoService(),
+       _idService =
+           idService ??
+           BrainVaultIdService(),
+       _serializer =
+           serializer ??
+           const BrainVaultSerializer(),
        _storage = storage;
 
   // ============================================================
@@ -95,21 +103,35 @@ class BrainVaultService {
   // INITIALIZE / CREATE VAULT
   // ============================================================
 
-  Future<BrainVaultManifest> createVault({String? vaultId}) async {
+  Future<
+    BrainVaultManifest
+  >
+  createVault({
+    String? vaultId,
+  }) async {
     await _storage.initialize();
 
     final existing = await _storage.loadManifest();
 
-    if (existing != null) {
-      throw StateError('Já existe um Vault inicializado neste armazenamento.');
+    if (existing !=
+        null) {
+      throw StateError(
+        'Já existe um Vault inicializado neste armazenamento.',
+      );
     }
 
-    final resolvedVaultId = vaultId?.trim().isNotEmpty == true
+    final resolvedVaultId =
+        vaultId?.trim().isNotEmpty ==
+            true
         ? vaultId!.trim()
         : _idService.generateVaultId();
 
-    if (!_idService.isValidVaultId(resolvedVaultId)) {
-      throw ArgumentError('vaultId inválido.');
+    if (!_idService.isValidVaultId(
+      resolvedVaultId,
+    )) {
+      throw ArgumentError(
+        'vaultId inválido.',
+      );
     }
 
     BrainKeyBundle? createdKey;
@@ -124,17 +146,26 @@ class BrainVaultService {
         keyVersion: createdKey.keyVersion,
       );
 
-      await _storage.saveManifest(manifest);
+      await _storage.saveManifest(
+        manifest,
+      );
 
       return manifest;
-    } catch (error) {
-      if (createdKey != null) {
+    } catch (
+      error
+    ) {
+      if (createdKey !=
+          null) {
         final manifestExists = await _storage.hasManifest();
 
         if (!manifestExists) {
           try {
-            await _keyService.deleteKeyBundle(vaultId: resolvedVaultId);
-          } catch (_) {
+            await _keyService.deleteKeyBundle(
+              vaultId: resolvedVaultId,
+            );
+          } catch (
+            _
+          ) {
             // Não mascarar o erro original.
           }
         }
@@ -155,12 +186,16 @@ class BrainVaultService {
   //
   // ============================================================
 
-  Future<BrainVaultManifest?> loadLocalManifest() async {
+  Future<
+    BrainVaultManifest?
+  >
+  loadLocalManifest() async {
     await _storage.initialize();
 
     final manifest = await _storage.loadManifest();
 
-    if (manifest != null) {
+    if (manifest !=
+        null) {
       manifest.validate();
     }
 
@@ -171,20 +206,31 @@ class BrainVaultService {
   // OPEN VAULT
   // ============================================================
 
-  Future<BrainVaultManifest> openVault() async {
+  Future<
+    BrainVaultManifest
+  >
+  openVault() async {
     await _storage.initialize();
 
     final manifest = await _storage.loadManifest();
 
-    if (manifest == null) {
-      throw StateError('Nenhum Vault foi inicializado.');
+    if (manifest ==
+        null) {
+      throw StateError(
+        'Nenhum Vault foi inicializado.',
+      );
     }
 
     manifest.validate();
 
-    final key = await _keyService.requireKeyBundle(vaultId: manifest.vaultId);
+    final key = await _keyService.requireKeyBundle(
+      vaultId: manifest.vaultId,
+    );
 
-    _validateKeyAgainstManifest(key: key, manifest: manifest);
+    _validateKeyAgainstManifest(
+      key: key,
+      manifest: manifest,
+    );
 
     return manifest;
   }
@@ -193,12 +239,16 @@ class BrainVaultService {
   // GET OR CREATE VAULT
   // ============================================================
 
-  Future<BrainVaultManifest> getOrCreateVault() async {
+  Future<
+    BrainVaultManifest
+  >
+  getOrCreateVault() async {
     await _storage.initialize();
 
     final existing = await _storage.loadManifest();
 
-    if (existing != null) {
+    if (existing !=
+        null) {
       return openVault();
     }
 
@@ -209,13 +259,22 @@ class BrainVaultService {
   // SAVE NEW OBJECT
   // ============================================================
 
-  Future<BrainVaultObject> createObject({
+  Future<
+    BrainVaultObject
+  >
+  createObject({
     required BrainVaultObjectType type,
-    required Map<String, dynamic> data,
+    required Map<
+      String,
+      dynamic
+    >
+    data,
   }) async {
     final manifest = await openVault();
 
-    final key = await _keyService.requireKeyBundle(vaultId: manifest.vaultId);
+    final key = await _keyService.requireKeyBundle(
+      vaultId: manifest.vaultId,
+    );
 
     final objectId = _idService.generateObjectId();
 
@@ -238,9 +297,13 @@ class BrainVaultService {
       key: key,
     );
 
-    await _storage.saveObject(object);
+    await _storage.saveObject(
+      object,
+    );
 
-    await _touchManifest(manifest);
+    await _touchManifest(
+      manifest,
+    );
 
     return object;
   }
@@ -249,26 +312,45 @@ class BrainVaultService {
   // UPDATE OBJECT
   // ============================================================
 
-  Future<BrainVaultObject> updateObject({
+  Future<
+    BrainVaultObject
+  >
+  updateObject({
     required String objectId,
     required BrainVaultObjectType type,
-    required Map<String, dynamic> data,
+    required Map<
+      String,
+      dynamic
+    >
+    data,
   }) async {
     final manifest = await openVault();
 
-    final existing = await _storage.loadObject(objectId);
+    final existing = await _storage.loadObject(
+      objectId,
+    );
 
-    if (existing == null) {
-      throw StateError('Objeto do Vault não encontrado.');
+    if (existing ==
+        null) {
+      throw StateError(
+        'Objeto do Vault não encontrado.',
+      );
     }
 
-    _validateObjectBelongsToVault(object: existing, manifest: manifest);
+    _validateObjectBelongsToVault(
+      object: existing,
+      manifest: manifest,
+    );
 
     if (existing.isDeleted) {
-      throw StateError('Objeto excluído não pode ser atualizado diretamente.');
+      throw StateError(
+        'Objeto excluído não pode ser atualizado diretamente.',
+      );
     }
 
-    final key = await _keyService.requireKeyBundle(vaultId: manifest.vaultId);
+    final key = await _keyService.requireKeyBundle(
+      vaultId: manifest.vaultId,
+    );
 
     final nextHeader = existing.header.copyWith(
       objectVersion: existing.header.objectVersion.next(),
@@ -284,9 +366,13 @@ class BrainVaultService {
       key: key,
     );
 
-    await _storage.saveObject(updated);
+    await _storage.saveObject(
+      updated,
+    );
 
-    await _touchManifest(manifest);
+    await _touchManifest(
+      manifest,
+    );
 
     return updated;
   }
@@ -301,16 +387,26 @@ class BrainVaultService {
   //
   // ============================================================
 
-  Future<BrainVaultDecodedPayload?> readObject(String objectId) async {
+  Future<
+    BrainVaultDecodedPayload?
+  >
+  readObject(
+    String objectId,
+  ) async {
     final manifest = await openVault();
 
-    final object = await _storage.loadObject(objectId);
+    final object = await _storage.loadObject(
+      objectId,
+    );
 
-    if (object == null) {
+    if (object ==
+        null) {
       return null;
     }
 
-    final key = await _keyService.requireKeyBundle(vaultId: manifest.vaultId);
+    final key = await _keyService.requireKeyBundle(
+      vaultId: manifest.vaultId,
+    );
 
     return _decodeEncryptedObjectWithContext(
       object: object,
@@ -336,12 +432,17 @@ class BrainVaultService {
   //
   // ============================================================
 
-  Future<BrainVaultDecodedPayload?> decodeEncryptedObject(
+  Future<
+    BrainVaultDecodedPayload?
+  >
+  decodeEncryptedObject(
     BrainVaultObject object,
   ) async {
     final manifest = await openVault();
 
-    final key = await _keyService.requireKeyBundle(vaultId: manifest.vaultId);
+    final key = await _keyService.requireKeyBundle(
+      vaultId: manifest.vaultId,
+    );
 
     return _decodeEncryptedObjectWithContext(
       object: object,
@@ -370,15 +471,26 @@ class BrainVaultService {
   //
   // ============================================================
 
-  Future<List<BrainVaultDecodedPayload?>> decodeEncryptedObjects(
-    List<BrainVaultObject> objects, {
+  Future<
+    List<
+      BrainVaultDecodedPayload?
+    >
+  >
+  decodeEncryptedObjects(
+    List<
+      BrainVaultObject
+    >
+    objects, {
     int concurrency = 6,
   }) async {
     if (objects.isEmpty) {
-      return const <BrainVaultDecodedPayload?>[];
+      return const <
+        BrainVaultDecodedPayload?
+      >[];
     }
 
-    if (concurrency <= 0) {
+    if (concurrency <=
+        0) {
       throw ArgumentError.value(
         concurrency,
         'concurrency',
@@ -388,34 +500,62 @@ class BrainVaultService {
 
     final manifest = await openVault();
 
-    final key = await _keyService.requireKeyBundle(vaultId: manifest.vaultId);
-
-    final result = List<BrainVaultDecodedPayload?>.filled(
-      objects.length,
-      null,
-      growable: false,
+    final key = await _keyService.requireKeyBundle(
+      vaultId: manifest.vaultId,
     );
 
-    for (var start = 0; start < objects.length; start += concurrency) {
-      final calculatedEnd = start + concurrency;
+    final result =
+        List<
+          BrainVaultDecodedPayload?
+        >.filled(
+          objects.length,
+          null,
+          growable: false,
+        );
 
-      final end = calculatedEnd > objects.length
+    for (
+      var start = 0;
+      start <
+          objects.length;
+      start += concurrency
+    ) {
+      final calculatedEnd =
+          start +
+          concurrency;
+
+      final end =
+          calculatedEnd >
+              objects.length
           ? objects.length
           : calculatedEnd;
 
-      final futures = <Future<void>>[];
+      final futures =
+          <
+            Future<
+              void
+            >
+          >[];
 
-      for (var index = start; index < end; index++) {
-        futures.add(() async {
-          result[index] = await _decodeEncryptedObjectWithContext(
-            object: objects[index],
-            manifest: manifest,
-            key: key,
-          );
-        }());
+      for (
+        var index = start;
+        index <
+            end;
+        index++
+      ) {
+        futures.add(
+          () async {
+            result[index] = await _decodeEncryptedObjectWithContext(
+              object: objects[index],
+              manifest: manifest,
+              key: key,
+            );
+          }(),
+        );
       }
 
-      await Future.wait(futures);
+      await Future.wait(
+        futures,
+      );
     }
 
     return result;
@@ -425,12 +565,18 @@ class BrainVaultService {
   // INTERNAL DECODE WITH SHARED CONTEXT
   // ============================================================
 
-  Future<BrainVaultDecodedPayload?> _decodeEncryptedObjectWithContext({
+  Future<
+    BrainVaultDecodedPayload?
+  >
+  _decodeEncryptedObjectWithContext({
     required BrainVaultObject object,
     required BrainVaultManifest manifest,
     required BrainKeyBundle key,
   }) async {
-    _validateObjectBelongsToVault(object: object, manifest: manifest);
+    _validateObjectBelongsToVault(
+      object: object,
+      manifest: manifest,
+    );
 
     if (object.isDeleted) {
       return null;
@@ -438,13 +584,15 @@ class BrainVaultService {
 
     final payload = object.encryptedPayload;
 
-    if (payload == null) {
+    if (payload ==
+        null) {
       throw const FormatException(
         'Objeto ativo não possui payload criptografado.',
       );
     }
 
-    if (object.header.keyVersion != key.keyVersion) {
+    if (object.header.keyVersion !=
+        key.keyVersion) {
       throw StateError(
         'A versão da chave necessária para este objeto '
         'não está disponível.',
@@ -456,9 +604,14 @@ class BrainVaultService {
       keyBundle: key,
     );
 
-    final decoded = _serializer.deserializeLogicalPayload(plaintext);
+    final decoded = _serializer.deserializeLogicalPayload(
+      plaintext,
+    );
 
-    _serializer.verifyBinding(header: object.header, decoded: decoded);
+    _serializer.verifyBinding(
+      header: object.header,
+      decoded: decoded,
+    );
 
     return decoded;
   }
@@ -466,17 +619,44 @@ class BrainVaultService {
   // ============================================================
   // DELETE OBJECT
   // ============================================================
+  //
+  // Exclusão lógica normal do Vault.
+  //
+  // NÃO apaga fisicamente o .evobj.
+  //
+  // Substitui o conteúdo ativo por tombstone.
+  //
+  // Assim:
+  //
+  // - a exclusão pode sincronizar;
+  // - dispositivos remotos conseguem saber que o objeto morreu;
+  // - a versão do objeto continua monotônica.
+  //
+  // ============================================================
 
-  Future<BrainVaultObject> deleteObject(String objectId) async {
+  Future<
+    BrainVaultObject
+  >
+  deleteObject(
+    String objectId,
+  ) async {
     final manifest = await openVault();
 
-    final existing = await _storage.loadObject(objectId);
+    final existing = await _storage.loadObject(
+      objectId,
+    );
 
-    if (existing == null) {
-      throw StateError('Objeto do Vault não encontrado.');
+    if (existing ==
+        null) {
+      throw StateError(
+        'Objeto do Vault não encontrado.',
+      );
     }
 
-    _validateObjectBelongsToVault(object: existing, manifest: manifest);
+    _validateObjectBelongsToVault(
+      object: existing,
+      manifest: manifest,
+    );
 
     if (existing.isDeleted) {
       return existing;
@@ -503,9 +683,13 @@ class BrainVaultService {
       tombstone: tombstone,
     );
 
-    await _storage.saveObject(deleted);
+    await _storage.saveObject(
+      deleted,
+    );
 
-    await _touchManifest(manifest);
+    await _touchManifest(
+      manifest,
+    );
 
     return deleted;
   }
@@ -514,16 +698,27 @@ class BrainVaultService {
   // LOAD RAW OBJECT
   // ============================================================
 
-  Future<BrainVaultObject?> loadEncryptedObject(String objectId) async {
+  Future<
+    BrainVaultObject?
+  >
+  loadEncryptedObject(
+    String objectId,
+  ) async {
     final manifest = await openVault();
 
-    final object = await _storage.loadObject(objectId);
+    final object = await _storage.loadObject(
+      objectId,
+    );
 
-    if (object == null) {
+    if (object ==
+        null) {
       return null;
     }
 
-    _validateObjectBelongsToVault(object: object, manifest: manifest);
+    _validateObjectBelongsToVault(
+      object: object,
+      manifest: manifest,
+    );
 
     return object;
   }
@@ -532,13 +727,21 @@ class BrainVaultService {
   // LOAD ALL RAW OBJECTS
   // ============================================================
 
-  Future<List<BrainVaultObject>> loadAllEncryptedObjects() async {
+  Future<
+    List<
+      BrainVaultObject
+    >
+  >
+  loadAllEncryptedObjects() async {
     final manifest = await openVault();
 
     final objects = await _storage.loadAllObjects();
 
     for (final object in objects) {
-      _validateObjectBelongsToVault(object: object, manifest: manifest);
+      _validateObjectBelongsToVault(
+        object: object,
+        manifest: manifest,
+      );
     }
 
     return objects;
@@ -548,10 +751,17 @@ class BrainVaultService {
   // BUILD ENCRYPTED OBJECT
   // ============================================================
 
-  Future<BrainVaultObject> _buildEncryptedObject({
+  Future<
+    BrainVaultObject
+  >
+  _buildEncryptedObject({
     required BrainVaultObjectHeader header,
     required BrainVaultObjectType type,
-    required Map<String, dynamic> data,
+    required Map<
+      String,
+      dynamic
+    >
+    data,
     required BrainKeyBundle key,
   }) async {
     header.validate();
@@ -567,11 +777,17 @@ class BrainVaultService {
       keyBundle: key,
     );
 
-    if (encrypted.metadata.version != header.cryptoVersion) {
-      throw StateError('Crypto version produzida não corresponde ao header.');
+    if (encrypted.metadata.version !=
+        header.cryptoVersion) {
+      throw StateError(
+        'Crypto version produzida não corresponde ao header.',
+      );
     }
 
-    return BrainVaultObject.active(header: header, encryptedPayload: encrypted);
+    return BrainVaultObject.active(
+      header: header,
+      encryptedPayload: encrypted,
+    );
   }
 
   // ============================================================
@@ -582,8 +798,11 @@ class BrainVaultService {
     required BrainVaultObject object,
     required BrainVaultManifest manifest,
   }) {
-    if (object.header.vaultId != manifest.vaultId) {
-      throw const FormatException('Objeto pertence a outro Vault.');
+    if (object.header.vaultId !=
+        manifest.vaultId) {
+      throw const FormatException(
+        'Objeto pertence a outro Vault.',
+      );
     }
   }
 
@@ -597,7 +816,8 @@ class BrainVaultService {
   }) {
     key.validate();
 
-    if (key.keyVersion != manifest.keyVersion) {
+    if (key.keyVersion !=
+        manifest.keyVersion) {
       throw StateError(
         'A Master Key disponível não corresponde '
         'à versão esperada pelo Vault.',
@@ -609,9 +829,16 @@ class BrainVaultService {
   // TOUCH MANIFEST
   // ============================================================
 
-  Future<void> _touchManifest(BrainVaultManifest manifest) async {
+  Future<
+    void
+  >
+  _touchManifest(
+    BrainVaultManifest manifest,
+  ) async {
     final updated = manifest.touch();
 
-    await _storage.saveManifest(updated);
+    await _storage.saveManifest(
+      updated,
+    );
   }
 }

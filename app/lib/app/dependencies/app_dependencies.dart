@@ -2353,12 +2353,28 @@ initializeOfflineFirst() async {
   registerSyncHandlers();
 }
 
-// A identidade é validada novamente depois de cada operação assíncrona.
-// O coordenador serializa inicialização, logout e troca de conta.
+// ======================================================
+// ACCOUNT STARTUP COORDINATOR
+// ======================================================
+//
+// A identidade é validada novamente depois de cada operação
+// assíncrona.
+//
+// O coordenador serializa:
+//
+// - inicialização;
+// - logout;
+// - troca de conta.
+//
+// ======================================================
+
 final accountStartupCoordinator = AccountStartupCoordinator(
   currentUserId: () => supabaseClient.auth.currentUser?.id,
+
   initialize: _initializeAuthenticatedOfflineFirst,
+
   stop: () => syncService.stop(),
+
   onIdentityChanged:
       (
         userId,
@@ -2366,6 +2382,10 @@ final accountStartupCoordinator = AccountStartupCoordinator(
         userId,
       ),
 );
+
+// ======================================================
+// NOTIFY APP USER CHANGED
+// ======================================================
 
 void
 notifyAppUserChanged(
@@ -2375,6 +2395,10 @@ notifyAppUserChanged(
     userId,
   );
 }
+
+// ======================================================
+// INITIALIZE AUTHENTICATED OFFLINE-FIRST
+// ======================================================
 
 Future<
   void
@@ -2386,6 +2410,10 @@ initializeAuthenticatedOfflineFirst(
     userId,
   );
 }
+
+// ======================================================
+// INTERNAL AUTHENTICATED INITIALIZATION
+// ======================================================
 
 Future<
   void
@@ -2405,7 +2433,9 @@ _initializeAuthenticatedOfflineFirst(
   // ====================================================
 
   check();
+
   await reviewRepository.initialize();
+
   check();
 
   // ====================================================
@@ -2415,10 +2445,12 @@ _initializeAuthenticatedOfflineFirst(
   // O Vault já existe localmente neste ponto.
   //
   // Em Local:
-  //   nenhuma chamada remota.
+  //
+  // nenhuma chamada remota.
   //
   // Em Cloud autenticado:
-  //   registra/reconhece a identidade desta instalação.
+  //
+  // registra/reconhece a identidade desta instalação.
   //
   // IMPORTANTE:
   //
@@ -2429,14 +2461,16 @@ _initializeAuthenticatedOfflineFirst(
   // ====================================================
 
   check();
+
   await _bootstrapBrainAuthorizedDevice();
+
   check();
 
   // ====================================================
   // BRAIN LEGACY MIGRATION RUNTIME
   // ====================================================
   //
-  // Reutilizamos a infraestrutura de migração que já existe.
+  // Reutilizamos a infraestrutura de migração existente.
   //
   // NÃO criamos uma segunda lógica de migração.
   //
@@ -2450,45 +2484,59 @@ _initializeAuthenticatedOfflineFirst(
   //      ↓
   // Vault criptografado
   //
-  // A infraestrutura existente mantém o registry de migração e
-  // impede duplicação persistente.
-  //
-  // O arquivo legado NÃO é apagado nesta etapa.
-  //
   // ====================================================
 
   final brainMigrationRuntime = await BrainMigrationFactory.create(
     vaultService: brainVaultService,
+
     brainStorage: brainStorage,
+
     reviewStorage: reviewStorage,
+
     storageScope: userStorageScope,
   );
 
   check();
+
   await brainMigrationRuntime.coordinator.run();
+
   check();
 
   // ====================================================
   // PURGE LEGACY BRAIN QUEUE
   // ====================================================
   //
-  // A migração local já terminou. Agora descartamos somente
-  // operações antigas brain_note / brain_concept / brain_review
+  // A migração local já terminou.
+  //
+  // Agora descartamos somente operações antigas:
+  //
+  // brain_note
+  // brain_concept
+  // brain_review
+  //
   // que poderiam conter plaintext.
+  //
+  // NÃO remove:
+  //
+  // brain_e2ee_object
   //
   // ====================================================
 
   check();
+
   await _purgeLegacyBrainQueueItems(
     check,
   );
+
   check();
 
   // ====================================================
   // SYNC HANDLERS
   // ====================================================
   //
-  // Registramos handlers antes do bootstrap E2EE.
+  // Os handlers já foram registrados durante:
+  //
+  // initializeOfflineFirst()
   //
   // ====================================================
 
@@ -2499,21 +2547,25 @@ _initializeAuthenticatedOfflineFirst(
   // ====================================================
   //
   // LOCAL:
-  //   nenhuma operação de nuvem.
+  //
+  // nenhuma operação de nuvem.
   //
   // CLOUD:
-  //   1. exige auth + Master Key + dispositivo authorized;
-  //   2. só então tenta pull remoto;
-  //   3. valida AEAD/binding antes de persistir;
-  //   4. enfileira o estado criptografado local;
-  //   5. SyncService reaplica o gate antes do envio.
+  //
+  // 1. exige auth + Master Key + dispositivo authorized;
+  // 2. só então tenta pull remoto;
+  // 3. valida AEAD/binding antes de persistir;
+  // 4. enfileira o estado criptografado local;
+  // 5. SyncService reaplica o gate antes do envio.
   //
   // Uma falha de rede no pull NÃO invalida o Vault local.
   //
   // ====================================================
 
   check();
+
   await brainE2eeSyncCoordinator.bootstrap();
+
   check();
 
   // ====================================================
@@ -2521,13 +2573,15 @@ _initializeAuthenticatedOfflineFirst(
   // ====================================================
 
   check();
+
   syncService.authorizeUser(
     userId,
   );
+
   await syncService.start();
+
   check();
 }
-
 // ======================================================
 // REFRESH SYNC STATUS
 // ======================================================
