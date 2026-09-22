@@ -1,0 +1,920 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import ColabNav from '../../../components/colab/ColabNav.astro';
+import '../../../styles/members.css';
+import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
+---
+
+<Layout
+  title="Studio — EVRYLUX Colab"
+  description="Ferramentas internas de colaboração do EVRYLUX."
+>
+  <main class="member-shell">
+    <EvryluxLogoLoader
+      id="studio-loading"
+      size="md"
+    />
+
+    <div
+      id="studio-content"
+      class="member-container member-hidden"
+    >
+      <div class="member-topbar">
+        <div class="member-title-block">
+          <div class="eyebrow">
+            EVRYLUX Colab
+          </div>
+
+          <h1>
+            Studio
+          </h1>
+
+          <p>
+            Organize o trabalho interno do projeto.
+          </p>
+        </div>
+
+        <ColabNav />
+      </div>
+
+      <section class="studio-workspace">
+        <div class="studio-primary-grid">
+          <article class="studio-main-card">
+            <div class="studio-main-copy">
+              <div class="studio-main-icon">
+                R
+              </div>
+
+              <div>
+                <span class="studio-main-kicker">
+                  Planejamento interno
+                </span>
+
+                <h2>
+                  Roadmap interno
+                </h2>
+
+                <p>
+                  Organize etapas, responsáveis, prioridades,
+                  prazos e progresso do projeto em uma única visão.
+                </p>
+              </div>
+            </div>
+
+            <a
+              class="studio-main-action"
+              href="/colab/studio/roadmap"
+            >
+              Abrir roadmap
+              <span aria-hidden="true">
+                →
+              </span>
+            </a>
+          </article>
+
+          <article class="studio-notes-card">
+            <div class="studio-notes-copy">
+              <div class="studio-notes-icon">
+                N
+              </div>
+
+              <div>
+                <span class="studio-main-kicker">
+                  Compartilhado
+                </span>
+
+                <h2>
+                  Notas rápidas
+                </h2>
+
+                <p>
+                  Registre ideias, lembretes e observações
+                  rápidas para a equipe.
+                </p>
+              </div>
+            </div>
+
+            <a
+              class="studio-notes-action"
+              href="/colab/studio/notes"
+            >
+              Abrir notas
+              <span aria-hidden="true">
+                →
+              </span>
+            </a>
+          </article>
+        </div>
+
+        <button
+          id="online-card"
+          class="studio-online-mini"
+          type="button"
+          aria-haspopup="dialog"
+          aria-controls="online-modal"
+        >
+          <span class="studio-online-dot"></span>
+
+          <span class="studio-online-copy">
+            <strong>
+              Online agora
+            </strong>
+
+            <small>
+              Colaboradores conectados
+            </small>
+          </span>
+
+          <span
+            id="online-count"
+            class="studio-online-count"
+          >
+            0
+          </span>
+        </button>
+      </section>
+    </div>
+
+    <div
+      id="online-modal"
+      class="online-modal member-hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="online-modal-title"
+    >
+      <button
+        id="online-modal-backdrop"
+        class="online-modal-backdrop"
+        type="button"
+        aria-label="Fechar lista de colaboradores online"
+      ></button>
+
+      <section class="online-modal-card">
+        <div class="online-modal-head">
+          <div>
+            <div class="eyebrow">
+              Presença em tempo real
+            </div>
+
+            <h2 id="online-modal-title">
+              Online agora
+            </h2>
+
+            <p id="online-modal-subtitle">
+              Nenhum colaborador conectado.
+            </p>
+          </div>
+
+          <button
+            id="online-modal-close"
+            class="online-modal-close"
+            type="button"
+            aria-label="Fechar"
+          >
+            ×
+          </button>
+        </div>
+
+        <div
+          id="online-list"
+          class="online-list"
+        ></div>
+      </section>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  import {
+    supabase,
+  } from '../../../lib/supabase';
+
+  import {
+    requireMemberSession,
+  } from '../../../lib/member-auth';
+
+  import {
+    connectColabPresence,
+    type ColabPresenceUser,
+  } from '../../../lib/colab-presence';
+
+  const session =
+    await requireMemberSession();
+
+  const loading =
+    document.querySelector<HTMLElement>(
+      '#studio-loading',
+    );
+
+  const content =
+    document.querySelector<HTMLElement>(
+      '#studio-content',
+    );
+
+  const onlineCard =
+    document.querySelector<HTMLButtonElement>(
+      '#online-card',
+    );
+
+  const onlineCount =
+    document.querySelector<HTMLElement>(
+      '#online-count',
+    );
+
+  const modal =
+    document.querySelector<HTMLElement>(
+      '#online-modal',
+    );
+
+  const modalClose =
+    document.querySelector<HTMLButtonElement>(
+      '#online-modal-close',
+    );
+
+  const modalBackdrop =
+    document.querySelector<HTMLButtonElement>(
+      '#online-modal-backdrop',
+    );
+
+  const modalSubtitle =
+    document.querySelector<HTMLElement>(
+      '#online-modal-subtitle',
+    );
+
+  const onlineList =
+    document.querySelector<HTMLElement>(
+      '#online-list',
+    );
+
+  let presenceConnection:
+    Awaited<
+      ReturnType<
+        typeof connectColabPresence
+      >
+    > | null =
+      null;
+
+  function escapeHtml(
+    value: string,
+  ) {
+    return value
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
+  function getInitials(
+    name: string,
+  ) {
+    const parts =
+      name
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+
+    if (!parts.length) {
+      return 'E';
+    }
+
+    if (parts.length === 1) {
+      return parts[0]
+        .slice(0, 2)
+        .toUpperCase();
+    }
+
+    return (
+      parts[0][0] +
+      parts[
+        parts.length - 1
+      ][0]
+    ).toUpperCase();
+  }
+
+  function renderOnlineUsers(
+    users: ColabPresenceUser[],
+  ) {
+    if (onlineCount) {
+      onlineCount.textContent =
+        String(users.length);
+    }
+
+    if (modalSubtitle) {
+      modalSubtitle.textContent =
+        users.length === 1
+          ? '1 colaborador conectado.'
+          : `${users.length} colaboradores conectados.`;
+    }
+
+    if (!onlineList) {
+      return;
+    }
+
+    if (!users.length) {
+      onlineList.innerHTML = `
+        <div class="online-empty">
+          <span class="online-empty-dot"></span>
+
+          <strong>
+            Ninguém online no momento
+          </strong>
+
+          <p>
+            Quando um colaborador entrar no Colab,
+            ele aparecerá aqui automaticamente.
+          </p>
+        </div>
+      `;
+
+      return;
+    }
+
+    onlineList.innerHTML =
+      users
+        .map(
+          (user) => {
+            const name =
+              escapeHtml(
+                user.display_name ||
+                  'Colaborador EVRYLUX',
+              );
+
+            const area =
+              user.area?.trim()
+                ? escapeHtml(
+                    user.area,
+                  )
+                : 'Área não informada';
+
+            const github =
+              user.github_login?.trim()
+                ? `@${escapeHtml(
+                    user.github_login,
+                  )}`
+                : '';
+
+            const avatar =
+              user.avatar_url?.trim()
+                ? `
+                  <img
+                    src="${escapeHtml(
+                      user.avatar_url,
+                    )}"
+                    alt="Avatar de ${name}"
+                  />
+                `
+                : `
+                  <span class="online-avatar-placeholder">
+                    ${getInitials(
+                      user.display_name ||
+                        'EVRYLUX',
+                    )}
+                  </span>
+                `;
+
+            return `
+              <article class="online-person">
+                <div class="online-avatar-wrap">
+                  ${avatar}
+
+                  <span
+                    class="online-person-dot"
+                    aria-label="Online"
+                  ></span>
+                </div>
+
+                <div class="online-person-info">
+                  <strong>${name}</strong>
+                  <span>${area}</span>
+                  ${
+                    github
+                      ? `<small>${github}</small>`
+                      : ''
+                  }
+                </div>
+              </article>
+            `;
+          },
+        )
+        .join('');
+  }
+
+  function openModal() {
+    modal?.classList.remove(
+      'member-hidden',
+    );
+
+    document.body.classList.add(
+      'studio-modal-open',
+    );
+
+    modalClose?.focus();
+  }
+
+  function closeModal() {
+    modal?.classList.add(
+      'member-hidden',
+    );
+
+    document.body.classList.remove(
+      'studio-modal-open',
+    );
+
+    onlineCard?.focus();
+  }
+
+  onlineCard?.addEventListener(
+    'click',
+    openModal,
+  );
+
+  modalClose?.addEventListener(
+    'click',
+    closeModal,
+  );
+
+  modalBackdrop?.addEventListener(
+    'click',
+    closeModal,
+  );
+
+  document.addEventListener(
+    'keydown',
+    (event) => {
+      if (
+        event.key === 'Escape' &&
+        modal &&
+        !modal.classList.contains(
+          'member-hidden',
+        )
+      ) {
+        closeModal();
+      }
+    },
+  );
+
+  if (session) {
+    const {
+      data: profile,
+      error,
+    } =
+      await supabase
+        .from('member_profiles')
+        .select(
+          'display_name, github_login, avatar_url, area',
+        )
+        .eq(
+          'user_id',
+          session.user.id,
+        )
+        .maybeSingle();
+
+    if (error) {
+      console.warn(
+        '[EVRYLUX] Não foi possível carregar o perfil para o Presence:',
+        error.message,
+      );
+    }
+
+    const displayName =
+      profile?.display_name?.trim() ||
+      session.user.email ||
+      'Colaborador EVRYLUX';
+
+    try {
+      presenceConnection =
+        await connectColabPresence(
+          {
+            user_id:
+              session.user.id,
+
+            display_name:
+              displayName,
+
+            github_login:
+              profile?.github_login ??
+              null,
+
+            avatar_url:
+              profile?.avatar_url ??
+              null,
+
+            area:
+              profile?.area ??
+              null,
+
+            online_at:
+              new Date().toISOString(),
+          },
+
+          renderOnlineUsers,
+        );
+    } catch (error) {
+      console.warn(
+        '[EVRYLUX] Não foi possível conectar ao Presence:',
+        error,
+      );
+
+      renderOnlineUsers(
+        [],
+      );
+    }
+
+    loading?.classList.add(
+      'member-hidden',
+    );
+
+    content?.classList.remove(
+      'member-hidden',
+    );
+  }
+
+  window.addEventListener(
+    'pagehide',
+    () => {
+      void presenceConnection?.disconnect();
+    },
+  );
+</script>
+
+<style is:global>
+  body.studio-modal-open {
+    overflow: hidden;
+  }
+
+  .online-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+  }
+
+  .online-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: rgba(23, 32, 25, 0.24);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .online-modal-card {
+    position: relative;
+    z-index: 1;
+    width: min(100%, 560px);
+    max-height: min(720px, calc(100vh - 48px));
+    overflow: auto;
+    padding: 28px;
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.97);
+    box-shadow: 0 28px 90px rgba(23, 32, 25, 0.18);
+  }
+
+  .online-modal-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 22px;
+  }
+
+  .online-modal-head h2 {
+    margin: 8px 0 0;
+    font-size: 30px;
+    letter-spacing: -0.04em;
+  }
+
+  .online-modal-head p {
+    margin: 7px 0 0;
+    color: var(--text-soft);
+    font-size: 14px;
+  }
+
+  .online-modal-close {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-muted);
+    color: var(--text);
+    font: inherit;
+    font-size: 22px;
+    cursor: pointer;
+  }
+
+  .online-list {
+    margin-top: 24px;
+    display: grid;
+    gap: 10px;
+  }
+
+  .online-person {
+    padding: 14px;
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    border: 1px solid rgba(65, 104, 62, 0.09);
+    border-radius: 16px;
+    background: var(--surface-muted);
+  }
+
+  .online-avatar-wrap {
+    position: relative;
+    width: 46px;
+    height: 46px;
+    flex: 0 0 auto;
+  }
+
+  .online-avatar-wrap img,
+  .online-avatar-placeholder {
+    width: 46px;
+    height: 46px;
+    display: grid;
+    place-items: center;
+    border-radius: 14px;
+    object-fit: cover;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font-size: 13px;
+    font-weight: 850;
+  }
+
+  .online-person-dot {
+    position: absolute;
+    right: -2px;
+    bottom: -2px;
+    width: 13px;
+    height: 13px;
+    border: 3px solid var(--surface-solid);
+    border-radius: 999px;
+    background: var(--primary-strong);
+  }
+
+  .online-person-info {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .online-person-info strong {
+    font-size: 14px;
+  }
+
+  .online-person-info span {
+    color: var(--text-soft);
+    font-size: 13px;
+  }
+
+  .online-person-info small {
+    color: var(--primary-deep);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .online-empty {
+    min-height: 180px;
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 1px dashed var(--border-strong);
+    border-radius: 18px;
+    background: var(--surface-muted);
+    text-align: center;
+  }
+
+  .online-empty-dot {
+    width: 10px;
+    height: 10px;
+    margin-bottom: 14px;
+    border-radius: 999px;
+    background: var(--text-soft);
+    opacity: 0.45;
+  }
+
+  .online-empty p {
+    max-width: 340px;
+    margin: 7px 0 0;
+    color: var(--text-soft);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+</style>
+
+<style>
+  .studio-workspace {
+    position: relative;
+    margin-top: 36px;
+  }
+
+  .studio-primary-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(320px, .65fr);
+    gap: 16px;
+    align-items: stretch;
+  }
+
+  .studio-main-card,
+  .studio-notes-card {
+    min-height: 250px;
+    padding: 34px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 28px;
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    box-shadow: 0 18px 54px rgba(54, 92, 51, 0.06);
+  }
+
+  .studio-main-card {
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255, 255, 255, 0.92),
+        rgba(239, 248, 235, 0.76)
+      );
+  }
+
+  .studio-notes-card {
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255, 255, 255, 0.94),
+        rgba(247, 251, 244, 0.86)
+      );
+  }
+
+  .studio-main-copy,
+  .studio-notes-copy {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+  }
+
+  .studio-main-icon,
+  .studio-notes-icon {
+    width: 56px;
+    height: 56px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border-radius: 17px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font-size: 17px;
+    font-weight: 900;
+  }
+
+  .studio-main-kicker {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--primary-deep);
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .studio-main-card h2,
+  .studio-notes-card h2 {
+    margin: 0;
+    letter-spacing: -0.045em;
+  }
+
+  .studio-main-card h2 {
+    font-size: clamp(30px, 4vw, 44px);
+  }
+
+  .studio-notes-card h2 {
+    font-size: clamp(26px, 3vw, 34px);
+  }
+
+  .studio-main-card p,
+  .studio-notes-card p {
+    margin: 12px 0 0;
+    color: var(--text-soft);
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  .studio-main-action,
+  .studio-notes-action {
+    min-height: 48px;
+    padding: 0 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    align-self: flex-start;
+    border: 1px solid rgba(95, 157, 89, 0.18);
+    border-radius: 14px;
+    background:
+      linear-gradient(
+        180deg,
+        rgba(223, 241, 218, 0.96),
+        rgba(205, 232, 198, 0.9)
+      );
+    color: var(--primary-deep);
+    font-size: 14px;
+    font-weight: 800;
+    box-shadow: 0 10px 26px rgba(54, 92, 51, 0.07);
+    transition:
+      transform 0.2s ease,
+      box-shadow 0.2s ease;
+  }
+
+  .studio-notes-action {
+    background: rgba(255, 255, 255, 0.86);
+  }
+
+  .studio-main-action:hover,
+  .studio-notes-action:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 34px rgba(54, 92, 51, 0.11);
+  }
+
+  .studio-online-mini {
+    margin-top: 14px;
+    margin-left: auto;
+    min-width: 220px;
+    min-height: 52px;
+    padding: 9px 11px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    background: rgba(255, 255, 255, 0.72);
+    color: var(--text);
+    box-shadow: 0 10px 30px rgba(54, 92, 51, 0.045);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .studio-online-dot {
+    width: 10px;
+    height: 10px;
+    flex: 0 0 auto;
+    border-radius: 999px;
+    background: var(--primary-strong);
+    box-shadow: 0 0 0 5px rgba(95, 157, 89, 0.1);
+  }
+
+  .studio-online-copy {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .studio-online-copy strong,
+  .studio-online-copy small {
+    display: block;
+  }
+
+  .studio-online-copy strong {
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .studio-online-copy small {
+    margin-top: 2px;
+    color: var(--text-soft);
+    font-size: 10px;
+  }
+
+  .studio-online-count {
+    min-width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border-radius: 9px;
+    background: var(--surface-muted);
+    color: var(--primary-deep);
+    font-size: 11px;
+    font-weight: 850;
+  }
+
+  @media (max-width: 920px) {
+    .studio-primary-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .studio-main-card,
+    .studio-notes-card {
+      min-height: auto;
+    }
+  }
+</style>

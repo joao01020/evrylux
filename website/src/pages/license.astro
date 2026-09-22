@@ -73,11 +73,11 @@ const responsibilities = [
           </h1>
 
           <p class="license-intro">
-            O EVRYLUX é distribuído sob a
+            O EVRYLUX é distribuído sob a{' '}
             <strong>
               GNU Affero General Public License v3.0
-            </strong>,
-            também conhecida como
+            </strong>
+            , também conhecida como{' '}
             <strong>AGPL-3.0</strong>.
           </p>
 
@@ -269,9 +269,14 @@ const responsibilities = [
           </div>
 
           <div class="brand-mark">
-            <span>
-              E
-            </span>
+            <div class="brand-logo-wrap">
+              <img
+                class="brand-logo-image"
+                src="/branding/evrylux-logo.png"
+                alt="Logo EVRYLUX"
+                draggable="false"
+              />
+            </div>
 
             <strong>
               EVRYLUX
@@ -836,18 +841,30 @@ const responsibilities = [
       );
   }
 
-  .brand-mark > span {
-    width: 64px;
-    height: 64px;
+  .brand-logo-wrap {
+    width: 76px;
+    height: 76px;
     display: grid;
     place-items: center;
-    border-radius: 20px;
+    overflow: hidden;
+    border: 1px solid rgba(65, 104, 62, 0.1);
+    border-radius: 22px;
     background:
-      var(--primary-soft);
-    color:
-      var(--primary-deep);
-    font-size: 24px;
-    font-weight: 900;
+      linear-gradient(
+        145deg,
+        rgba(255, 255, 255, 0.98),
+        rgba(223, 241, 218, 0.72)
+      );
+    box-shadow:
+      0 10px 28px
+      rgba(54, 92, 51, 0.07);
+  }
+
+  .brand-logo-image {
+    width: 52px;
+    height: 52px;
+    display: block;
+    object-fit: contain;
   }
 
   .brand-mark strong {
@@ -1053,3 +1070,55 @@ const responsibilities = [
     }
   }
 </style>
+
+
+<style>
+  /* ==========================================================
+     LICENÇA — AJUSTES DE ESPAÇAMENTO E LOGO
+     ========================================================== */
+
+  .license-intro strong {
+    margin-inline: 0.12em;
+  }
+
+  .license-intro strong:first-of-type {
+    margin-left: 0;
+  }
+
+  .brand-card > div:first-child {
+    min-width: 0;
+  }
+
+  .brand-card p + p {
+    margin-top: 14px;
+  }
+
+  .brand-mark {
+    padding: 24px 18px;
+  }
+
+  .brand-mark strong {
+    margin-top: 16px;
+  }
+
+  .brand-mark small {
+    margin-top: 6px;
+  }
+
+  .license-final-card p {
+    text-wrap: pretty;
+  }
+
+  .license-final-card code {
+    margin-inline: 0.18em;
+  }
+
+  @media (max-width: 820px) {
+    .brand-mark {
+      width: 100%;
+      max-width: 320px;
+      justify-self: start;
+    }
+  }
+</style>
+

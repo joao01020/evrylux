@@ -1,0 +1,458 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import ColabNav from '../../components/colab/ColabNav.astro';
+import '../../styles/members.css';
+---
+
+<Layout
+  title="Núcleo — EVRYLUX Colab"
+  description="O centro que mantém o EVRYLUX alinhado ao seu propósito."
+>
+  <main class="member-shell core-page">
+    <div class="member-container core-container">
+      <section class="core-hero">
+        <div>
+          <div class="eyebrow">EVRYLUX Colab</div>
+          <h1>Núcleo</h1>
+          <p>
+            O lugar que registra o que é essencial para o projeto e ajuda
+            a evitar que o EVRYLUX se afaste do seu propósito.
+          </p>
+        </div>
+
+        <div class="core-hero-actions">
+          <ColabNav />
+          <button id="new-core-note" class="member-button member-button-primary member-hidden" type="button">
+            + Nova nota
+          </button>
+        </div>
+      </section>
+
+      <section class="core-intro">
+        <div class="core-intro-mark">N</div>
+        <div>
+          <span>Regra do Núcleo</span>
+          <strong>
+            Se uma decisão afastar o projeto do que está fixado aqui,
+            ela merece ser repensada.
+          </strong>
+        </div>
+      </section>
+
+      <div id="core-loading" class="core-loading">Carregando o Núcleo...</div>
+
+      <section id="core-content" class="member-hidden">
+        <div class="core-section-head">
+          <div>
+            <span class="section-kicker">Direção do projeto</span>
+            <h2>O que está no centro do EVRYLUX</h2>
+            <p>
+              Notas fixadas aparecem primeiro. Use esta área para registrar
+              princípios, decisões e partes que definem o projeto.
+            </p>
+          </div>
+          <span id="core-access-badge" class="core-access-badge">Visualização</span>
+        </div>
+
+        <div id="core-notes" class="core-notes"></div>
+
+        <div id="core-empty" class="core-empty member-hidden">
+          <div class="core-empty-icon">✦</div>
+          <h3>O Núcleo ainda está vazio</h3>
+          <p>
+            Quando você adicionar a primeira nota, ela aparecerá aqui.
+            Você pode começar fixando “Cérebro” como o núcleo atual do EVRYLUX.
+          </p>
+        </div>
+
+        <section id="core-permissions" class="core-permissions member-hidden">
+          <div class="core-section-head permissions-head">
+            <div>
+              <span class="section-kicker">Proprietário</span>
+              <h2>Quem pode alterar o Núcleo</h2>
+              <p>
+                Apenas administradores autorizados podem criar, editar,
+                fixar ou remover notas.
+              </p>
+            </div>
+          </div>
+          <div id="core-admin-list" class="core-admin-list"></div>
+        </section>
+      </section>
+
+      <div id="core-status" class="member-status" role="status" aria-live="polite"></div>
+    </div>
+
+    <div id="core-modal" class="core-modal member-hidden" role="dialog" aria-modal="true" aria-labelledby="core-modal-title">
+      <button id="core-modal-backdrop" class="core-modal-backdrop" type="button" aria-label="Fechar"></button>
+      <section class="core-modal-card">
+        <div class="core-modal-head">
+          <div>
+            <span class="section-kicker">Núcleo</span>
+            <h2 id="core-modal-title">Nova nota</h2>
+          </div>
+          <button id="core-modal-close" class="core-modal-close" type="button" aria-label="Fechar">×</button>
+        </div>
+
+        <form id="core-form">
+          <input id="core-note-id" type="hidden" />
+
+          <label class="core-field">
+            <span>Título</span>
+            <input id="core-note-title" type="text" maxlength="120" required placeholder="Ex.: Cérebro" />
+          </label>
+
+          <label class="core-field">
+            <span>Nota</span>
+            <textarea id="core-note-content" maxlength="8000" rows="9" placeholder="Explique por que isso faz parte do núcleo do EVRYLUX..."></textarea>
+          </label>
+
+          <label class="core-pin-option">
+            <input id="core-note-pinned" type="checkbox" />
+            <span class="core-pin-box">
+              <strong>Fixar no Núcleo</strong>
+              <small>
+                Notas fixadas aparecem primeiro e representam as partes
+                mais importantes do projeto.
+              </small>
+            </span>
+          </label>
+
+          <div class="core-modal-actions">
+            <button id="core-delete-note" class="core-delete-button member-hidden" type="button">Excluir</button>
+            <div>
+              <button id="core-cancel-note" class="member-button" type="button">Cancelar</button>
+              <button id="core-save-note" class="member-button member-button-primary" type="submit">Salvar nota</button>
+            </div>
+          </div>
+        </form>
+      </section>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  import { requireMemberSession } from '../../lib/member-auth';
+  import {
+    canEditProjectCore,
+    createProjectCoreNote,
+    deleteProjectCoreNote,
+    listProjectCoreNotes,
+    updateProjectCoreNote,
+    type ProjectCoreNote,
+  } from '../../lib/project-core';
+
+  const session = await requireMemberSession();
+  const loading = document.querySelector<HTMLElement>('#core-loading');
+  const content = document.querySelector<HTMLElement>('#core-content');
+  const notesContainer = document.querySelector<HTMLElement>('#core-notes');
+  const emptyState = document.querySelector<HTMLElement>('#core-empty');
+  const newNoteButton = document.querySelector<HTMLButtonElement>('#new-core-note');
+  const accessBadge = document.querySelector<HTMLElement>('#core-access-badge');
+  const permissionsSection = document.querySelector<HTMLElement>('#core-permissions');
+  const adminList = document.querySelector<HTMLElement>('#core-admin-list');
+  const status = document.querySelector<HTMLElement>('#core-status');
+  const modal = document.querySelector<HTMLElement>('#core-modal');
+  const modalBackdrop = document.querySelector<HTMLButtonElement>('#core-modal-backdrop');
+  const modalClose = document.querySelector<HTMLButtonElement>('#core-modal-close');
+  const modalTitle = document.querySelector<HTMLElement>('#core-modal-title');
+  const form = document.querySelector<HTMLFormElement>('#core-form');
+  const noteId = document.querySelector<HTMLInputElement>('#core-note-id');
+  const titleInput = document.querySelector<HTMLInputElement>('#core-note-title');
+  const contentInput = document.querySelector<HTMLTextAreaElement>('#core-note-content');
+  const pinnedInput = document.querySelector<HTMLInputElement>('#core-note-pinned');
+  const saveButton = document.querySelector<HTMLButtonElement>('#core-save-note');
+  const deleteButton = document.querySelector<HTMLButtonElement>('#core-delete-note');
+  const cancelButton = document.querySelector<HTMLButtonElement>('#core-cancel-note');
+
+  let notes: ProjectCoreNote[] = [];
+  let canEdit = false;
+  let isOwner = false;
+
+  function escapeHtml(value: unknown) {
+    return String(value ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
+  function formatDate(value: string) {
+    return new Intl.DateTimeFormat('pt-BR', {
+      day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    }).format(new Date(value));
+  }
+
+  function showStatus(message: string, type: 'success' | 'error' | '' = '') {
+    if (!status) return;
+    status.textContent = message;
+    status.className = type ? `member-status show ${type}` : 'member-status';
+  }
+
+  function handleProtectedError(error: unknown) {
+    const message = error instanceof Error ? error.message : 'Não foi possível concluir a operação.';
+    if (message.includes('AAL2')) {
+      showStatus('Confirme o 2FA antes de alterar o Núcleo.', 'error');
+      window.setTimeout(() => {
+        window.location.href = `/colab/security?next=${encodeURIComponent('/colab/core')}`;
+      }, 900);
+      return;
+    }
+    showStatus(message, 'error');
+  }
+
+  function renderNotes() {
+    if (!notesContainer || !emptyState) return;
+    emptyState.classList.toggle('member-hidden', notes.length > 0);
+    if (!notes.length) {
+      notesContainer.innerHTML = '';
+      return;
+    }
+
+    notesContainer.innerHTML = notes.map((note) => `
+      <article class="core-note ${note.is_pinned ? 'is-pinned' : ''}" data-note-id="${escapeHtml(note.id)}">
+        <div class="core-note-top">
+          <div class="core-note-labels">
+            ${note.is_pinned ? `
+              <span class="core-pin-label">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M9 3h6l-1 6 3 3v1H7v-1l3-3-1-6Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+                  <path d="M12 13v8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                </svg>
+                Fixado
+              </span>` : `<span class="core-note-label">Nota</span>`}
+          </div>
+          ${canEdit ? `<button class="core-edit-button" type="button" data-edit-note="${escapeHtml(note.id)}">Editar</button>` : ''}
+        </div>
+        <h3>${escapeHtml(note.title)}</h3>
+        <p class="core-note-content ${note.content.trim() ? '' : 'core-note-empty-copy'}">
+          ${note.content.trim() ? escapeHtml(note.content).replaceAll('\n', '<br />') : 'Sem descrição.'}
+        </p>
+        <div class="core-note-footer">Atualizado em ${escapeHtml(formatDate(note.updated_at))}</div>
+      </article>
+    `).join('');
+
+    document.querySelectorAll<HTMLButtonElement>('[data-edit-note]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const note = notes.find((item) => item.id === button.dataset.editNote);
+        if (note) openEditModal(note);
+      });
+    });
+  }
+
+  function openCreateModal() {
+    if (!modal || !noteId || !titleInput || !contentInput || !pinnedInput || !deleteButton || !modalTitle) return;
+    noteId.value = '';
+    titleInput.value = '';
+    contentInput.value = '';
+    pinnedInput.checked = false;
+    deleteButton.classList.add('member-hidden');
+    modalTitle.textContent = 'Nova nota';
+    modal.classList.remove('member-hidden');
+    document.body.classList.add('core-modal-open');
+    window.setTimeout(() => titleInput.focus(), 50);
+  }
+
+  function openEditModal(note: ProjectCoreNote) {
+    if (!modal || !noteId || !titleInput || !contentInput || !pinnedInput || !deleteButton || !modalTitle) return;
+    noteId.value = note.id;
+    titleInput.value = note.title;
+    contentInput.value = note.content;
+    pinnedInput.checked = note.is_pinned;
+    deleteButton.classList.remove('member-hidden');
+    modalTitle.textContent = 'Editar nota';
+    modal.classList.remove('member-hidden');
+    document.body.classList.add('core-modal-open');
+  }
+
+  function closeModal() {
+    modal?.classList.add('member-hidden');
+    document.body.classList.remove('core-modal-open');
+  }
+
+  async function refreshNotes() {
+    notes = await listProjectCoreNotes();
+    renderNotes();
+  }
+
+  function initials(admin: CoreAdmin) {
+    return (admin.display_name || admin.email || 'EV').trim().split(/\s+/).slice(0, 2)
+      .map((item) => item[0]?.toUpperCase() || '').join('');
+  }
+
+  async function refreshAdmins() {
+    if (!isOwner || !adminList) return;
+    const admins = await listCoreAdmins();
+    adminList.innerHTML = admins.map((admin) => {
+      const allowed = admin.is_owner || admin.permissions.includes('manage_core');
+      const avatar = admin.avatar_url
+        ? `<img src="${escapeHtml(admin.avatar_url)}" alt="" />`
+        : `<span>${escapeHtml(initials(admin))}</span>`;
+
+      return `
+        <article class="core-admin-card">
+          <div class="core-admin-identity">
+            <div class="core-admin-avatar">${avatar}</div>
+            <div>
+              <strong>${escapeHtml(admin.display_name || admin.email)}</strong>
+              <small>${escapeHtml(admin.email)}</small>
+            </div>
+          </div>
+          <div class="core-admin-control">
+            ${admin.is_owner
+              ? `<span class="core-owner-badge">Proprietário · sempre permitido</span>`
+              : `<label class="core-permission-switch">
+                  <span>Pode alterar</span>
+                  <input type="checkbox" data-core-editor="${escapeHtml(admin.user_id)}" ${allowed ? 'checked' : ''} />
+                  <i aria-hidden="true"></i>
+                </label>`}
+          </div>
+        </article>`;
+    }).join('');
+
+    document.querySelectorAll<HTMLInputElement>('[data-core-editor]').forEach((input) => {
+      input.addEventListener('change', async () => {
+        const userId = input.dataset.coreEditor;
+        if (!userId) return;
+        input.disabled = true;
+        try {
+          await setCoreEditor(userId, input.checked);
+          showStatus(input.checked
+            ? 'Permissão para alterar o Núcleo concedida.'
+            : 'Permissão para alterar o Núcleo removida.', 'success');
+          await refreshAdmins();
+        } catch (error) {
+          input.checked = !input.checked;
+          handleProtectedError(error);
+        } finally {
+          input.disabled = false;
+        }
+      });
+    });
+  }
+
+  newNoteButton?.addEventListener('click', openCreateModal);
+  modalBackdrop?.addEventListener('click', closeModal);
+  modalClose?.addEventListener('click', closeModal);
+  cancelButton?.addEventListener('click', closeModal);
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeModal(); });
+
+  form?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!titleInput || !contentInput || !pinnedInput || !noteId || !saveButton) return;
+    const title = titleInput.value.trim();
+    const noteContent = contentInput.value.trim();
+    if (!title) {
+      showStatus('Digite um título para a nota.', 'error');
+      return;
+    }
+    saveButton.disabled = true;
+    saveButton.textContent = 'Salvando...';
+    try {
+      if (noteId.value) {
+        await updateProjectCoreNote({ id: noteId.value, title, content: noteContent, pinned: pinnedInput.checked });
+        showStatus('Nota atualizada.', 'success');
+      } else {
+        await createProjectCoreNote({ title, content: noteContent, pinned: pinnedInput.checked });
+        showStatus('Nota adicionada ao Núcleo.', 'success');
+      }
+      closeModal();
+      await refreshNotes();
+    } catch (error) {
+      handleProtectedError(error);
+    } finally {
+      saveButton.disabled = false;
+      saveButton.textContent = 'Salvar nota';
+    }
+  });
+
+  deleteButton?.addEventListener('click', async () => {
+    if (!noteId?.value) return;
+    const note = notes.find((item) => item.id === noteId.value);
+    if (!window.confirm(`Excluir "${note?.title || 'esta nota'}" do Núcleo?`)) return;
+    deleteButton.disabled = true;
+    try {
+      await deleteProjectCoreNote(noteId.value);
+      showStatus('Nota removida do Núcleo.', 'success');
+      closeModal();
+      await refreshNotes();
+    } catch (error) {
+      handleProtectedError(error);
+    } finally {
+      deleteButton.disabled = false;
+    }
+  });
+
+  if (session) {
+    try {
+      [canEdit, isOwner] = await Promise.all([canEditProjectCore(), isCurrentUserCoreOwner()]);
+      if (canEdit) {
+        newNoteButton?.classList.remove('member-hidden');
+        if (accessBadge) {
+          accessBadge.textContent = 'Pode editar';
+          accessBadge.classList.add('can-edit');
+        }
+      }
+      await refreshNotes();
+      if (isOwner) {
+        permissionsSection?.classList.remove('member-hidden');
+        await refreshAdmins();
+      }
+      loading?.classList.add('member-hidden');
+      content?.classList.remove('member-hidden');
+    } catch (error) {
+      loading?.classList.add('member-hidden');
+      content?.classList.remove('member-hidden');
+      showStatus(error instanceof Error ? error.message : 'Não foi possível carregar o Núcleo.', 'error');
+    }
+  }
+</script>
+
+<style>
+  :global(body.core-modal-open) { overflow: hidden; }
+  .core-page { min-height: 100vh; }
+  .core-container { padding-bottom: 80px; }
+  .core-hero {
+    margin-bottom: 22px; padding: 28px 30px; display: flex; align-items: center;
+    justify-content: space-between; gap: 22px; border: 1px solid rgba(65,104,62,.1);
+    border-radius: 24px;
+    background: radial-gradient(circle at 86% 15%, rgba(223,241,218,.7), transparent 35%),
+      linear-gradient(145deg, rgba(255,255,255,.97), rgba(246,250,243,.92));
+    box-shadow: 0 20px 60px rgba(54,92,51,.055);
+  }
+  .core-hero h1 { margin: 7px 0 0; font-size: clamp(34px, 5vw, 54px); letter-spacing: -.055em; }
+  .core-hero p { max-width: 680px; margin: 8px 0 0; color: var(--text-soft); font-size: 12px; line-height: 1.7; }
+  .core-hero-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+  .core-intro {
+    margin-bottom: 34px; padding: 18px 20px; display: flex; align-items: center; gap: 14px;
+    border: 1px solid rgba(95,157,89,.12); border-radius: 17px; background: rgba(239,248,235,.66);
+  }
+  .core-intro-mark { width: 40px; height: 40px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 12px; background: var(--primary-deep); color: #fff; font-size: 13px; font-weight: 900; }
+  .core-intro span, .section-kicker { display: block; color: var(--primary-deep); font-size: 8px; font-weight: 850; text-transform: uppercase; letter-spacing: .08em; }
+  .core-intro strong { display: block; margin-top: 4px; font-size: 11px; line-height: 1.5; }
+  .core-loading { padding: 30px; color: var(--text-soft); text-align: center; font-size: 11px; }
+  .core-section-head { margin-bottom: 18px; display: flex; align-items: flex-start; justify-content: space-between; gap: 22px; }
+  .core-section-head h2 { margin: 6px 0 0; font-size: 24px; letter-spacing: -.035em; }
+  .core-section-head p { max-width: 680px; margin: 6px 0 0; color: var(--text-soft); font-size: 10px; line-height: 1.6; }
+  .core-access-badge { min-height: 28px; padding: 0 10px; display: inline-flex; align-items: center; border: 1px solid rgba(65,104,62,.1); border-radius: 999px; background: rgba(255,255,255,.72); color: var(--text-soft); font-size: 8px; font-weight: 800; }
+  .core-access-badge.can-edit { border-color: rgba(95,157,89,.18); background: rgba(223,241,218,.72); color: var(--primary-deep); }
+  .core-notes { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }
+  .core-note { min-height: 210px; padding: 22px; border: 1px solid rgba(65,104,62,.09); border-radius: 18px; background: rgba(255,255,255,.82); box-shadow: 0 15px 40px rgba(54,92,51,.035); }
+  .core-note.is-pinned { border-color: rgba(95,157,89,.19); background: linear-gradient(145deg, rgba(255,255,255,.95), rgba(237,247,233,.84)); }
+  .core-note-top { min-height: 28px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .core-note-labels { display: flex; align-items: center; gap: 7px; }
+  .core-pin-label, .core-note-label { min-height: 25px; padding: 0 9px; display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; font-size: 8px; font-weight: 850; }
+  .core-pin-label { background: var(--primary-soft); color: var(--primary-deep); }
+  .core-pin-label svg { width: 12px; height: 12px; }
+  .core-note-label { background: rgba(23,32,25,.045); color: var(--text-soft); }
+  .core-edit-button { min-height: 28px; padding: 0 10px; border: 1px solid rgba(65,104,62,.1); border-radius: 8px; background: rgba(255,255,255,.72); color: var(--text); font: inherit; font-size: 8px; font-weight: 800; cursor: pointer; }
+  .core-note h3 { margin: 18px 0 0; font-size: 20px; letter-spacing: -.035em; }
+  .core-note-content { margin: 9px 0 0; color: var(--text-soft); font-size: 11px; line-height: 1.75; overflow-wrap: anywhere; }
+  .core-note-empty-copy { opacity: .66; }
+  .core-note-footer { margin-top: 20px; padding-top: 12px; border-top: 1px solid rgba(65,104,62,.07); color: var(--text-soft); font-size: 8px; }
+  .core-empty { padding: 54px 20px; border: 1px dashed rgba(65,104,62,.14); border-radius: 19px; text-align: center; }
+  .core-empty-icon { width: 46px; height: 46px; margin: 0 auto; display: grid; place-items: center; border-radius: 14px; background: var(--primary-soft); color: var(--primary-deep); font-size: 18px; }
+  .core-empty h3 { margin: 13px 0 0; font-size: 16px; }
+  .core-empty p { max-width: 470px; margin: 7px auto 0; color: var(--text-soft); font-size: 10px; line-height: 1.65; }
+</style>

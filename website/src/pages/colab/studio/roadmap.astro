@@ -1,9 +1,6 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import ColabNav from '../../../components/colab/ColabNav.astro';
-import RoadmapCard from '../../../components/colab/RoadmapCard.astro';
-import RoadmapModal from '../../../components/colab/RoadmapModal.astro';
-import RoadmapDetailsModal from '../../../components/colab/RoadmapDetailsModal.astro';
 import '../../../styles/members.css';
 import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
 ---
@@ -12,13 +9,16 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
   title="Roadmap interno — EVRYLUX Colab"
   description="Roadmap interno detalhado do projeto EVRYLUX."
 >
-  <main class="member-shell">
+  <main class="member-shell roadmap-page">
     <EvryluxLogoLoader
       id="roadmap-loading"
       size="md"
     />
 
-    <div id="roadmap-content" class="member-container member-hidden">
+    <div
+      id="roadmap-content"
+      class="member-container member-hidden"
+    >
       <div class="member-topbar">
         <div class="member-title-block">
           <div class="eyebrow">
@@ -39,25 +39,45 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
 
       <div class="roadmap-toolbar">
         <div class="roadmap-filter-row">
-          <button class="roadmap-filter active" type="button" data-filter="all">
+          <button
+            class="roadmap-filter active"
+            type="button"
+            data-filter="all"
+          >
             Todos
           </button>
 
-          <button class="roadmap-filter" type="button" data-filter="mine">
+          <button
+            class="roadmap-filter"
+            type="button"
+            data-filter="mine"
+          >
             Meus itens
           </button>
 
-          <button class="roadmap-filter" type="button" data-filter="in_progress">
+          <button
+            class="roadmap-filter"
+            type="button"
+            data-filter="in_progress"
+          >
             Em andamento
           </button>
 
-          <button class="roadmap-filter" type="button" data-filter="done">
+          <button
+            class="roadmap-filter"
+            type="button"
+            data-filter="done"
+          >
             Concluídos
           </button>
         </div>
 
-        <button id="new-roadmap-item" class="roadmap-new-button" type="button">
-          <span>＋</span>
+        <button
+          id="new-roadmap-item"
+          class="roadmap-new-button"
+          type="button"
+        >
+          <span aria-hidden="true">＋</span>
           Novo item
         </button>
       </div>
@@ -68,49 +88,597 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
         role="status"
       ></div>
 
-      <section class="roadmap-board" aria-label="Roadmap do projeto">
+      <section
+        class="roadmap-board"
+        aria-label="Roadmap do projeto"
+      >
         {
           [
-            { id: 'now', kicker: 'Foco atual', title: 'Agora' },
-            { id: 'next', kicker: 'Próximos passos', title: 'Próximo' },
-            { id: 'later', kicker: 'Planejado', title: 'Depois' },
-            { id: 'done', kicker: 'Histórico', title: 'Concluído' },
-          ].map((stage) => (
-            <section class="roadmap-column">
-              <div class="roadmap-column-head">
-                <div>
-                  <span class="roadmap-column-kicker">
-                    {stage.kicker}
-                  </span>
+            {
+              id: 'now',
+              kicker: 'Foco atual',
+              title: 'Agora',
+            },
+            {
+              id: 'next',
+              kicker: 'Próximos passos',
+              title: 'Próximo',
+            },
+            {
+              id: 'later',
+              kicker: 'Planejado',
+              title: 'Depois',
+            },
+            {
+              id: 'done',
+              kicker: 'Histórico',
+              title: 'Concluído',
+            },
+          ].map(
+            (
+              stage,
+            ) => (
+              <section class="roadmap-column">
+                <div class="roadmap-column-head">
+                  <div>
+                    <span class="roadmap-column-kicker">
+                      {stage.kicker}
+                    </span>
 
-                  <h2>
-                    {stage.title}
-                  </h2>
+                    <h2>
+                      {stage.title}
+                    </h2>
+                  </div>
+
+                  <span
+                    id={`stage-count-${stage.id}`}
+                    class="roadmap-column-count"
+                  >
+                    0
+                  </span>
                 </div>
 
-                <span
-                  id={`stage-count-${stage.id}`}
-                  class="roadmap-column-count"
-                >
-                  0
-                </span>
-              </div>
-
-              <div
-                id={`stage-${stage.id}`}
-                class="roadmap-column-list"
-              ></div>
-            </section>
-          ))
+                <div
+                  id={`stage-${stage.id}`}
+                  class="roadmap-column-list"
+                ></div>
+              </section>
+            ),
+          )
         }
       </section>
     </div>
 
-    <RoadmapCard />
-    <RoadmapModal />
-    <RoadmapDetailsModal />
+    <!-- ===================================================== -->
+    <!-- TEMPLATE DO CARD                                      -->
+    <!-- ===================================================== -->
+
+    <template id="roadmap-card-template">
+      <article
+        class="roadmap-item-card roadmap-item-collapsible is-expanded"
+        aria-expanded="true"
+      >
+        <div class="roadmap-card-summary">
+          <h3 data-role="title"></h3>
+
+          <button
+            class="roadmap-card-toggle"
+            type="button"
+            data-role="toggle-card"
+            aria-label="Encolher item"
+            aria-expanded="true"
+            title="Encolher"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                d="m7 14 5-5 5 5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <div
+          class="roadmap-card-expanded"
+          aria-hidden="true"
+        >
+          <div class="roadmap-card-badges">
+            <span
+              class="roadmap-pill roadmap-priority"
+              data-role="priority"
+            ></span>
+
+            <span
+              class="roadmap-pill roadmap-status"
+              data-role="status"
+            ></span>
+          </div>
+
+          <p
+            class="roadmap-card-description"
+            data-role="description"
+          ></p>
+
+          <div class="roadmap-card-assignee">
+            <span
+              class="roadmap-card-avatar"
+              data-role="assignee-avatar"
+            ></span>
+
+            <div>
+              <span>
+                Responsável
+              </span>
+
+              <strong data-role="assignee"></strong>
+            </div>
+          </div>
+
+          <div class="roadmap-card-progress">
+            <div class="roadmap-card-progress-head">
+              <span>
+                Progresso
+              </span>
+
+              <strong data-role="progress-label">
+                0%
+              </strong>
+            </div>
+
+            <div class="roadmap-card-progress-track">
+              <span
+                data-role="progress-fill"
+                class="roadmap-card-progress-fill"
+              ></span>
+            </div>
+          </div>
+
+          <button
+            class="roadmap-card-details-button"
+            type="button"
+            data-role="open-details"
+          >
+            Ver detalhes / editar
+          </button>
+        </div>
+      </article>
+    </template>
+
+    <!-- ===================================================== -->
+    <!-- MODAL CRIAR / EDITAR                                  -->
+    <!-- ===================================================== -->
+
+    <div
+      id="roadmap-modal"
+      class="roadmap-modal member-hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="roadmap-modal-title"
+    >
+      <button
+        id="roadmap-modal-backdrop"
+        class="roadmap-modal-backdrop"
+        type="button"
+        aria-label="Fechar"
+      ></button>
+
+      <section class="roadmap-modal-card">
+        <div class="roadmap-modal-head">
+          <div>
+            <span class="roadmap-modal-kicker">
+              Roadmap
+            </span>
+
+            <h2 id="roadmap-modal-title">
+              Novo item
+            </h2>
+          </div>
+
+          <button
+            id="roadmap-modal-close"
+            class="roadmap-modal-close"
+            type="button"
+            aria-label="Fechar"
+          >
+            ×
+          </button>
+        </div>
+
+        <form
+          id="roadmap-form"
+          class="roadmap-form"
+        >
+          <input
+            id="roadmap-item-id"
+            type="hidden"
+          />
+
+          <div class="roadmap-main-grid">
+            <div class="roadmap-field roadmap-title-field">
+              <label for="roadmap-title">
+                Título
+              </label>
+
+              <input
+                id="roadmap-title"
+                type="text"
+                maxlength="140"
+                required
+                placeholder="O que precisa ser feito?"
+              />
+            </div>
+
+            <div class="roadmap-field">
+              <label for="roadmap-description">
+                Descrição
+              </label>
+
+              <textarea
+                id="roadmap-description"
+                maxlength="2000"
+                placeholder="Explique o objetivo deste item."
+              ></textarea>
+            </div>
+          </div>
+
+          <div class="roadmap-visual-grid">
+            <div class="roadmap-visual-control">
+              <div class="roadmap-control-head">
+                <label for="roadmap-stage-range">
+                  Etapa
+                </label>
+
+                <strong id="roadmap-stage-value">
+                  Agora
+                </strong>
+              </div>
+
+              <input
+                id="roadmap-stage-range"
+                class="roadmap-range"
+                type="range"
+                min="0"
+                max="3"
+                step="1"
+                value="0"
+              />
+
+              <div class="roadmap-range-labels roadmap-stage-labels">
+                <span>Agora</span>
+                <span>Próximo</span>
+                <span>Depois</span>
+                <span>Concluído</span>
+              </div>
+
+              <select
+                id="roadmap-stage"
+                class="roadmap-hidden-select"
+                tabindex="-1"
+                aria-hidden="true"
+              >
+                <option value="now">Agora</option>
+                <option value="next">Próximo</option>
+                <option value="later">Depois</option>
+                <option value="done">Concluído</option>
+              </select>
+            </div>
+
+            <div class="roadmap-visual-control">
+              <div class="roadmap-control-head">
+                <label for="roadmap-priority-range">
+                  Prioridade
+                </label>
+
+                <strong id="roadmap-priority-value">
+                  Média
+                </strong>
+              </div>
+
+              <input
+                id="roadmap-priority-range"
+                class="roadmap-range"
+                type="range"
+                min="0"
+                max="2"
+                step="1"
+                value="1"
+              />
+
+              <div class="roadmap-range-labels roadmap-priority-labels">
+                <span>Baixa</span>
+                <span>Média</span>
+                <span>Alta</span>
+              </div>
+
+              <select
+                id="roadmap-priority"
+                class="roadmap-hidden-select"
+                tabindex="-1"
+                aria-hidden="true"
+              >
+                <option value="low">Baixa</option>
+                <option value="medium">Média</option>
+                <option value="high">Alta</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="roadmap-form-grid">
+            <div class="roadmap-field">
+              <label for="roadmap-status">
+                Status
+              </label>
+
+              <select id="roadmap-status">
+                <option value="todo">A fazer</option>
+                <option value="in_progress">Em andamento</option>
+                <option value="blocked">Bloqueado</option>
+                <option value="done">Concluído</option>
+              </select>
+            </div>
+
+            <div class="roadmap-field">
+              <label for="roadmap-assignee">
+                Responsável
+              </label>
+
+              <select id="roadmap-assignee">
+                <option value="">
+                  Sem responsável
+                </option>
+              </select>
+            </div>
+
+            <div class="roadmap-field">
+              <label for="roadmap-area">
+                Área
+              </label>
+
+              <input
+                id="roadmap-area"
+                type="text"
+                maxlength="120"
+                placeholder="Ex.: Front e Backend"
+              />
+            </div>
+
+            <div class="roadmap-field">
+              <label for="roadmap-due-date">
+                Prazo
+              </label>
+
+              <input
+                id="roadmap-due-date"
+                type="date"
+              />
+            </div>
+          </div>
+
+          <div class="roadmap-progress-row">
+            <div class="roadmap-progress-field">
+              <div class="roadmap-control-head">
+                <label for="roadmap-progress">
+                  Progresso
+                </label>
+
+                <strong id="roadmap-progress-value">
+                  0%
+                </strong>
+              </div>
+
+              <input
+                id="roadmap-progress"
+                class="roadmap-range"
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                value="0"
+              />
+            </div>
+
+            <div class="roadmap-field roadmap-notes-field">
+              <label for="roadmap-notes">
+                Notas internas
+              </label>
+
+              <textarea
+                id="roadmap-notes"
+                maxlength="3000"
+                placeholder="Contexto adicional, decisões, links ou observações."
+              ></textarea>
+            </div>
+          </div>
+
+          <div
+            id="roadmap-form-status"
+            class="roadmap-form-status"
+            role="status"
+          ></div>
+
+          <div class="roadmap-modal-actions">
+            <button
+              id="roadmap-delete"
+              class="roadmap-button roadmap-button-danger member-hidden"
+              type="button"
+            >
+              Excluir
+            </button>
+
+            <div class="roadmap-modal-actions-right">
+              <button
+                id="roadmap-cancel"
+                class="roadmap-button roadmap-button-secondary"
+                type="button"
+              >
+                Cancelar
+              </button>
+
+              <button
+                id="roadmap-save"
+                class="roadmap-button roadmap-button-primary"
+                type="submit"
+              >
+                Criar item
+              </button>
+            </div>
+          </div>
+        </form>
+      </section>
+    </div>
+
+    <!-- ===================================================== -->
+    <!-- MODAL DE DETALHES                                     -->
+    <!-- ===================================================== -->
+
+    <div
+      id="roadmap-details-modal"
+      class="roadmap-details-modal member-hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="roadmap-details-title"
+    >
+      <button
+        id="roadmap-details-backdrop"
+        class="roadmap-details-backdrop"
+        type="button"
+        aria-label="Fechar detalhes"
+      ></button>
+
+      <section class="roadmap-details-card">
+        <div class="roadmap-details-head">
+          <div class="roadmap-details-heading">
+            <span class="roadmap-details-kicker">
+              Item do roadmap
+            </span>
+
+            <div
+              id="roadmap-details-badges"
+              class="roadmap-details-badges"
+            ></div>
+
+            <h2 id="roadmap-details-title">
+              Item
+            </h2>
+
+            <p id="roadmap-details-description">
+              —
+            </p>
+          </div>
+
+          <button
+            id="roadmap-details-close"
+            class="roadmap-details-close"
+            type="button"
+            aria-label="Fechar"
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="roadmap-details-grid">
+          <div class="roadmap-details-info">
+            <span
+              id="roadmap-details-avatar"
+              class="roadmap-details-avatar"
+            ></span>
+
+            <div>
+              <span>
+                Responsável
+              </span>
+
+              <strong id="roadmap-details-assignee">
+                —
+              </strong>
+            </div>
+          </div>
+
+          <div class="roadmap-details-info">
+            <div>
+              <span>
+                Área
+              </span>
+
+              <strong id="roadmap-details-area">
+                —
+              </strong>
+            </div>
+          </div>
+
+          <div class="roadmap-details-info">
+            <div>
+              <span>
+                Prazo
+              </span>
+
+              <strong id="roadmap-details-due-date">
+                —
+              </strong>
+            </div>
+          </div>
+
+          <div class="roadmap-details-info">
+            <div>
+              <span>
+                Etapa
+              </span>
+
+              <strong id="roadmap-details-stage">
+                —
+              </strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="roadmap-details-progress">
+          <div class="roadmap-details-progress-head">
+            <span>
+              Progresso
+            </span>
+
+            <strong id="roadmap-details-progress-label">
+              0%
+            </strong>
+          </div>
+
+          <div class="roadmap-details-progress-track">
+            <span id="roadmap-details-progress-fill"></span>
+          </div>
+        </div>
+
+        <div
+          id="roadmap-details-notes-wrap"
+          class="roadmap-details-notes member-hidden"
+        >
+          <span>
+            Notas internas
+          </span>
+
+          <p id="roadmap-details-notes"></p>
+        </div>
+
+        <div class="roadmap-details-actions">
+          <button
+            id="roadmap-details-edit"
+            class="roadmap-button roadmap-button-primary"
+            type="button"
+          >
+            Editar item
+          </button>
+        </div>
+      </section>
+    </div>
   </main>
 </Layout>
+
 
 <script>
   import {
@@ -471,31 +1039,62 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
         : 'roadmap-form-status';
   }
 
-  function initials(
+
+
+  function renderRoadmapAvatar(
+    target: HTMLElement | null,
+    profile: CollaboratorProfile | null,
     name: string,
   ) {
-    const parts =
-      name
-        .trim()
-        .split(/\s+/)
-        .filter(Boolean);
-
-    if (!parts.length) {
-      return 'EV';
+    if (!target) {
+      return;
     }
 
-    if (parts.length === 1) {
-      return parts[0]
-        .slice(0, 2)
-        .toUpperCase();
-    }
+    target.innerHTML = '';
+    target.style.backgroundImage = '';
+    target.classList.add('has-image');
 
-    return (
-      parts[0][0] +
-      parts[
-        parts.length - 1
-      ][0]
-    ).toUpperCase();
+    const fallback =
+      '/branding/default-profile-avatar.png';
+
+    const image =
+      document.createElement('img');
+
+    image.className =
+      'roadmap-profile-avatar-image';
+
+    image.src =
+      profile?.avatar_url?.trim() ||
+      fallback;
+
+    image.alt =
+      `Foto de ${name}`;
+
+    image.loading =
+      'lazy';
+
+    image.draggable =
+      false;
+
+    image.addEventListener(
+      'error',
+      () => {
+        const current =
+          image.getAttribute('src') ||
+          '';
+
+        if (
+          !current.endsWith(
+            fallback,
+          )
+        ) {
+          image.src =
+            fallback;
+        }
+      },
+    );
+
+    target.append(image);
   }
 
   function formatDate(
@@ -716,21 +1315,11 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
         '[data-role="assignee-avatar"]',
       );
 
-    if (avatar) {
-      avatar.textContent =
-        initials(name);
-
-      if (
-        profile?.avatar_url?.trim()
-      ) {
-        avatar.style.backgroundImage =
-          `url("${profile.avatar_url}")`;
-
-        avatar.classList.add(
-          'has-image',
-        );
-      }
-    }
+    renderRoadmapAvatar(
+      avatar,
+      profile,
+      name,
+    );
 
     const fill =
       card.querySelector<HTMLElement>(
@@ -742,28 +1331,101 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
         `${item.progress}%`;
     }
 
-    const openDetails =
-      () => {
+    const expandedBody =
+      card.querySelector<HTMLElement>(
+        '.roadmap-card-expanded',
+      );
+
+    const toggleButton =
+      card.querySelector<HTMLButtonElement>(
+        '[data-role="toggle-card"]',
+      );
+
+    // O item começa completo. O botão permite compactá-lo
+    // para ocupar apenas uma linha com o título.
+    card.classList.add(
+      'is-expanded',
+    );
+
+    card.setAttribute(
+      'aria-expanded',
+      'true',
+    );
+
+    expandedBody?.setAttribute(
+      'aria-hidden',
+      'false',
+    );
+
+    const setExpanded =
+      (
+        expanded: boolean,
+      ) => {
+        card.classList.toggle(
+          'is-expanded',
+          expanded,
+        );
+
+        card.setAttribute(
+          'aria-expanded',
+          String(expanded),
+        );
+
+        expandedBody?.setAttribute(
+          'aria-hidden',
+          String(!expanded),
+        );
+
+        if (
+          toggleButton
+        ) {
+          toggleButton.setAttribute(
+            'aria-expanded',
+            String(expanded),
+          );
+
+          toggleButton.setAttribute(
+            'aria-label',
+            expanded
+              ? 'Encolher item'
+              : 'Expandir item',
+          );
+
+          toggleButton.title =
+            expanded
+              ? 'Encolher'
+              : 'Expandir';
+        }
+      };
+
+    toggleButton?.addEventListener(
+      'click',
+      (
+        event,
+      ) => {
+        event.stopPropagation();
+
+        setExpanded(
+          !card.classList.contains(
+            'is-expanded',
+          ),
+        );
+      },
+    );
+
+    const detailsButton =
+      card.querySelector<HTMLButtonElement>(
+        '[data-role="open-details"]',
+      );
+
+    detailsButton?.addEventListener(
+      'click',
+      (event) => {
+        event.stopPropagation();
+
         openDetailsModal(
           item,
         );
-      };
-
-    card.addEventListener(
-      'click',
-      openDetails,
-    );
-
-    card.addEventListener(
-      'keydown',
-      (event) => {
-        if (
-          event.key === 'Enter' ||
-          event.key === ' '
-        ) {
-          event.preventDefault();
-          openDetails();
-        }
       },
     );
 
@@ -1125,28 +1787,11 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
       );
     }
 
-    if (detailsAvatar) {
-      detailsAvatar.textContent =
-        initials(name);
-
-      detailsAvatar.style.backgroundImage =
-        '';
-
-      detailsAvatar.classList.remove(
-        'has-image',
-      );
-
-      if (
-        profile?.avatar_url?.trim()
-      ) {
-        detailsAvatar.style.backgroundImage =
-          `url("${profile.avatar_url}")`;
-
-        detailsAvatar.classList.add(
-          'has-image',
-        );
-      }
-    }
+    renderRoadmapAvatar(
+      detailsAvatar,
+      profile,
+      name,
+    );
 
     if (detailsAssignee) {
       detailsAssignee.textContent =
@@ -1611,140 +2256,263 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
   }
 </script>
 
+
 <style is:global>
+  /* ==========================================================
+     GARANTIAS GLOBAIS
+     ========================================================== */
+
+  .member-hidden {
+    display: none !important;
+  }
+
   body.roadmap-modal-open,
   body.roadmap-details-open {
-    overflow: hidden;
+    overflow: hidden !important;
   }
 
-  .roadmap-modal {
-    position: fixed;
-    inset: 0;
-    z-index: 150;
+  /* ==========================================================
+     MODAIS
+     ========================================================== */
+
+  .roadmap-modal,
+  .roadmap-details-modal {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 9999 !important;
     display: grid;
     place-items: center;
-    padding: 12px;
+    padding: 20px;
+    isolation: isolate;
   }
 
-  .roadmap-modal-backdrop {
-    position: absolute;
-    inset: 0;
+  .roadmap-modal-backdrop,
+  .roadmap-details-backdrop {
+    position: absolute !important;
+    inset: 0 !important;
     width: 100%;
     height: 100%;
     border: 0;
-    background: rgba(23,32,25,.25);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    padding: 0;
+    background: rgba(18,27,20,.34);
+    backdrop-filter: blur(9px);
+    -webkit-backdrop-filter: blur(9px);
+    cursor: default;
+  }
+
+  .roadmap-modal-card,
+  .roadmap-details-card {
+    width: min(760px, calc(100vw - 32px));
+    max-height: calc(100vh - 40px);
+    position: relative;
+    z-index: 1;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border: 1px solid rgba(65,104,62,.13);
+    border-radius: 24px;
+    background: rgba(253,254,252,.99);
+    box-shadow:
+      0 36px 110px rgba(23,32,25,.24);
   }
 
   .roadmap-modal-card {
-    position: relative;
-    z-index: 1;
-    width: min(100%,760px);
-    max-height: calc(100vh - 24px);
-    padding: 18px 22px;
-    border: 1px solid var(--border);
-    border-radius: 22px;
-    background: rgba(255,255,255,.985);
-    box-shadow:
-      0 28px 90px
-      rgba(23,32,25,.18);
+    padding: 22px;
   }
 
-  .roadmap-modal-head {
+  .roadmap-details-card {
+    width: min(700px, calc(100vw - 32px));
+    padding: 26px;
+  }
+
+  .roadmap-modal-head,
+  .roadmap-details-head {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 12px;
+    gap: 18px;
   }
 
-  .roadmap-modal-head h2 {
+  .roadmap-modal-kicker,
+  .roadmap-details-kicker {
+    display: block;
+    color: var(--primary-deep, #3b6939);
+    font-size: 9px;
+    font-weight: 850;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+
+  .roadmap-modal-head h2,
+  .roadmap-details-head h2 {
     margin: 6px 0 0;
-    font-size: 26px;
-    letter-spacing: -.04em;
+    color: var(--text, #172019);
+    font-size: 28px;
+    line-height: 1.05;
+    letter-spacing: -.045em;
   }
 
-  .roadmap-modal-close {
-    width: 36px;
-    height: 36px;
+  .roadmap-details-heading > p {
+    max-width: 600px;
+    margin: 10px 0 0;
+    color: var(--text-soft, #68746b);
+    font-size: 13px;
+    line-height: 1.65;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .roadmap-modal-close,
+  .roadmap-details-close {
+    width: 38px;
+    height: 38px;
+    flex: 0 0 auto;
     display: grid;
     place-items: center;
-    flex: 0 0 auto;
-    border: 1px solid var(--border);
+    border: 1px solid rgba(65,104,62,.11);
     border-radius: 11px;
-    background: var(--surface-muted);
-    color: var(--text);
+    background: #f7faf5;
+    color: var(--text, #172019);
     font: inherit;
-    font-size: 20px;
+    font-size: 21px;
     cursor: pointer;
   }
 
+  .roadmap-modal-close:hover,
+  .roadmap-details-close:hover {
+    background: #edf5e9;
+  }
+
+  /* ==========================================================
+     FORMULÁRIO
+     ========================================================== */
+
   .roadmap-form {
+    margin-top: 20px;
+    display: grid;
+    gap: 12px;
+  }
+
+  .roadmap-main-grid,
+  .roadmap-form-grid,
+  .roadmap-visual-grid,
+  .roadmap-progress-row {
     display: grid;
     gap: 11px;
   }
 
   .roadmap-main-grid {
-    display: grid;
-    grid-template-columns:
-      .95fr 1.35fr;
-    gap: 10px;
+    grid-template-columns: .9fr 1.1fr;
   }
 
+  .roadmap-form-grid,
   .roadmap-visual-grid {
+    grid-template-columns: repeat(2, minmax(0,1fr));
+  }
+
+  .roadmap-progress-row {
+    grid-template-columns: .88fr 1.12fr;
+    align-items: stretch;
+  }
+
+  .roadmap-field {
+    min-width: 0;
     display: grid;
-    grid-template-columns:
-      1fr 1fr;
-    gap: 10px;
+    gap: 6px;
   }
 
-  .roadmap-visual-control {
-    padding: 10px 12px 8px;
-    border: 1px solid var(--border);
+  .roadmap-field label,
+  .roadmap-control-head label,
+  .roadmap-control-head > span {
+    color: var(--text, #172019);
+    font-size: 10px;
+    font-weight: 800;
+  }
+
+  .roadmap-field input:not([type="range"]),
+  .roadmap-field textarea,
+  .roadmap-field select {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid rgba(65,104,62,.12);
+    border-radius: 11px;
+    background: #fff;
+    color: var(--text, #172019);
+    font: inherit;
+    font-size: 12px;
+    outline: none;
+  }
+
+  .roadmap-field input:not([type="range"]),
+  .roadmap-field select {
+    min-height: 42px;
+    padding: 0 12px;
+  }
+
+  .roadmap-field textarea {
+    min-height: 76px;
+    padding: 10px 12px;
+    resize: vertical;
+    line-height: 1.55;
+  }
+
+  .roadmap-title-field input {
+    min-height: 58px !important;
+    font-size: 14px !important;
+    font-weight: 700;
+  }
+
+  .roadmap-field input:focus,
+  .roadmap-field textarea:focus,
+  .roadmap-field select:focus {
+    border-color: rgba(95,157,89,.46);
+    box-shadow: 0 0 0 4px rgba(159,211,149,.12);
+  }
+
+  .roadmap-visual-control,
+  .roadmap-progress-field {
+    min-width: 0;
+    padding: 11px 12px 10px;
+    border: 1px solid rgba(65,104,62,.1);
     border-radius: 14px;
-    background: var(--surface-muted);
+    background: #f6faf3;
   }
 
-  .roadmap-control-head {
+  .roadmap-control-head,
+  .roadmap-card-progress-head,
+  .roadmap-details-progress-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    margin-bottom: 7px;
   }
 
-  .roadmap-control-head span,
-  .roadmap-control-head label {
-    color: var(--text);
-    font-size: 11px;
-    font-weight: 750;
+  .roadmap-control-head {
+    margin-bottom: 8px;
   }
 
   .roadmap-control-head strong {
-    color: var(--primary-deep);
-    font-size: 12px;
+    color: var(--primary-deep, #3b6939);
+    font-size: 11px;
   }
 
   .roadmap-range {
     width: 100%;
-    accent-color: var(--primary-strong);
+    accent-color: var(--primary-strong, #5f9d59);
   }
 
   .roadmap-range-labels {
     margin-top: 3px;
     display: grid;
-    color: var(--text-soft);
+    color: var(--text-soft, #68746b);
     font-size: 8px;
-    font-weight: 650;
   }
 
   .roadmap-stage-labels {
-    grid-template-columns: repeat(4,1fr);
+    grid-template-columns: repeat(4, 1fr);
   }
 
   .roadmap-priority-labels {
-    grid-template-columns: repeat(3,1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
 
   .roadmap-range-labels span {
@@ -1760,99 +2528,33 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
   }
 
   .roadmap-hidden-select {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  .roadmap-form-grid {
-    display: grid;
-    grid-template-columns:
-      repeat(2,minmax(0,1fr));
-    gap: 10px;
-  }
-
-  .roadmap-progress-row {
-    display: grid;
-    grid-template-columns:
-      .9fr 1.1fr;
-    gap: 10px;
-    align-items: end;
-  }
-
-  .roadmap-field {
-    display: grid;
-    gap: 5px;
-  }
-
-  .roadmap-field label {
-    color: var(--text);
-    font-size: 11px;
-    font-weight: 750;
-  }
-
-  .roadmap-field input:not([type="range"]),
-  .roadmap-field textarea,
-  .roadmap-field select {
-    width: 100%;
-    border: 1px solid var(--border);
-    border-radius: 11px;
-    background: var(--surface-solid);
-    color: var(--text);
-    font: inherit;
-    font-size: 13px;
-    outline: none;
-  }
-
-  .roadmap-field input:not([type="range"]),
-  .roadmap-field select {
-    min-height: 40px;
-    padding: 0 11px;
-  }
-
-  .roadmap-field textarea {
-    min-height: 58px;
-    padding: 9px 11px;
-    resize: none;
-  }
-
-  .roadmap-title-field input {
-    min-height: 58px !important;
-  }
-
-  .roadmap-field input:focus,
-  .roadmap-field textarea:focus,
-  .roadmap-field select:focus {
-    border-color: rgba(95,157,89,.5);
-    box-shadow:
-      0 0 0 3px
-      rgba(159,211,149,.14);
-  }
-
-  .roadmap-progress-field {
-    padding: 10px 12px;
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    background: var(--surface-muted);
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    overflow: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
   }
 
   .roadmap-notes-field textarea {
-    min-height: 66px;
+    min-height: 76px;
   }
 
   .roadmap-form-status {
-    min-height: 14px;
-    font-size: 11px;
+    min-height: 16px;
+    font-size: 10px;
   }
 
   .roadmap-form-status.error {
     color: #a24537;
   }
 
+  .roadmap-form-status.success {
+    color: var(--primary-deep, #3b6939);
+  }
+
   .roadmap-modal-actions {
+    padding-top: 4px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -1866,50 +2568,410 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
   }
 
   .roadmap-button {
-    min-height: 38px;
-    padding: 0 13px;
+    min-height: 40px;
+    padding: 0 14px;
     border-radius: 11px;
     font: inherit;
-    font-size: 12px;
-    font-weight: 750;
+    font-size: 11px;
+    font-weight: 800;
     cursor: pointer;
+  }
+
+  .roadmap-button:disabled {
+    opacity: .58;
+    cursor: not-allowed;
   }
 
   .roadmap-button-primary {
     border: 1px solid rgba(95,157,89,.2);
-    background: var(--primary-soft);
-    color: var(--primary-deep);
+    background: var(--primary-deep, #3b6939);
+    color: #fff;
   }
 
   .roadmap-button-secondary {
-    border: 1px solid var(--border);
-    background: var(--surface-muted);
-    color: var(--text);
+    border: 1px solid rgba(65,104,62,.11);
+    background: #f5f8f3;
+    color: var(--text, #172019);
   }
 
   .roadmap-button-danger {
-    border: 1px solid rgba(162,69,55,.15);
+    border: 1px solid rgba(162,69,55,.14);
     background: #fff0ed;
     color: #9a4638;
   }
 
+  /* ==========================================================
+     CARD DO ROADMAP
+     ========================================================== */
+
+  .roadmap-item-card {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 15px;
+    display: block;
+    overflow: hidden;
+    border: 1px solid rgba(65,104,62,.10);
+    border-radius: 15px;
+    background: rgba(255,255,255,.92);
+    box-shadow: 0 8px 24px rgba(23,32,25,.035);
+    cursor: pointer;
+    transition:
+      transform .16s ease,
+      border-color .16s ease,
+      box-shadow .16s ease;
+  }
+
+  .roadmap-item-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(95,157,89,.24);
+    box-shadow: 0 14px 32px rgba(23,32,25,.07);
+  }
+
+  .roadmap-item-card:focus-visible {
+    outline: none;
+    border-color: rgba(95,157,89,.46);
+    box-shadow: 0 0 0 4px rgba(159,211,149,.13);
+  }
+
+  .roadmap-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .roadmap-card-badges,
+  .roadmap-details-badges {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+
+  .roadmap-pill {
+    min-height: 23px;
+    padding: 0 8px;
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    font-size: 8px;
+    line-height: 1;
+    font-weight: 800;
+  }
+
+  .roadmap-priority[data-priority="low"] {
+    background: #f1f5f0;
+    color: #657065;
+  }
+
+  .roadmap-priority[data-priority="medium"] {
+    background: #fff5d9;
+    color: #866819;
+  }
+
+  .roadmap-priority[data-priority="high"] {
+    background: #ffe7e2;
+    color: #98493b;
+  }
+
+  .roadmap-status[data-status="todo"] {
+    background: #eef2ec;
+    color: #657065;
+  }
+
+  .roadmap-status[data-status="in_progress"] {
+    background: #e7f2ff;
+    color: #38658e;
+  }
+
+  .roadmap-status[data-status="blocked"] {
+    background: #fff0ed;
+    color: #974536;
+  }
+
+  .roadmap-status[data-status="done"] {
+    background: #e8f5e4;
+    color: #3b6939;
+  }
+
+  .roadmap-card-open {
+    color: var(--text-soft, #68746b);
+    font-size: 12px;
+    opacity: .72;
+  }
+
+  .roadmap-item-card h3 {
+    margin: 13px 0 0;
+    color: var(--text, #172019);
+    font-size: 16px;
+    line-height: 1.25;
+    letter-spacing: -.025em;
+    overflow-wrap: anywhere;
+  }
+
+  .roadmap-card-description {
+    margin: 7px 0 0;
+    color: var(--text-soft, #68746b);
+    font-size: 10px;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .roadmap-card-assignee {
+    margin-top: 15px;
+    padding-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    border-top: 1px solid rgba(65,104,62,.07);
+  }
+
+  .roadmap-card-avatar,
+  .roadmap-details-avatar {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border: 1px solid rgba(65,104,62,.10);
+    border-radius: 50%;
+    background: #f7faf6;
+    box-shadow:
+      0 5px 14px
+      rgba(54,92,51,.055);
+  }
+
+  .roadmap-profile-avatar-image {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    border-radius: inherit;
+  }
+
+  .roadmap-card-avatar {
+    width: 32px;
+    height: 32px;
+  }
+
+  .roadmap-details-avatar {
+    width: 42px;
+    height: 42px;
+  }
+
+  .roadmap-card-assignee > div {
+    min-width: 0;
+  }
+
+  .roadmap-card-assignee span:not(.roadmap-card-avatar) {
+    display: block;
+    color: var(--text-soft, #68746b);
+    font-size: 8px;
+  }
+
+  .roadmap-card-assignee strong {
+    max-width: 100%;
+    margin-top: 2px;
+    display: block;
+    overflow: hidden;
+    color: var(--text, #172019);
+    font-size: 9px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .roadmap-card-progress {
+    margin-top: 12px;
+  }
+
+  .roadmap-card-progress-head {
+    margin-bottom: 6px;
+    color: var(--text-soft, #68746b);
+    font-size: 8px;
+  }
+
+  .roadmap-card-progress-head strong {
+    color: var(--text, #172019);
+  }
+
+  .roadmap-card-progress-track,
+  .roadmap-details-progress-track {
+    width: 100%;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(65,104,62,.10);
+  }
+
+  .roadmap-card-progress-track {
+    height: 5px;
+  }
+
+  .roadmap-card-progress-fill,
+  #roadmap-details-progress-fill {
+    width: 0;
+    height: 100%;
+    display: block;
+    border-radius: inherit;
+    background: var(--primary-strong, #5f9d59);
+    transition: width .22s ease;
+  }
+
+  /* ==========================================================
+     DETALHES
+     ========================================================== */
+
+  .roadmap-details-badges {
+    margin-top: 12px;
+  }
+
+  .roadmap-details-grid {
+    margin-top: 24px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    gap: 10px;
+  }
+
+  .roadmap-details-info {
+    min-width: 0;
+    min-height: 72px;
+    padding: 13px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid rgba(65,104,62,.09);
+    border-radius: 13px;
+    background: #f7faf5;
+  }
+
+  .roadmap-details-info > div {
+    min-width: 0;
+  }
+
+  .roadmap-details-info span:not(.roadmap-details-avatar) {
+    display: block;
+    color: var(--text-soft, #68746b);
+    font-size: 8px;
+    font-weight: 700;
+  }
+
+  .roadmap-details-info strong {
+    margin-top: 4px;
+    display: block;
+    color: var(--text, #172019);
+    font-size: 11px;
+    overflow-wrap: anywhere;
+  }
+
+  .roadmap-details-progress {
+    margin-top: 14px;
+    padding: 14px;
+    border: 1px solid rgba(65,104,62,.09);
+    border-radius: 13px;
+    background: #f7faf5;
+  }
+
+  .roadmap-details-progress-head {
+    margin-bottom: 9px;
+    font-size: 10px;
+  }
+
+  .roadmap-details-progress-head span {
+    color: var(--text-soft, #68746b);
+  }
+
+  .roadmap-details-progress-track {
+    height: 7px;
+  }
+
+  .roadmap-details-notes {
+    margin-top: 14px;
+    padding: 14px;
+    border: 1px solid rgba(65,104,62,.09);
+    border-radius: 13px;
+    background: #fff;
+  }
+
+  .roadmap-details-notes > span {
+    color: var(--text-soft, #68746b);
+    font-size: 8px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+
+  .roadmap-details-notes p {
+    margin: 7px 0 0;
+    color: var(--text, #172019);
+    font-size: 11px;
+    line-height: 1.65;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .roadmap-details-actions {
+    margin-top: 18px;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  /* ==========================================================
+     RESPONSIVO MODAIS
+     ========================================================== */
+
   @media (max-width: 720px) {
-    .roadmap-modal-card {
+    .roadmap-modal,
+    .roadmap-details-modal {
+      padding: 8px;
+    }
+
+    .roadmap-modal-card,
+    .roadmap-details-card {
+      width: 100%;
       max-height: calc(100vh - 16px);
-      overflow-y: auto;
       padding: 18px;
+      border-radius: 18px;
     }
 
     .roadmap-main-grid,
-    .roadmap-visual-grid,
     .roadmap-form-grid,
-    .roadmap-progress-row {
+    .roadmap-visual-grid,
+    .roadmap-progress-row,
+    .roadmap-details-grid {
       grid-template-columns: 1fr;
+    }
+
+    .roadmap-modal-actions {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .roadmap-modal-actions-right {
+      width: 100%;
+      margin-left: 0;
+    }
+
+    .roadmap-modal-actions-right .roadmap-button {
+      flex: 1;
+    }
+
+    .roadmap-details-actions .roadmap-button {
+      width: 100%;
     }
   }
 </style>
 
 <style>
+  /* ==========================================================
+     PÁGINA
+     ========================================================== */
+
+  .roadmap-page {
+    min-height: 100vh;
+  }
+
   .roadmap-toolbar {
     margin-top: 28px;
     display: flex;
@@ -1926,23 +2988,36 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
     flex-wrap: wrap;
   }
 
+  .roadmap-filter,
+  .roadmap-new-button {
+    transition:
+      transform .15s ease,
+      border-color .15s ease,
+      background .15s ease;
+  }
+
   .roadmap-filter {
     min-height: 38px;
-    padding: 0 12px;
-    border: 1px solid var(--border);
+    padding: 0 13px;
+    border: 1px solid rgba(65,104,62,.11);
     border-radius: 11px;
-    background: rgba(255,255,255,.66);
-    color: var(--text-soft);
+    background: rgba(255,255,255,.72);
+    color: var(--text-soft, #68746b);
     font: inherit;
-    font-size: 12px;
-    font-weight: 750;
+    font-size: 11px;
+    font-weight: 780;
     cursor: pointer;
   }
 
+  .roadmap-filter:hover {
+    transform: translateY(-1px);
+    border-color: rgba(95,157,89,.22);
+  }
+
   .roadmap-filter.active {
-    border-color: rgba(95,157,89,.2);
-    background: var(--primary-soft);
-    color: var(--primary-deep);
+    border-color: rgba(95,157,89,.18);
+    background: var(--primary-soft, #dff1da);
+    color: var(--primary-deep, #3b6939);
   }
 
   .roadmap-new-button {
@@ -1951,14 +3026,18 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    border: 1px solid rgba(95,157,89,.18);
+    border: 1px solid var(--primary-deep, #3b6939);
     border-radius: 12px;
-    background: var(--primary-soft);
-    color: var(--primary-deep);
+    background: var(--primary-deep, #3b6939);
+    color: #fff;
     font: inherit;
-    font-size: 13px;
-    font-weight: 800;
+    font-size: 11px;
+    font-weight: 820;
     cursor: pointer;
+  }
+
+  .roadmap-new-button:hover {
+    transform: translateY(-1px);
   }
 
   .roadmap-error {
@@ -1968,14 +3047,14 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
     border-radius: 14px;
     background: #fff0ed;
     color: #923f32;
-    font-size: 13px;
+    font-size: 11px;
   }
 
   .roadmap-board {
     margin-top: 24px;
     display: grid;
     grid-template-columns:
-      repeat(4,minmax(0,1fr));
+      repeat(4, minmax(0,1fr));
     gap: 12px;
     align-items: start;
   }
@@ -1983,13 +3062,14 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
   .roadmap-column {
     min-width: 0;
     padding: 14px;
-    border: 1px solid var(--border);
+    overflow: hidden;
+    border: 1px solid rgba(65,104,62,.10);
     border-radius: 18px;
-    background: rgba(255,255,255,.45);
+    background: rgba(255,255,255,.48);
   }
 
   .roadmap-column-head {
-    min-height: 56px;
+    min-height: 58px;
     margin-bottom: 12px;
     display: flex;
     align-items: flex-end;
@@ -1999,62 +3079,531 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
 
   .roadmap-column-kicker {
     display: block;
-    margin-bottom: 3px;
-    color: var(--text-soft);
-    font-size: 9px;
-    font-weight: 750;
+    margin-bottom: 4px;
+    color: var(--text-soft, #68746b);
+    font-size: 8px;
+    font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: .07em;
+    letter-spacing: .08em;
   }
 
   .roadmap-column h2 {
     margin: 0;
-    font-size: 22px;
+    color: var(--text, #172019);
+    font-size: 21px;
+    line-height: 1.05;
     letter-spacing: -.035em;
   }
 
   .roadmap-column-count {
     min-width: 30px;
     height: 30px;
+    flex: 0 0 auto;
     display: grid;
     place-items: center;
     border-radius: 10px;
-    background: var(--surface-muted);
-    color: var(--text-soft);
-    font-size: 11px;
-    font-weight: 800;
+    background: #f1f5ef;
+    color: var(--text-soft, #68746b);
+    font-size: 10px;
+    font-weight: 850;
   }
 
   .roadmap-column-list {
-    max-height:
-      calc(100vh - 360px);
-    min-height: 150px;
-    overflow-y: auto;
+    min-width: 0;
+    min-height: 155px;
+    max-height: calc(100vh - 360px);
     padding-right: 3px;
     display: grid;
     align-content: start;
     gap: 10px;
+    overflow-y: auto;
+    overflow-x: hidden;
     scrollbar-width: thin;
+  }
+
+  :global(.roadmap-empty) {
+    min-height: 110px;
+    padding: 15px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 5px;
+    border: 1px dashed rgba(65,104,62,.10);
+    border-radius: 13px;
+    background: rgba(247,250,245,.55);
+  }
+
+  :global(.roadmap-empty strong) {
+    display: block;
+    color: var(--text, #172019);
+    font-size: 10px;
+    line-height: 1.4;
+  }
+
+  :global(.roadmap-empty span) {
+    display: block;
+    color: var(--text-soft, #68746b);
+    font-size: 9px;
+    line-height: 1.5;
   }
 
   @media (max-width: 1120px) {
     .roadmap-board {
       grid-template-columns:
-        repeat(2,minmax(0,1fr));
+        repeat(2, minmax(0,1fr));
     }
 
     .roadmap-column-list {
-      max-height: 440px;
+      max-height: 460px;
     }
   }
 
   @media (max-width: 650px) {
+    .roadmap-toolbar {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .roadmap-filter-row {
+      width: 100%;
+    }
+
+    .roadmap-filter {
+      flex: 1;
+    }
+
+    .roadmap-new-button {
+      justify-content: center;
+      width: 100%;
+    }
+
     .roadmap-board {
       grid-template-columns: 1fr;
     }
 
     .roadmap-column-list {
-      max-height: 420px;
+      max-height: 460px;
     }
   }
 </style>
+
+
+<style is:global>
+  /* ==========================================================
+     ROADMAP — MODO COMPACTO
+     Mais itens visíveis por coluna sem perder legibilidade.
+     ========================================================== */
+
+  .roadmap-column {
+    padding: 11px !important;
+    border-radius: 16px !important;
+  }
+
+  .roadmap-column-head {
+    min-height: 48px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .roadmap-column-kicker {
+    margin-bottom: 3px !important;
+    font-size: 7px !important;
+  }
+
+  .roadmap-column h2 {
+    font-size: 18px !important;
+  }
+
+  .roadmap-column-count {
+    min-width: 26px !important;
+    height: 26px !important;
+    border-radius: 9px !important;
+    font-size: 9px !important;
+  }
+
+  .roadmap-column-list {
+    min-height: 135px !important;
+    max-height: calc(100vh - 285px) !important;
+    padding-right: 2px !important;
+    gap: 7px !important;
+  }
+
+  .roadmap-item-card {
+    min-height: 0 !important;
+    padding: 11px !important;
+    border-radius: 13px !important;
+    box-shadow: 0 5px 18px rgba(23,32,25,.03) !important;
+  }
+
+  .roadmap-card-top {
+    gap: 5px !important;
+  }
+
+  .roadmap-card-badges,
+  .roadmap-details-badges {
+    gap: 4px !important;
+  }
+
+  .roadmap-pill {
+    min-height: 20px !important;
+    padding: 0 7px !important;
+    font-size: 7px !important;
+  }
+
+  .roadmap-card-open {
+    font-size: 10px !important;
+  }
+
+  .roadmap-item-card h3 {
+    margin-top: 9px !important;
+    font-size: 14px !important;
+    line-height: 1.2 !important;
+  }
+
+  .roadmap-card-description {
+    margin-top: 5px !important;
+    font-size: 9px !important;
+    line-height: 1.45 !important;
+    -webkit-line-clamp: 2 !important;
+  }
+
+  .roadmap-card-assignee {
+    margin-top: 9px !important;
+    padding-top: 8px !important;
+    gap: 7px !important;
+  }
+
+  .roadmap-card-avatar {
+    width: 27px !important;
+    height: 27px !important;
+    border-radius: 50% !important;
+  }
+
+  .roadmap-card-assignee span:not(.roadmap-card-avatar) {
+    font-size: 7px !important;
+  }
+
+  .roadmap-card-assignee strong {
+    margin-top: 1px !important;
+    font-size: 8px !important;
+  }
+
+  .roadmap-card-progress {
+    margin-top: 8px !important;
+  }
+
+  .roadmap-card-progress-head {
+    margin-bottom: 4px !important;
+    font-size: 7px !important;
+  }
+
+  .roadmap-card-progress-track {
+    height: 4px !important;
+  }
+
+  .roadmap-empty {
+    min-height: 92px !important;
+    padding: 11px 10px !important;
+    gap: 3px !important;
+    border-radius: 11px !important;
+  }
+
+  .roadmap-empty strong {
+    font-size: 9px !important;
+  }
+
+  .roadmap-empty span {
+    font-size: 8px !important;
+  }
+
+  @media (min-width: 1121px) {
+    .roadmap-board {
+      gap: 10px !important;
+    }
+  }
+
+  @media (max-width: 1120px) {
+    .roadmap-column-list {
+      max-height: 520px !important;
+    }
+  }
+
+  @media (max-width: 650px) {
+    .roadmap-item-card {
+      padding: 12px !important;
+    }
+
+    .roadmap-card-description {
+      -webkit-line-clamp: 3 !important;
+    }
+
+    .roadmap-column-list {
+      max-height: 560px !important;
+    }
+  }
+</style>
+
+
+<style is:global>
+  /* ==========================================================
+     ROADMAP — CARDS RECOLHÍVEIS
+     Fechado: somente o título.
+     Aberto: descrição, status, responsável e progresso.
+     ========================================================== */
+
+  .roadmap-item-collapsible {
+    padding: 0 !important;
+    overflow: hidden !important;
+    cursor: default;
+  }
+
+  .roadmap-card-summary {
+    min-height: 48px;
+    padding: 10px 12px;
+    display: grid;
+    grid-template-columns: minmax(0,1fr) 22px;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .roadmap-card-summary h3,
+  .roadmap-item-collapsible h3 {
+    margin: 0 !important;
+    min-width: 0;
+    color: var(--text, #172019);
+    font-size: 13px !important;
+    line-height: 1.25 !important;
+    font-weight: 800;
+    letter-spacing: -.02em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+
+  .roadmap-card-toggle {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    justify-self: end;
+    flex: 0 0 auto;
+    border: 1px solid rgba(65,104,62,.10);
+    border-radius: 9px;
+    background: rgba(247,250,245,.88);
+    color: var(--text-soft, #68746b);
+    cursor: pointer;
+    transition:
+      transform .16s ease,
+      background .16s ease,
+      border-color .16s ease,
+      color .16s ease;
+  }
+
+  .roadmap-card-toggle:hover {
+    background: rgba(223,241,218,.75);
+    border-color: rgba(95,157,89,.20);
+    color: var(--primary-deep, #3b6939);
+  }
+
+  .roadmap-card-toggle:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 3px
+      rgba(95,157,89,.12);
+  }
+
+  .roadmap-card-toggle svg {
+    width: 16px;
+    height: 16px;
+    display: block;
+    transition:
+      transform .18s ease;
+  }
+
+  .roadmap-item-collapsible:not(.is-expanded)
+  .roadmap-card-toggle svg {
+    transform: rotate(180deg);
+  }
+
+  .roadmap-card-expanded {
+    display: none;
+    padding: 0 12px 12px;
+    border-top: 1px solid rgba(65,104,62,.07);
+  }
+
+  .roadmap-item-collapsible.is-expanded .roadmap-card-expanded {
+    display: block;
+    animation: roadmap-card-reveal .16s ease;
+  }
+
+  @keyframes roadmap-card-reveal {
+    from {
+      opacity: 0;
+      transform: translateY(-3px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .roadmap-card-expanded .roadmap-card-badges {
+    margin-top: 10px;
+  }
+
+  .roadmap-card-expanded .roadmap-card-description {
+    margin-top: 8px !important;
+    display: block !important;
+    overflow: visible !important;
+    -webkit-line-clamp: unset !important;
+    -webkit-box-orient: initial !important;
+    font-size: 9px !important;
+    line-height: 1.5 !important;
+  }
+
+  .roadmap-card-expanded .roadmap-card-assignee {
+    margin-top: 10px !important;
+    padding-top: 9px !important;
+  }
+
+  .roadmap-card-expanded .roadmap-card-progress {
+    margin-top: 9px !important;
+  }
+
+  .roadmap-card-details-button {
+    width: 100%;
+    min-height: 32px;
+    margin-top: 11px;
+    border: 1px solid rgba(65,104,62,.10);
+    border-radius: 9px;
+    background: rgba(239,248,235,.62);
+    color: var(--primary-deep, #3b6939);
+    font: inherit;
+    font-size: 8px;
+    font-weight: 850;
+    cursor: pointer;
+  }
+
+  .roadmap-card-details-button:hover {
+    background: rgba(223,241,218,.9);
+  }
+
+  .roadmap-column-list {
+    gap: 6px !important;
+  }
+
+  /* Com os cards fechados, várias tarefas cabem na coluna. */
+  .roadmap-item-collapsible:not(.is-expanded) {
+    min-height: 48px !important;
+    box-shadow: 0 4px 14px rgba(23,32,25,.025) !important;
+  }
+
+  .roadmap-item-collapsible.is-expanded {
+    box-shadow: 0 10px 28px rgba(23,32,25,.06) !important;
+  }
+
+  @media (max-width: 650px) {
+    .roadmap-card-summary {
+      min-height: 50px;
+      padding: 11px 12px;
+    }
+
+    .roadmap-card-summary h3,
+    .roadmap-item-collapsible h3 {
+      font-size: 13px !important;
+    }
+  }
+</style>
+
+<style is:global>
+  /* ==========================================================
+     EVRYLUX ROADMAP v2026.09.22
+     Estado recolhido + avatar real do perfil
+     ========================================================== */
+
+  .roadmap-item-card.roadmap-item-collapsible {
+    padding: 0 !important;
+  }
+
+  .roadmap-item-card.roadmap-item-collapsible
+  .roadmap-card-expanded {
+    display: none !important;
+  }
+
+  .roadmap-item-card.roadmap-item-collapsible.is-expanded
+  .roadmap-card-expanded {
+    display: block !important;
+  }
+
+  .roadmap-item-card.roadmap-item-collapsible:not(.is-expanded) {
+    min-height: 48px !important;
+    height: auto !important;
+  }
+
+  .roadmap-item-card.roadmap-item-collapsible:not(.is-expanded)
+  .roadmap-card-summary {
+    min-height: 48px !important;
+  }
+
+  .roadmap-card-avatar,
+  .roadmap-details-avatar {
+    background-image: none !important;
+    border-radius: 50% !important;
+  }
+
+  .roadmap-card-avatar .roadmap-profile-avatar-image,
+  .roadmap-details-avatar .roadmap-profile-avatar-image {
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 100% !important;
+    min-height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    object-fit: cover !important;
+    border-radius: 50% !important;
+  }
+</style>
+
+
+<style is:global>
+  /* ==========================================================
+     ROADMAP — BOTÃO COMPACTAR / EXPANDIR
+     ========================================================== */
+
+  .roadmap-item-card.roadmap-item-collapsible
+  .roadmap-card-summary {
+    min-height: 48px !important;
+    padding: 9px 10px 9px 12px !important;
+  }
+
+  .roadmap-item-card.roadmap-item-collapsible:not(.is-expanded)
+  .roadmap-card-expanded {
+    display: none !important;
+  }
+
+  .roadmap-item-card.roadmap-item-collapsible.is-expanded
+  .roadmap-card-expanded {
+    display: block !important;
+  }
+
+  .roadmap-item-card.roadmap-item-collapsible:not(.is-expanded) {
+    min-height: 48px !important;
+    height: 48px !important;
+    border-radius: 13px !important;
+  }
+
+  .roadmap-item-card.roadmap-item-collapsible:not(.is-expanded)
+  .roadmap-card-summary h3 {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .roadmap-column-list {
+    gap: 6px !important;
+  }
+</style>
+

@@ -469,28 +469,6 @@ import EvryluxLogoLoader from '../../components/ui/EvryluxLogoLoader.astro';
               </p>
             </div>
           </a>
-          <a
-            class="tool-card"
-            href="/colab/core"
-          >
-            <div class="tool-card-top">
-              <span class="tool-icon">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
-                  <circle cx="12" cy="12" r="8.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2.2 2.2"/>
-                  <path d="M12 3.8v2.4M20.2 12h-2.4M12 20.2v-2.4M3.8 12h2.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-                </svg>
-              </span>
-              <span class="tool-arrow">→</span>
-            </div>
-            <div class="tool-card-copy">
-              <span class="tool-card-kicker">Direção</span>
-              <h3>Núcleo</h3>
-              <p>Registre e fixe o que deve permanecer no centro do EVRYLUX.</p>
-            </div>
-          </a>
-
-
 
           <a
             class="tool-card"

@@ -155,40 +155,11 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
 
     <template id="roadmap-card-template">
       <article
-        class="roadmap-item-card roadmap-item-collapsible is-expanded"
-        aria-expanded="true"
+        class="roadmap-item-card"
+        tabindex="0"
+        role="button"
       >
-        <div class="roadmap-card-summary">
-          <h3 data-role="title"></h3>
-
-          <button
-            class="roadmap-card-toggle"
-            type="button"
-            data-role="toggle-card"
-            aria-label="Encolher item"
-            aria-expanded="true"
-            title="Encolher"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path
-                d="m7 14 5-5 5 5"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-          </button>
-        </div>
-
-        <div
-          class="roadmap-card-expanded"
-          aria-hidden="true"
-        >
+        <div class="roadmap-card-top">
           <div class="roadmap-card-badges">
             <span
               class="roadmap-pill roadmap-priority"
@@ -201,52 +172,53 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
             ></span>
           </div>
 
-          <p
-            class="roadmap-card-description"
-            data-role="description"
-          ></p>
-
-          <div class="roadmap-card-assignee">
-            <span
-              class="roadmap-card-avatar"
-              data-role="assignee-avatar"
-            ></span>
-
-            <div>
-              <span>
-                Responsável
-              </span>
-
-              <strong data-role="assignee"></strong>
-            </div>
-          </div>
-
-          <div class="roadmap-card-progress">
-            <div class="roadmap-card-progress-head">
-              <span>
-                Progresso
-              </span>
-
-              <strong data-role="progress-label">
-                0%
-              </strong>
-            </div>
-
-            <div class="roadmap-card-progress-track">
-              <span
-                data-role="progress-fill"
-                class="roadmap-card-progress-fill"
-              ></span>
-            </div>
-          </div>
-
-          <button
-            class="roadmap-card-details-button"
-            type="button"
-            data-role="open-details"
+          <span
+            class="roadmap-card-open"
+            aria-hidden="true"
           >
-            Ver detalhes / editar
-          </button>
+            ↗
+          </span>
+        </div>
+
+        <h3 data-role="title"></h3>
+
+        <p
+          class="roadmap-card-description"
+          data-role="description"
+        ></p>
+
+        <div class="roadmap-card-assignee">
+          <span
+            class="roadmap-card-avatar"
+            data-role="assignee-avatar"
+          ></span>
+
+          <div>
+            <span>
+              Responsável
+            </span>
+
+            <strong data-role="assignee"></strong>
+          </div>
+        </div>
+
+        <div class="roadmap-card-progress">
+          <div class="roadmap-card-progress-head">
+            <span>
+              Progresso
+            </span>
+
+            <strong data-role="progress-label">
+              0%
+            </strong>
+          </div>
+
+          <div class="roadmap-card-progress-track">
+            <span
+              data-role="progress-fill"
+              class="roadmap-card-progress-fill"
+            ></span>
+          </div>
         </div>
       </article>
     </template>
@@ -1039,62 +1011,31 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
         : 'roadmap-form-status';
   }
 
-
-
-  function renderRoadmapAvatar(
-    target: HTMLElement | null,
-    profile: CollaboratorProfile | null,
+  function initials(
     name: string,
   ) {
-    if (!target) {
-      return;
+    const parts =
+      name
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+
+    if (!parts.length) {
+      return 'EV';
     }
 
-    target.innerHTML = '';
-    target.style.backgroundImage = '';
-    target.classList.add('has-image');
+    if (parts.length === 1) {
+      return parts[0]
+        .slice(0, 2)
+        .toUpperCase();
+    }
 
-    const fallback =
-      '/branding/default-profile-avatar.png';
-
-    const image =
-      document.createElement('img');
-
-    image.className =
-      'roadmap-profile-avatar-image';
-
-    image.src =
-      profile?.avatar_url?.trim() ||
-      fallback;
-
-    image.alt =
-      `Foto de ${name}`;
-
-    image.loading =
-      'lazy';
-
-    image.draggable =
-      false;
-
-    image.addEventListener(
-      'error',
-      () => {
-        const current =
-          image.getAttribute('src') ||
-          '';
-
-        if (
-          !current.endsWith(
-            fallback,
-          )
-        ) {
-          image.src =
-            fallback;
-        }
-      },
-    );
-
-    target.append(image);
+    return (
+      parts[0][0] +
+      parts[
+        parts.length - 1
+      ][0]
+    ).toUpperCase();
   }
 
   function formatDate(
@@ -1315,11 +1256,21 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
         '[data-role="assignee-avatar"]',
       );
 
-    renderRoadmapAvatar(
-      avatar,
-      profile,
-      name,
-    );
+    if (avatar) {
+      avatar.textContent =
+        initials(name);
+
+      if (
+        profile?.avatar_url?.trim()
+      ) {
+        avatar.style.backgroundImage =
+          `url("${profile.avatar_url}")`;
+
+        avatar.classList.add(
+          'has-image',
+        );
+      }
+    }
 
     const fill =
       card.querySelector<HTMLElement>(
@@ -1331,101 +1282,28 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
         `${item.progress}%`;
     }
 
-    const expandedBody =
-      card.querySelector<HTMLElement>(
-        '.roadmap-card-expanded',
-      );
-
-    const toggleButton =
-      card.querySelector<HTMLButtonElement>(
-        '[data-role="toggle-card"]',
-      );
-
-    // O item começa completo. O botão permite compactá-lo
-    // para ocupar apenas uma linha com o título.
-    card.classList.add(
-      'is-expanded',
-    );
-
-    card.setAttribute(
-      'aria-expanded',
-      'true',
-    );
-
-    expandedBody?.setAttribute(
-      'aria-hidden',
-      'false',
-    );
-
-    const setExpanded =
-      (
-        expanded: boolean,
-      ) => {
-        card.classList.toggle(
-          'is-expanded',
-          expanded,
-        );
-
-        card.setAttribute(
-          'aria-expanded',
-          String(expanded),
-        );
-
-        expandedBody?.setAttribute(
-          'aria-hidden',
-          String(!expanded),
-        );
-
-        if (
-          toggleButton
-        ) {
-          toggleButton.setAttribute(
-            'aria-expanded',
-            String(expanded),
-          );
-
-          toggleButton.setAttribute(
-            'aria-label',
-            expanded
-              ? 'Encolher item'
-              : 'Expandir item',
-          );
-
-          toggleButton.title =
-            expanded
-              ? 'Encolher'
-              : 'Expandir';
-        }
-      };
-
-    toggleButton?.addEventListener(
-      'click',
-      (
-        event,
-      ) => {
-        event.stopPropagation();
-
-        setExpanded(
-          !card.classList.contains(
-            'is-expanded',
-          ),
-        );
-      },
-    );
-
-    const detailsButton =
-      card.querySelector<HTMLButtonElement>(
-        '[data-role="open-details"]',
-      );
-
-    detailsButton?.addEventListener(
-      'click',
-      (event) => {
-        event.stopPropagation();
-
+    const openDetails =
+      () => {
         openDetailsModal(
           item,
         );
+      };
+
+    card.addEventListener(
+      'click',
+      openDetails,
+    );
+
+    card.addEventListener(
+      'keydown',
+      (event) => {
+        if (
+          event.key === 'Enter' ||
+          event.key === ' '
+        ) {
+          event.preventDefault();
+          openDetails();
+        }
       },
     );
 
@@ -1787,11 +1665,28 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
       );
     }
 
-    renderRoadmapAvatar(
-      detailsAvatar,
-      profile,
-      name,
-    );
+    if (detailsAvatar) {
+      detailsAvatar.textContent =
+        initials(name);
+
+      detailsAvatar.style.backgroundImage =
+        '';
+
+      detailsAvatar.classList.remove(
+        'has-image',
+      );
+
+      if (
+        profile?.avatar_url?.trim()
+      ) {
+        detailsAvatar.style.backgroundImage =
+          `url("${profile.avatar_url}")`;
+
+        detailsAvatar.classList.add(
+          'has-image',
+        );
+      }
+    }
 
     if (detailsAssignee) {
       detailsAssignee.textContent =
@@ -2736,20 +2631,18 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
     display: grid;
     place-items: center;
     overflow: hidden;
-    border: 1px solid rgba(65,104,62,.10);
-    border-radius: 50%;
-    background: #f7faf6;
-    box-shadow:
-      0 5px 14px
-      rgba(54,92,51,.055);
-  }
-
-  .roadmap-profile-avatar-image {
-    width: 100%;
-    height: 100%;
-    display: block;
-    object-fit: cover;
-    border-radius: inherit;
+    border-radius: 10px;
+    background:
+      linear-gradient(
+        145deg,
+        rgba(223,241,218,.95),
+        rgba(199,225,191,.82)
+      );
+    background-position: center;
+    background-size: cover;
+    color: var(--primary-deep, #3b6939);
+    font-size: 9px;
+    font-weight: 900;
   }
 
   .roadmap-card-avatar {
@@ -2760,6 +2653,11 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
   .roadmap-details-avatar {
     width: 42px;
     height: 42px;
+  }
+
+  .roadmap-card-avatar.has-image,
+  .roadmap-details-avatar.has-image {
+    color: transparent;
   }
 
   .roadmap-card-assignee > div {
@@ -3187,423 +3085,3 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
     }
   }
 </style>
-
-
-<style is:global>
-  /* ==========================================================
-     ROADMAP — MODO COMPACTO
-     Mais itens visíveis por coluna sem perder legibilidade.
-     ========================================================== */
-
-  .roadmap-column {
-    padding: 11px !important;
-    border-radius: 16px !important;
-  }
-
-  .roadmap-column-head {
-    min-height: 48px !important;
-    margin-bottom: 8px !important;
-  }
-
-  .roadmap-column-kicker {
-    margin-bottom: 3px !important;
-    font-size: 7px !important;
-  }
-
-  .roadmap-column h2 {
-    font-size: 18px !important;
-  }
-
-  .roadmap-column-count {
-    min-width: 26px !important;
-    height: 26px !important;
-    border-radius: 9px !important;
-    font-size: 9px !important;
-  }
-
-  .roadmap-column-list {
-    min-height: 135px !important;
-    max-height: calc(100vh - 285px) !important;
-    padding-right: 2px !important;
-    gap: 7px !important;
-  }
-
-  .roadmap-item-card {
-    min-height: 0 !important;
-    padding: 11px !important;
-    border-radius: 13px !important;
-    box-shadow: 0 5px 18px rgba(23,32,25,.03) !important;
-  }
-
-  .roadmap-card-top {
-    gap: 5px !important;
-  }
-
-  .roadmap-card-badges,
-  .roadmap-details-badges {
-    gap: 4px !important;
-  }
-
-  .roadmap-pill {
-    min-height: 20px !important;
-    padding: 0 7px !important;
-    font-size: 7px !important;
-  }
-
-  .roadmap-card-open {
-    font-size: 10px !important;
-  }
-
-  .roadmap-item-card h3 {
-    margin-top: 9px !important;
-    font-size: 14px !important;
-    line-height: 1.2 !important;
-  }
-
-  .roadmap-card-description {
-    margin-top: 5px !important;
-    font-size: 9px !important;
-    line-height: 1.45 !important;
-    -webkit-line-clamp: 2 !important;
-  }
-
-  .roadmap-card-assignee {
-    margin-top: 9px !important;
-    padding-top: 8px !important;
-    gap: 7px !important;
-  }
-
-  .roadmap-card-avatar {
-    width: 27px !important;
-    height: 27px !important;
-    border-radius: 50% !important;
-  }
-
-  .roadmap-card-assignee span:not(.roadmap-card-avatar) {
-    font-size: 7px !important;
-  }
-
-  .roadmap-card-assignee strong {
-    margin-top: 1px !important;
-    font-size: 8px !important;
-  }
-
-  .roadmap-card-progress {
-    margin-top: 8px !important;
-  }
-
-  .roadmap-card-progress-head {
-    margin-bottom: 4px !important;
-    font-size: 7px !important;
-  }
-
-  .roadmap-card-progress-track {
-    height: 4px !important;
-  }
-
-  .roadmap-empty {
-    min-height: 92px !important;
-    padding: 11px 10px !important;
-    gap: 3px !important;
-    border-radius: 11px !important;
-  }
-
-  .roadmap-empty strong {
-    font-size: 9px !important;
-  }
-
-  .roadmap-empty span {
-    font-size: 8px !important;
-  }
-
-  @media (min-width: 1121px) {
-    .roadmap-board {
-      gap: 10px !important;
-    }
-  }
-
-  @media (max-width: 1120px) {
-    .roadmap-column-list {
-      max-height: 520px !important;
-    }
-  }
-
-  @media (max-width: 650px) {
-    .roadmap-item-card {
-      padding: 12px !important;
-    }
-
-    .roadmap-card-description {
-      -webkit-line-clamp: 3 !important;
-    }
-
-    .roadmap-column-list {
-      max-height: 560px !important;
-    }
-  }
-</style>
-
-
-<style is:global>
-  /* ==========================================================
-     ROADMAP — CARDS RECOLHÍVEIS
-     Fechado: somente o título.
-     Aberto: descrição, status, responsável e progresso.
-     ========================================================== */
-
-  .roadmap-item-collapsible {
-    padding: 0 !important;
-    overflow: hidden !important;
-    cursor: default;
-  }
-
-  .roadmap-card-summary {
-    min-height: 48px;
-    padding: 10px 12px;
-    display: grid;
-    grid-template-columns: minmax(0,1fr) 22px;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .roadmap-card-summary h3,
-  .roadmap-item-collapsible h3 {
-    margin: 0 !important;
-    min-width: 0;
-    color: var(--text, #172019);
-    font-size: 13px !important;
-    line-height: 1.25 !important;
-    font-weight: 800;
-    letter-spacing: -.02em;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-
-  .roadmap-card-toggle {
-    width: 28px;
-    height: 28px;
-    padding: 0;
-    display: grid;
-    place-items: center;
-    justify-self: end;
-    flex: 0 0 auto;
-    border: 1px solid rgba(65,104,62,.10);
-    border-radius: 9px;
-    background: rgba(247,250,245,.88);
-    color: var(--text-soft, #68746b);
-    cursor: pointer;
-    transition:
-      transform .16s ease,
-      background .16s ease,
-      border-color .16s ease,
-      color .16s ease;
-  }
-
-  .roadmap-card-toggle:hover {
-    background: rgba(223,241,218,.75);
-    border-color: rgba(95,157,89,.20);
-    color: var(--primary-deep, #3b6939);
-  }
-
-  .roadmap-card-toggle:focus-visible {
-    outline: none;
-    box-shadow:
-      0 0 0 3px
-      rgba(95,157,89,.12);
-  }
-
-  .roadmap-card-toggle svg {
-    width: 16px;
-    height: 16px;
-    display: block;
-    transition:
-      transform .18s ease;
-  }
-
-  .roadmap-item-collapsible:not(.is-expanded)
-  .roadmap-card-toggle svg {
-    transform: rotate(180deg);
-  }
-
-  .roadmap-card-expanded {
-    display: none;
-    padding: 0 12px 12px;
-    border-top: 1px solid rgba(65,104,62,.07);
-  }
-
-  .roadmap-item-collapsible.is-expanded .roadmap-card-expanded {
-    display: block;
-    animation: roadmap-card-reveal .16s ease;
-  }
-
-  @keyframes roadmap-card-reveal {
-    from {
-      opacity: 0;
-      transform: translateY(-3px);
-    }
-
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .roadmap-card-expanded .roadmap-card-badges {
-    margin-top: 10px;
-  }
-
-  .roadmap-card-expanded .roadmap-card-description {
-    margin-top: 8px !important;
-    display: block !important;
-    overflow: visible !important;
-    -webkit-line-clamp: unset !important;
-    -webkit-box-orient: initial !important;
-    font-size: 9px !important;
-    line-height: 1.5 !important;
-  }
-
-  .roadmap-card-expanded .roadmap-card-assignee {
-    margin-top: 10px !important;
-    padding-top: 9px !important;
-  }
-
-  .roadmap-card-expanded .roadmap-card-progress {
-    margin-top: 9px !important;
-  }
-
-  .roadmap-card-details-button {
-    width: 100%;
-    min-height: 32px;
-    margin-top: 11px;
-    border: 1px solid rgba(65,104,62,.10);
-    border-radius: 9px;
-    background: rgba(239,248,235,.62);
-    color: var(--primary-deep, #3b6939);
-    font: inherit;
-    font-size: 8px;
-    font-weight: 850;
-    cursor: pointer;
-  }
-
-  .roadmap-card-details-button:hover {
-    background: rgba(223,241,218,.9);
-  }
-
-  .roadmap-column-list {
-    gap: 6px !important;
-  }
-
-  /* Com os cards fechados, várias tarefas cabem na coluna. */
-  .roadmap-item-collapsible:not(.is-expanded) {
-    min-height: 48px !important;
-    box-shadow: 0 4px 14px rgba(23,32,25,.025) !important;
-  }
-
-  .roadmap-item-collapsible.is-expanded {
-    box-shadow: 0 10px 28px rgba(23,32,25,.06) !important;
-  }
-
-  @media (max-width: 650px) {
-    .roadmap-card-summary {
-      min-height: 50px;
-      padding: 11px 12px;
-    }
-
-    .roadmap-card-summary h3,
-    .roadmap-item-collapsible h3 {
-      font-size: 13px !important;
-    }
-  }
-</style>
-
-<style is:global>
-  /* ==========================================================
-     EVRYLUX ROADMAP v2026.09.22
-     Estado recolhido + avatar real do perfil
-     ========================================================== */
-
-  .roadmap-item-card.roadmap-item-collapsible {
-    padding: 0 !important;
-  }
-
-  .roadmap-item-card.roadmap-item-collapsible
-  .roadmap-card-expanded {
-    display: none !important;
-  }
-
-  .roadmap-item-card.roadmap-item-collapsible.is-expanded
-  .roadmap-card-expanded {
-    display: block !important;
-  }
-
-  .roadmap-item-card.roadmap-item-collapsible:not(.is-expanded) {
-    min-height: 48px !important;
-    height: auto !important;
-  }
-
-  .roadmap-item-card.roadmap-item-collapsible:not(.is-expanded)
-  .roadmap-card-summary {
-    min-height: 48px !important;
-  }
-
-  .roadmap-card-avatar,
-  .roadmap-details-avatar {
-    background-image: none !important;
-    border-radius: 50% !important;
-  }
-
-  .roadmap-card-avatar .roadmap-profile-avatar-image,
-  .roadmap-details-avatar .roadmap-profile-avatar-image {
-    width: 100% !important;
-    height: 100% !important;
-    min-width: 100% !important;
-    min-height: 100% !important;
-    max-width: 100% !important;
-    max-height: 100% !important;
-    object-fit: cover !important;
-    border-radius: 50% !important;
-  }
-</style>
-
-
-<style is:global>
-  /* ==========================================================
-     ROADMAP — BOTÃO COMPACTAR / EXPANDIR
-     ========================================================== */
-
-  .roadmap-item-card.roadmap-item-collapsible
-  .roadmap-card-summary {
-    min-height: 48px !important;
-    padding: 9px 10px 9px 12px !important;
-  }
-
-  .roadmap-item-card.roadmap-item-collapsible:not(.is-expanded)
-  .roadmap-card-expanded {
-    display: none !important;
-  }
-
-  .roadmap-item-card.roadmap-item-collapsible.is-expanded
-  .roadmap-card-expanded {
-    display: block !important;
-  }
-
-  .roadmap-item-card.roadmap-item-collapsible:not(.is-expanded) {
-    min-height: 48px !important;
-    height: 48px !important;
-    border-radius: 13px !important;
-  }
-
-  .roadmap-item-card.roadmap-item-collapsible:not(.is-expanded)
-  .roadmap-card-summary h3 {
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-  }
-
-  .roadmap-column-list {
-    gap: 6px !important;
-  }
-</style>
-

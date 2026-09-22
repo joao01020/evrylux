@@ -1,0 +1,1851 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+const sections = [
+  { id: 'visao-geral', label: 'Visão geral', group: 'Começando' },
+  { id: 'proposito', label: 'Propósito', group: 'Começando' },
+  { id: 'experiencia', label: 'Experiência do produto', group: 'Começando' },
+
+  { id: 'cerebro', label: 'Cérebro', group: 'Aplicativo' },
+  { id: 'financeiro', label: 'Financeiro', group: 'Aplicativo' },
+  { id: 'treino', label: 'Treino', group: 'Aplicativo' },
+  { id: 'rotina', label: 'Rotina', group: 'Aplicativo' },
+
+  { id: 'offline', label: 'Funciona sem internet', group: 'Fundação' },
+  { id: 'sincronizacao', label: 'Sincronização', group: 'Fundação' },
+  { id: 'privacidade', label: 'Privacidade', group: 'Fundação' },
+  { id: 'arquitetura', label: 'Arquitetura', group: 'Fundação' },
+
+  { id: 'site', label: 'Site do projeto', group: 'Projeto' },
+  { id: 'open-source', label: 'Open source', group: 'Projeto' },
+  { id: 'estado-atual', label: 'Estado atual', group: 'Projeto' },
+  { id: 'longo-prazo', label: 'Objetivo de longo prazo', group: 'Projeto' },
+];
+
+const groups = [...new Set(sections.map((section) => section.group))];
+---
+
+<Layout
+  title="Documentação — EVRYLUX"
+  description="Documentação do EVRYLUX: propósito, aplicativo, arquitetura e direção do projeto."
+>
+  <main class="docs-shell">
+    <section class="docs-hero">
+      <div class="docs-container docs-hero-inner">
+        <div class="docs-hero-copy">
+          <span class="docs-kicker">
+            Documentação
+          </span>
+
+          <h1>
+            O projeto EVRYLUX,
+            <span>de forma simples.</span>
+          </h1>
+
+          <p>
+            Esta documentação apresenta o propósito do EVRYLUX, o aplicativo,
+            suas áreas principais e a direção técnica que sustenta o produto.
+          </p>
+
+          <div class="docs-hero-actions">
+            <a class="docs-primary-action" href="#visao-geral">
+              Começar a ler
+              <span aria-hidden="true">↓</span>
+            </a>
+
+            <a
+              class="docs-secondary-action"
+              href="https://github.com/joao01020/ghost-core"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Repositório
+              <span aria-hidden="true">↗</span>
+            </a>
+          </div>
+        </div>
+
+        <div class="docs-hero-panel" aria-hidden="true">
+          <div class="docs-orbit docs-orbit-a"></div>
+          <div class="docs-orbit docs-orbit-b"></div>
+
+          <div class="docs-hero-core">
+            <span>Projeto</span>
+            <strong>EVRYLUX</strong>
+            <small>evolução contínua</small>
+          </div>
+
+          <span class="docs-node docs-node-a"></span>
+          <span class="docs-node docs-node-b"></span>
+          <span class="docs-node docs-node-c"></span>
+          <span class="docs-node docs-node-d"></span>
+        </div>
+      </div>
+    </section>
+
+    <div class="docs-container docs-layout">
+      <aside class="docs-sidebar">
+        <div class="docs-sidebar-inner">
+          <label class="docs-search">
+            <span class="docs-search-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                <path d="m16 16 4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </span>
+
+            <input
+              id="docs-search-input"
+              type="search"
+              placeholder="Buscar na documentação"
+              autocomplete="off"
+            />
+
+            <kbd>/</kbd>
+          </label>
+
+          <nav class="docs-nav" aria-label="Sumário da documentação">
+            {
+              groups.map((group) => (
+                <div class="docs-nav-group" data-docs-group>
+                  <span class="docs-nav-group-title">
+                    {group}
+                  </span>
+
+                  {
+                    sections
+                      .filter((section) => section.group === group)
+                      .map((section) => (
+                        <a
+                          href={`#${section.id}`}
+                          data-docs-link
+                          data-search={`${section.label} ${section.group}`.toLowerCase()}
+                        >
+                          {section.label}
+                        </a>
+                      ))
+                  }
+                </div>
+              ))
+            }
+          </nav>
+
+          <div class="docs-sidebar-note">
+            <span class="docs-status-dot"></span>
+
+            <div>
+              <strong>
+                Em desenvolvimento ativo
+              </strong>
+
+              <p>
+                O produto e a documentação evoluem juntos.
+              </p>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <article class="docs-content">
+        <section
+          id="visao-geral"
+          class="docs-section docs-section-lead"
+          data-docs-section
+          data-search="visão geral evrylux app aplicativo conhecimento evolução pessoal ecossistema"
+        >
+          <div class="docs-section-number">01</div>
+
+          <div class="docs-section-body">
+            <span class="docs-section-kicker">Começando</span>
+
+            <h2>
+              Visão geral
+            </h2>
+
+            <p class="docs-lead">
+              O EVRYLUX é um projeto open source pensado para organizar conhecimento,
+              acompanhar evolução pessoal e reunir diferentes áreas da vida em uma
+              experiência única.
+            </p>
+
+            <p>
+              O aplicativo é desenvolvido como um ecossistema modular. A ideia é permitir
+              que conhecimento, finanças, treino, rotina e outras áreas possam evoluir
+              de forma independente, mas continuar conectadas dentro do mesmo produto.
+            </p>
+
+            <div class="docs-principle-grid">
+              <div class="docs-mini-card">
+                <span>01</span>
+                <strong>Registrar</strong>
+                <p>Guardar aquilo que realmente importa.</p>
+              </div>
+
+              <div class="docs-mini-card">
+                <span>02</span>
+                <strong>Organizar</strong>
+                <p>Transformar informação solta em contexto.</p>
+              </div>
+
+              <div class="docs-mini-card">
+                <span>03</span>
+                <strong>Evoluir</strong>
+                <p>Acompanhar mudanças ao longo do tempo.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="proposito"
+          class="docs-section"
+          data-docs-section
+          data-search="propósito conhecimento vivo evolução notas perguntas revisões contexto"
+        >
+          <div class="docs-section-number">02</div>
+
+          <div class="docs-section-body">
+            <span class="docs-section-kicker">Visão</span>
+
+            <h2>
+              Propósito
+            </h2>
+
+            <p>
+              O EVRYLUX nasceu da ideia de que uma informação útil não deveria morrer
+              depois de ser anotada. Ela deveria poder ser revisada, conectada,
+              enriquecida e reencontrada quando voltasse a ser importante.
+            </p>
+
+            <div class="docs-callout">
+              <span class="docs-callout-mark">✦</span>
+
+              <p>
+                A direção do produto é transformar registros pessoais em uma estrutura
+                que continue evoluindo junto com o usuário.
+              </p>
+            </div>
+
+            <p>
+              Por isso, o sistema procura ajudar a enxergar o que foi aprendido,
+              o que ainda precisa ser entendido, o que deve ser retomado e como
+              diferentes partes da vida e do conhecimento se relacionam.
+            </p>
+          </div>
+        </section>
+
+        <section
+          id="experiencia"
+          class="docs-section"
+          data-docs-section
+          data-search="experiência simples automática organização modular interface usuário"
+        >
+          <div class="docs-section-number">03</div>
+
+          <div class="docs-section-body">
+            <span class="docs-section-kicker">Produto</span>
+
+            <h2>
+              Experiência do produto
+            </h2>
+
+            <div class="docs-list-card">
+              <div>
+                <strong>Simples por fora</strong>
+                <p>
+                  O usuário não deveria precisar dominar a estrutura interna do sistema
+                  para conseguir usá-lo.
+                </p>
+              </div>
+
+              <div>
+                <strong>Organização progressiva</strong>
+                <p>
+                  O produto deve ajudar a organizar o conteúdo conforme ele cresce,
+                  evitando depender de classificação manual excessiva.
+                </p>
+              </div>
+
+              <div>
+                <strong>Uma experiência única</strong>
+                <p>
+                  As áreas do aplicativo fazem parte do mesmo ecossistema, em vez de
+                  parecerem produtos separados.
+                </p>
+              </div>
+
+              <div>
+                <strong>Controle do usuário</strong>
+                <p>
+                  O aplicativo deve permanecer útil mesmo sem conexão constante com a internet.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="docs-chapter">
+          <span>Aplicativo</span>
+          <h2>As áreas que formam o EVRYLUX</h2>
+        </div>
+
+        <section
+          id="cerebro"
+          class="docs-section"
+          data-docs-section
+          data-search="cérebro brain conceitos perguntas revisões busca mapa conhecimento fonte exemplo atenção"
+        >
+          <div class="docs-section-number">04</div>
+
+          <div class="docs-section-body">
+            <span class="docs-section-kicker">Conhecimento</span>
+
+            <h2>
+              Cérebro
+            </h2>
+
+            <p class="docs-lead">
+              O Cérebro é a área dedicada a transformar anotações em conhecimento estruturado.
+            </p>
+
+            <p>
+              Em vez de depender de vários “cérebros” separados, a direção atual é manter
+              um único espaço de conhecimento e permitir que as áreas apareçam de forma
+              progressiva a partir do conteúdo.
+            </p>
+
+            <div class="docs-feature-grid">
+              <div class="docs-feature">
+                <span class="docs-feature-icon">C</span>
+                <strong>Conceitos</strong>
+                <p>Representam algo que o usuário aprendeu.</p>
+              </div>
+
+              <div class="docs-feature">
+                <span class="docs-feature-icon">?</span>
+                <strong>Perguntas</strong>
+                <p>Representam dúvidas que ainda precisam ser entendidas.</p>
+              </div>
+
+              <div class="docs-feature">
+                <span class="docs-feature-icon">↻</span>
+                <strong>Revisões</strong>
+                <p>Permitem retomar conteúdos importantes ao longo do tempo.</p>
+              </div>
+
+              <div class="docs-feature">
+                <span class="docs-feature-icon">⌕</span>
+                <strong>Busca</strong>
+                <p>Ajuda a recuperar conhecimento sem depender de navegação manual.</p>
+              </div>
+
+              <div class="docs-feature">
+                <span class="docs-feature-icon">◎</span>
+                <strong>Mapa visual</strong>
+                <p>Mostra relações entre conceitos, perguntas e áreas.</p>
+              </div>
+
+              <div class="docs-feature">
+                <span class="docs-feature-icon">✦</span>
+                <strong>Contexto</strong>
+                <p>Exemplos, pontos de atenção e fontes complementam um conceito.</p>
+              </div>
+            </div>
+
+            <div class="docs-example">
+              <span class="docs-example-label">Exemplo de conceito</span>
+
+              <pre><code>Título
+Estado em Flutter
+
+O que você aprendeu?
+Estado representa informações que podem mudar
+durante a execução da interface.
+
+Detalhes opcionais
+• Exemplo
+• Ponto de atenção
+• Fonte</code></pre>
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="financeiro"
+          class="docs-section"
+          data-docs-section
+          data-search="financeiro meta dinheiro progresso economia histórico valor"
+        >
+          <div class="docs-section-number">05</div>
+
+          <div class="docs-section-body">
+            <span class="docs-section-kicker">Evolução financeira</span>
+
+            <h2>
+              Financeiro
+            </h2>
+
+            <p>
+              A área financeira foi pensada para acompanhar metas, valor atual,
+              progresso, valor restante, histórico e ritmo de evolução.
+            </p>
+
+            <div class="docs-inline-pills">
+              <span>Metas</span>
+              <span>Progresso</span>
+              <span>Histórico</span>
+              <span>Ritmo</span>
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="treino"
+          class="docs-section"
+          data-docs-section
+          data-search="treino exercício consistência evolução física histórico frequência rotina"
+        >
+          <div class="docs-section-number">06</div>
+
+          <div class="docs-section-body">
+            <span class="docs-section-kicker">Consistência</span>
+
+            <h2>
+              Treino
+            </h2>
+
+            <p>
+              A área de treino acompanha consistência e evolução física por meio de
+              registros, histórico, frequência, visão semanal e acompanhamento de progresso.
+            </p>
+          </div>
+        </section>
+
+        <section
+          id="rotina"
+          class="docs-section"
+          data-docs-section
+          data-search="rotina planejamento quadros notas mapas mentais lembretes"
+        >
+          <div class="docs-section-number">07</div>
+
+          <div class="docs-section-body">
+            <span class="docs-section-kicker">Organização pessoal</span>
+
+            <h2>
+              Rotina
+            </h2>
+
+            <p>
+              A área de rotina explora planejamento, quadros, notas, mapas mentais,
+              lembretes e formas de organizar o dia a dia dentro do mesmo ecossistema.
+            </p>
+          </div>
+        </section>
+
+        <div class="docs-chapter">
+          <span>Fundação</span>
+          <h2>Como o aplicativo é pensado por baixo da interface</h2>
+        </div>
+
+        <section
+          id="offline"
+          class="docs-section"
+          data-docs-section
+          data-search="offline sem internet local funcionamento local dados"
+        >
+          <div class="docs-section-number">08</div>
+
+          <div class="docs-section-body">
+            <span class="docs-section-kicker">Continuidade</span>
+
+            <h2>
+              Funciona mesmo sem internet
+            </h2>
+
+            <p>
+              Offline-first é uma diretriz importante do projeto. O objetivo é permitir
+              que o usuário continue trabalhando com seus dados locais mesmo quando
+              a conexão não estiver disponível.
+            </p>
+
+            <div class="docs-flow">
+              <span>Dados locais</span>
+              <i>→</i>
+              <span>Uso offline</span>
+              <i>→</i>
+              <span>Conexão disponível</span>
+              <i>→</i>
+              <span>Sincronização</span>
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="sincronizacao"
+          class="docs-section"
+          data-docs-section
+          data-search="sincronização dispositivos sync convergência fila conectividade"
+        >
+          <div class="docs-section-number">09</div>
+
+          <div class="docs-section-body">
+            <span class="docs-section-kicker">Dispositivos</span>
+
+            <h2>
+              Sincronização
+            </h2>
+
+            <p>
+              A arquitetura trabalha com a ideia de manter dados locais e sincronizar
+              quando houver conexão, buscando convergência entre dispositivos sem
+              transformar a internet em requisito para tarefas básicas.
+            </p>
+          </div>
+        </section>
+
+        <section
+          id="privacidade"
+          class="docs-section"
+          data-docs-section
+          data-search="privacidade e2ee criptografia vault chaves dados usuário segurança"
+        >
+          <div class="docs-section-number">10</div>
+
+          <div class="docs-section-body">
+            <span class="docs-section-kicker">Proteção de dados</span>
+
+            <h2>
+              Privacidade
+            </h2>
+
+            <p>
+              O EVRYLUX está sendo pensado para reduzir exposição desnecessária dos
+              dados do usuário. A arquitetura explora criptografia ponta a ponta,
+              armazenamento local protegido, proteção de chaves e sincronização segura.
+            </p>
+
+            <div class="docs-warning">
+              <strong>Em evolução</strong>
+              <p>
+                A arquitetura de segurança ainda está sendo amadurecida e nem todos os
+                componentes planejados estão finalizados.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="arquitetura"
+          class="docs-section"
+          data-docs-section
+          data-search="arquitetura flutter dart supabase postgres astro app desktop banco"
+        >
+          <div class="docs-section-number">11</div>
+
+          <div class="docs-section-body">
+            <span class="docs-section-kicker">Stack</span>
+
+            <h2>
+              Arquitetura
+            </h2>
+
+            <p>
+              O aplicativo principal é desenvolvido em Flutter e Dart. O Supabase é usado
+              como base para autenticação, dados e sincronização de partes do ecossistema.
+            </p>
+
+            <div class="docs-tech-grid">
+              <div>
+                <span>Aplicativo</span>
+                <strong>Flutter</strong>
+                <small>Dart · desktop</small>
+              </div>
+
+              <div>
+                <span>Dados</span>
+                <strong>Supabase</strong>
+                <small>PostgreSQL · Auth · Realtime</small>
+              </div>
+
+              <div>
+                <span>Direção</span>
+                <strong>Offline-first</strong>
+                <small>dados locais + sincronização</small>
+              </div>
+
+              <div>
+                <span>Segurança</span>
+                <strong>Vault + E2EE</strong>
+                <small>arquitetura em evolução</small>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="docs-chapter">
+          <span>Projeto</span>
+          <h2>O que existe ao redor do aplicativo</h2>
+        </div>
+
+        <section
+          id="site"
+          class="docs-section"
+          data-docs-section
+          data-search="site público projeto apresentar facilitar criação desenvolvimento"
+        >
+          <div class="docs-section-number">12</div>
+
+          <div class="docs-section-body">
+            <span class="docs-section-kicker">Apoio ao projeto</span>
+
+            <h2>
+              Site do projeto
+            </h2>
+
+            <p>
+              O EVRYLUX possui um site público feito em Astro. O papel do site é
+              apresentar o projeto, facilitar o acesso às informações e dar suporte
+              ao processo de criação, distribuição e evolução do aplicativo.
+            </p>
+
+            <p>
+              Ele não é o produto principal. O foco do EVRYLUX continua sendo o aplicativo
+              e a experiência construída dentro dele.
+            </p>
+          </div>
+        </section>
+
+        <section
+          id="open-source"
+          class="docs-section"
+          data-docs-section
+          data-search="open source código github contribuição licença agpl"
+        >
+          <div class="docs-section-number">13</div>
+
+          <div class="docs-section-body">
+            <span class="docs-section-kicker">Código aberto</span>
+
+            <h2>
+              Open source
+            </h2>
+
+            <p>
+              O EVRYLUX é open source. A intenção é permitir estudo, contribuição,
+              modificação, redistribuição e evolução coletiva do software conforme
+              os termos da licença adotada pelo projeto.
+            </p>
+
+            <p>
+              O software é distribuído sob a
+              <strong>GNU Affero General Public License v3.0 — AGPL-3.0</strong>.
+            </p>
+          </div>
+        </section>
+
+        <section
+          id="estado-atual"
+          class="docs-section"
+          data-docs-section
+          data-search="estado atual desenvolvimento ativo interface app mudanças recursos"
+        >
+          <div class="docs-section-number">14</div>
+
+          <div class="docs-section-body">
+            <span class="docs-section-kicker">Status</span>
+
+            <h2>
+              Estado atual
+            </h2>
+
+            <p>
+              O EVRYLUX está em desenvolvimento ativo. O aplicativo já passou por várias
+              iterações de interface e arquitetura, especialmente no Cérebro, na criação
+              de conceitos e perguntas, na revisão, busca, mapa visual, armazenamento
+              local e sincronização.
+            </p>
+
+            <p>
+              Estruturas e interfaces ainda podem mudar conforme o produto amadurece.
+            </p>
+          </div>
+        </section>
+
+        <section
+          id="longo-prazo"
+          class="docs-section docs-section-final"
+          data-docs-section
+          data-search="longo prazo futuro conhecimento perguntas revisões finanças treino rotina histórico contexto evolução"
+        >
+          <div class="docs-section-number">15</div>
+
+          <div class="docs-section-body">
+            <span class="docs-section-kicker">Direção</span>
+
+            <h2>
+              Objetivo de longo prazo
+            </h2>
+
+            <p class="docs-lead">
+              Fazer com que o EVRYLUX deixe de parecer um conjunto de ferramentas
+              separadas e se torne uma estrutura contínua de evolução.
+            </p>
+
+            <div class="docs-long-term">
+              <span>Conhecimento</span>
+              <span>Perguntas</span>
+              <span>Revisões</span>
+              <span>Finanças</span>
+              <span>Treino</span>
+              <span>Rotina</span>
+              <span>Histórico</span>
+              <span>Contexto</span>
+            </div>
+
+            <div class="docs-ending">
+              <span class="docs-ending-star">✦</span>
+
+              <div>
+                <strong>EVRYLUX</strong>
+                <p>Conhecimento que continua evoluindo.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </article>
+
+      <aside class="docs-toc">
+        <div class="docs-toc-inner">
+          <span>Nesta página</span>
+          <a href="#visao-geral">Visão geral</a>
+          <a href="#cerebro">Cérebro</a>
+          <a href="#offline">Offline</a>
+          <a href="#privacidade">Privacidade</a>
+          <a href="#arquitetura">Arquitetura</a>
+          <a href="#estado-atual">Estado atual</a>
+          <a href="#longo-prazo">Longo prazo</a>
+        </div>
+      </aside>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  const searchInput =
+    document.querySelector<HTMLInputElement>(
+      '#docs-search-input',
+    );
+
+  const links =
+    Array.from(
+      document.querySelectorAll<HTMLAnchorElement>(
+        '[data-docs-link]',
+      ),
+    );
+
+  const groups =
+    Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '[data-docs-group]',
+      ),
+    );
+
+  const sections =
+    Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '[data-docs-section]',
+      ),
+    );
+
+  function normalize(
+    value: string,
+  ) {
+    return value
+      .normalize('NFD')
+      .replace(
+        /[\u0300-\u036f]/g,
+        '',
+      )
+      .toLowerCase()
+      .trim();
+  }
+
+  function filterDocs(
+    query: string,
+  ) {
+    const normalizedQuery =
+      normalize(
+        query,
+      );
+
+    links.forEach(
+      (
+        link,
+      ) => {
+        const haystack =
+          normalize(
+            link.dataset.search ||
+            link.textContent ||
+            '',
+          );
+
+        const visible =
+          !normalizedQuery ||
+          haystack.includes(
+            normalizedQuery,
+          );
+
+        link.classList.toggle(
+          'docs-link-hidden',
+          !visible,
+        );
+      },
+    );
+
+    groups.forEach(
+      (
+        group,
+      ) => {
+        const hasVisibleLink =
+          Array.from(
+            group.querySelectorAll<HTMLElement>(
+              '[data-docs-link]',
+            ),
+          ).some(
+            (
+              link,
+            ) =>
+              !link.classList.contains(
+                'docs-link-hidden',
+              ),
+          );
+
+        group.classList.toggle(
+          'docs-group-hidden',
+          !hasVisibleLink,
+        );
+      },
+    );
+  }
+
+  searchInput?.addEventListener(
+    'input',
+    () => {
+      filterDocs(
+        searchInput.value,
+      );
+    },
+  );
+
+  searchInput?.addEventListener(
+    'keydown',
+    (
+      event,
+    ) => {
+      if (
+        event.key !==
+        'Enter'
+      ) {
+        return;
+      }
+
+      const firstVisible =
+        links.find(
+          (
+            link,
+          ) =>
+            !link.classList.contains(
+              'docs-link-hidden',
+            ),
+        );
+
+      firstVisible?.click();
+    },
+  );
+
+  document.addEventListener(
+    'keydown',
+    (
+      event,
+    ) => {
+      if (
+        event.key === '/' &&
+        document.activeElement !==
+          searchInput
+      ) {
+        event.preventDefault();
+        searchInput?.focus();
+      }
+
+      if (
+        event.key ===
+          'Escape' &&
+        document.activeElement ===
+          searchInput
+      ) {
+        searchInput.value =
+          '';
+
+        filterDocs(
+          '',
+        );
+
+        searchInput.blur();
+      }
+    },
+  );
+
+  const observer =
+    new IntersectionObserver(
+      (
+        entries,
+      ) => {
+        const visible =
+          entries
+            .filter(
+              (
+                entry,
+              ) =>
+                entry.isIntersecting,
+            )
+            .sort(
+              (
+                a,
+                b,
+              ) =>
+                b.intersectionRatio -
+                a.intersectionRatio,
+            )[0];
+
+        if (
+          !visible
+        ) {
+          return;
+        }
+
+        const id =
+          visible.target.id;
+
+        links.forEach(
+          (
+            link,
+          ) => {
+            link.classList.toggle(
+              'active',
+              link.getAttribute(
+                'href',
+              ) ===
+                `#${id}`,
+            );
+          },
+        );
+      },
+      {
+        rootMargin:
+          '-18% 0px -68% 0px',
+
+        threshold:
+          [
+            0,
+            0.15,
+            0.35,
+          ],
+      },
+    );
+
+  sections.forEach(
+    (
+      section,
+    ) => {
+      observer.observe(
+        section,
+      );
+    },
+  );
+</script>
+
+<style>
+  .docs-shell {
+    min-height: 100vh;
+    background:
+      radial-gradient(
+        circle at 12% 4%,
+        rgba(223,241,218,.54),
+        transparent 28%
+      ),
+      #f7fbf4;
+  }
+
+  .docs-container {
+    width: min(1440px, calc(100% - 40px));
+    margin: 0 auto;
+  }
+
+  .docs-hero {
+    padding: 64px 0 38px;
+  }
+
+  .docs-hero-inner {
+    min-height: 390px;
+    padding: 54px 58px;
+    display: grid;
+    grid-template-columns:
+      minmax(0,1.3fr)
+      minmax(320px,.7fr);
+    align-items: center;
+    gap: 48px;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid rgba(65,104,62,.1);
+    border-radius: 34px;
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255,255,255,.96),
+        rgba(243,249,240,.89)
+      );
+    box-shadow:
+      0 30px 90px
+      rgba(54,92,51,.055);
+  }
+
+  .docs-kicker,
+  .docs-section-kicker,
+  .docs-nav-group-title {
+    display: block;
+    color: var(--primary-deep);
+    font-size: 10px;
+    font-weight: 850;
+    letter-spacing: .085em;
+    text-transform: uppercase;
+  }
+
+  .docs-hero h1 {
+    max-width: 840px;
+    margin: 16px 0 0;
+    font-size: clamp(46px, 6vw, 78px);
+    line-height: .97;
+    letter-spacing: -.062em;
+  }
+
+  .docs-hero h1 span {
+    display: block;
+    color: var(--primary-deep);
+  }
+
+  .docs-hero-copy > p {
+    max-width: 670px;
+    margin: 20px 0 0;
+    color: var(--text-soft);
+    font-size: 15px;
+    line-height: 1.75;
+  }
+
+  .docs-hero-actions {
+    margin-top: 28px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .docs-primary-action,
+  .docs-secondary-action {
+    min-height: 44px;
+    padding: 0 16px;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 820;
+    transition:
+      transform .18s ease,
+      border-color .18s ease,
+      background .18s ease;
+  }
+
+  .docs-primary-action {
+    border: 1px solid var(--primary-deep);
+    background: var(--primary-deep);
+    color: #fff;
+  }
+
+  .docs-secondary-action {
+    border: 1px solid rgba(65,104,62,.12);
+    background: rgba(255,255,255,.72);
+    color: var(--text);
+  }
+
+  .docs-primary-action:hover,
+  .docs-secondary-action:hover {
+    transform: translateY(-1px);
+  }
+
+  .docs-hero-panel {
+    width: min(100%, 370px);
+    aspect-ratio: 1;
+    justify-self: end;
+    position: relative;
+    display: grid;
+    place-items: center;
+  }
+
+  .docs-hero-core {
+    width: 165px;
+    aspect-ratio: 1;
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    position: relative;
+    z-index: 2;
+    border: 1px solid rgba(95,157,89,.18);
+    border-radius: 50%;
+    background:
+      radial-gradient(
+        circle,
+        rgba(255,255,255,.98),
+        rgba(223,241,218,.75)
+      );
+    box-shadow:
+      0 24px 60px
+      rgba(54,92,51,.09);
+  }
+
+  .docs-hero-core span {
+    color: var(--text-soft);
+    font-size: 8px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+
+  .docs-hero-core strong {
+    margin-top: 5px;
+    color: var(--primary-deep);
+    font-size: 22px;
+    letter-spacing: -.04em;
+  }
+
+  .docs-hero-core small {
+    margin-top: 4px;
+    color: var(--text-soft);
+    font-size: 8px;
+  }
+
+  .docs-orbit {
+    position: absolute;
+    inset: 13%;
+    border: 1px dashed rgba(95,157,89,.25);
+    border-radius: 50%;
+  }
+
+  .docs-orbit-b {
+    inset: 24% 8%;
+    transform: rotate(42deg);
+  }
+
+  .docs-node {
+    width: 12px;
+    height: 12px;
+    position: absolute;
+    border: 3px solid rgba(255,255,255,.92);
+    border-radius: 50%;
+    background: var(--primary-strong);
+    box-shadow:
+      0 0 0 5px
+      rgba(159,211,149,.17);
+  }
+
+  .docs-node-a { top: 14%; left: 34%; }
+  .docs-node-b { top: 43%; right: 6%; }
+  .docs-node-c { bottom: 13%; left: 40%; }
+  .docs-node-d { top: 48%; left: 5%; }
+
+  .docs-layout {
+    padding: 20px 0 90px;
+    display: grid;
+    grid-template-columns:
+      235px
+      minmax(0,1fr)
+      180px;
+    gap: 38px;
+    align-items: start;
+  }
+
+  .docs-sidebar,
+  .docs-toc {
+    position: sticky;
+    top: 96px;
+  }
+
+  .docs-sidebar-inner {
+    max-height: calc(100vh - 120px);
+    overflow: auto;
+    padding-right: 8px;
+    scrollbar-width: thin;
+  }
+
+  .docs-search {
+    min-height: 42px;
+    padding: 0 10px;
+    display: grid;
+    grid-template-columns: 18px minmax(0,1fr) auto;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid rgba(65,104,62,.1);
+    border-radius: 12px;
+    background: rgba(255,255,255,.76);
+  }
+
+  .docs-search-icon {
+    width: 18px;
+    height: 18px;
+    color: var(--text-soft);
+  }
+
+  .docs-search-icon svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .docs-search input {
+    width: 100%;
+    padding: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    font-size: 10px;
+  }
+
+  .docs-search input::placeholder {
+    color: var(--text-soft);
+  }
+
+  .docs-search kbd {
+    min-width: 22px;
+    height: 22px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(65,104,62,.1);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--text-soft);
+    font-size: 9px;
+    font-family: inherit;
+  }
+
+  .docs-nav {
+    margin-top: 24px;
+  }
+
+  .docs-nav-group + .docs-nav-group {
+    margin-top: 22px;
+  }
+
+  .docs-nav-group-title {
+    margin-bottom: 7px;
+    padding: 0 9px;
+    font-size: 8px;
+  }
+
+  .docs-nav-group a {
+    min-height: 32px;
+    padding: 0 9px;
+    display: flex;
+    align-items: center;
+    position: relative;
+    border-radius: 8px;
+    color: var(--text-soft);
+    font-size: 10px;
+    transition:
+      color .16s ease,
+      background .16s ease;
+  }
+
+  .docs-nav-group a:hover,
+  .docs-nav-group a.active {
+    background: rgba(223,241,218,.58);
+    color: var(--primary-deep);
+  }
+
+  .docs-nav-group a.active::before {
+    content: '';
+    width: 3px;
+    height: 14px;
+    position: absolute;
+    left: 0;
+    border-radius: 99px;
+    background: var(--primary-strong);
+  }
+
+  .docs-link-hidden,
+  .docs-group-hidden {
+    display: none !important;
+  }
+
+  .docs-sidebar-note {
+    margin-top: 28px;
+    padding: 13px;
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    border: 1px solid rgba(95,157,89,.11);
+    border-radius: 12px;
+    background: rgba(239,248,235,.62);
+  }
+
+  .docs-status-dot {
+    width: 8px;
+    height: 8px;
+    margin-top: 3px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: var(--primary-strong);
+    box-shadow:
+      0 0 0 4px
+      rgba(95,157,89,.1);
+  }
+
+  .docs-sidebar-note strong {
+    display: block;
+    font-size: 9px;
+  }
+
+  .docs-sidebar-note p {
+    margin: 3px 0 0;
+    color: var(--text-soft);
+    font-size: 8px;
+    line-height: 1.5;
+  }
+
+  .docs-content {
+    min-width: 0;
+  }
+
+  .docs-section {
+    padding: 42px 0 46px;
+    display: grid;
+    grid-template-columns: 42px minmax(0,1fr);
+    gap: 24px;
+    scroll-margin-top: 100px;
+    border-bottom: 1px solid rgba(65,104,62,.08);
+  }
+
+  .docs-section-lead {
+    padding-top: 8px;
+  }
+
+  .docs-section-final {
+    border-bottom: 0;
+  }
+
+  .docs-section-number {
+    padding-top: 5px;
+    color: rgba(65,104,62,.42);
+    font-size: 9px;
+    font-weight: 850;
+    letter-spacing: .06em;
+  }
+
+  .docs-section-body {
+    max-width: 820px;
+  }
+
+  .docs-section h2 {
+    margin: 8px 0 0;
+    font-size: clamp(29px, 3vw, 40px);
+    line-height: 1.05;
+    letter-spacing: -.045em;
+  }
+
+  .docs-section p {
+    margin: 15px 0 0;
+    color: var(--text-soft);
+    font-size: 13px;
+    line-height: 1.8;
+  }
+
+  .docs-section p strong {
+    color: var(--text);
+  }
+
+  .docs-section .docs-lead {
+    color: var(--text);
+    font-size: 16px;
+    line-height: 1.75;
+  }
+
+  .docs-principle-grid,
+  .docs-feature-grid {
+    margin-top: 24px;
+    display: grid;
+    grid-template-columns:
+      repeat(
+        3,
+        minmax(0,1fr)
+      );
+    gap: 10px;
+  }
+
+  .docs-mini-card,
+  .docs-feature {
+    padding: 17px;
+    border: 1px solid rgba(65,104,62,.08);
+    border-radius: 15px;
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255,255,255,.9),
+        rgba(243,248,239,.7)
+      );
+  }
+
+  .docs-mini-card > span {
+    color: var(--primary-deep);
+    font-size: 8px;
+    font-weight: 850;
+  }
+
+  .docs-mini-card strong,
+  .docs-feature strong {
+    display: block;
+    margin-top: 8px;
+    font-size: 12px;
+  }
+
+  .docs-mini-card p,
+  .docs-feature p {
+    margin-top: 5px;
+    font-size: 9px;
+    line-height: 1.55;
+  }
+
+  .docs-callout {
+    margin-top: 22px;
+    padding: 18px 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    border: 1px solid rgba(95,157,89,.15);
+    border-radius: 16px;
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255,255,255,.9),
+        rgba(223,241,218,.53)
+      );
+  }
+
+  .docs-callout-mark {
+    width: 30px;
+    height: 30px;
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    border-radius: 9px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+  }
+
+  .docs-callout p {
+    margin: 0;
+  }
+
+  .docs-list-card {
+    margin-top: 22px;
+    border: 1px solid rgba(65,104,62,.08);
+    border-radius: 17px;
+    background: rgba(255,255,255,.68);
+    overflow: hidden;
+  }
+
+  .docs-list-card > div {
+    padding: 16px 18px;
+    display: grid;
+    grid-template-columns:
+      minmax(150px,.35fr)
+      minmax(0,.65fr);
+    gap: 18px;
+    align-items: baseline;
+  }
+
+  .docs-list-card > div + div {
+    border-top: 1px solid rgba(65,104,62,.07);
+  }
+
+  .docs-list-card strong {
+    font-size: 11px;
+  }
+
+  .docs-list-card p {
+    margin: 0;
+    font-size: 10px;
+  }
+
+  .docs-chapter {
+    padding: 66px 0 20px 66px;
+  }
+
+  .docs-chapter span {
+    color: var(--primary-deep);
+    font-size: 9px;
+    font-weight: 850;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+
+  .docs-chapter h2 {
+    max-width: 680px;
+    margin: 8px 0 0;
+    font-size: clamp(34px, 4vw, 50px);
+    line-height: 1;
+    letter-spacing: -.05em;
+  }
+
+  .docs-feature-grid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0,1fr)
+      );
+  }
+
+  .docs-feature {
+    display: grid;
+    grid-template-columns: 34px minmax(0,1fr);
+    column-gap: 10px;
+  }
+
+  .docs-feature-icon {
+    width: 34px;
+    height: 34px;
+    grid-row: 1 / 3;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font-size: 11px;
+    font-weight: 900;
+  }
+
+  .docs-feature strong {
+    margin-top: 2px;
+  }
+
+  .docs-feature p {
+    grid-column: 2;
+  }
+
+  .docs-example {
+    margin-top: 22px;
+    border: 1px solid rgba(65,104,62,.1);
+    border-radius: 16px;
+    background: #172019;
+    overflow: hidden;
+  }
+
+  .docs-example-label {
+    padding: 10px 14px;
+    display: block;
+    border-bottom: 1px solid rgba(255,255,255,.07);
+    color: rgba(255,255,255,.55);
+    font-size: 8px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+  }
+
+  .docs-example pre {
+    margin: 0;
+    padding: 18px;
+    overflow: auto;
+  }
+
+  .docs-example code {
+    color: #e8f2e5;
+    font-size: 11px;
+    line-height: 1.7;
+  }
+
+  .docs-inline-pills,
+  .docs-long-term {
+    margin-top: 18px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+
+  .docs-inline-pills span,
+  .docs-long-term span {
+    min-height: 30px;
+    padding: 0 11px;
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid rgba(95,157,89,.13);
+    border-radius: 999px;
+    background: rgba(239,248,235,.7);
+    color: var(--primary-deep);
+    font-size: 9px;
+    font-weight: 750;
+  }
+
+  .docs-flow {
+    margin-top: 23px;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    flex-wrap: wrap;
+    border: 1px solid rgba(65,104,62,.08);
+    border-radius: 15px;
+    background: rgba(255,255,255,.7);
+  }
+
+  .docs-flow span {
+    padding: 8px 11px;
+    border-radius: 9px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font-size: 9px;
+    font-weight: 800;
+  }
+
+  .docs-flow i {
+    color: var(--text-soft);
+    font-style: normal;
+  }
+
+  .docs-warning {
+    margin-top: 20px;
+    padding: 15px 17px;
+    border-left: 3px solid var(--primary-strong);
+    border-radius: 0 12px 12px 0;
+    background: rgba(239,248,235,.64);
+  }
+
+  .docs-warning strong {
+    display: block;
+    font-size: 10px;
+  }
+
+  .docs-warning p {
+    margin-top: 4px;
+    font-size: 9px;
+  }
+
+  .docs-tech-grid {
+    margin-top: 22px;
+    display: grid;
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0,1fr)
+      );
+    gap: 10px;
+  }
+
+  .docs-tech-grid > div {
+    padding: 17px;
+    border: 1px solid rgba(65,104,62,.08);
+    border-radius: 15px;
+    background: rgba(255,255,255,.72);
+  }
+
+  .docs-tech-grid span,
+  .docs-tech-grid strong,
+  .docs-tech-grid small {
+    display: block;
+  }
+
+  .docs-tech-grid span {
+    color: var(--text-soft);
+    font-size: 8px;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  .docs-tech-grid strong {
+    margin-top: 7px;
+    font-size: 14px;
+  }
+
+  .docs-tech-grid small {
+    margin-top: 3px;
+    color: var(--text-soft);
+    font-size: 9px;
+  }
+
+  .docs-ending {
+    margin-top: 30px;
+    padding: 22px;
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    border: 1px solid rgba(95,157,89,.13);
+    border-radius: 18px;
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255,255,255,.9),
+        rgba(223,241,218,.55)
+      );
+  }
+
+  .docs-ending-star {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    border-radius: 13px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font-size: 18px;
+  }
+
+  .docs-ending strong {
+    display: block;
+    font-size: 14px;
+  }
+
+  .docs-ending p {
+    margin-top: 3px;
+    font-size: 9px;
+  }
+
+  .docs-toc-inner {
+    padding-left: 16px;
+    border-left: 1px solid rgba(65,104,62,.09);
+  }
+
+  .docs-toc-inner > span {
+    display: block;
+    margin-bottom: 10px;
+    color: var(--text);
+    font-size: 9px;
+    font-weight: 850;
+  }
+
+  .docs-toc a {
+    min-height: 28px;
+    display: flex;
+    align-items: center;
+    color: var(--text-soft);
+    font-size: 9px;
+  }
+
+  .docs-toc a:hover {
+    color: var(--primary-deep);
+  }
+
+  @media (max-width: 1180px) {
+    .docs-layout {
+      grid-template-columns:
+        215px
+        minmax(0,1fr);
+    }
+
+    .docs-toc {
+      display: none;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .docs-hero-inner {
+      grid-template-columns: 1fr;
+      padding: 42px;
+    }
+
+    .docs-hero-panel {
+      display: none;
+    }
+
+    .docs-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .docs-sidebar {
+      position: relative;
+      top: auto;
+    }
+
+    .docs-sidebar-inner {
+      max-height: none;
+      overflow: visible;
+      padding-right: 0;
+    }
+
+    .docs-nav {
+      padding-bottom: 5px;
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+    }
+
+    .docs-nav-group {
+      min-width: 170px;
+      padding: 12px;
+      border: 1px solid rgba(65,104,62,.08);
+      border-radius: 12px;
+      background: rgba(255,255,255,.62);
+    }
+
+    .docs-sidebar-note {
+      display: none;
+    }
+  }
+
+  @media (max-width: 680px) {
+    .docs-container {
+      width: min(100% - 24px, 1440px);
+    }
+
+    .docs-hero {
+      padding-top: 28px;
+    }
+
+    .docs-hero-inner {
+      min-height: auto;
+      padding: 30px 22px;
+      border-radius: 24px;
+    }
+
+    .docs-hero h1 {
+      font-size: 48px;
+    }
+
+    .docs-section {
+      grid-template-columns: 1fr;
+      gap: 8px;
+      padding: 34px 0;
+    }
+
+    .docs-section-number {
+      padding-top: 0;
+    }
+
+    .docs-section .docs-lead {
+      font-size: 14px;
+    }
+
+    .docs-principle-grid,
+    .docs-feature-grid,
+    .docs-tech-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .docs-list-card > div {
+      grid-template-columns: 1fr;
+      gap: 4px;
+    }
+
+    .docs-chapter {
+      padding-left: 0;
+      padding-top: 52px;
+    }
+  }
+</style>
