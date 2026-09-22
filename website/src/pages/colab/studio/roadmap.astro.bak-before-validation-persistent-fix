@@ -72,15 +72,6 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
           </button>
         </div>
 
-        <a
-          class="studio-validation-button"
-          href="/colab/studio/validation"
-          data-studio-validation-button
-        >
-          <span class="studio-validation-button-icon" aria-hidden="true">✓</span>
-          <span>Validação</span>
-        </a>
-
         <button
           id="new-roadmap-item"
           class="roadmap-new-button"
@@ -3815,18 +3806,3 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
   .roadmap-card-validation-button:disabled{opacity:.58}
   @media(max-width:650px){.roadmap-validation-actions{grid-template-columns:1fr}}
 </style>
-<style is:global>
-  /* EVRYLUX PERSISTENT VALIDATION FIX */
-  .roadmap-item-collapsible:not(.is-expanded){min-height:48px!important;height:48px!important;overflow:hidden!important}
-  .roadmap-item-collapsible:not(.is-expanded) .roadmap-card-expanded{display:none!important}
-  .roadmap-item-collapsible:not(.is-expanded) .roadmap-card-summary{min-height:48px!important;height:48px!important;padding:0 10px 0 12px!important;border-bottom:0!important}
-  .roadmap-item-collapsible:not(.is-expanded) .roadmap-card-summary h3{margin:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
-  .roadmap-item-collapsible.is-expanded{height:auto!important;min-height:0!important;overflow:visible!important}
-  .roadmap-item-collapsible.is-expanded .roadmap-card-expanded{display:block!important}
-  .studio-validation-button{min-height:42px;padding:0 14px;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid rgba(95,157,89,.18);border-radius:11px;background:linear-gradient(145deg,rgba(239,248,235,.96),rgba(223,241,218,.90));color:var(--primary-deep,#365f35);font-size:9px;font-weight:850;text-decoration:none}
-  .studio-validation-button-icon{width:20px;height:20px;display:grid;place-items:center;border-radius:7px;background:rgba(255,255,255,.68)}
-  .roadmap-toolbar>.studio-validation-button{margin-left:auto}
-  .roadmap-toolbar>.studio-validation-button+#new-roadmap-item{margin-left:0}
-  @media(max-width:720px){.roadmap-toolbar>.studio-validation-button,.roadmap-toolbar>#new-roadmap-item{width:100%}}
-</style>
-

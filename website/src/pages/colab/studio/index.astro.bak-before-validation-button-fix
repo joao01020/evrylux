@@ -72,15 +72,6 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
           </button>
         </div>
 
-        <a
-          class="studio-validation-button"
-          href="/colab/studio/validation"
-          data-studio-validation-button
-        >
-          <span class="studio-validation-button-icon" aria-hidden="true">✓</span>
-          <span>Validação</span>
-        </a>
-
         <button
           id="new-roadmap-item"
           class="roadmap-new-button"
@@ -164,8 +155,8 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
 
     <template id="roadmap-card-template">
       <article
-        class="roadmap-item-card roadmap-item-collapsible"
-        aria-expanded="false"
+        class="roadmap-item-card roadmap-item-collapsible is-expanded"
+        aria-expanded="true"
       >
         <div class="roadmap-card-summary">
           <h3 data-role="title"></h3>
@@ -174,16 +165,16 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
             class="roadmap-card-toggle"
             type="button"
             data-role="toggle-card"
-            aria-label="Expandir item"
-            aria-expanded="false"
-            title="Expandir"
+            aria-label="Encolher item"
+            aria-expanded="true"
+            title="Encolher"
           >
             <svg
               viewBox="0 0 24 24"
               aria-hidden="true"
             >
               <path
-                d="m7 10 5 5 5-5"
+                d="m7 14 5-5 5 5"
                 fill="none"
                 stroke="currentColor"
                 stroke-width="1.8"
@@ -249,23 +240,13 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
             </div>
           </div>
 
-          <div class="roadmap-validation-actions">
-            <button
-              class="roadmap-card-details-button"
-              type="button"
-              data-role="open-details"
-            >
-              Ver detalhes / editar
-            </button>
-
-            <button
-              class="roadmap-card-validation-button"
-              type="button"
-              data-role="send-validation"
-            >
-              Enviar para validação
-            </button>
-          </div>
+          <button
+            class="roadmap-card-details-button"
+            type="button"
+            data-role="open-details"
+          >
+            Ver detalhes / editar
+          </button>
         </div>
       </article>
     </template>
@@ -721,12 +702,6 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
     type RoadmapStatus,
   } from '../../../lib/colab-roadmap';
 
-  import {
-    getValidationItems,
-    sendRoadmapToValidation,
-    type ValidationItem,
-  } from '../../../lib/colab-validation';
-
   const session =
     await requireMemberSession();
 
@@ -904,10 +879,6 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
 
   let collaborators:
     CollaboratorProfile[] =
-      [];
-
-  let validationItems:
-    ValidationItem[] =
       [];
 
   let activeFilter:
@@ -1370,38 +1341,21 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
         '[data-role="toggle-card"]',
       );
 
-    // O item começa recolhido para ocupar o mínimo de espaço.
-    // O usuário expande somente quando quiser ver os detalhes.
-    card.classList.remove(
+    // O item começa completo. O botão permite compactá-lo
+    // para ocupar apenas uma linha com o título.
+    card.classList.add(
       'is-expanded',
     );
 
     card.setAttribute(
       'aria-expanded',
-      'false',
+      'true',
     );
 
     expandedBody?.setAttribute(
       'aria-hidden',
-      'true',
+      'false',
     );
-
-    if (
-      toggleButton
-    ) {
-      toggleButton.setAttribute(
-        'aria-expanded',
-        'false',
-      );
-
-      toggleButton.setAttribute(
-        'aria-label',
-        'Expandir item',
-      );
-
-      toggleButton.title =
-        'Expandir';
-    }
 
     const setExpanded =
       (
@@ -1472,100 +1426,6 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
         openDetailsModal(
           item,
         );
-      },
-    );
-
-    const validationButton =
-      card.querySelector<HTMLButtonElement>(
-        '[data-role="send-validation"]',
-      );
-
-    const alreadyInValidation =
-      validationItems.some(
-        (
-          validation,
-        ) =>
-          validation.roadmap_item_id ===
-          item.id,
-      );
-
-    if (
-      validationButton &&
-      alreadyInValidation
-    ) {
-      validationButton.textContent =
-        'Em validação →';
-
-      validationButton.classList.add(
-        'already-sent',
-      );
-    }
-
-    validationButton?.addEventListener(
-      'click',
-      async (
-        event,
-      ) => {
-        event.stopPropagation();
-
-        if (
-          validationItems.some(
-            (
-              validation,
-            ) =>
-              validation.roadmap_item_id ===
-              item.id,
-          )
-        ) {
-          window.location.href =
-            '/colab/studio/validation';
-
-          return;
-        }
-
-        validationButton.disabled =
-          true;
-
-        validationButton.textContent =
-          'Enviando...';
-
-        try {
-          await sendRoadmapToValidation(
-            {
-              id: item.id,
-              title: item.title,
-              description: item.description,
-              area: item.area,
-              assignee_user_id: item.assignee_user_id,
-            },
-          );
-
-          validationItems =
-            await getValidationItems();
-
-          validationButton.textContent =
-            'Em validação →';
-
-          validationButton.classList.add(
-            'already-sent',
-          );
-
-          validationButton.disabled =
-            false;
-        } catch (
-          error
-        ) {
-          console.error(
-            '[EVRYLUX] Erro ao enviar para validação:',
-            error,
-          );
-
-          validationButton.textContent =
-            'Tentar novamente';
-
-          validationButton.disabled =
-            false;
-        }
       },
     );
 
@@ -2126,21 +1986,6 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
         [];
 
       fillCollaborators();
-    }
-
-    try {
-      validationItems =
-        await getValidationItems();
-    } catch (
-      error
-    ) {
-      console.warn(
-        '[EVRYLUX] Não foi possível carregar validações:',
-        error,
-      );
-
-      validationItems =
-        [];
     }
 
     renderRoadmap();
@@ -3760,73 +3605,5 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
   .roadmap-column-list {
     gap: 6px !important;
   }
-</style>
-
-
-<style is:global>
-  /* ==========================================================
-     ROADMAP — INICIA RECOLHIDO
-     ========================================================== */
-
-  .roadmap-item-card.roadmap-item-collapsible:not(.is-expanded) {
-    min-height: 48px !important;
-    height: 48px !important;
-    overflow: hidden !important;
-  }
-
-  .roadmap-item-card.roadmap-item-collapsible:not(.is-expanded)
-  .roadmap-card-expanded {
-    display: none !important;
-  }
-
-  .roadmap-item-card.roadmap-item-collapsible:not(.is-expanded)
-  .roadmap-card-summary {
-    min-height: 48px !important;
-    height: 48px !important;
-    padding: 8px 10px 8px 12px !important;
-    box-sizing: border-box !important;
-  }
-
-  .roadmap-item-card.roadmap-item-collapsible:not(.is-expanded)
-  .roadmap-card-summary h3 {
-    margin: 0 !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-  }
-
-  .roadmap-item-card.roadmap-item-collapsible.is-expanded {
-    height: auto !important;
-  }
-
-  .roadmap-item-card.roadmap-item-collapsible.is-expanded
-  .roadmap-card-expanded {
-    display: block !important;
-  }
-</style>
-
-
-
-<style is:global>
-  .roadmap-validation-actions{margin-top:11px;display:grid;grid-template-columns:1fr 1fr;gap:6px}
-  .roadmap-validation-actions .roadmap-card-details-button{margin-top:0!important}
-  .roadmap-card-validation-button{width:100%;min-height:32px;border:1px solid rgba(95,157,89,.16);border-radius:9px;background:var(--primary-deep,#3b6939);color:#fff;font:inherit;font-size:8px;font-weight:850;cursor:pointer}
-  .roadmap-card-validation-button.already-sent{background:var(--primary-soft,#dff1da);color:var(--primary-deep,#3b6939)}
-  .roadmap-card-validation-button:disabled{opacity:.58}
-  @media(max-width:650px){.roadmap-validation-actions{grid-template-columns:1fr}}
-</style>
-<style is:global>
-  /* EVRYLUX PERSISTENT VALIDATION FIX */
-  .roadmap-item-collapsible:not(.is-expanded){min-height:48px!important;height:48px!important;overflow:hidden!important}
-  .roadmap-item-collapsible:not(.is-expanded) .roadmap-card-expanded{display:none!important}
-  .roadmap-item-collapsible:not(.is-expanded) .roadmap-card-summary{min-height:48px!important;height:48px!important;padding:0 10px 0 12px!important;border-bottom:0!important}
-  .roadmap-item-collapsible:not(.is-expanded) .roadmap-card-summary h3{margin:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
-  .roadmap-item-collapsible.is-expanded{height:auto!important;min-height:0!important;overflow:visible!important}
-  .roadmap-item-collapsible.is-expanded .roadmap-card-expanded{display:block!important}
-  .studio-validation-button{min-height:42px;padding:0 14px;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid rgba(95,157,89,.18);border-radius:11px;background:linear-gradient(145deg,rgba(239,248,235,.96),rgba(223,241,218,.90));color:var(--primary-deep,#365f35);font-size:9px;font-weight:850;text-decoration:none}
-  .studio-validation-button-icon{width:20px;height:20px;display:grid;place-items:center;border-radius:7px;background:rgba(255,255,255,.68)}
-  .roadmap-toolbar>.studio-validation-button{margin-left:auto}
-  .roadmap-toolbar>.studio-validation-button+#new-roadmap-item{margin-left:0}
-  @media(max-width:720px){.roadmap-toolbar>.studio-validation-button,.roadmap-toolbar>#new-roadmap-item{width:100%}}
 </style>
 

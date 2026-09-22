@@ -1,0 +1,525 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import ColabNav from '../../../components/colab/ColabNav.astro';
+import '../../../styles/members.css';
+import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
+---
+
+<Layout title="Validação — EVRYLUX Studio" description="Validação interna de funcionalidades do EVRYLUX.">
+  <main class="member-shell">
+    <EvryluxLogoLoader id="validation-loading" size="md" />
+
+    <div id="validation-content" class="member-container member-hidden">
+      <div class="member-topbar">
+        <div class="member-title-block">
+          <div class="eyebrow">Studio / Validação</div>
+
+          <h1>Validação</h1>
+
+          <p>
+            Teste o que foi construído e decida com a equipe
+            o que manter, revisar ou remover.
+          </p>
+        </div>
+
+        <ColabNav />
+      </div>
+
+      <section class="validation-cycle">
+        <div><span>01</span><strong>Roadmap</strong><small>Planejar</small></div>
+        <i>→</i>
+        <div class="active"><span>02</span><strong>Validar</strong><small>Testar</small></div>
+        <i>→</i>
+        <div><span>03</span><strong>Decidir</strong><small>Manter · Revisar · Remover</small></div>
+      </section>
+
+      <div class="validation-toolbar">
+        <div class="validation-filters">
+          <button class="validation-filter active" type="button" data-filter="all">Todos</button>
+          <button class="validation-filter" type="button" data-filter="untested">Não testados</button>
+          <button class="validation-filter" type="button" data-filter="testing">Em teste</button>
+          <button class="validation-filter" type="button" data-filter="validated">Validados</button>
+          <button class="validation-filter" type="button" data-filter="decision">Revisar / Remover</button>
+        </div>
+
+        <a class="validation-roadmap-link" href="/colab/studio/roadmap">
+          Abrir Roadmap →
+        </a>
+      </div>
+
+      <div id="validation-error" class="validation-error member-hidden"></div>
+
+      <section id="validation-grid" class="validation-grid"></section>
+
+      <section id="validation-empty" class="validation-empty member-hidden">
+        <div>✓</div>
+        <h2>Nenhum item aqui ainda</h2>
+        <p>Envie uma funcionalidade pelo Roadmap para começar.</p>
+        <a href="/colab/studio/roadmap">Ir para o Roadmap →</a>
+      </section>
+    </div>
+
+    <div id="validation-editor" class="validation-modal member-hidden">
+      <button class="validation-backdrop" data-close-editor type="button"></button>
+
+      <section class="validation-modal-card">
+        <div class="validation-modal-head">
+          <div>
+            <span>Validação</span>
+            <h2>Atualizar teste</h2>
+          </div>
+
+          <button data-close-editor type="button">×</button>
+        </div>
+
+        <form id="validation-form">
+          <input id="validation-id" type="hidden" />
+
+          <label>
+            <span>Situação</span>
+            <select id="validation-status">
+              <option value="untested">Não testado</option>
+              <option value="testing">Em teste</option>
+              <option value="validated">Validado</option>
+              <option value="review">Revisar</option>
+            </select>
+          </label>
+
+          <label>
+            <span>O que foi observado?</span>
+            <textarea id="validation-notes" rows="7" maxlength="5000"></textarea>
+          </label>
+
+          <div class="validation-modal-actions">
+            <button data-close-editor type="button">Cancelar</button>
+            <button class="primary" type="submit">Salvar</button>
+          </div>
+        </form>
+      </section>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  import { requireMemberSession } from '../../../lib/member-auth';
+
+  import {
+    getCollaboratorProfiles,
+    type CollaboratorProfile,
+  } from '../../../lib/colab-roadmap';
+
+  import {
+    canFinalizeValidation,
+    finalizeValidation,
+    getValidationItems,
+    proposeRemoval,
+    updateValidation,
+    validationStatusLabels,
+    voteValidation,
+    type ValidationItem,
+    type ValidationVote,
+  } from '../../../lib/colab-validation';
+
+  const session = await requireMemberSession();
+
+  const loading = document.querySelector<HTMLElement>('#validation-loading');
+  const content = document.querySelector<HTMLElement>('#validation-content');
+  const grid = document.querySelector<HTMLElement>('#validation-grid');
+  const empty = document.querySelector<HTMLElement>('#validation-empty');
+  const errorBox = document.querySelector<HTMLElement>('#validation-error');
+  const editor = document.querySelector<HTMLElement>('#validation-editor');
+  const form = document.querySelector<HTMLFormElement>('#validation-form');
+  const idInput = document.querySelector<HTMLInputElement>('#validation-id');
+  const statusInput = document.querySelector<HTMLSelectElement>('#validation-status');
+  const notesInput = document.querySelector<HTMLTextAreaElement>('#validation-notes');
+  const filters = Array.from(document.querySelectorAll<HTMLButtonElement>('.validation-filter'));
+
+  let items: ValidationItem[] = [];
+  let collaborators: CollaboratorProfile[] = [];
+  let activeFilter = 'all';
+  let canFinalize = false;
+
+  function esc(value: unknown) {
+    return String(value ?? '')
+      .replaceAll('&','&amp;')
+      .replaceAll('<','&lt;')
+      .replaceAll('>','&gt;')
+      .replaceAll('"','&quot;')
+      .replaceAll("'",'&#039;');
+  }
+
+  function profileFor(userId: string | null) {
+    return collaborators.find((p) => p.user_id === userId) ?? null;
+  }
+
+  function nameFor(userId: string | null) {
+    const p = profileFor(userId);
+    return p?.display_name?.trim() || p?.github_login?.trim() || 'Sem responsável';
+  }
+
+  function avatarFor(userId: string | null) {
+    return profileFor(userId)?.avatar_url?.trim() || '/branding/default-profile-avatar.png';
+  }
+
+  function visibleItems() {
+    if (activeFilter === 'all') return items;
+    if (activeFilter === 'decision') {
+      return items.filter((item) =>
+        ['review','removal','removed'].includes(item.validation_status),
+      );
+    }
+    return items.filter((item) => item.validation_status === activeFilter);
+  }
+
+  function signal(item: ValidationItem) {
+    const values = [
+      ['manter', item.vote_keep],
+      ['revisar', item.vote_review],
+      ['remover', item.vote_remove],
+    ] as const;
+
+    const max = Math.max(...values.map((v) => v[1]));
+    if (max === 0) return 'Sem votos ainda';
+
+    const leaders = values.filter((v) => v[1] === max);
+    return leaders.length > 1
+      ? 'Votação equilibrada'
+      : `Equipe tende a ${leaders[0][0]}`;
+  }
+
+  function voteButton(item: ValidationItem, vote: ValidationVote, label: string, count: number) {
+    return `
+      <button
+        class="validation-vote ${item.my_vote === vote ? 'selected' : ''}"
+        type="button"
+        data-vote="${vote}"
+        data-id="${esc(item.id)}"
+      >
+        <span>${label}</span>
+        <strong>${count}</strong>
+      </button>
+    `;
+  }
+
+  function card(item: ValidationItem) {
+    const name = nameFor(item.assignee_user_id);
+    const avatar = avatarFor(item.assignee_user_id);
+    const votes = item.vote_keep + item.vote_review + item.vote_remove;
+    const removed = item.validation_status === 'removed';
+
+    return `
+      <article class="validation-card status-${item.validation_status}">
+        <div class="validation-card-top">
+          <span class="validation-status">${esc(validationStatusLabels[item.validation_status])}</span>
+          <span class="validation-source">Roadmap</span>
+        </div>
+
+        <h2>${esc(item.title)}</h2>
+
+        ${item.description ? `<p class="validation-description">${esc(item.description)}</p>` : ''}
+
+        <div class="validation-person">
+          <img
+            src="${esc(avatar)}"
+            alt=""
+            onerror="this.src='/branding/default-profile-avatar.png'"
+          />
+
+          <div>
+            <span>Responsável</span>
+            <strong>${esc(name)}</strong>
+          </div>
+        </div>
+
+        ${item.test_notes ? `
+          <div class="validation-note">
+            <span>Observação do teste</span>
+            <p>${esc(item.test_notes)}</p>
+          </div>
+        ` : ''}
+
+        ${item.removal_reason ? `
+          <div class="validation-removal-note">
+            <span>Motivo da proposta</span>
+            <p>${esc(item.removal_reason)}</p>
+          </div>
+        ` : ''}
+
+        <div class="validation-actions">
+          ${!removed ? `
+            <button type="button" data-edit="${esc(item.id)}">
+              Testar / atualizar
+            </button>
+          ` : ''}
+
+          ${!removed && item.validation_status !== 'removal' ? `
+            <button class="danger-soft" type="button" data-remove="${esc(item.id)}">
+              Propor remoção
+            </button>
+          ` : ''}
+        </div>
+
+        <div class="validation-voting">
+          <div class="validation-voting-head">
+            <div>
+              <span>Decisão da equipe</span>
+              <strong>${esc(signal(item))}</strong>
+            </div>
+
+            <small>${votes} ${votes === 1 ? 'voto' : 'votos'}</small>
+          </div>
+
+          <div class="validation-votes">
+            ${voteButton(item,'keep','Manter',item.vote_keep)}
+            ${voteButton(item,'review','Revisar',item.vote_review)}
+            ${voteButton(item,'remove','Remover',item.vote_remove)}
+          </div>
+        </div>
+
+        ${canFinalize && ['review','removal'].includes(item.validation_status) ? `
+          <div class="validation-finalize">
+            <span>Decisão final</span>
+            <div>
+              <button type="button" data-finalize="${esc(item.id)}" data-decision="validated">Manter</button>
+              <button type="button" data-finalize="${esc(item.id)}" data-decision="review">Revisar</button>
+              <button class="danger" type="button" data-finalize="${esc(item.id)}" data-decision="removed">Confirmar remoção</button>
+            </div>
+          </div>
+        ` : ''}
+      </article>
+    `;
+  }
+
+  function showError(message: string) {
+    if (!errorBox) return;
+    errorBox.textContent = message;
+    errorBox.classList.remove('member-hidden');
+  }
+
+  function clearError() {
+    errorBox?.classList.add('member-hidden');
+  }
+
+  function render() {
+    if (!grid || !empty) return;
+
+    const visible = visibleItems();
+
+    if (!visible.length) {
+      grid.innerHTML = '';
+      empty.classList.remove('member-hidden');
+      return;
+    }
+
+    empty.classList.add('member-hidden');
+    grid.innerHTML = visible.map(card).join('');
+    bindDynamic();
+  }
+
+  function openEditor(item: ValidationItem) {
+    if (!editor || !idInput || !statusInput || !notesInput) return;
+
+    idInput.value = item.id;
+    statusInput.value = ['removal','removed'].includes(item.validation_status)
+      ? 'review'
+      : item.validation_status;
+    notesInput.value = item.test_notes ?? '';
+
+    editor.classList.remove('member-hidden');
+  }
+
+  function closeEditor() {
+    editor?.classList.add('member-hidden');
+  }
+
+  async function refresh() {
+    items = await getValidationItems();
+    render();
+  }
+
+  function bindDynamic() {
+    document.querySelectorAll<HTMLButtonElement>('[data-edit]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const item = items.find((i) => i.id === button.dataset.edit);
+        if (item) openEditor(item);
+      });
+    });
+
+    document.querySelectorAll<HTMLButtonElement>('[data-remove]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const item = items.find((i) => i.id === button.dataset.remove);
+        if (!item) return;
+
+        const reason = window.prompt(
+          'Por que essa funcionalidade deveria ser removida?',
+          item.removal_reason ?? '',
+        );
+
+        if (!reason) return;
+
+        try {
+          clearError();
+          await proposeRemoval(item.id, reason);
+          await refresh();
+        } catch (error: any) {
+          showError(error?.message || 'Não foi possível abrir a proposta.');
+        }
+      });
+    });
+
+    document.querySelectorAll<HTMLButtonElement>('[data-vote]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        try {
+          clearError();
+          await voteValidation(
+            button.dataset.id || '',
+            button.dataset.vote as ValidationVote,
+          );
+          await refresh();
+        } catch (error: any) {
+          showError(error?.message || 'Não foi possível registrar o voto.');
+        }
+      });
+    });
+
+    document.querySelectorAll<HTMLButtonElement>('[data-finalize]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        if (!window.confirm('Confirmar esta decisão?')) return;
+
+        try {
+          clearError();
+          await finalizeValidation(
+            button.dataset.finalize || '',
+            button.dataset.decision as 'validated' | 'review' | 'removed',
+          );
+          await refresh();
+        } catch (error: any) {
+          showError(error?.message || 'Não foi possível confirmar a decisão.');
+        }
+      });
+    });
+  }
+
+  filters.forEach((button) => {
+    button.addEventListener('click', () => {
+      activeFilter = button.dataset.filter || 'all';
+
+      filters.forEach((item) => {
+        item.classList.toggle('active', item === button);
+      });
+
+      render();
+    });
+  });
+
+  document.querySelectorAll<HTMLButtonElement>('[data-close-editor]').forEach((button) => {
+    button.addEventListener('click', closeEditor);
+  });
+
+  form?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    if (!idInput || !statusInput || !notesInput) return;
+
+    try {
+      clearError();
+
+      await updateValidation(
+        idInput.value,
+        statusInput.value as 'untested' | 'testing' | 'validated' | 'review',
+        notesInput.value.trim() || null,
+      );
+
+      closeEditor();
+      await refresh();
+    } catch (error: any) {
+      showError(error?.message || 'Não foi possível salvar.');
+    }
+  });
+
+  if (session) {
+    try {
+      [collaborators, canFinalize] =
+        await Promise.all([
+          getCollaboratorProfiles(),
+          canFinalizeValidation(),
+        ]);
+
+      await refresh();
+
+      loading?.classList.add('member-hidden');
+      content?.classList.remove('member-hidden');
+    } catch (error: any) {
+      loading?.classList.add('member-hidden');
+      content?.classList.remove('member-hidden');
+      showError(error?.message || 'Não foi possível carregar a Validação.');
+    }
+  }
+</script>
+
+<style is:global>
+  .member-hidden{display:none!important}
+  .validation-cycle{margin-top:26px;padding:15px 17px;display:flex;align-items:center;gap:12px;border:1px solid rgba(65,104,62,.09);border-radius:17px;background:linear-gradient(145deg,rgba(255,255,255,.84),rgba(239,248,235,.66))}
+  .validation-cycle>div{flex:1;display:grid;grid-template-columns:28px 1fr;align-items:center;column-gap:9px}
+  .validation-cycle>div>span{width:28px;height:28px;grid-row:1/3;display:grid;place-items:center;border-radius:9px;background:rgba(23,32,25,.05);color:var(--text-soft);font-size:8px;font-weight:850}
+  .validation-cycle>div.active>span{background:var(--primary-soft);color:var(--primary-deep)}
+  .validation-cycle strong{font-size:10px}
+  .validation-cycle small{color:var(--text-soft);font-size:8px}
+  .validation-cycle>i{color:rgba(65,104,62,.25);font-style:normal}
+  .validation-toolbar{margin-top:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .validation-filters{display:flex;flex-wrap:wrap;gap:6px}
+  .validation-filter,.validation-roadmap-link{min-height:37px;padding:0 11px;display:inline-flex;align-items:center;border:1px solid rgba(65,104,62,.10);border-radius:10px;background:rgba(255,255,255,.76);color:var(--text-soft);font:inherit;font-size:9px;font-weight:800}
+  .validation-filter{cursor:pointer}
+  .validation-filter.active{background:var(--primary-soft);color:var(--primary-deep)}
+  .validation-grid{margin-top:20px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:start}
+  .validation-card{padding:16px;border:1px solid rgba(65,104,62,.10);border-radius:16px;background:rgba(255,255,255,.88);box-shadow:0 10px 28px rgba(23,32,25,.035)}
+  .validation-card.status-validated{background:linear-gradient(145deg,rgba(255,255,255,.92),rgba(239,248,235,.76))}
+  .validation-card.status-removal,.validation-card.status-removed{border-color:rgba(162,69,55,.16)}
+  .validation-card-top,.validation-voting-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .validation-status,.validation-source{min-height:22px;padding:0 8px;display:inline-flex;align-items:center;border-radius:999px;font-size:7px;font-weight:820}
+  .validation-status{background:var(--primary-soft);color:var(--primary-deep)}
+  .validation-source{background:rgba(23,32,25,.045);color:var(--text-soft)}
+  .validation-card h2{margin:12px 0 0;font-size:16px;line-height:1.25}
+  .validation-description{margin:6px 0 0;color:var(--text-soft);font-size:9px;line-height:1.55}
+  .validation-person{margin-top:13px;padding-top:10px;display:flex;align-items:center;gap:8px;border-top:1px solid rgba(65,104,62,.07)}
+  .validation-person img{width:30px;height:30px;object-fit:cover;border-radius:50%;border:1px solid rgba(65,104,62,.10)}
+  .validation-person span,.validation-note span,.validation-removal-note span,.validation-finalize>span{display:block;color:var(--text-soft);font-size:7px}
+  .validation-person strong{display:block;margin-top:2px;font-size:8px}
+  .validation-note,.validation-removal-note{margin-top:11px;padding:9px;border-radius:10px;background:#f7faf5}
+  .validation-removal-note{background:#fff5f2}
+  .validation-note p,.validation-removal-note p{margin:4px 0 0;font-size:8px;line-height:1.5}
+  .validation-actions{margin-top:12px;display:flex;gap:6px}
+  .validation-actions button{min-height:31px;padding:0 9px;flex:1;border:1px solid rgba(65,104,62,.10);border-radius:8px;background:#fff;color:var(--text);font:inherit;font-size:8px;font-weight:780;cursor:pointer}
+  .validation-actions .danger-soft{color:#8e493d}
+  .validation-voting{margin-top:13px;padding-top:11px;border-top:1px solid rgba(65,104,62,.08)}
+  .validation-voting-head{align-items:flex-start}
+  .validation-voting-head span,.validation-voting-head small{color:var(--text-soft);font-size:7px}
+  .validation-voting-head strong{display:block;margin-top:2px;font-size:8px}
+  .validation-votes{margin-top:7px;display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+  .validation-vote{min-height:33px;padding:0 7px;display:flex;align-items:center;justify-content:space-between;border:1px solid rgba(65,104,62,.09);border-radius:8px;background:#fff;color:var(--text-soft);font:inherit;font-size:7px;cursor:pointer}
+  .validation-vote.selected{background:var(--primary-soft);color:var(--primary-deep)}
+  .validation-finalize{margin-top:11px;padding:9px;border-radius:10px;background:rgba(239,248,235,.58)}
+  .validation-finalize>div{margin-top:6px;display:flex;flex-wrap:wrap;gap:5px}
+  .validation-finalize button{min-height:28px;padding:0 8px;border:1px solid rgba(65,104,62,.09);border-radius:7px;background:#fff;color:var(--text);font:inherit;font-size:7px;cursor:pointer}
+  .validation-finalize button.danger{color:#914638}
+  .validation-empty{margin-top:20px;padding:46px 20px;border:1px dashed rgba(65,104,62,.13);border-radius:17px;text-align:center}
+  .validation-error{margin-top:17px;padding:12px 14px;border:1px solid rgba(162,69,55,.14);border-radius:11px;background:#fff0ed;color:#913f33;font-size:10px}
+  .validation-modal{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:18px}
+  .validation-backdrop{position:absolute;inset:0;border:0;background:rgba(18,27,20,.36);backdrop-filter:blur(7px)}
+  .validation-modal-card{width:min(560px,calc(100vw - 28px));position:relative;z-index:1;padding:21px;border:1px solid rgba(65,104,62,.12);border-radius:19px;background:#fbfdf9}
+  .validation-modal-head{display:flex;align-items:flex-start;justify-content:space-between}
+  .validation-modal-head>button{width:34px;height:34px;border:1px solid rgba(65,104,62,.10);border-radius:9px;background:#fff;font:inherit;font-size:19px}
+  .validation-modal-head span{color:var(--primary-deep);font-size:8px;font-weight:850;text-transform:uppercase}
+  .validation-modal-head h2{margin:5px 0 0;font-size:22px}
+  #validation-form{margin-top:17px}
+  #validation-form label{display:block;margin-top:12px}
+  #validation-form label>span{display:block;margin-bottom:5px;font-size:9px;font-weight:800}
+  #validation-form select,#validation-form textarea{width:100%;box-sizing:border-box;border:1px solid rgba(65,104,62,.12);border-radius:9px;background:#fff;color:var(--text);font:inherit;font-size:10px}
+  #validation-form select{min-height:39px;padding:0 10px}
+  #validation-form textarea{padding:10px;resize:vertical}
+  .validation-modal-actions{margin-top:15px;display:flex;justify-content:flex-end;gap:7px}
+  .validation-modal-actions button{min-height:37px;padding:0 11px;border:1px solid rgba(65,104,62,.10);border-radius:9px;background:#fff;font:inherit;font-size:9px;font-weight:800}
+  .validation-modal-actions button.primary{background:var(--primary-deep);color:#fff}
+  @media(max-width:1000px){.validation-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:650px){.validation-cycle{flex-direction:column;align-items:stretch}.validation-cycle>i{align-self:center;transform:rotate(90deg)}.validation-grid{grid-template-columns:1fr}}
+</style>
