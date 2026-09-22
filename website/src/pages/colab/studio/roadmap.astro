@@ -168,17 +168,7 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
         aria-expanded="false"
       >
         <div class="roadmap-card-summary">
-          <div class="roadmap-card-title-row">
-            <h3 data-role="title"></h3>
-
-            <span
-              class="roadmap-my-assignment-marker member-hidden"
-              data-role="my-assignment-marker"
-              title="Você está marcado nesta tarefa"
-              aria-label="Você está marcado nesta tarefa"
-              role="img"
-            ></span>
-          </div>
+          <h3 data-role="title"></h3>
 
           <button
             class="roadmap-card-toggle"
@@ -1777,35 +1767,6 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
         item,
       );
 
-    const myAssignmentMarker =
-      card.querySelector<HTMLElement>(
-        '[data-role="my-assignment-marker"]',
-      );
-
-    const isAssignedToMe =
-      Boolean(
-        session?.user?.id,
-      ) &&
-      assigneeIds.includes(
-        session.user.id,
-      );
-
-    myAssignmentMarker?.classList.toggle(
-      'member-hidden',
-      !isAssignedToMe,
-    );
-
-    if (
-      myAssignmentMarker
-    ) {
-      myAssignmentMarker.setAttribute(
-        'aria-hidden',
-        String(
-          !isAssignedToMe,
-        ),
-      );
-    }
-
     const profile =
       assigneeIds.length >
       0
@@ -1836,78 +1797,9 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
       return element;
     };
 
-    // EVRYLUX_ROADMAP_MY_TASK_DOT_V3
-    const roadmapTitleElement =
-      // EVRYLUX_ROADMAP_MY_TASK_DOT_DOM_V4
-      const roadmapTitleElement =
-        setText(
-          '[data-role="title"]',
-          item.title,
-        );
-
-      const roadmapCurrentUserId =
-        session?.user?.id ??
-        '';
-
-      const roadmapIsAssignedToMe =
-        Boolean(
-          roadmapCurrentUserId,
-        ) &&
-        assigneeIds.includes(
-          roadmapCurrentUserId,
-        );
-
-      if (
-        roadmapTitleElement &&
-        roadmapIsAssignedToMe
-      ) {
-        const myAssignmentDot =
-          document.createElement(
-            'span',
-          );
-
-        myAssignmentDot.dataset.myAssignmentDot =
-          'true';
-
-        myAssignmentDot.title =
-          'Você está marcado nesta tarefa';
-
-        myAssignmentDot.style.cssText =
-          'display:inline-block;width:8px;height:8px;margin-left:8px;border-radius:999px;background:#20e426;border:1px solid rgba(18,165,25,.30);box-shadow:0 0 0 2px rgba(32,228,38,.08),0 0 6px rgba(32,228,38,.34);vertical-align:middle;transform:translateY(-1px);';
-
-        roadmapTitleElement.appendChild(
-          myAssignmentDot,
-        );
-      }
-
-
-    const roadmapCurrentUserId =
-      session?.user?.id ??
-      '';
-
-    const roadmapIsAssignedToMe =
-      Boolean(
-        roadmapCurrentUserId,
-      ) &&
-      assigneeIds.includes(
-        roadmapCurrentUserId,
-      );
-
-    roadmapTitleElement?.classList.toggle(
-      'roadmap-title-assigned-to-me',
-      roadmapIsAssignedToMe,
-    );
-
-
-    // EVRYLUX_ROADMAP_MARKER_ROBUST_V1
-    const roadmapTitleElement =
-      card.querySelector<HTMLElement>(
-        '[data-role="title"]',
-      );
-
-    roadmapTitleElement?.classList.toggle(
-      'roadmap-title-assigned-to-me',
-      isAssignedToMe,
+    setText(
+      '[data-role="title"]',
+      item.title,
     );
 
     setText(
@@ -4797,118 +4689,6 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
   @media (max-width: 650px) {
     .roadmap-assignees-menu {
       max-height: 200px;
-    }
-  }
-</style>
-
-
-<style is:global>
-  /* ==========================================================
-     EVRYLUX ROADMAP — MARCAÇÃO "ATRIBUÍDA A MIM"
-     Aparece somente quando o usuário logado está entre os
-     responsáveis da tarefa.
-     ========================================================== */
-
-  .roadmap-card-title-row {
-    min-width: 0;
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    flex: 1 1 auto;
-  }
-
-  .roadmap-card-title-row > h3 {
-    min-width: 0;
-    margin: 0;
-    flex: 0 1 auto;
-  }
-
-  .roadmap-my-assignment-marker {
-    width: 9px;
-    height: 9px;
-    flex: 0 0 9px;
-    display: inline-block;
-    border-radius: 50%;
-    background: #20e426;
-    border: 1px solid rgba(22, 177, 29, .24);
-    box-shadow:
-      0 0 0 2px rgba(32, 228, 38, .08),
-      0 0 7px rgba(32, 228, 38, .34);
-  }
-
-  .roadmap-my-assignment-marker.member-hidden {
-    display: none !important;
-  }
-
-  @media (max-width: 620px) {
-    .roadmap-card-title-row {
-      gap: 7px;
-    }
-
-    .roadmap-my-assignment-marker {
-      width: 8px;
-      height: 8px;
-      flex-basis: 8px;
-    }
-  }
-</style>
-
-<style is:global>
-  /* EVRYLUX ROADMAP MARKER ROBUST CSS V1 */
-
-  .roadmap-card-summary
-  [data-role="title"].roadmap-title-assigned-to-me::after {
-    content: "";
-    width: 8px;
-    height: 8px;
-    margin-left: 8px;
-    display: inline-block;
-    vertical-align: middle;
-    border-radius: 50%;
-    background: #20e426;
-    border: 1px solid rgba(18, 165, 25, .30);
-    box-shadow:
-      0 0 0 2px rgba(32, 228, 38, .08),
-      0 0 6px rgba(32, 228, 38, .35);
-    transform: translateY(-1px);
-  }
-
-  @media (max-width: 620px) {
-    .roadmap-card-summary
-    [data-role="title"].roadmap-title-assigned-to-me::after {
-      width: 7px;
-      height: 7px;
-      margin-left: 6px;
-    }
-  }
-</style>
-
-<style is:global>
-  /* EVRYLUX_ROADMAP_MY_TASK_DOT_CSS_V3 */
-
-  .roadmap-card-summary
-  [data-role="title"].roadmap-title-assigned-to-me::after {
-    content: "";
-    width: 8px;
-    height: 8px;
-    margin-left: 8px;
-    display: inline-block;
-    vertical-align: middle;
-    border-radius: 50%;
-    background: #20e426;
-    border: 1px solid rgba(18, 165, 25, .28);
-    box-shadow:
-      0 0 0 2px rgba(32, 228, 38, .07),
-      0 0 6px rgba(32, 228, 38, .32);
-    transform: translateY(-1px);
-  }
-
-  @media (max-width: 620px) {
-    .roadmap-card-summary
-    [data-role="title"].roadmap-title-assigned-to-me::after {
-      width: 7px;
-      height: 7px;
-      margin-left: 6px;
     }
   }
 </style>
