@@ -154,24 +154,17 @@ import EvryluxLogoLoader from '../../components/ui/EvryluxLogoLoader.astro';
           
               <div class="dashboard-tasks-head-actions">
                 <span
-                  id="dashboard-task-total"
-                  class="dashboard-task-total"
-                >
-                  0 tarefas
-                </span>
-
-                <span
                   id="dashboard-task-unread"
                   class="dashboard-task-unread member-hidden"
                 >
                   0 novas
                 </span>
-
+          
                 <a
                   class="dashboard-task-roadmap-link"
-                  href="/colab/tasks"
+                  href="/colab/studio/roadmap"
                 >
-                  Ver todas
+                  Ver Roadmap
                   <span aria-hidden="true">→</span>
                 </a>
               </div>
@@ -728,12 +721,6 @@ import EvryluxLogoLoader from '../../components/ui/EvryluxLogoLoader.astro';
       '#dashboard-task-unread',
     );
 
-
-  const taskTotal =
-    document.querySelector<HTMLElement>(
-      '#dashboard-task-total',
-    );
-
   const taskToastRegion =
     document.querySelector<HTMLElement>(
       '#task-assignment-toast-region',
@@ -1177,59 +1164,6 @@ import EvryluxLogoLoader from '../../components/ui/EvryluxLogoLoader.astro';
       status;
   }
 
-  const DASHBOARD_TASK_LIMIT =
-    4;
-
-  function taskDueTimestamp(
-    task: MyRoadmapTask,
-  ) {
-    if (!task.due_date) {
-      return Number.POSITIVE_INFINITY;
-    }
-
-    const timestamp =
-      new Date(
-        `${task.due_date}T23:59:59`,
-      ).getTime();
-
-    return Number.isFinite(timestamp)
-      ? timestamp
-      : Number.POSITIVE_INFINITY;
-  }
-
-  function dashboardTasks(
-    tasks: MyRoadmapTask[],
-  ) {
-    return [...tasks]
-      .sort(
-        (
-          a,
-          b,
-        ) => {
-          const aUnread =
-            Boolean(a.notification_id) &&
-            !a.notification_is_read;
-
-          const bUnread =
-            Boolean(b.notification_id) &&
-            !b.notification_is_read;
-
-          if (aUnread !== bUnread) {
-            return aUnread ? -1 : 1;
-          }
-
-          return (
-            taskDueTimestamp(a) -
-            taskDueTimestamp(b)
-          );
-        },
-      )
-      .slice(
-        0,
-        DASHBOARD_TASK_LIMIT,
-      );
-  }
-
   function renderMyTasks(
     tasks: MyRoadmapTask[],
   ) {
@@ -1258,13 +1192,6 @@ import EvryluxLogoLoader from '../../components/ui/EvryluxLogoLoader.astro';
         unreadCount ===
           0,
       );
-    }
-
-    if (
-      taskTotal
-    ) {
-      taskTotal.textContent =
-        `${tasks.length} ${tasks.length === 1 ? 'tarefa' : 'tarefas'}`;
     }
 
     if (
@@ -1298,13 +1225,8 @@ import EvryluxLogoLoader from '../../components/ui/EvryluxLogoLoader.astro';
       return;
     }
 
-    const visibleTasks =
-      dashboardTasks(
-        tasks,
-      );
-
     taskList.innerHTML =
-      visibleTasks
+      tasks
         .map(
           (
             task,
@@ -1405,33 +1327,6 @@ import EvryluxLogoLoader from '../../components/ui/EvryluxLogoLoader.astro';
           },
         )
         .join('');
-
-    if (
-      tasks.length >
-      DASHBOARD_TASK_LIMIT
-    ) {
-      const more =
-        document.createElement(
-          'a',
-        );
-
-      const hiddenCount =
-        tasks.length -
-        DASHBOARD_TASK_LIMIT;
-
-      more.className =
-        'dashboard-task-more';
-
-      more.href =
-        '/colab/tasks';
-
-      more.innerHTML =
-        `<span>+${hiddenCount} ${hiddenCount === 1 ? 'tarefa' : 'tarefas'} para ver</span><span aria-hidden="true">→</span>`;
-
-      taskList.appendChild(
-        more,
-      );
-    }
 
     taskList
       .querySelectorAll<HTMLAnchorElement>(
@@ -3669,44 +3564,3 @@ import EvryluxLogoLoader from '../../components/ui/EvryluxLogoLoader.astro';
   }
 </style>
 
-
-
-<style is:global>
-  /* ==========================================================
-     EVRYLUX DASHBOARD — LIMITE DE TAREFAS
-     ========================================================== */
-
-  .dashboard-task-total {
-    min-height: 34px;
-    padding: 0 10px;
-    display: inline-flex;
-    align-items: center;
-    border: 1px solid rgba(65,104,62,.09);
-    border-radius: 999px;
-    background: rgba(248,251,247,.88);
-    color: var(--text-soft);
-    font-size: 8px;
-    font-weight: 850;
-  }
-
-  .dashboard-task-more {
-    min-height: 46px;
-    padding: 0 14px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    grid-column: 1 / -1;
-    border: 1px dashed rgba(95,157,89,.20);
-    border-radius: 13px;
-    background: rgba(240,248,237,.76);
-    color: #315c35;
-    font-size: 8px;
-    font-weight: 900;
-    text-decoration: none;
-  }
-
-  .dashboard-task-more:hover {
-    background: rgba(229,243,224,.92);
-  }
-</style>

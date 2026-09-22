@@ -1,18 +1,118 @@
 -- ============================================================
--- EVRYLUX — ROADMAP / CONVITES DE TAREFAS + INBOX NO DASHBOARD
+-- EVRYLUX — ROADMAP / RESPONSÁVEIS + TAREFAS + NOTIFICAÇÕES
+-- VERSÃO AUTOSSUFICIENTE
 -- ============================================================
 --
--- Fluxo:
--- 1. alguém adiciona um colaborador aos responsáveis do Roadmap;
--- 2. set_colab_roadmap_assignees detecta apenas os NOVOS responsáveis;
--- 3. cria uma notificação persistente para cada novo responsável;
--- 4. Supabase Realtime entrega o INSERT para o usuário conectado;
--- 5. Dashboard mostra card + som;
--- 6. ao abrir o Dashboard futuramente, a tarefa continua em "Minhas tarefas".
+-- Esta versão corrige o erro:
+--   relation "public.colab_roadmap_assignees" does not exist
+--
+-- Ela cria primeiro a tabela de múltiplos responsáveis e migra
+-- automaticamente o assignee_user_id já existente.
+--
+-- Depois cria:
+--   - notificações persistentes
+--   - inbox "Minhas tarefas"
+--   - RPC para marcar notificação como lida
+--   - RPC para atualizar responsáveis + gerar convites
+--   - publicação Realtime da tabela de notificações
 --
 -- ============================================================
 
 begin;
+
+-- ============================================================
+-- 1. MÚLTIPLOS RESPONSÁVEIS DO ROADMAP
+-- ============================================================
+
+create table if not exists public.colab_roadmap_assignees (
+  roadmap_item_id uuid not null
+    references public.colab_roadmap_items(id)
+    on delete cascade,
+
+  user_id uuid not null
+    references auth.users(id)
+    on delete cascade,
+
+  created_at timestamptz not null
+    default now(),
+
+  primary key (
+    roadmap_item_id,
+    user_id
+  )
+);
+
+create index if not exists
+  colab_roadmap_assignees_user_idx
+on public.colab_roadmap_assignees (
+  user_id,
+  roadmap_item_id
+);
+
+alter table public.colab_roadmap_assignees
+  enable row level security;
+
+revoke all
+on table public.colab_roadmap_assignees
+from public, anon, authenticated;
+
+-- Migra os responsáveis antigos que já estavam em assignee_user_id.
+insert into public.colab_roadmap_assignees (
+  roadmap_item_id,
+  user_id
+)
+select
+  id,
+  assignee_user_id
+from public.colab_roadmap_items
+where assignee_user_id is not null
+on conflict (
+  roadmap_item_id,
+  user_id
+)
+do nothing;
+
+-- ============================================================
+-- 2. RPC PARA LISTAR RESPONSÁVEIS
+-- ============================================================
+
+drop function if exists
+  public.list_colab_roadmap_assignees();
+
+create function
+  public.list_colab_roadmap_assignees()
+returns table (
+  roadmap_item_id uuid,
+  user_id uuid
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    a.roadmap_item_id,
+    a.user_id
+  from public.colab_roadmap_assignees a
+  where auth.uid() is not null
+  order by
+    a.roadmap_item_id,
+    a.created_at;
+$$;
+
+revoke all
+on function
+  public.list_colab_roadmap_assignees()
+from public, anon;
+
+grant execute
+on function
+  public.list_colab_roadmap_assignees()
+to authenticated;
+
+-- ============================================================
+-- 3. NOTIFICAÇÕES PERSISTENTES DE TAREFAS
+-- ============================================================
 
 create table if not exists public.colab_task_notifications (
   id uuid primary key
@@ -71,6 +171,8 @@ revoke all
 on table public.colab_task_notifications
 from public, anon, authenticated;
 
+-- Necessário para o usuário receber os INSERTs via Realtime,
+-- respeitando a política abaixo.
 grant select
 on table public.colab_task_notifications
 to authenticated;
@@ -85,22 +187,22 @@ on public.colab_task_notifications
 for select
 to authenticated
 using (
-  user_id =
-    auth.uid()
+  user_id = auth.uid()
 );
 
--- Realtime precisa que a tabela esteja na publication.
+-- ============================================================
+-- 4. SUPABASE REALTIME
+-- ============================================================
+
 do $$
 begin
   if not exists (
     select 1
     from pg_publication_tables
-    where pubname =
-      'supabase_realtime'
-      and schemaname =
-        'public'
-      and tablename =
-        'colab_task_notifications'
+    where
+      pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'colab_task_notifications'
   ) then
     alter publication
       supabase_realtime
@@ -110,7 +212,7 @@ begin
 end $$;
 
 -- ============================================================
--- LISTAR TAREFAS DO USUÁRIO
+-- 5. LISTAR AS TAREFAS DO USUÁRIO LOGADO
 -- ============================================================
 
 drop function if exists
@@ -147,7 +249,7 @@ as $$
     r.stage,
     r.status,
     r.priority,
-    coalesce(r.progress,0)::integer,
+    coalesce(r.progress, 0)::integer,
     r.due_date,
 
     latest_notification.id,
@@ -172,8 +274,7 @@ as $$
   from public.colab_roadmap_assignees a
 
   join public.colab_roadmap_items r
-    on r.id =
-      a.roadmap_item_id
+    on r.id = a.roadmap_item_id
 
   left join lateral (
     select
@@ -183,10 +284,8 @@ as $$
       n.assigned_by
     from public.colab_task_notifications n
     where
-      n.user_id =
-        auth.uid()
-      and n.roadmap_item_id =
-        r.id
+      n.user_id = auth.uid()
+      and n.roadmap_item_id = r.id
     order by
       n.created_at desc
     limit 1
@@ -203,10 +302,8 @@ as $$
 
   where
     auth.uid() is not null
-    and a.user_id =
-      auth.uid()
-    and r.status <>
-      'done'
+    and a.user_id = auth.uid()
+    and r.status <> 'done'
 
   order by
     case
@@ -216,12 +313,14 @@ as $$
       then 0
       else 1
     end,
+
     case r.stage
       when 'now' then 0
       when 'next' then 1
       when 'later' then 2
       else 3
     end,
+
     r.updated_at desc;
 $$;
 
@@ -236,7 +335,7 @@ on function
 to authenticated;
 
 -- ============================================================
--- MARCAR NOTIFICAÇÃO COMO LIDA
+-- 6. MARCAR NOTIFICAÇÃO COMO LIDA
 -- ============================================================
 
 drop function if exists
@@ -255,23 +354,19 @@ begin
   if auth.uid() is null then
     raise exception
       'Sessão autenticada necessária'
-      using errcode='42501';
+      using errcode = '42501';
   end if;
 
   update public.colab_task_notifications
   set
-    is_read =
-      true,
-    read_at =
-      coalesce(
-        read_at,
-        now()
-      )
+    is_read = true,
+    read_at = coalesce(
+      read_at,
+      now()
+    )
   where
-    id =
-      p_notification_id
-    and user_id =
-      auth.uid();
+    id = p_notification_id
+    and user_id = auth.uid();
 
   return found;
 end;
@@ -288,9 +383,7 @@ on function
 to authenticated;
 
 -- ============================================================
--- SUBSTITUI RPC DE RESPONSÁVEIS
--- Agora detecta quais pessoas foram adicionadas NESTA alteração
--- e cria notificação apenas para essas pessoas.
+-- 7. ATUALIZAR RESPONSÁVEIS + GERAR NOTIFICAÇÕES
 -- ============================================================
 
 drop function if exists
@@ -311,29 +404,26 @@ set search_path = public
 as $$
 declare
   v_primary uuid;
-
   v_old_user_ids uuid[];
-
   v_new_user_ids uuid[];
-
   v_added_user_id uuid;
 begin
   if auth.uid() is null then
     raise exception
       'Sessão autenticada necessária'
-      using errcode='42501';
+      using errcode = '42501';
   end if;
 
   if not exists (
     select 1
     from public.colab_roadmap_items
-    where id =
-      p_roadmap_item_id
+    where id = p_roadmap_item_id
   ) then
     raise exception
       'Item do Roadmap não encontrado';
   end if;
 
+  -- Responsáveis existentes antes da edição.
   select
     coalesce(
       array_agg(
@@ -349,6 +439,7 @@ begin
     a.roadmap_item_id =
       p_roadmap_item_id;
 
+  -- Normaliza a nova lista e remove duplicados/null.
   select
     coalesce(
       array_agg(
@@ -367,20 +458,18 @@ begin
         )
       ) as selected_id
   ) normalized
-  where
-    selected_id is not null;
+  where selected_id is not null;
 
-  delete from
-    public.colab_roadmap_assignees
+  -- Substitui a relação atual.
+  delete from public.colab_roadmap_assignees
   where
     roadmap_item_id =
       p_roadmap_item_id;
 
-  insert into
-    public.colab_roadmap_assignees (
-      roadmap_item_id,
-      user_id
-    )
+  insert into public.colab_roadmap_assignees (
+    roadmap_item_id,
+    user_id
+  )
   select
     p_roadmap_item_id,
     selected_id
@@ -394,6 +483,7 @@ begin
   )
   do nothing;
 
+  -- Mantém compatibilidade com o campo legado.
   v_primary =
     case
       when
@@ -403,16 +493,12 @@ begin
             1
           ),
           0
-        ) >
-        0
-      then
-        p_user_ids[1]
-      else
-        null
+        ) > 0
+      then p_user_ids[1]
+      else null
     end;
 
-  update
-    public.colab_roadmap_items
+  update public.colab_roadmap_items
   set
     assignee_user_id =
       v_primary,
@@ -422,7 +508,7 @@ begin
     id =
       p_roadmap_item_id;
 
-  -- Notifica somente responsáveis que não existiam antes.
+  -- Cria notificação apenas para pessoas que acabaram de ser adicionadas.
   foreach
     v_added_user_id
   in array
@@ -439,14 +525,13 @@ begin
       v_added_user_id <>
         auth.uid()
     then
-      insert into
-        public.colab_task_notifications (
-          user_id,
-          roadmap_item_id,
-          assigned_by,
-          notification_type,
-          message
-        )
+      insert into public.colab_task_notifications (
+        user_id,
+        roadmap_item_id,
+        assigned_by,
+        notification_type,
+        message
+      )
       values (
         v_added_user_id,
         p_roadmap_item_id,
