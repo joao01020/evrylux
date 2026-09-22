@@ -266,7 +266,7 @@ class BrainE2eeSyncCoordinator {
       return true;
     }
 
-    if (pullResult.remoteCount <= 0) {
+    if (!pullResult.hasRemoteState) {
       return true;
     }
 

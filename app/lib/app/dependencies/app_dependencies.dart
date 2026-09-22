@@ -130,6 +130,8 @@ import '../../study/brain/security/keys/brain_key_service.dart';
 import '../../study/brain/security/keys/brain_platform_key_storage.dart';
 
 import '../../study/brain/vault/services/brain_vault_service.dart';
+import '../../study/brain/vault/compaction/brain_vault_compaction_policy.dart';
+import '../../study/brain/vault/compaction/brain_vault_compaction_service.dart';
 import '../../study/brain/vault/storage/brain_vault_storage.dart';
 import '../../study/brain/vault/stores/brain_review_vault_store.dart';
 import '../../study/brain/vault/stores/brain_note_vault_store.dart';
@@ -144,6 +146,7 @@ import '../../study/brain/sync/services/brain_cloud_pull_service.dart';
 import '../../study/brain/sync/services/brain_core_sync_queue_writer.dart';
 import '../../study/brain/sync/services/brain_e2ee_sync_coordinator.dart';
 import '../../study/brain/sync/services/brain_supabase_e2ee_service.dart';
+import '../../study/brain/sync/services/brain_remote_gc_service.dart';
 import '../../study/brain/sync/services/brain_sync_queue_service.dart';
 
 import '../../study/brain/devices/adapters/brain_key_service_device_master_key_adapter.dart';
@@ -578,8 +581,75 @@ final brainSyncQueueService = BrainSyncQueueService(
   writer: brainCoreSyncQueueWriter,
 );
 
+// ======================================================
+// BRAIN SUPABASE E2EE
+// ======================================================
+
 final brainSupabaseE2eeService = BrainSupabaseE2eeService(
   client: supabaseClient,
+);
+
+// ======================================================
+// BRAIN VAULT COMPACTION — FASE 2 (LOCAL PURGE)
+// ======================================================
+//
+// Para purge LOCAL, a garantia durável é o tombstone remoto:
+//
+// - SyncQueue não pode conter operação do objeto;
+// - Cloud precisa confirmar is_deleted=true com versão >= local;
+// - o registro remoto NÃO é removido pela Fase 2;
+// - um compaction floor local impede re-download/ressurreição.
+//
+// Cobertura de todos os devices não bloqueia o purge LOCAL porque
+// o tombstone remoto permanece como version floor para devices
+// offline. Essa cobertura volta a ser requisito de segurança para
+// eventual GC REMOTO (Fase 3).
+//
+// ======================================================
+
+final brainVaultCompactionService = BrainVaultCompactionService(
+  storage: brainVaultStorage,
+  policy: const BrainVaultCompactionPolicy(
+    requireAuthorizedDeviceCoverage: false,
+  ),
+  safetyProbe: (tombstone) async {
+    final pending = await syncQueue.findByEntity(
+      entityType: BrainSyncQueueService.entityType,
+      entityId: tombstone.header.objectId,
+    );
+
+    if (pending != null) {
+      return const BrainVaultCompactionSafetySnapshot(
+        hasPendingSync: true,
+        remoteDeletionConfirmed: false,
+        authorizedDevicesCovered: false,
+      );
+    }
+
+    var remoteDeletionConfirmed = false;
+
+    try {
+      remoteDeletionConfirmed =
+          await brainSupabaseE2eeService.confirmRemoteTombstone(
+            vaultId: tombstone.header.vaultId,
+            objectId: tombstone.header.objectId,
+            minimumObjectVersion: tombstone.header.objectVersion.value,
+          );
+    } catch (error) {
+      // Fail closed: indisponibilidade/auth/schema nunca habilita purge.
+      debugPrint(
+        '[BRAIN COMPACTION] confirmação remota indisponível '
+        '(${error.runtimeType}).',
+      );
+      remoteDeletionConfirmed = false;
+    }
+
+    return BrainVaultCompactionSafetySnapshot(
+      hasPendingSync: false,
+      remoteDeletionConfirmed: remoteDeletionConfirmed,
+      authorizedDevicesCovered: false,
+    );
+  },
 );
 
 final brainCloudPullService = BrainCloudPullService(
@@ -587,6 +657,26 @@ final brainCloudPullService = BrainCloudPullService(
   vaultService: brainVaultService,
   vaultStorage: brainVaultStorage,
   keyService: brainKeyService,
+  deletionObservationSink: ({required vaultId, required observations}) async {
+    try {
+      final secrets = await brainDeviceIdentityService.loadLocalSecrets();
+      if (secrets == null || observations.isEmpty) return;
+
+      await brainSupabaseE2eeService.acknowledgeDeletionObservations(
+        vaultId: vaultId,
+        deviceId: secrets.deviceId,
+        authorizationSecretBase64: secrets.authorizationSecretBase64,
+        observations: observations,
+      );
+    } catch (error) {
+      // ACK indisponível não invalida o pull; apenas mantém GC remoto
+      // bloqueado até um pull futuro conseguir registrar a observação.
+      debugPrint(
+        '[BRAIN REMOTE GC] ACK de tombstones adiado '
+        '(${error.runtimeType}).',
+      );
+    }
+  },
 );
 
 final brainE2eeSyncCoordinator = BrainE2eeSyncCoordinator(
@@ -708,6 +798,50 @@ final brainDeviceAuthorizationService = BrainDeviceAuthorizationService(
   remote: brainDeviceSupabaseService,
   masterKeyPort: brainDeviceMasterKeyAdapter,
   cryptoService: brainDeviceCryptoService,
+);
+
+// ======================================================
+// BRAIN REMOTE DELETE GC — FASE 3
+// ======================================================
+
+final brainRemoteGcService = BrainRemoteGcService(
+  policy: const BrainRemoteGcPolicy(
+    remoteTombstoneRetention: Duration(days: 180),
+    maxCandidatesPerRun: 100,
+    maxPurgesPerRun: 50,
+  ),
+  loadCandidates: ({required retentionDays, required limit}) async {
+    final manifest = await brainVaultService.openVault();
+    final secrets = await brainDeviceIdentityService.loadLocalSecrets();
+    if (secrets == null) {
+      throw StateError('Identidade local do Brain não está disponível.');
+    }
+
+    return brainSupabaseE2eeService.loadRemoteGcCandidates(
+      vaultId: manifest.vaultId,
+      requesterDeviceId: secrets.deviceId,
+      requesterAuthorizationSecretBase64:
+          secrets.authorizationSecretBase64,
+      retentionDays: retentionDays,
+      limit: limit,
+    );
+  },
+  purge: ({required objectId, required retentionDays}) async {
+    final manifest = await brainVaultService.openVault();
+    final secrets = await brainDeviceIdentityService.loadLocalSecrets();
+    if (secrets == null) {
+      return false;
+    }
+
+    return brainSupabaseE2eeService.garbageCollectRemoteTombstone(
+      vaultId: manifest.vaultId,
+      objectId: objectId,
+      requesterDeviceId: secrets.deviceId,
+      requesterAuthorizationSecretBase64:
+          secrets.authorizationSecretBase64,
+      retentionDays: retentionDays,
+    );
+  },
 );
 
 final brainDeviceGateService = BrainDeviceGateService(

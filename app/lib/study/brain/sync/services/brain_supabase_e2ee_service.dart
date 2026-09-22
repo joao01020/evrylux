@@ -2,6 +2,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../vault/services/brain_vault_serializer.dart';
 
+import '../models/brain_remote_deletion_floor.dart';
+import '../models/brain_remote_gc.dart';
 import '../models/brain_sync_payload.dart';
 import '../ports/brain_remote_object_source.dart';
 
@@ -106,6 +108,51 @@ class BrainSupabaseE2eeService extends BrainRemoteObjectSource {
     );
   }
 
+
+  // ============================================================
+  // CONFIRM REMOTE TOMBSTONE FOR LOCAL COMPACTION
+  // ============================================================
+  //
+  // Este RPC nasce na mesma migration que torna tombstones
+  // irreversíveis no Cloud. Se a migration ainda não foi aplicada,
+  // a chamada falha e a compaction falha fechado.
+  //
+  // ============================================================
+
+  Future<bool> confirmRemoteTombstone({
+    required String vaultId,
+    required String objectId,
+    required int minimumObjectVersion,
+  }) async {
+    _requireUser();
+
+    final normalizedVaultId = vaultId.trim();
+    final normalizedObjectId = objectId.trim();
+
+    if (normalizedVaultId.isEmpty || normalizedObjectId.isEmpty) {
+      return false;
+    }
+
+    if (minimumObjectVersion <= 0) {
+      throw ArgumentError.value(
+        minimumObjectVersion,
+        'minimumObjectVersion',
+        'A versão deve ser maior que zero.',
+      );
+    }
+
+    final result = await _client.rpc(
+      'confirm_brain_tombstone_for_local_compaction',
+      params: <String, dynamic>{
+        'p_vault_id': normalizedVaultId,
+        'p_object_id': normalizedObjectId,
+        'p_min_object_version': minimumObjectVersion,
+      },
+    );
+
+    return result == true;
+  }
+
   // ============================================================
   // LOAD VAULT OBJECTS
   // ============================================================
@@ -139,4 +186,110 @@ class BrainSupabaseE2eeService extends BrainRemoteObjectSource {
 
     return result;
   }
+
+  // ============================================================
+  // PHASE 3 — REMOTE DELETION FLOORS / DEVICE ACKS / GC
+  // ============================================================
+
+  @override
+  Future<List<BrainRemoteDeletionFloor>> loadDeletionFloors({
+    required String vaultId,
+  }) async {
+    final user = _requireUser();
+    final normalizedVaultId = vaultId.trim();
+    if (normalizedVaultId.isEmpty) {
+      throw ArgumentError('vaultId não pode ser vazio.');
+    }
+
+    final rows = await _client
+        .from('brain_deletion_floors')
+        .select('vault_id,object_id,object_version,deleted_at,compacted_at')
+        .eq('user_id', user.id)
+        .eq('vault_id', normalizedVaultId)
+        .order('object_id');
+
+    return rows
+        .map((row) => BrainRemoteDeletionFloor.fromMap(
+              Map<String, dynamic>.from(row),
+            ))
+        .toList(growable: false);
+  }
+
+  Future<int> acknowledgeDeletionObservations({
+    required String vaultId,
+    required String deviceId,
+    required String authorizationSecretBase64,
+    required List<BrainDeletionObservation> observations,
+  }) async {
+    _requireUser();
+    if (observations.isEmpty) return 0;
+
+    final result = await _client.rpc(
+      'acknowledge_brain_tombstones',
+      params: <String, dynamic>{
+        'p_vault_id': vaultId.trim(),
+        'p_device_id': deviceId.trim(),
+        'p_auth_secret': authorizationSecretBase64,
+        'p_observations': observations.map((item) => item.toMap()).toList(),
+      },
+    );
+
+    return result is int ? result : int.tryParse(result.toString()) ?? 0;
+  }
+
+  Future<List<BrainRemoteGcCandidate>> loadRemoteGcCandidates({
+    required String vaultId,
+    required String requesterDeviceId,
+    required String requesterAuthorizationSecretBase64,
+    required int retentionDays,
+    required int limit,
+  }) async {
+    _requireUser();
+
+    final result = await _client.rpc(
+      'list_brain_remote_gc_candidates',
+      params: <String, dynamic>{
+        'p_vault_id': vaultId.trim(),
+        'p_requester_device_id': requesterDeviceId.trim(),
+        'p_requester_secret': requesterAuthorizationSecretBase64,
+        'p_retention_days': retentionDays,
+        'p_limit': limit,
+      },
+    );
+
+    if (result == null) return const <BrainRemoteGcCandidate>[];
+    if (result is! List) {
+      throw const FormatException('Lista de candidatos de GC remoto inválida.');
+    }
+
+    return result
+        .map((row) => BrainRemoteGcCandidate.fromMap(
+              Map<String, dynamic>.from(row as Map),
+            ))
+        .toList(growable: false);
+  }
+
+  Future<bool> garbageCollectRemoteTombstone({
+    required String vaultId,
+    required String objectId,
+    required String requesterDeviceId,
+    required String requesterAuthorizationSecretBase64,
+    required int retentionDays,
+  }) async {
+    _requireUser();
+
+    final result = await _client.rpc(
+      'gc_brain_remote_tombstone',
+      params: <String, dynamic>{
+        'p_vault_id': vaultId.trim(),
+        'p_object_id': objectId.trim(),
+        'p_requester_device_id': requesterDeviceId.trim(),
+        'p_requester_secret': requesterAuthorizationSecretBase64,
+        'p_retention_days': retentionDays,
+      },
+    );
+
+    return result == true;
+  }
+
 }

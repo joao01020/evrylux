@@ -105,3 +105,8 @@ app.*.map.json
 
 # Node / Supabase CLI
 node_modules/
+
+# Documentação do projeto 
+docs
+# Supabase local backups
+supabase/backup/*.sql

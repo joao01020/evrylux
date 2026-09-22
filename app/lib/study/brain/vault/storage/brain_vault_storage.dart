@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import '../../../../core/storage/user_storage_scope.dart';
 import '../models/brain_vault_manifest.dart';
 import '../models/brain_vault_object.dart';
+import '../compaction/brain_vault_compaction_ledger.dart';
 import '../services/brain_vault_id_service.dart';
 import '../services/brain_vault_serializer.dart';
 
@@ -99,6 +100,8 @@ class BrainVaultStorage {
   static const String objectsDirectoryName = 'objects';
 
   static const String manifestFileName = 'manifest.json';
+
+  static const String compactionLedgerFileName = 'compaction_ledger.json';
 
   static const String objectExtension = '.evobj';
 
@@ -197,6 +200,15 @@ class BrainVaultStorage {
       p.join(
         vaultDirectory.path,
         manifestFileName,
+      ),
+    );
+  }
+
+  File get compactionLedgerFile {
+    return File(
+      p.join(
+        vaultDirectory.path,
+        compactionLedgerFileName,
       ),
     );
   }
@@ -749,6 +761,47 @@ class BrainVaultStorage {
   }
 
   // ============================================================
+  // COMPACTION LEDGER
+  // ============================================================
+  //
+  // Contém somente metadata técnica mínima de exclusão.
+  // Nunca contém plaintext lógico nem ciphertext da nota.
+  //
+  // ============================================================
+
+  Future<BrainVaultCompactionLedger> loadCompactionLedger({
+    required String vaultId,
+  }) async {
+    await initialize();
+
+    final file = compactionLedgerFile;
+    if (!await file.exists()) {
+      return BrainVaultCompactionLedger.empty(vaultId: vaultId);
+    }
+
+    final ledger = BrainVaultCompactionLedger.fromJsonString(
+      await file.readAsString(),
+    );
+
+    if (ledger.vaultId != vaultId) {
+      throw StateError('Compaction ledger pertence a outro Vault.');
+    }
+
+    return ledger;
+  }
+
+  Future<void> saveCompactionLedger(
+    BrainVaultCompactionLedger ledger,
+  ) async {
+    await initialize();
+    ledger.validate();
+    await _atomicWriteString(
+      file: compactionLedgerFile,
+      content: ledger.toJsonString(),
+    );
+  }
+
+  // ============================================================
   // PHYSICAL DELETE
   // ============================================================
   //
@@ -758,21 +811,80 @@ class BrainVaultStorage {
   //
   // ============================================================
 
-  Future<
-    void
-  >
-  deleteObjectFile(
-    String objectId,
-  ) async {
+  Future<bool> purgeObjectPermanently({
+    required String objectId,
+    required int expectedObjectVersion,
+    required DateTime expectedDeletedAt,
+  }) async {
     await initialize();
 
-    final file = objectFile(
-      objectId,
-    );
-
-    if (await file.exists()) {
-      await file.delete();
+    final current = await loadObject(objectId);
+    if (current == null) {
+      return false;
     }
+
+    final tombstone = current.tombstone;
+    if (!current.isDeleted || tombstone == null) {
+      return false;
+    }
+
+    if (current.header.objectVersion.value != expectedObjectVersion ||
+        tombstone.deletedAt.toUtc() != expectedDeletedAt.toUtc()) {
+      return false;
+    }
+
+    final file = objectFile(objectId);
+    if (!await file.exists()) {
+      return false;
+    }
+
+    await file.delete();
+    return true;
+  }
+
+  /// Phase 3: remove um objeto local coberto por um deletion floor remoto.
+  ///
+  /// O deletion floor remoto é autoritativo porque o Brain atual não possui
+  /// undelete. A precondição de versão observada protege contra TOCTOU: se o
+  /// arquivo mudou entre leitura e purge, nada é removido.
+  Future<bool> purgeObjectCoveredByDeletionFloor({
+    required String objectId,
+    required int expectedCurrentObjectVersion,
+  }) async {
+    await initialize();
+
+    if (expectedCurrentObjectVersion <= 0) {
+      throw ArgumentError.value(
+        expectedCurrentObjectVersion,
+        'expectedCurrentObjectVersion',
+        'A versão deve ser maior que zero.',
+      );
+    }
+
+    final current = await loadObject(objectId);
+    if (current == null) {
+      return false;
+    }
+
+    if (current.header.objectVersion.value != expectedCurrentObjectVersion) {
+      return false;
+    }
+
+    final file = objectFile(objectId);
+    if (!await file.exists()) {
+      return false;
+    }
+
+    await file.delete();
+    return true;
+  }
+
+  @Deprecated('Use purgeObjectPermanently com precondições explícitas.')
+  Future<void> deleteObjectFile(String objectId) async {
+    throw UnsupportedError(
+      'deleteObjectFile não pode ser usado para exclusão normal. '
+      'Use purgeObjectPermanently pela compaction.',
+    );
   }
 
   // ============================================================
