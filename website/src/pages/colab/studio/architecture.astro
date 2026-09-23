@@ -29,16 +29,40 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
       </div>
 
       <section class="architecture-summary">
-        <div>
-          <span class="architecture-summary-kicker">Visão técnica</span>
-          <strong>Do aplicativo até sincronização e segurança.</strong>
+        <div class="architecture-summary-copy">
+          <span
+            id="architecture-overview-eyebrow"
+            class="architecture-summary-kicker"
+          >
+            Visão técnica
+          </span>
+
+          <strong id="architecture-overview-title">
+            Do aplicativo até sincronização e segurança.
+          </strong>
         </div>
 
-        <div class="architecture-summary-flow">
-          <span>Flutter</span><i>→</i>
-          <span>Supabase</span><i>→</i>
-          <span>Dados</span><i>→</i>
-          <span>Sync</span>
+        <div class="architecture-summary-right">
+          <div
+            id="architecture-summary-flow"
+            class="architecture-summary-flow"
+            aria-label="Fluxo técnico principal"
+          >
+            <span>Flutter</span><i>→</i>
+            <span>Supabase</span><i>→</i>
+            <span>Dados</span><i>→</i>
+            <span>Sync</span>
+          </div>
+
+          <button
+            id="architecture-edit-overview"
+            class="architecture-summary-edit"
+            type="button"
+            title="Editar visão técnica"
+            aria-label="Editar visão técnica"
+          >
+            Editar
+          </button>
         </div>
       </section>
 
@@ -156,6 +180,96 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
           <strong>Nenhuma mudança registrada ainda.</strong>
           <span>Use “Registrar mudança” para começar o histórico técnico.</span>
         </div>
+      </section>
+    </div>
+
+    <div
+      id="architecture-overview-modal"
+      class="architecture-modal member-hidden"
+    >
+      <button
+        class="architecture-backdrop"
+        type="button"
+        data-close-overview
+        aria-label="Fechar edição da visão técnica"
+      ></button>
+
+      <section class="architecture-modal-card">
+        <div class="architecture-modal-head">
+          <div>
+            <span>Mapa da arquitetura</span>
+            <h2>Editar visão técnica</h2>
+          </div>
+
+          <button
+            type="button"
+            data-close-overview
+            aria-label="Fechar"
+          >
+            ×
+          </button>
+        </div>
+
+        <p class="architecture-overview-modal-copy">
+          Atualize esse resumo quando a arquitetura mudar.
+          Os itens do fluxo podem representar provedores, camadas,
+          serviços ou qualquer sequência que faça sentido no futuro.
+        </p>
+
+        <form id="architecture-overview-form">
+          <label>
+            <span>Rótulo</span>
+
+            <input
+              id="architecture-overview-form-eyebrow"
+              maxlength="80"
+              required
+              placeholder="Ex.: Visão técnica"
+            />
+          </label>
+
+          <label>
+            <span>Título</span>
+
+            <input
+              id="architecture-overview-form-title"
+              maxlength="220"
+              required
+              placeholder="Ex.: Do aplicativo até sincronização e segurança."
+            />
+          </label>
+
+          <label>
+            <span>Fluxo principal</span>
+
+            <textarea
+              id="architecture-overview-form-flow"
+              rows="6"
+              maxlength="2000"
+              placeholder="Um item por linha&#10;Flutter&#10;Supabase&#10;Dados&#10;Sync"
+            ></textarea>
+
+            <small>
+              Coloque um item por linha. A página cria as setas automaticamente.
+            </small>
+          </label>
+
+          <div class="architecture-modal-actions">
+            <button
+              type="button"
+              data-close-overview
+            >
+              Cancelar
+            </button>
+
+            <button
+              class="primary"
+              type="submit"
+            >
+              Salvar visão
+            </button>
+          </div>
+        </form>
       </section>
     </div>
 
@@ -387,11 +501,14 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
   import {
     addArchitectureHistoryEntry,
     architectureCategoryLabels,
+    getArchitectureOverview,
     getArchitectureHistory,
     getArchitectureNodes,
     updateArchitectureNode,
+    updateArchitectureOverview,
     type ArchitectureHistoryEntry,
     type ArchitectureNode,
+    type ArchitectureOverview,
   } from '../../../lib/colab-architecture';
 
   const session =
@@ -410,6 +527,51 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
   const errorBox =
     document.querySelector<HTMLElement>(
       '#architecture-error',
+    );
+
+  const overviewEyebrow =
+    document.querySelector<HTMLElement>(
+      '#architecture-overview-eyebrow',
+    );
+
+  const overviewTitle =
+    document.querySelector<HTMLElement>(
+      '#architecture-overview-title',
+    );
+
+  const overviewFlow =
+    document.querySelector<HTMLElement>(
+      '#architecture-summary-flow',
+    );
+
+  const editOverviewButton =
+    document.querySelector<HTMLButtonElement>(
+      '#architecture-edit-overview',
+    );
+
+  const overviewModal =
+    document.querySelector<HTMLElement>(
+      '#architecture-overview-modal',
+    );
+
+  const overviewForm =
+    document.querySelector<HTMLFormElement>(
+      '#architecture-overview-form',
+    );
+
+  const overviewFormEyebrow =
+    document.querySelector<HTMLInputElement>(
+      '#architecture-overview-form-eyebrow',
+    );
+
+  const overviewFormTitle =
+    document.querySelector<HTMLInputElement>(
+      '#architecture-overview-form-title',
+    );
+
+  const overviewFormFlow =
+    document.querySelector<HTMLTextAreaElement>(
+      '#architecture-overview-form-flow',
     );
 
   const historyList =
@@ -589,6 +751,11 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
       '#architecture-new-history',
     );
 
+  let architectureOverview:
+    ArchitectureOverview |
+    null =
+      null;
+
   let nodes:
     ArchitectureNode[] =
       [];
@@ -719,6 +886,136 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
             `,
           ).join('')
         : '<small>Nenhum item registrado.</small>';
+  }
+
+  function renderArchitectureOverview() {
+    const overview =
+      architectureOverview;
+
+    if (
+      !overview
+    ) {
+      return;
+    }
+
+    if (
+      overviewEyebrow
+    ) {
+      overviewEyebrow.textContent =
+        overview.eyebrow ||
+        'Visão técnica';
+    }
+
+    if (
+      overviewTitle
+    ) {
+      overviewTitle.textContent =
+        overview.title ||
+        'Arquitetura do projeto.';
+    }
+
+    if (
+      overviewFlow
+    ) {
+      const steps =
+        (
+          overview.flow_steps ||
+          []
+        )
+          .map(
+            (
+              item,
+            ) =>
+              item.trim(),
+          )
+          .filter(
+            Boolean,
+          );
+
+      overviewFlow.innerHTML =
+        steps.length
+          ? steps.map(
+              (
+                item,
+                index,
+              ) => `
+                <span>
+                  ${esc(
+                    item,
+                  )}
+                </span>
+
+                ${
+                  index <
+                  steps.length -
+                  1
+                    ? '<i>→</i>'
+                    : ''
+                }
+              `,
+            ).join(
+              '',
+            )
+          : `
+              <span>
+                Sem fluxo definido
+              </span>
+            `;
+    }
+  }
+
+  function openOverviewModal() {
+    const overview =
+      architectureOverview;
+
+    if (
+      overviewFormEyebrow
+    ) {
+      overviewFormEyebrow.value =
+        overview?.eyebrow ||
+        'Visão técnica';
+    }
+
+    if (
+      overviewFormTitle
+    ) {
+      overviewFormTitle.value =
+        overview?.title ||
+        'Do aplicativo até sincronização e segurança.';
+    }
+
+    if (
+      overviewFormFlow
+    ) {
+      overviewFormFlow.value =
+        (
+          overview?.flow_steps ||
+          [
+            'Flutter',
+            'Supabase',
+            'Dados',
+            'Sync',
+          ]
+        ).join(
+          '\n',
+        );
+    }
+
+    overviewModal?.classList.remove(
+      'member-hidden',
+    );
+
+    window.setTimeout(
+      () =>
+        overviewFormTitle?.focus(),
+      10,
+    );
+  }
+
+  function closeOverviewModal() {
+    overviewModal?.classList.add(
+      'member-hidden',
+    );
   }
 
   function updateMapFromNodes() {
@@ -1128,13 +1425,18 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
 
     try {
       const [
+        nextOverview,
         nextNodes,
         nextHistory,
       ] =
         await Promise.all([
+          getArchitectureOverview(),
           getArchitectureNodes(),
           getArchitectureHistory(),
         ]);
+
+      architectureOverview =
+        nextOverview;
 
       nodes =
         nextNodes;
@@ -1142,6 +1444,7 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
       historyEntries =
         nextHistory;
 
+      renderArchitectureOverview();
       updateMapFromNodes();
       renderMapFilter();
       renderHistory();
@@ -1244,6 +1547,120 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
           renderHistory();
         },
       );
+    },
+  );
+
+  editOverviewButton?.addEventListener(
+    'click',
+    openOverviewModal,
+  );
+
+  document
+    .querySelectorAll<HTMLButtonElement>(
+      '[data-close-overview]',
+    )
+    .forEach(
+      (
+        button,
+      ) =>
+        button.addEventListener(
+          'click',
+          closeOverviewModal,
+        ),
+    );
+
+  overviewForm?.addEventListener(
+    'submit',
+    async (
+      event,
+    ) => {
+      event.preventDefault();
+
+      const eyebrow =
+        overviewFormEyebrow?.value.trim() ||
+        '';
+
+      const title =
+        overviewFormTitle?.value.trim() ||
+        '';
+
+      const flowSteps =
+        splitValues(
+          overviewFormFlow?.value ||
+          '',
+        );
+
+      if (
+        !eyebrow ||
+        !title
+      ) {
+        showError(
+          'Preencha o rótulo e o título da visão técnica.',
+        );
+
+        return;
+      }
+
+      if (
+        !flowSteps.length
+      ) {
+        showError(
+          'Adicione pelo menos um item ao fluxo principal.',
+        );
+
+        return;
+      }
+
+      const submit =
+        overviewForm.querySelector<HTMLButtonElement>(
+          'button[type="submit"]',
+        );
+
+      const oldText =
+        submit?.textContent;
+
+      try {
+        clearError();
+
+        if (
+          submit
+        ) {
+          submit.disabled =
+            true;
+
+          submit.textContent =
+            'Salvando...';
+        }
+
+        await updateArchitectureOverview(
+          {
+            eyebrow,
+            title,
+            flowSteps,
+          },
+        );
+
+        closeOverviewModal();
+        await refresh();
+      } catch (
+        error: any
+      ) {
+        showError(
+          error?.message ||
+          'Não foi possível atualizar a visão técnica.',
+        );
+      } finally {
+        if (
+          submit
+        ) {
+          submit.disabled =
+            false;
+
+          submit.textContent =
+            oldText ||
+            'Salvar visão';
+        }
+      }
     },
   );
 
@@ -1488,6 +1905,97 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
   .architecture-summary-flow{display:flex;align-items:center;gap:8px;color:var(--text-soft)}
   .architecture-summary-flow span{padding:7px 9px;border:1px solid rgba(65,104,62,.10);border-radius:9px;background:rgba(255,255,255,.78);color:var(--text);font-size:8px;font-weight:850}
   .architecture-summary-flow i{font-size:10px;font-style:normal}
+
+  .architecture-summary-copy{
+    min-width:0;
+  }
+
+  .architecture-summary-right{
+    min-width:0;
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    gap:10px;
+  }
+
+  .architecture-summary-edit{
+    min-height:32px;
+    padding:0 10px;
+    flex:0 0 auto;
+    border:1px solid rgba(65,104,62,.11);
+    border-radius:9px;
+    background:rgba(255,255,255,.82);
+    color:var(--primary-deep);
+    font:inherit;
+    font-size:7px;
+    font-weight:850;
+    cursor:pointer;
+  }
+
+  .architecture-summary-edit:hover{
+    border-color:rgba(54,95,53,.24);
+    background:#fff;
+  }
+
+  .architecture-overview-modal-copy{
+    margin:13px 0 0;
+    color:var(--text-soft);
+    font-size:9px;
+    line-height:1.6;
+  }
+
+  #architecture-overview-form{
+    margin-top:18px;
+    display:grid;
+    gap:12px;
+  }
+
+  #architecture-overview-form label{
+    display:grid;
+    gap:6px;
+  }
+
+  #architecture-overview-form label > span{
+    color:var(--text-soft);
+    font-size:8px;
+    font-weight:800;
+  }
+
+  #architecture-overview-form label > small{
+    color:var(--text-soft);
+    font-size:7px;
+    line-height:1.45;
+  }
+
+  #architecture-overview-form input,
+  #architecture-overview-form textarea{
+    width:100%;
+    box-sizing:border-box;
+    border:1px solid rgba(65,104,62,.12);
+    border-radius:10px;
+    background:#fff;
+    color:var(--text);
+    font:inherit;
+    font-size:9px;
+    outline:none;
+  }
+
+  #architecture-overview-form input{
+    min-height:39px;
+    padding:0 11px;
+  }
+
+  #architecture-overview-form textarea{
+    padding:10px 11px;
+    resize:vertical;
+    line-height:1.5;
+  }
+
+  #architecture-overview-form input:focus,
+  #architecture-overview-form textarea:focus{
+    border-color:rgba(54,95,53,.32);
+    box-shadow:0 0 0 3px rgba(54,95,53,.05);
+  }
   .architecture-toolbar{margin-top:18px;display:flex;align-items:center;justify-content:space-between;gap:14px}
   .architecture-filters,.architecture-toolbar-actions{display:flex;align-items:center;flex-wrap:wrap;gap:7px}
   .architecture-filter,.architecture-roadmap-link,.architecture-validation-link,.architecture-new-button{min-height:37px;padding:0 12px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(65,104,62,.11);border-radius:10px;background:rgba(255,255,255,.80);color:var(--text-soft);font:inherit;font-size:8px;font-weight:850;text-decoration:none;cursor:pointer}
@@ -1654,6 +2162,8 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
 
   @media(max-width:620px){
     .architecture-summary-flow{width:100%;flex-wrap:wrap}
+    .architecture-summary-right{width:100%;align-items:flex-start;flex-direction:column}
+    .architecture-summary-edit{width:100%}
     .architecture-map{padding:14px}
     .architecture-map-branches,.architecture-form-grid{grid-template-columns:1fr}
     .architecture-toolbar-actions,.architecture-new-button,.architecture-roadmap-link,.architecture-validation-link{width:100%}

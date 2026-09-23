@@ -19,6 +19,16 @@ export type ArchitectureNode = {
   updated_at: string;
 };
 
+
+export type ArchitectureOverview = {
+  id: string;
+  eyebrow: string;
+  title: string;
+  flow_steps: string[];
+  updated_by: string | null;
+  updated_at: string;
+};
+
 export type ArchitectureHistoryEntry = {
   id: string;
   title: string;
@@ -66,6 +76,74 @@ function normalizeRows<T>(
       : []
   ) as T[];
 }
+
+export async function getArchitectureOverview(): Promise<
+  ArchitectureOverview |
+  null
+> {
+  const {
+    data,
+    error,
+  } =
+    await supabase.rpc(
+      'get_colab_architecture_overview',
+    );
+
+  if (error) {
+    fail(
+      error,
+      'Não foi possível carregar o resumo da arquitetura.',
+    );
+  }
+
+  const rows =
+    normalizeRows<
+      ArchitectureOverview
+    >(
+      data,
+    );
+
+  return (
+    rows[0] ||
+    null
+  );
+}
+
+export async function updateArchitectureOverview(
+  input: {
+    eyebrow: string;
+    title: string;
+    flowSteps: string[];
+  },
+) {
+  const {
+    data,
+    error,
+  } =
+    await supabase.rpc(
+      'update_colab_architecture_overview',
+      {
+        p_eyebrow:
+          input.eyebrow,
+
+        p_title:
+          input.title,
+
+        p_flow_steps:
+          input.flowSteps,
+      },
+    );
+
+  if (error) {
+    fail(
+      error,
+      'Não foi possível atualizar o resumo da arquitetura.',
+    );
+  }
+
+  return data as string;
+}
+
 
 export async function getArchitectureNodes(): Promise<
   ArchitectureNode[]

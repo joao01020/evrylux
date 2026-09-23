@@ -24,6 +24,33 @@ alter table
 add column if not exists
   summary text;
 
+create table if not exists public.colab_architecture_overview (
+  id uuid primary key default gen_random_uuid(),
+  singleton_key text not null unique default 'main',
+  eyebrow text not null default 'Visão técnica',
+  title text not null default 'Do aplicativo até sincronização e segurança.',
+  flow_steps text[] not null default array['Flutter','Supabase','Dados','Sync']::text[],
+  updated_by uuid references auth.users(id) on delete set null,
+  updated_at timestamptz not null default now(),
+  constraint colab_architecture_overview_singleton
+    check (singleton_key = 'main')
+);
+
+insert into public.colab_architecture_overview (
+  singleton_key,
+  eyebrow,
+  title,
+  flow_steps
+)
+values (
+  'main',
+  'Visão técnica',
+  'Do aplicativo até sincronização e segurança.',
+  array['Flutter','Supabase','Dados','Sync']::text[]
+)
+on conflict (singleton_key)
+do nothing;
+
 create table if not exists public.colab_architecture_history (
   id uuid primary key default gen_random_uuid(),
   title text not null,
@@ -42,9 +69,11 @@ create index if not exists colab_architecture_history_occurred_idx
 on public.colab_architecture_history (occurred_at desc, created_at desc);
 
 alter table public.colab_architecture_nodes enable row level security;
+alter table public.colab_architecture_overview enable row level security;
 alter table public.colab_architecture_history enable row level security;
 
 revoke all on table public.colab_architecture_nodes from public, anon, authenticated;
+revoke all on table public.colab_architecture_overview from public, anon, authenticated;
 revoke all on table public.colab_architecture_history from public, anon, authenticated;
 
 insert into public.colab_architecture_nodes (
@@ -154,6 +183,124 @@ values
 )
 on conflict (slug)
 do nothing;
+
+
+drop function if exists public.get_colab_architecture_overview();
+
+create function public.get_colab_architecture_overview()
+returns table (
+  id uuid,
+  eyebrow text,
+  title text,
+  flow_steps text[],
+  updated_by uuid,
+  updated_at timestamptz
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    o.id,
+    o.eyebrow,
+    o.title,
+    o.flow_steps,
+    o.updated_by,
+    o.updated_at
+  from public.colab_architecture_overview o
+  where
+    o.singleton_key = 'main'
+    and auth.uid() is not null
+  limit 1;
+$$;
+
+
+drop function if exists public.update_colab_architecture_overview(
+  text,
+  text,
+  text[]
+);
+
+create function public.update_colab_architecture_overview(
+  p_eyebrow text,
+  p_title text,
+  p_flow_steps text[]
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_id uuid;
+  v_steps text[];
+begin
+  if auth.uid() is null then
+    raise exception
+      'Sessão autenticada necessária'
+      using errcode = '42501';
+  end if;
+
+  if char_length(trim(coalesce(p_eyebrow,''))) < 2 then
+    raise exception 'Rótulo inválido';
+  end if;
+
+  if char_length(trim(coalesce(p_title,''))) < 3 then
+    raise exception 'Título inválido';
+  end if;
+
+  select
+    coalesce(
+      array_agg(trim(value))
+        filter (
+          where trim(value) <> ''
+        ),
+      '{}'::text[]
+    )
+  into
+    v_steps
+  from unnest(
+    coalesce(
+      p_flow_steps,
+      '{}'::text[]
+    )
+  ) as value;
+
+  if cardinality(v_steps) < 1 then
+    raise exception
+      'Adicione pelo menos um item ao fluxo';
+  end if;
+
+  insert into public.colab_architecture_overview (
+    singleton_key,
+    eyebrow,
+    title,
+    flow_steps,
+    updated_by,
+    updated_at
+  )
+  values (
+    'main',
+    trim(p_eyebrow),
+    trim(p_title),
+    v_steps,
+    auth.uid(),
+    now()
+  )
+  on conflict (singleton_key)
+  do update set
+    eyebrow = excluded.eyebrow,
+    title = excluded.title,
+    flow_steps = excluded.flow_steps,
+    updated_by = excluded.updated_by,
+    updated_at = excluded.updated_at
+  returning id into v_id;
+
+  return v_id;
+end;
+$$;
+
 
 drop function if exists public.list_colab_architecture_nodes();
 
@@ -412,6 +559,16 @@ begin
   return v_id;
 end;
 $$;
+
+grant execute on function public.get_colab_architecture_overview()
+to authenticated;
+
+grant execute on function public.update_colab_architecture_overview(
+  text,
+  text,
+  text[]
+)
+to authenticated;
 
 grant execute on function public.list_colab_architecture_nodes()
 to authenticated;
