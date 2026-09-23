@@ -42,6 +42,23 @@ export type ValidationHistoryEntry = {
   created_at: string;
 };
 
+export type ValidationAttachment = {
+  id: string;
+  validation_item_id: string;
+  storage_path: string;
+  file_name: string;
+  mime_type: string;
+  file_size: number;
+  created_by: string;
+  created_at: string;
+};
+
+const VALIDATION_ATTACHMENT_BUCKET =
+  'colab-validation-files';
+
+const MAX_VALIDATION_MARKDOWN_BYTES =
+  2 * 1024 * 1024;
+
 export const validationHistoryPhaseLabels:
   Record<ValidationHistoryPhase,string> = {
     planning: 'Planejamento',
@@ -363,3 +380,248 @@ export async function addValidationHistoryEntry(
   return data as string;
 }
 
+
+
+export async function getValidationAttachments(): Promise<ValidationAttachment[]> {
+  const {
+    data,
+    error,
+  } =
+    await supabase.rpc(
+      'list_colab_validation_attachments',
+    );
+
+  if (error) {
+    fail(
+      error,
+      'Não foi possível carregar os arquivos técnicos.',
+    );
+  }
+
+  return (
+    Array.isArray(data)
+      ? data
+      : []
+  ) as ValidationAttachment[];
+}
+
+function safeMarkdownFileName(
+  name: string,
+) {
+  const withoutPath =
+    name
+      .split(/[\\/]/)
+      .pop() ||
+    'documentacao.md';
+
+  const cleaned =
+    withoutPath
+      .normalize('NFKD')
+      .replace(
+        /[\u0300-\u036f]/g,
+        '',
+      )
+      .replace(
+        /[^a-zA-Z0-9._-]+/g,
+        '-',
+      )
+      .replace(
+        /-+/g,
+        '-',
+      )
+      .replace(
+        /^[-.]+|[-.]+$/g,
+        '',
+      );
+
+  const base =
+    cleaned ||
+    'documentacao.md';
+
+  return base
+    .toLowerCase()
+    .endsWith('.md')
+      ? base
+      : `${base}.md`;
+}
+
+export async function uploadValidationMarkdownAttachment(
+  validationItemId: string,
+  file: File,
+) {
+  if (
+    !validationItemId
+  ) {
+    throw new Error(
+      'Item de validação inválido.',
+    );
+  }
+
+  const fileName =
+    safeMarkdownFileName(
+      file.name,
+    );
+
+  if (
+    !fileName
+      .toLowerCase()
+      .endsWith('.md')
+  ) {
+    throw new Error(
+      'Envie somente arquivos .md.',
+    );
+  }
+
+  if (
+    file.size <=
+    0
+  ) {
+    throw new Error(
+      'O arquivo está vazio.',
+    );
+  }
+
+  if (
+    file.size >
+    MAX_VALIDATION_MARKDOWN_BYTES
+  ) {
+    throw new Error(
+      'O arquivo .md pode ter no máximo 2 MB.',
+    );
+  }
+
+  const {
+    data: authData,
+    error: authError,
+  } =
+    await supabase.auth.getUser();
+
+  if (
+    authError ||
+    !authData.user
+  ) {
+    throw new Error(
+      'Sessão autenticada necessária.',
+    );
+  }
+
+  const randomPart =
+    typeof crypto !== 'undefined' &&
+    'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : Math.random()
+          .toString(36)
+          .slice(2);
+
+  const storagePath =
+    [
+      authData.user.id,
+      validationItemId,
+      `${Date.now()}-${randomPart}-${fileName}`,
+    ].join('/');
+
+  const {
+    error: uploadError,
+  } =
+    await supabase
+      .storage
+      .from(
+        VALIDATION_ATTACHMENT_BUCKET,
+      )
+      .upload(
+        storagePath,
+        file,
+        {
+          cacheControl:
+            '3600',
+
+          contentType:
+            'text/markdown',
+
+          upsert:
+            false,
+        },
+      );
+
+  if (
+    uploadError
+  ) {
+    fail(
+      uploadError,
+      'Não foi possível enviar o arquivo .md.',
+    );
+  }
+
+  const {
+    data,
+    error,
+  } =
+    await supabase.rpc(
+      'register_colab_validation_attachment',
+      {
+        p_validation_id:
+          validationItemId,
+
+        p_storage_path:
+          storagePath,
+
+        p_file_name:
+          fileName,
+
+        p_mime_type:
+          'text/markdown',
+
+        p_file_size:
+          file.size,
+      },
+    );
+
+  if (
+    error
+  ) {
+    await supabase
+      .storage
+      .from(
+        VALIDATION_ATTACHMENT_BUCKET,
+      )
+      .remove([
+        storagePath,
+      ]);
+
+    fail(
+      error,
+      'Não foi possível registrar o arquivo técnico.',
+    );
+  }
+
+  return data as string;
+}
+
+export async function downloadValidationMarkdownAttachment(
+  storagePath: string,
+) {
+  const {
+    data,
+    error,
+  } =
+    await supabase
+      .storage
+      .from(
+        VALIDATION_ATTACHMENT_BUCKET,
+      )
+      .download(
+        storagePath,
+      );
+
+  if (
+    error ||
+    !data
+  ) {
+    fail(
+      error,
+      'Não foi possível baixar o arquivo .md.',
+    );
+  }
+
+  return data as Blob;
+}

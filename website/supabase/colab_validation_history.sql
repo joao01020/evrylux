@@ -665,4 +665,376 @@ on function
 to authenticated;
 
 
+-- ============================================================
+-- ARQUIVOS TÉCNICOS .MD DA VALIDAÇÃO
+-- ============================================================
+
+insert into storage.buckets (
+  id,
+  name,
+  public,
+  file_size_limit,
+  allowed_mime_types
+)
+values (
+  'colab-validation-files',
+  'colab-validation-files',
+  false,
+  2097152,
+  array[
+    'text/markdown'
+  ]::text[]
+)
+on conflict (id)
+do update set
+  public =
+    false,
+  file_size_limit =
+    2097152,
+  allowed_mime_types =
+    array[
+      'text/markdown'
+    ]::text[];
+
+
+create table if not exists
+  public.colab_validation_attachments (
+    id uuid primary key
+      default gen_random_uuid(),
+
+    validation_item_id uuid not null
+      references public.colab_validation_items(id)
+      on delete cascade,
+
+    storage_path text not null unique,
+
+    file_name text not null,
+
+    mime_type text not null
+      default 'text/markdown',
+
+    file_size bigint not null
+      check (
+        file_size >
+        0
+        and
+        file_size <=
+        2097152
+      ),
+
+    created_by uuid not null
+      references auth.users(id)
+      on delete restrict,
+
+    created_at timestamptz not null
+      default now()
+  );
+
+
+create index if not exists
+  colab_validation_attachments_item_created_idx
+on public.colab_validation_attachments (
+  validation_item_id,
+  created_at desc
+);
+
+
+alter table
+  public.colab_validation_attachments
+enable row level security;
+
+
+revoke all
+on table
+  public.colab_validation_attachments
+from
+  public,
+  anon,
+  authenticated;
+
+
+drop policy if exists
+  "validation markdown authenticated read"
+on storage.objects;
+
+create policy
+  "validation markdown authenticated read"
+on storage.objects
+for select
+to authenticated
+using (
+  bucket_id =
+  'colab-validation-files'
+);
+
+
+drop policy if exists
+  "validation markdown own upload"
+on storage.objects;
+
+create policy
+  "validation markdown own upload"
+on storage.objects
+for insert
+to authenticated
+with check (
+  bucket_id =
+  'colab-validation-files'
+  and
+  (storage.foldername(name))[1] =
+  auth.uid()::text
+);
+
+
+drop policy if exists
+  "validation markdown own cleanup"
+on storage.objects;
+
+create policy
+  "validation markdown own cleanup"
+on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id =
+  'colab-validation-files'
+  and
+  (storage.foldername(name))[1] =
+  auth.uid()::text
+);
+
+
+drop function if exists
+  public.list_colab_validation_attachments();
+
+create function
+  public.list_colab_validation_attachments()
+returns table (
+  id uuid,
+  validation_item_id uuid,
+  storage_path text,
+  file_name text,
+  mime_type text,
+  file_size bigint,
+  created_by uuid,
+  created_at timestamptz
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    a.id,
+    a.validation_item_id,
+    a.storage_path,
+    a.file_name,
+    a.mime_type,
+    a.file_size,
+    a.created_by,
+    a.created_at
+  from public.colab_validation_attachments a
+  join public.colab_validation_items vi
+    on vi.id =
+       a.validation_item_id
+  where
+    auth.uid()
+    is not null
+  order by
+    a.validation_item_id,
+    a.created_at desc;
+$$;
+
+
+drop function if exists
+  public.register_colab_validation_attachment(
+    uuid,
+    text,
+    text,
+    text,
+    bigint
+  );
+
+create function
+  public.register_colab_validation_attachment(
+    p_validation_id uuid,
+    p_storage_path text,
+    p_file_name text,
+    p_mime_type text,
+    p_file_size bigint
+  )
+returns uuid
+language plpgsql
+security definer
+set search_path = public, storage
+as $$
+declare
+  v_id uuid;
+  v_file_name text;
+  v_path text;
+begin
+  if
+    auth.uid()
+    is null
+  then
+    raise exception
+      'Sessão autenticada necessária'
+      using errcode =
+        '42501';
+  end if;
+
+  v_file_name :=
+    trim(
+      coalesce(
+        p_file_name,
+        ''
+      )
+    );
+
+  v_path :=
+    trim(
+      coalesce(
+        p_storage_path,
+        ''
+      )
+    );
+
+  if
+    char_length(
+      v_file_name
+    ) <
+    4
+    or
+    lower(
+      right(
+        v_file_name,
+        3
+      )
+    ) <>
+    '.md'
+  then
+    raise exception
+      'Somente arquivos .md são permitidos';
+  end if;
+
+  if
+    p_file_size
+    is null
+    or
+    p_file_size <=
+    0
+    or
+    p_file_size >
+    2097152
+  then
+    raise exception
+      'Arquivo inválido ou maior que 2 MB';
+  end if;
+
+  if
+    split_part(
+      v_path,
+      '/',
+      1
+    ) <>
+    auth.uid()::text
+    or
+    split_part(
+      v_path,
+      '/',
+      2
+    ) <>
+    p_validation_id::text
+  then
+    raise exception
+      'Caminho do arquivo inválido'
+      using errcode =
+        '42501';
+  end if;
+
+  if not exists (
+    select
+      1
+    from
+      public.colab_validation_items vi
+    where
+      vi.id =
+      p_validation_id
+  ) then
+    raise exception
+      'Item de validação não encontrado';
+  end if;
+
+  if not exists (
+    select
+      1
+    from
+      storage.objects o
+    where
+      o.bucket_id =
+      'colab-validation-files'
+      and
+      o.name =
+      v_path
+  ) then
+    raise exception
+      'Arquivo não encontrado no Storage';
+  end if;
+
+  insert into
+    public.colab_validation_attachments (
+      validation_item_id,
+      storage_path,
+      file_name,
+      mime_type,
+      file_size,
+      created_by
+    )
+  values (
+    p_validation_id,
+    v_path,
+    v_file_name,
+    'text/markdown',
+    p_file_size,
+    auth.uid()
+  )
+  returning
+    id
+  into
+    v_id;
+
+  update
+    public.colab_validation_items
+  set
+    updated_by =
+      auth.uid(),
+    updated_at =
+      now()
+  where
+    id =
+    p_validation_id;
+
+  return
+    v_id;
+end;
+$$;
+
+
+grant execute
+on function
+  public.list_colab_validation_attachments()
+to authenticated;
+
+grant execute
+on function
+  public.register_colab_validation_attachment(
+    uuid,
+    text,
+    text,
+    text,
+    bigint
+  )
+to authenticated;
+
+
 commit;

@@ -300,17 +300,21 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
   import {
     addValidationHistoryEntry,
     canFinalizeValidation,
+    downloadValidationMarkdownAttachment,
     createValidationItem,
     editValidationItem,
     finalizeValidation,
+    getValidationAttachments,
     getValidationHistory,
     getValidationItems,
     proposeRemoval,
     updateValidation,
+    uploadValidationMarkdownAttachment,
     validationHistoryPhaseLabels,
     validationHistoryResultLabels,
     validationStatusLabels,
     voteValidation,
+    type ValidationAttachment,
     type ValidationHistoryEntry,
     type ValidationHistoryPhase,
     type ValidationHistoryResult,
@@ -387,6 +391,10 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
     ValidationHistoryEntry[] =
       [];
 
+  let validationAttachments:
+    ValidationAttachment[] =
+      [];
+
   const expandedCards =
     new Set<string>();
 
@@ -413,6 +421,143 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
 
   function avatarFor(userId: string | null) {
     return profileFor(userId)?.avatar_url?.trim() || '/branding/default-profile-avatar.png';
+  }
+
+  function attachmentsFor(
+    validationItemId: string,
+  ) {
+    return validationAttachments
+      .filter(
+        (
+          attachment,
+        ) =>
+          attachment.validation_item_id ===
+          validationItemId,
+      )
+      .sort(
+        (
+          a,
+          b,
+        ) =>
+          new Date(
+            b.created_at,
+          ).getTime() -
+          new Date(
+            a.created_at,
+          ).getTime(),
+      );
+  }
+
+  function formatFileSize(
+    bytes: number,
+  ) {
+    if (
+      !Number.isFinite(
+        bytes,
+      ) ||
+      bytes <=
+      0
+    ) {
+      return '0 KB';
+    }
+
+    if (
+      bytes <
+      1024
+    ) {
+      return `${bytes} B`;
+    }
+
+    const kb =
+      bytes /
+      1024;
+
+    if (
+      kb <
+      1024
+    ) {
+      return `${kb.toFixed(
+        kb >= 100
+          ? 0
+          : 1,
+      )} KB`;
+    }
+
+    return `${(
+      kb /
+      1024
+    ).toFixed(1)} MB`;
+  }
+
+  function attachmentList(
+    item: ValidationItem,
+  ) {
+    const attachments =
+      attachmentsFor(
+        item.id,
+      );
+
+    if (
+      !attachments.length
+    ) {
+      return `
+        <div class="validation-attachments-empty">
+          <strong>Nenhum arquivo técnico anexado.</strong>
+          <span>
+            Anexe um .md com classes, variáveis, tabelas,
+            decisões e evidências do que foi testado.
+          </span>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="validation-attachment-list">
+        ${attachments.map(
+          (
+            attachment,
+          ) => `
+            <article class="validation-attachment-row">
+              <div class="validation-attachment-file-icon">
+                MD
+              </div>
+
+              <div class="validation-attachment-copy">
+                <strong>
+                  ${esc(
+                    attachment.file_name,
+                  )}
+                </strong>
+
+                <span>
+                  ${esc(
+                    formatFileSize(
+                      attachment.file_size,
+                    ),
+                  )}
+                  ·
+                  ${esc(
+                    formatHistoryDate(
+                      attachment.created_at,
+                    ),
+                  )}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                class="validation-attachment-download"
+                data-download-attachment="${esc(
+                  attachment.id,
+                )}"
+              >
+                Baixar
+              </button>
+            </article>
+          `,
+        ).join('')}
+      </div>
+    `;
   }
 
   function historyFor(
@@ -720,6 +865,11 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
         item.id,
       );
 
+    const itemAttachments =
+      attachmentsFor(
+        item.id,
+      );
+
     const latestHistory =
       latestHistoryFor(
         item.id,
@@ -977,6 +1127,73 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
             }
           </div>
 
+          <section class="validation-attachments-section">
+            <div class="validation-attachments-head">
+              <div>
+                <span>Documentação técnica</span>
+
+                <strong>
+                  Arquivos da função
+                </strong>
+              </div>
+
+              <small>
+                ${itemAttachments.length}
+                ${
+                  itemAttachments.length ===
+                  1
+                    ? 'arquivo'
+                    : 'arquivos'
+                }
+              </small>
+            </div>
+
+            <p class="validation-attachments-help">
+              Use arquivos Markdown para registrar nomes de classes,
+              variáveis, tabelas do banco, decisões de implementação
+              e o que foi testado. Os próximos membros poderão baixar
+              esse histórico técnico.
+            </p>
+
+            <div class="validation-attachment-upload">
+              <label>
+                <input
+                  type="file"
+                  accept=".md,text/markdown"
+                  data-attachment-file="${esc(
+                    item.id,
+                  )}"
+                />
+
+                <span>
+                  Escolher .md
+                </span>
+              </label>
+
+              <button
+                type="button"
+                data-upload-attachment="${esc(
+                  item.id,
+                )}"
+              >
+                Anexar arquivo
+              </button>
+            </div>
+
+            <div
+              class="validation-attachment-selection"
+              data-attachment-selection="${esc(
+                item.id,
+              )}"
+            >
+              Nenhum arquivo selecionado
+            </div>
+
+            ${attachmentList(
+              item,
+            )}
+          </section>
+
           <section class="validation-history-section">
             <div class="validation-history-head">
               <div>
@@ -1147,10 +1364,12 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
     const [
       nextItems,
       nextHistory,
+      nextAttachments,
     ] =
       await Promise.all([
         getValidationItems(),
         getValidationHistory(),
+        getValidationAttachments(),
       ]);
 
     items =
@@ -1158,6 +1377,9 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
 
     historyEntries =
       nextHistory;
+
+    validationAttachments =
+      nextAttachments;
 
     render();
   }
@@ -1230,6 +1452,235 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
                 openHistoryModal(
                   item,
                 );
+              }
+            },
+          );
+        },
+      );
+
+    document
+      .querySelectorAll<HTMLInputElement>(
+        '[data-attachment-file]',
+      )
+      .forEach(
+        (
+          input,
+        ) => {
+          input.addEventListener(
+            'change',
+            () => {
+              const id =
+                input.dataset.attachmentFile ||
+                '';
+
+              const target =
+                document.querySelector<HTMLElement>(
+                  `[data-attachment-selection="${CSS.escape(
+                    id,
+                  )}"]`,
+                );
+
+              const file =
+                input.files?.[
+                  0
+                ];
+
+              if (
+                target
+              ) {
+                target.textContent =
+                  file
+                    ? `${file.name} · ${formatFileSize(
+                        file.size,
+                      )}`
+                    : 'Nenhum arquivo selecionado';
+              }
+            },
+          );
+        },
+      );
+
+    document
+      .querySelectorAll<HTMLButtonElement>(
+        '[data-upload-attachment]',
+      )
+      .forEach(
+        (
+          button,
+        ) => {
+          button.addEventListener(
+            'click',
+            async () => {
+              const id =
+                button.dataset.uploadAttachment ||
+                '';
+
+              const input =
+                document.querySelector<HTMLInputElement>(
+                  `[data-attachment-file="${CSS.escape(
+                    id,
+                  )}"]`,
+                );
+
+              const file =
+                input?.files?.[
+                  0
+                ];
+
+              if (
+                !id ||
+                !file
+              ) {
+                showError(
+                  'Escolha um arquivo .md antes de anexar.',
+                );
+
+                return;
+              }
+
+              if (
+                !file.name
+                  .toLowerCase()
+                  .endsWith(
+                    '.md',
+                  )
+              ) {
+                showError(
+                  'Somente arquivos .md podem ser anexados.',
+                );
+
+                return;
+              }
+
+              const oldText =
+                button.textContent;
+
+              try {
+                clearError();
+
+                button.disabled =
+                  true;
+
+                button.textContent =
+                  'Enviando...';
+
+                await uploadValidationMarkdownAttachment(
+                  id,
+                  file,
+                );
+
+                expandedCards.add(
+                  id,
+                );
+
+                await refresh();
+              } catch (
+                error: any
+              ) {
+                showError(
+                  error?.message ||
+                  'Não foi possível anexar o arquivo.',
+                );
+              } finally {
+                button.disabled =
+                  false;
+
+                button.textContent =
+                  oldText ||
+                  'Anexar arquivo';
+              }
+            },
+          );
+        },
+      );
+
+    document
+      .querySelectorAll<HTMLButtonElement>(
+        '[data-download-attachment]',
+      )
+      .forEach(
+        (
+          button,
+        ) => {
+          button.addEventListener(
+            'click',
+            async () => {
+              const attachment =
+                validationAttachments.find(
+                  (
+                    current,
+                  ) =>
+                    current.id ===
+                    button.dataset.downloadAttachment,
+                );
+
+              if (
+                !attachment
+              ) {
+                return;
+              }
+
+              const oldText =
+                button.textContent;
+
+              try {
+                clearError();
+
+                button.disabled =
+                  true;
+
+                button.textContent =
+                  'Baixando...';
+
+                const blob =
+                  await downloadValidationMarkdownAttachment(
+                    attachment.storage_path,
+                  );
+
+                const url =
+                  URL.createObjectURL(
+                    blob,
+                  );
+
+                const anchor =
+                  document.createElement(
+                    'a',
+                  );
+
+                anchor.href =
+                  url;
+
+                anchor.download =
+                  attachment.file_name;
+
+                document.body.appendChild(
+                  anchor,
+                );
+
+                anchor.click();
+                anchor.remove();
+
+                window.setTimeout(
+                  () =>
+                    URL.revokeObjectURL(
+                      url,
+                    ),
+                  1000,
+                );
+              } catch (
+                error: any
+              ) {
+                showError(
+                  error?.message ||
+                  'Não foi possível baixar o arquivo.',
+                );
+              } finally {
+                button.disabled =
+                  false;
+
+                button.textContent =
+                  oldText ||
+                  'Baixar';
               }
             },
           );
@@ -1791,6 +2242,16 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
   .validation-card-top,.validation-voting-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
   .validation-status,.validation-source{min-height:22px;padding:0 8px;display:inline-flex;align-items:center;border-radius:999px;font-size:7px;font-weight:820}
   .validation-status{background:var(--primary-soft);color:var(--primary-deep)}
+  .validation-card.status-untested .validation-status{
+    background:#fff1b8;
+    color:#755a00;
+    border:1px solid rgba(181,139,0,.14);
+  }
+  .validation-card.status-testing .validation-status{
+    background:#dff3d9;
+    color:#315f31;
+    border:1px solid rgba(49,95,49,.10);
+  }
   .validation-source{background:rgba(23,32,25,.045);color:var(--text-soft)}
   .validation-card h2{margin:12px 0 0;font-size:16px;line-height:1.25}
   .validation-description{margin:6px 0 0;color:var(--text-soft);font-size:9px;line-height:1.55}
@@ -2486,5 +2947,202 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
       flex-basis: 7px;
     }
   }
+
+  .validation-attachments-section {
+    margin-top: 13px;
+    padding-top: 13px;
+    border-top: 1px solid rgba(65,104,62,.08);
+  }
+
+  .validation-attachments-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .validation-attachments-head span,
+  .validation-attachments-head small {
+    color: var(--text-soft);
+    font-size: 7px;
+  }
+
+  .validation-attachments-head strong {
+    display: block;
+    margin-top: 2px;
+    font-size: 9px;
+  }
+
+  .validation-attachments-help {
+    margin: 8px 0 0;
+    color: var(--text-soft);
+    font-size: 8px;
+    line-height: 1.55;
+  }
+
+  .validation-attachment-upload {
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns: minmax(0,1fr) auto;
+    gap: 7px;
+  }
+
+  .validation-attachment-upload label {
+    min-width: 0;
+  }
+
+  .validation-attachment-upload input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .validation-attachment-upload label > span,
+  .validation-attachment-upload > button {
+    min-height: 33px;
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(65,104,62,.11);
+    border-radius: 9px;
+    background: #fff;
+    color: var(--text);
+    font: inherit;
+    font-size: 8px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .validation-attachment-upload label > span {
+    justify-content: flex-start;
+    color: var(--primary-deep);
+    background: rgba(239,248,235,.72);
+  }
+
+  .validation-attachment-upload > button {
+    background: var(--primary-deep);
+    border-color: var(--primary-deep);
+    color: #fff;
+  }
+
+  .validation-attachment-upload > button:disabled,
+  .validation-attachment-download:disabled {
+    cursor: wait;
+    opacity: .65;
+  }
+
+  .validation-attachment-selection {
+    margin-top: 6px;
+    color: var(--text-soft);
+    font-size: 7px;
+  }
+
+  .validation-attachment-list {
+    margin-top: 10px;
+    display: grid;
+    gap: 6px;
+  }
+
+  .validation-attachment-row {
+    padding: 8px;
+    display: grid;
+    grid-template-columns: 31px minmax(0,1fr) auto;
+    gap: 8px;
+    align-items: center;
+    border: 1px solid rgba(65,104,62,.08);
+    border-radius: 10px;
+    background: rgba(247,250,245,.72);
+  }
+
+  .validation-attachment-file-icon {
+    width: 31px;
+    height: 31px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    background: var(--primary-soft);
+    color: var(--primary-deep);
+    font-size: 7px;
+    font-weight: 900;
+    letter-spacing: .03em;
+  }
+
+  .validation-attachment-copy {
+    min-width: 0;
+  }
+
+  .validation-attachment-copy strong,
+  .validation-attachment-copy span {
+    display: block;
+  }
+
+  .validation-attachment-copy strong {
+    overflow: hidden;
+    color: var(--text);
+    font-size: 8px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .validation-attachment-copy span {
+    margin-top: 2px;
+    color: var(--text-soft);
+    font-size: 7px;
+  }
+
+  .validation-attachment-download {
+    min-height: 29px;
+    padding: 0 9px;
+    border: 1px solid rgba(65,104,62,.11);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--primary-deep);
+    font: inherit;
+    font-size: 7px;
+    font-weight: 850;
+    cursor: pointer;
+  }
+
+  .validation-attachments-empty {
+    margin-top: 10px;
+    padding: 10px;
+    border: 1px dashed rgba(65,104,62,.14);
+    border-radius: 10px;
+    background: rgba(247,250,245,.55);
+  }
+
+  .validation-attachments-empty strong,
+  .validation-attachments-empty span {
+    display: block;
+  }
+
+  .validation-attachments-empty strong {
+    font-size: 8px;
+  }
+
+  .validation-attachments-empty span {
+    margin-top: 3px;
+    color: var(--text-soft);
+    font-size: 7px;
+    line-height: 1.5;
+  }
+
+  @media (max-width: 620px) {
+    .validation-attachment-upload {
+      grid-template-columns: 1fr;
+    }
+
+    .validation-attachment-row {
+      grid-template-columns: 31px minmax(0,1fr);
+    }
+
+    .validation-attachment-download {
+      grid-column: 1 / -1;
+    }
+  }
+
 </style>
 
