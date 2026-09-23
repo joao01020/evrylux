@@ -1,0 +1,41 @@
+# CODEOWNERS
+
+# 
+
+# Define revisores responsáveis por áreas do repositório.
+
+# quando quiser incluir revisão automática para ela.
+
+# 
+
+# Exemplo:
+
+# /app/ @joao01020
+
+# Fallback: revisão geral do repositório
+
+- @joao01020
+
+# Aplicação Flutter
+
+/app/ @joao01020
+
+# Website
+
+/website/ @joao01020
+
+# Supabase, migrations e backend
+
+/supabase/ @joao01020
+
+# GitHub Actions, templates e políticas
+
+/.github/ @joao01020
+
+# Documentação
+
+/docs/ @joao01020
+
+# Scripts
+
+/scripts/ @joao01020

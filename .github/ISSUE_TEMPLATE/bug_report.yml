@@ -1,28 +1,40 @@
+```yaml
 name: Bug report
 description: Relate um comportamento incorreto ou inesperado
 title: "[BUG] "
 labels:
   - bug
+
 body:
   - type: markdown
     attributes:
       value: |
         Obrigado por reportar o problema.
 
-        Não inclua senhas, tokens, chaves, `.env`, dados pessoais ou detalhes de vulnerabilidades de segurança.
+        Antes de continuar:
 
-        Vulnerabilidades devem seguir o processo definido em `SECURITY.md`.
+        - não inclua senhas, tokens, chaves, `.env`, dados pessoais ou outras informações sensíveis;
+        - procure por issues existentes para evitar relatos duplicados;
+        - vulnerabilidades de segurança não devem ser reportadas publicamente.
+
+        Vulnerabilidades devem seguir o processo definido em `.github/SECURITY.md`.
 
   - type: checkboxes
     id: checks
     attributes:
       label: Verificações iniciais
+      description: Confirme os itens abaixo antes de enviar o relatório.
       options:
         - label: Procurei por issues existentes e não encontrei este mesmo problema.
           required: true
-        - label: Estou utilizando uma versão atual do projeto.
+
+        - label: Estou utilizando uma versão atual ou consigo identificar a branch/commit onde o problema acontece.
           required: true
-        - label: Este relato não contém credenciais ou informações sensíveis.
+
+        - label: Este relato não contém credenciais, tokens, chaves, `.env`, dados pessoais ou outras informações sensíveis.
+          required: true
+
+        - label: Este problema não é uma vulnerabilidade de segurança.
           required: true
 
   - type: textarea
@@ -30,7 +42,12 @@ body:
     attributes:
       label: Descrição do problema
       description: Explique claramente o que está acontecendo.
-      placeholder: O comportamento observado é...
+      placeholder: |
+        Descreva o problema de forma objetiva.
+
+        Exemplo:
+        Ao pesquisar um conceito, alguns resultados aparecem destacados corretamente,
+        enquanto outros resultados equivalentes não recebem destaque.
     validations:
       required: true
 
@@ -39,7 +56,9 @@ body:
     attributes:
       label: Comportamento esperado
       description: Explique o que deveria acontecer.
-      placeholder: Eu esperava que...
+      placeholder: |
+        Exemplo:
+        Todos os resultados correspondentes à pesquisa deveriam receber o mesmo destaque.
     validations:
       required: true
 
@@ -47,12 +66,27 @@ body:
     id: reproduce
     attributes:
       label: Passos para reproduzir
-      description: Liste os passos mínimos necessários.
+      description: Liste os passos mínimos necessários para reproduzir o problema.
       placeholder: |
         1. Abra...
-        2. Clique em...
-        3. Informe...
-        4. O problema acontece...
+        2. Acesse...
+        3. Clique em...
+        4. Informe...
+        5. Observe que...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: Frequência
+      description: Com que frequência o problema acontece?
+      options:
+        - Sempre
+        - Frequentemente
+        - Às vezes
+        - Raramente
+        - Aconteceu apenas uma vez
     validations:
       required: true
 
@@ -60,6 +94,7 @@ body:
     id: platform
     attributes:
       label: Plataforma
+      description: Em qual ambiente o problema acontece?
       options:
         - Linux
         - macOS
@@ -68,6 +103,7 @@ body:
         - iOS
         - Web
         - Backend / Supabase
+        - Mais de uma plataforma
         - Outra
     validations:
       required: true
@@ -76,23 +112,76 @@ body:
     id: version
     attributes:
       label: Versão, branch ou commit
-      placeholder: "Ex.: main, feature/website-improvements ou abc1234"
+      description: Informe a versão, branch ou commit onde o problema foi observado.
+      placeholder: "Ex.: main, dev-stable, feature/website-improvements ou abc1234"
+    validations:
+      required: true
+
+  - type: input
+    id: flutter_version
+    attributes:
+      label: Versão do Flutter
+      description: Se o problema estiver relacionado ao aplicativo Flutter, informe a versão usada.
+      placeholder: "Ex.: Flutter 3.x.x"
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Ambiente
+      description: Inclua informações adicionais que possam ajudar na reprodução.
+      placeholder: |
+        Exemplos:
+
+        Sistema operacional:
+        Flutter:
+        Dart:
+        Navegador:
+        Banco/Supabase:
+        Outras informações relevantes:
 
   - type: textarea
     id: logs
     attributes:
       label: Logs relevantes
-      description: Cole apenas os trechos relevantes. Remova dados sensíveis.
+      description: |
+        Cole somente os trechos necessários para entender o erro.
+
+        Remova tokens, credenciais, dados pessoais, URLs sensíveis e outros secrets antes de enviar.
       render: shell
 
   - type: textarea
     id: evidence
     attributes:
       label: Screenshots ou vídeos
-      description: Adicione evidências visuais quando ajudarem a reproduzir o problema.
+      description: |
+        Adicione screenshots, GIFs ou vídeos quando ajudarem a demonstrar o problema.
+
+        Verifique se as imagens não expõem dados pessoais, tokens ou outras informações sensíveis.
+
+  - type: textarea
+    id: regression
+    attributes:
+      label: Isso funcionava anteriormente?
+      description: Se souber, informe se o problema começou depois de alguma alteração, atualização ou commit.
+      placeholder: |
+        Exemplo:
+        Funcionava na branch main antes do commit abc1234 e passou a falhar depois da atualização X.
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Existe alguma solução temporária?
+      description: Informe se encontrou alguma forma de contornar o problema.
+      placeholder: |
+        Exemplo:
+        Fechar e abrir novamente a tela faz o problema desaparecer temporariamente.
 
   - type: textarea
     id: context
     attributes:
       label: Contexto adicional
-      description: Informe qualquer outro detalhe útil.
+      description: Inclua qualquer outra informação que possa ajudar na investigação.
+      placeholder: |
+        Dependências relacionadas, comportamento observado em outra plataforma,
+        suspeita da causa, links para PRs relacionados, entre outros.
+```
