@@ -699,13 +699,6 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
         item.assignee_user_id,
       );
 
-    const isAssignedToMe =
-      Boolean(
-        session?.user?.id,
-      ) &&
-      item.assignee_user_id ===
-        session.user.id;
-
     const votes =
       item.vote_keep +
       item.vote_review +
@@ -768,24 +761,10 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
               </span>
             </div>
 
-            <h2 class="validation-card-title">
-              <span>
-                ${esc(
-                  item.title,
-                )}
-              </span>
-
-              ${
-                isAssignedToMe
-                  ? `
-                    <i
-                      class="validation-my-task-dot"
-                      title="Você está marcado nesta tarefa"
-                      aria-label="Você está marcado nesta tarefa"
-                    ></i>
-                  `
-                  : ''
-              }
+            <h2>
+              ${esc(
+                item.title,
+              )}
             </h2>
 
             <div class="validation-card-compact-meta">
@@ -2438,52 +2417,6 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
     .validation-history-entry time {
       width: 100%;
       margin-left: 0;
-    }
-  }
-</style>
-
-<style is:global>
-  /* ==========================================================
-     EVRYLUX VALIDATION — MARCADOR DE TAREFA ATRIBUÍDA
-     Mesmo conceito visual usado no Roadmap.
-     ========================================================== */
-
-  .validation-card-title {
-    min-width: 0;
-    display: flex !important;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .validation-card-title > span {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .validation-my-task-dot {
-    width: 8px;
-    height: 8px;
-    flex: 0 0 8px;
-    display: inline-block;
-    border-radius: 999px;
-    background: #20e426;
-    border: 1px solid rgba(18,165,25,.30);
-    box-shadow:
-      0 0 0 2px rgba(32,228,38,.08),
-      0 0 6px rgba(32,228,38,.34);
-  }
-
-  @media (max-width: 650px) {
-    .validation-card-title {
-      gap: 6px;
-    }
-
-    .validation-my-task-dot {
-      width: 7px;
-      height: 7px;
-      flex-basis: 7px;
     }
   }
 </style>
