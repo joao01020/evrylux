@@ -1,0 +1,1663 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import ColabNav from '../../../components/colab/ColabNav.astro';
+import '../../../styles/members.css';
+import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
+---
+
+<Layout
+  title="Arquitetura — EVRYLUX Studio"
+  description="Mapa técnico e histórico de evolução da arquitetura do EVRYLUX."
+>
+  <main class="member-shell architecture-page">
+    <EvryluxLogoLoader id="architecture-loading" size="md" />
+
+    <div id="architecture-content" class="member-container member-hidden">
+      <div class="member-topbar">
+        <div class="member-title-block">
+          <div class="eyebrow">Studio / Arquitetura</div>
+
+          <h1>Arquitetura do projeto</h1>
+
+          <p>
+            Veja como os principais componentes do EVRYLUX
+            se conectam e acompanhe como essa estrutura evoluiu.
+          </p>
+        </div>
+
+        <ColabNav />
+      </div>
+
+      <section class="architecture-summary">
+        <div>
+          <span class="architecture-summary-kicker">Visão técnica</span>
+          <strong>Do aplicativo até sincronização e segurança.</strong>
+        </div>
+
+        <div class="architecture-summary-flow">
+          <span>Flutter</span><i>→</i>
+          <span>Supabase</span><i>→</i>
+          <span>Dados</span><i>→</i>
+          <span>Sync</span>
+        </div>
+      </section>
+
+      <div class="architecture-toolbar">
+        <div class="architecture-filters">
+          <button class="architecture-filter active" type="button" data-architecture-filter="all">Todos</button>
+          <button class="architecture-filter" type="button" data-architecture-filter="architecture">Arquitetura</button>
+          <button class="architecture-filter" type="button" data-architecture-filter="database">Banco</button>
+          <button class="architecture-filter" type="button" data-architecture-filter="security">Segurança</button>
+          <button class="architecture-filter" type="button" data-architecture-filter="sync">Sync</button>
+        </div>
+
+        <div class="architecture-toolbar-actions">
+          <a class="architecture-roadmap-link" href="/colab/studio">Roadmap</a>
+          <a class="architecture-validation-link" href="/colab/studio/validation">Validação</a>
+
+          <button id="architecture-new-history" class="architecture-new-button" type="button">
+            ＋ Registrar mudança
+          </button>
+        </div>
+      </div>
+
+      <div id="architecture-error" class="architecture-error member-hidden" role="status"></div>
+
+      <section class="architecture-map-section">
+        <div class="architecture-section-heading">
+          <div>
+            <span>Mapa da arquitetura</span>
+            <h2>Componentes e responsabilidades</h2>
+          </div>
+
+          <p>
+            Clique em um componente para consultar responsabilidades,
+            tecnologias, arquivos e objetos do banco.
+          </p>
+        </div>
+
+        <div class="architecture-map">
+          <div class="architecture-map-main">
+            <button class="architecture-node architecture-node-primary" type="button" data-node-slug="flutter" data-node-category="architecture frontend sync">
+              <small data-node-kicker>Aplicativo</small>
+              <strong data-node-title>Flutter</strong>
+              <span data-node-summary>Interface · módulos · estado local</span>
+            </button>
+
+            <span class="architecture-arrow">→</span>
+
+            <button class="architecture-node architecture-node-primary" type="button" data-node-slug="supabase" data-node-category="architecture database security sync backend">
+              <small data-node-kicker>Backend</small>
+              <strong data-node-title>Supabase</strong>
+              <span data-node-summary>RPCs · Realtime · infraestrutura</span>
+            </button>
+
+            <span class="architecture-arrow">→</span>
+
+            <button class="architecture-node architecture-node-primary" type="button" data-node-slug="sync" data-node-category="architecture sync">
+              <small data-node-kicker>Convergência</small>
+              <strong data-node-title>Sync</strong>
+              <span data-node-summary>Offline · dispositivos · conflitos</span>
+            </button>
+          </div>
+
+          <div class="architecture-map-branches">
+            <button class="architecture-node" type="button" data-node-slug="postgresql" data-node-category="architecture database">
+              <small data-node-kicker>Dados</small>
+              <strong data-node-title>PostgreSQL</strong>
+              <span data-node-summary>Tabelas · RLS · RPCs</span>
+            </button>
+
+            <button class="architecture-node" type="button" data-node-slug="storage" data-node-category="architecture database backend">
+              <small data-node-kicker>Arquivos</small>
+              <strong data-node-title>Storage</strong>
+              <span data-node-summary>Anexos · avatares · objetos</span>
+            </button>
+
+            <button class="architecture-node" type="button" data-node-slug="auth" data-node-category="architecture security">
+              <small data-node-kicker>Identidade</small>
+              <strong data-node-title>Auth / RLS</strong>
+              <span data-node-summary>Sessão · políticas · AAL2</span>
+            </button>
+
+            <button class="architecture-node" type="button" data-node-slug="vault" data-node-category="architecture security sync">
+              <small data-node-kicker>Segurança local</small>
+              <strong data-node-title>Vault / E2EE</strong>
+              <span data-node-summary>Chaves · envelopes · dispositivos</span>
+            </button>
+          </div>
+
+          <div class="architecture-map-note">
+            <span></span>
+            <p>
+              O mapa mostra a visão conceitual. A implementação real
+              pode atravessar vários módulos e serviços ao mesmo tempo.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="architecture-history-section">
+        <div class="architecture-section-heading">
+          <div>
+            <span>Evolução da arquitetura</span>
+            <h2>Linha do tempo técnica</h2>
+          </div>
+
+          <p>
+            Registre decisões, migrações, mudanças de segurança,
+            banco, sincronização e componentes relevantes.
+          </p>
+        </div>
+
+        <div id="architecture-history" class="architecture-history"></div>
+
+        <div id="architecture-history-empty" class="architecture-empty member-hidden">
+          <strong>Nenhuma mudança registrada ainda.</strong>
+          <span>Use “Registrar mudança” para começar o histórico técnico.</span>
+        </div>
+      </section>
+    </div>
+
+    <div id="architecture-node-modal" class="architecture-modal member-hidden">
+      <button class="architecture-backdrop" type="button" data-close-node aria-label="Fechar"></button>
+
+      <section class="architecture-modal-card">
+        <div class="architecture-modal-head">
+          <div>
+            <span id="architecture-node-category">Componente</span>
+            <h2 id="architecture-node-title">Arquitetura</h2>
+          </div>
+
+          <button type="button" data-close-node aria-label="Fechar">×</button>
+        </div>
+
+        <p id="architecture-node-description" class="architecture-node-description"></p>
+
+        <div class="architecture-node-actions">
+          <button
+            id="architecture-edit-node"
+            type="button"
+          >
+            Editar componente
+          </button>
+        </div>
+
+        <div class="architecture-node-details">
+          <section>
+            <span>Responsabilidades</span>
+            <div id="architecture-node-responsibilities" class="architecture-chip-list"></div>
+          </section>
+
+          <section>
+            <span>Tecnologias</span>
+            <div id="architecture-node-technologies" class="architecture-chip-list"></div>
+          </section>
+
+          <section>
+            <span>Arquivos / módulos</span>
+            <div id="architecture-node-files" class="architecture-code-list"></div>
+          </section>
+
+          <section>
+            <span>Banco / RPCs</span>
+            <div id="architecture-node-database" class="architecture-code-list"></div>
+          </section>
+        </div>
+      </section>
+    </div>
+
+    <div id="architecture-edit-modal" class="architecture-modal member-hidden">
+      <button
+        class="architecture-backdrop"
+        type="button"
+        data-close-edit-node
+        aria-label="Fechar edição"
+      ></button>
+
+      <section class="architecture-modal-card architecture-history-modal-card">
+        <div class="architecture-modal-head">
+          <div>
+            <span>Mapa da arquitetura</span>
+            <h2>Editar componente</h2>
+          </div>
+
+          <button type="button" data-close-edit-node aria-label="Fechar">×</button>
+        </div>
+
+        <form id="architecture-edit-form">
+          <input id="architecture-edit-id" type="hidden" />
+
+          <label>
+            <span>Nome</span>
+            <input id="architecture-edit-title" maxlength="120" required />
+          </label>
+
+          <div class="architecture-form-grid">
+            <label>
+              <span>Subtítulo</span>
+              <input id="architecture-edit-subtitle" maxlength="160" />
+            </label>
+
+            <label>
+              <span>Categoria principal</span>
+              <select id="architecture-edit-category">
+                <option value="architecture">Arquitetura</option>
+                <option value="database">Banco de dados</option>
+                <option value="security">Segurança</option>
+                <option value="sync">Sincronização</option>
+                <option value="frontend">Frontend</option>
+                <option value="backend">Backend</option>
+                <option value="infrastructure">Infraestrutura</option>
+                <option value="migration">Migração</option>
+                <option value="decision">Decisão técnica</option>
+                <option value="deprecation">Depreciação</option>
+              </select>
+            </label>
+          </div>
+
+          <label>
+            <span>Resumo exibido no card</span>
+            <input
+              id="architecture-edit-summary"
+              maxlength="180"
+              placeholder="Ex.: Sessão · políticas · AAL2"
+            />
+          </label>
+
+          <label>
+            <span>Descrição</span>
+            <textarea id="architecture-edit-description" rows="4" maxlength="5000"></textarea>
+          </label>
+
+          <div class="architecture-form-grid">
+            <label>
+              <span>Responsabilidades</span>
+              <textarea id="architecture-edit-responsibilities" rows="5" maxlength="3000" placeholder="Uma por linha"></textarea>
+            </label>
+
+            <label>
+              <span>Tecnologias</span>
+              <textarea id="architecture-edit-technologies" rows="5" maxlength="3000" placeholder="Uma por linha"></textarea>
+            </label>
+          </div>
+
+          <div class="architecture-form-grid">
+            <label>
+              <span>Arquivos / módulos</span>
+              <textarea id="architecture-edit-files" rows="5" maxlength="5000" placeholder="Um por linha"></textarea>
+            </label>
+
+            <label>
+              <span>Banco / tabelas / RPCs</span>
+              <textarea id="architecture-edit-database" rows="5" maxlength="5000" placeholder="Um por linha"></textarea>
+            </label>
+          </div>
+
+          <div class="architecture-modal-actions">
+            <button type="button" data-close-edit-node>Cancelar</button>
+            <button class="primary" type="submit">Salvar alterações</button>
+          </div>
+        </form>
+      </section>
+    </div>
+
+    <div id="architecture-history-modal" class="architecture-modal member-hidden">
+      <button class="architecture-backdrop" type="button" data-close-history aria-label="Fechar"></button>
+
+      <section class="architecture-modal-card architecture-history-modal-card">
+        <div class="architecture-modal-head">
+          <div>
+            <span>Evolução da arquitetura</span>
+            <h2>Registrar mudança</h2>
+          </div>
+
+          <button type="button" data-close-history aria-label="Fechar">×</button>
+        </div>
+
+        <form id="architecture-history-form">
+          <label>
+            <span>Título</span>
+            <input id="architecture-history-title" maxlength="180" required placeholder="Ex.: Compactação segura de tombstones" />
+          </label>
+
+          <label>
+            <span>Área / tipo</span>
+            <select id="architecture-history-category">
+              <option value="architecture">Arquitetura</option>
+              <option value="database">Banco de dados</option>
+              <option value="security">Segurança</option>
+              <option value="sync">Sincronização</option>
+              <option value="frontend">Frontend</option>
+              <option value="backend">Backend</option>
+              <option value="infrastructure">Infraestrutura</option>
+              <option value="migration">Migração</option>
+              <option value="decision">Decisão técnica</option>
+              <option value="deprecation">Depreciação</option>
+            </select>
+          </label>
+
+          <label>
+            <span>Descrição</span>
+            <textarea id="architecture-history-description" rows="5" maxlength="5000" required placeholder="Explique o que mudou e por quê."></textarea>
+          </label>
+
+          <div class="architecture-form-grid">
+            <label>
+              <span>Componentes afetados</span>
+              <textarea id="architecture-history-components" rows="4" maxlength="2000" placeholder="BrainSyncService&#10;Vault&#10;Supabase"></textarea>
+            </label>
+
+            <label>
+              <span>Arquivos / classes</span>
+              <textarea id="architecture-history-files" rows="4" maxlength="3000" placeholder="lib/core/sync/...&#10;BrainRepository"></textarea>
+            </label>
+          </div>
+
+          <label>
+            <span>Banco / tabelas / RPCs</span>
+            <textarea id="architecture-history-database" rows="4" maxlength="3000" placeholder="brain_objects&#10;brain_devices&#10;compact_brain_tombstones()"></textarea>
+          </label>
+
+          <label>
+            <span>Referência / origem opcional</span>
+            <input id="architecture-history-source" maxlength="500" placeholder="/colab/studio/validation" />
+          </label>
+
+          <label>
+            <span>Data da mudança</span>
+            <input id="architecture-history-date" type="date" required />
+          </label>
+
+          <div class="architecture-modal-actions">
+            <button type="button" data-close-history>Cancelar</button>
+            <button class="primary" type="submit">Registrar</button>
+          </div>
+        </form>
+      </section>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  import {
+    requireMemberSession,
+  } from '../../../lib/member-auth';
+
+  import {
+    addArchitectureHistoryEntry,
+    architectureCategoryLabels,
+    getArchitectureHistory,
+    getArchitectureNodes,
+    updateArchitectureNode,
+    type ArchitectureHistoryEntry,
+    type ArchitectureNode,
+  } from '../../../lib/colab-architecture';
+
+  const session =
+    await requireMemberSession();
+
+  const loading =
+    document.querySelector<HTMLElement>(
+      '#architecture-loading',
+    );
+
+  const content =
+    document.querySelector<HTMLElement>(
+      '#architecture-content',
+    );
+
+  const errorBox =
+    document.querySelector<HTMLElement>(
+      '#architecture-error',
+    );
+
+  const historyList =
+    document.querySelector<HTMLElement>(
+      '#architecture-history',
+    );
+
+  const historyEmpty =
+    document.querySelector<HTMLElement>(
+      '#architecture-history-empty',
+    );
+
+  const nodeModal =
+    document.querySelector<HTMLElement>(
+      '#architecture-node-modal',
+    );
+
+  const nodeTitle =
+    document.querySelector<HTMLElement>(
+      '#architecture-node-title',
+    );
+
+  const nodeCategory =
+    document.querySelector<HTMLElement>(
+      '#architecture-node-category',
+    );
+
+  const nodeDescription =
+    document.querySelector<HTMLElement>(
+      '#architecture-node-description',
+    );
+
+  const nodeResponsibilities =
+    document.querySelector<HTMLElement>(
+      '#architecture-node-responsibilities',
+    );
+
+  const nodeTechnologies =
+    document.querySelector<HTMLElement>(
+      '#architecture-node-technologies',
+    );
+
+  const nodeFiles =
+    document.querySelector<HTMLElement>(
+      '#architecture-node-files',
+    );
+
+  const nodeDatabase =
+    document.querySelector<HTMLElement>(
+      '#architecture-node-database',
+    );
+
+  const editNodeButton =
+    document.querySelector<HTMLButtonElement>(
+      '#architecture-edit-node',
+    );
+
+  const editModal =
+    document.querySelector<HTMLElement>(
+      '#architecture-edit-modal',
+    );
+
+  const editForm =
+    document.querySelector<HTMLFormElement>(
+      '#architecture-edit-form',
+    );
+
+  const editId =
+    document.querySelector<HTMLInputElement>(
+      '#architecture-edit-id',
+    );
+
+  const editTitle =
+    document.querySelector<HTMLInputElement>(
+      '#architecture-edit-title',
+    );
+
+  const editSubtitle =
+    document.querySelector<HTMLInputElement>(
+      '#architecture-edit-subtitle',
+    );
+
+  const editSummary =
+    document.querySelector<HTMLInputElement>(
+      '#architecture-edit-summary',
+    );
+
+  const editDescription =
+    document.querySelector<HTMLTextAreaElement>(
+      '#architecture-edit-description',
+    );
+
+  const editCategory =
+    document.querySelector<HTMLSelectElement>(
+      '#architecture-edit-category',
+    );
+
+  const editResponsibilities =
+    document.querySelector<HTMLTextAreaElement>(
+      '#architecture-edit-responsibilities',
+    );
+
+  const editTechnologies =
+    document.querySelector<HTMLTextAreaElement>(
+      '#architecture-edit-technologies',
+    );
+
+  const editFiles =
+    document.querySelector<HTMLTextAreaElement>(
+      '#architecture-edit-files',
+    );
+
+  const editDatabase =
+    document.querySelector<HTMLTextAreaElement>(
+      '#architecture-edit-database',
+    );
+
+  const historyModal =
+    document.querySelector<HTMLElement>(
+      '#architecture-history-modal',
+    );
+
+  const historyForm =
+    document.querySelector<HTMLFormElement>(
+      '#architecture-history-form',
+    );
+
+  const historyTitle =
+    document.querySelector<HTMLInputElement>(
+      '#architecture-history-title',
+    );
+
+  const historyCategory =
+    document.querySelector<HTMLSelectElement>(
+      '#architecture-history-category',
+    );
+
+  const historyDescription =
+    document.querySelector<HTMLTextAreaElement>(
+      '#architecture-history-description',
+    );
+
+  const historyComponents =
+    document.querySelector<HTMLTextAreaElement>(
+      '#architecture-history-components',
+    );
+
+  const historyFiles =
+    document.querySelector<HTMLTextAreaElement>(
+      '#architecture-history-files',
+    );
+
+  const historyDatabase =
+    document.querySelector<HTMLTextAreaElement>(
+      '#architecture-history-database',
+    );
+
+  const historySource =
+    document.querySelector<HTMLInputElement>(
+      '#architecture-history-source',
+    );
+
+  const historyDate =
+    document.querySelector<HTMLInputElement>(
+      '#architecture-history-date',
+    );
+
+  const filters =
+    Array.from(
+      document.querySelectorAll<HTMLButtonElement>(
+        '[data-architecture-filter]',
+      ),
+    );
+
+  const newHistoryButton =
+    document.querySelector<HTMLButtonElement>(
+      '#architecture-new-history',
+    );
+
+  let nodes:
+    ArchitectureNode[] =
+      [];
+
+  let historyEntries:
+    ArchitectureHistoryEntry[] =
+      [];
+
+  let activeFilter =
+    'all';
+
+  let selectedNode:
+    ArchitectureNode |
+    null =
+      null;
+
+  function esc(
+    value: unknown,
+  ) {
+    return String(
+      value ??
+      '',
+    )
+      .replaceAll('&','&amp;')
+      .replaceAll('<','&lt;')
+      .replaceAll('>','&gt;')
+      .replaceAll('"','&quot;')
+      .replaceAll("'",'&#039;');
+  }
+
+  function showError(
+    message: string,
+  ) {
+    if (!errorBox) {
+      return;
+    }
+
+    errorBox.textContent =
+      message;
+
+    errorBox.classList.remove(
+      'member-hidden',
+    );
+  }
+
+  function clearError() {
+    errorBox?.classList.add(
+      'member-hidden',
+    );
+  }
+
+  function splitValues(
+    value: string,
+  ) {
+    return value
+      .split(/[\r\n,]+/)
+      .map(
+        (
+          item,
+        ) =>
+          item.trim(),
+      )
+      .filter(
+        Boolean,
+      );
+  }
+
+  function formatDate(
+    value: string,
+  ) {
+    const raw =
+      value.slice(
+        0,
+        10,
+      );
+
+    return new Date(
+      `${raw}T12:00:00`,
+    ).toLocaleDateString(
+      'pt-BR',
+      {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      },
+    );
+  }
+
+  function renderChipList(
+    target: HTMLElement | null,
+    values: string[],
+  ) {
+    if (!target) {
+      return;
+    }
+
+    target.innerHTML =
+      values.length
+        ? values.map(
+            (
+              item,
+            ) => `
+              <span>
+                ${esc(item)}
+              </span>
+            `,
+          ).join('')
+        : '<small>Nenhum item registrado.</small>';
+  }
+
+  function renderCodeList(
+    target: HTMLElement | null,
+    values: string[],
+  ) {
+    if (!target) {
+      return;
+    }
+
+    target.innerHTML =
+      values.length
+        ? values.map(
+            (
+              item,
+            ) => `
+              <code>
+                ${esc(item)}
+              </code>
+            `,
+          ).join('')
+        : '<small>Nenhum item registrado.</small>';
+  }
+
+  function updateMapFromNodes() {
+    document
+      .querySelectorAll<HTMLButtonElement>(
+        '[data-node-slug]',
+      )
+      .forEach(
+        (
+          button,
+        ) => {
+          const node =
+            nodes.find(
+              (
+                current,
+              ) =>
+                current.slug ===
+                button.dataset.nodeSlug,
+            );
+
+          if (!node) {
+            return;
+          }
+
+          const kicker =
+            button.querySelector<HTMLElement>(
+              '[data-node-kicker]',
+            );
+
+          const title =
+            button.querySelector<HTMLElement>(
+              '[data-node-title]',
+            );
+
+          const summary =
+            button.querySelector<HTMLElement>(
+              '[data-node-summary]',
+            );
+
+          if (kicker) {
+            kicker.textContent =
+              node.subtitle ||
+              architectureCategoryLabels[
+                node.category
+              ] ||
+              node.category;
+          }
+
+          if (title) {
+            title.textContent =
+              node.title;
+          }
+
+          if (summary) {
+            summary.textContent =
+              node.summary ||
+              (
+                node.responsibilities ||
+                []
+              )
+                .slice(
+                  0,
+                  3,
+                )
+                .join(
+                  ' · ',
+                ) ||
+              'Componente da arquitetura';
+          }
+        },
+      );
+  }
+
+  function renderMapFilter() {
+    document
+      .querySelectorAll<HTMLButtonElement>(
+        '[data-node-slug]',
+      )
+      .forEach(
+        (
+          button,
+        ) => {
+          const categories =
+            (
+              button.dataset.nodeCategory ||
+              ''
+            )
+              .split(' ')
+              .filter(Boolean);
+
+          const visible =
+            activeFilter ===
+              'all' ||
+            categories.includes(
+              activeFilter,
+            );
+
+          button.classList.toggle(
+            'architecture-node-filtered-out',
+            !visible,
+          );
+        },
+      );
+
+    document
+      .querySelectorAll<HTMLElement>(
+        '.architecture-arrow',
+      )
+      .forEach(
+        (
+          arrow,
+        ) => {
+          arrow.classList.toggle(
+            'architecture-flow-muted',
+            activeFilter !==
+              'all' &&
+            activeFilter !==
+              'architecture',
+          );
+        },
+      );
+  }
+
+  function openEditNode() {
+    const node =
+      selectedNode;
+
+    if (!node) {
+      return;
+    }
+
+    if (editId) editId.value = node.id;
+    if (editTitle) editTitle.value = node.title || '';
+    if (editSubtitle) editSubtitle.value = node.subtitle || '';
+    if (editSummary) editSummary.value = node.summary || '';
+    if (editDescription) editDescription.value = node.description || '';
+    if (editCategory) editCategory.value = node.category || 'architecture';
+    if (editResponsibilities) editResponsibilities.value = (node.responsibilities || []).join('\n');
+    if (editTechnologies) editTechnologies.value = (node.technologies || []).join('\n');
+    if (editFiles) editFiles.value = (node.files || []).join('\n');
+    if (editDatabase) editDatabase.value = (node.database_objects || []).join('\n');
+
+    closeNode();
+
+    editModal?.classList.remove(
+      'member-hidden',
+    );
+
+    window.setTimeout(
+      () =>
+        editTitle?.focus(),
+      10,
+    );
+  }
+
+  function closeEditNode() {
+    editModal?.classList.add(
+      'member-hidden',
+    );
+  }
+
+  function openNode(
+    slug: string,
+  ) {
+    const node =
+      nodes.find(
+        (
+          current,
+        ) =>
+          current.slug ===
+          slug,
+      );
+
+    if (!node) {
+      showError(
+        'Esse componente ainda não foi carregado no mapa.',
+      );
+
+      return;
+    }
+
+    selectedNode =
+      node;
+
+    if (nodeTitle) {
+      nodeTitle.textContent =
+        node.title;
+    }
+
+    if (nodeCategory) {
+      nodeCategory.textContent =
+        node.subtitle ||
+        node.category;
+    }
+
+    if (nodeDescription) {
+      nodeDescription.textContent =
+        node.description ||
+        'Sem descrição.';
+    }
+
+    renderChipList(
+      nodeResponsibilities,
+      node.responsibilities ||
+      [],
+    );
+
+    renderChipList(
+      nodeTechnologies,
+      node.technologies ||
+      [],
+    );
+
+    renderCodeList(
+      nodeFiles,
+      node.files ||
+      [],
+    );
+
+    renderCodeList(
+      nodeDatabase,
+      node.database_objects ||
+      [],
+    );
+
+    nodeModal?.classList.remove(
+      'member-hidden',
+    );
+  }
+
+  function closeNode() {
+    nodeModal?.classList.add(
+      'member-hidden',
+    );
+  }
+
+  function openHistoryModal() {
+    historyForm?.reset();
+
+    if (historyDate) {
+      historyDate.value =
+        new Date()
+          .toISOString()
+          .slice(
+            0,
+            10,
+          );
+    }
+
+    historyModal?.classList.remove(
+      'member-hidden',
+    );
+
+    window.setTimeout(
+      () =>
+        historyTitle?.focus(),
+      10,
+    );
+  }
+
+  function closeHistoryModal() {
+    historyModal?.classList.add(
+      'member-hidden',
+    );
+  }
+
+  function renderHistory() {
+    if (
+      !historyList ||
+      !historyEmpty
+    ) {
+      return;
+    }
+
+    const visible =
+      historyEntries
+        .filter(
+          (
+            item,
+          ) =>
+            activeFilter ===
+              'all' ||
+            item.category ===
+              activeFilter,
+        )
+        .sort(
+          (
+            a,
+            b,
+          ) =>
+            new Date(
+              b.occurred_at,
+            ).getTime() -
+            new Date(
+              a.occurred_at,
+            ).getTime(),
+        );
+
+    historyEmpty.classList.toggle(
+      'member-hidden',
+      visible.length >
+      0,
+    );
+
+    historyList.innerHTML =
+      visible.map(
+        (
+          item,
+          index,
+        ) => {
+          const category =
+            architectureCategoryLabels[
+              item.category
+            ] ||
+            item.category;
+
+          const metaParts = [
+            ...(item.components || []),
+            ...(item.database_objects || []),
+          ].slice(
+            0,
+            5,
+          );
+
+          return `
+            <article class="architecture-history-item">
+              <div class="architecture-history-rail">
+                <span></span>
+                ${
+                  index <
+                  visible.length -
+                  1
+                    ? '<i></i>'
+                    : ''
+                }
+              </div>
+
+              <div class="architecture-history-card">
+                <div class="architecture-history-card-top">
+                  <div>
+                    <span class="architecture-history-category">
+                      ${esc(category)}
+                    </span>
+
+                    <time>
+                      ${esc(formatDate(item.occurred_at))}
+                    </time>
+                  </div>
+
+                  ${
+                    item.source_url
+                      ? `
+                        <a href="${esc(item.source_url)}">
+                          Abrir origem →
+                        </a>
+                      `
+                      : ''
+                  }
+                </div>
+
+                <h3>${esc(item.title)}</h3>
+                <p>${esc(item.description)}</p>
+
+                ${
+                  metaParts.length
+                    ? `
+                      <div class="architecture-history-meta">
+                        ${metaParts.map(
+                          (
+                            value,
+                          ) => `
+                            <span>${esc(value)}</span>
+                          `,
+                        ).join('')}
+                      </div>
+                    `
+                    : ''
+                }
+
+                ${
+                  (item.files || []).length
+                    ? `
+                      <details>
+                        <summary>Arquivos e classes</summary>
+                        <div class="architecture-history-code">
+                          ${(item.files || []).map(
+                            (
+                              value,
+                            ) => `
+                              <code>${esc(value)}</code>
+                            `,
+                          ).join('')}
+                        </div>
+                      </details>
+                    `
+                    : ''
+                }
+              </div>
+            </article>
+          `;
+        },
+      ).join('');
+  }
+
+  async function refresh() {
+    clearError();
+
+    try {
+      const [
+        nextNodes,
+        nextHistory,
+      ] =
+        await Promise.all([
+          getArchitectureNodes(),
+          getArchitectureHistory(),
+        ]);
+
+      nodes =
+        nextNodes;
+
+      historyEntries =
+        nextHistory;
+
+      updateMapFromNodes();
+      renderMapFilter();
+      renderHistory();
+    } catch (
+      error: any
+    ) {
+      showError(
+        error?.message ||
+        'Não foi possível carregar a arquitetura.',
+      );
+    } finally {
+      loading?.classList.add(
+        'member-hidden',
+      );
+
+      content?.classList.remove(
+        'member-hidden',
+      );
+    }
+  }
+
+  document
+    .querySelectorAll<HTMLButtonElement>(
+      '[data-node-slug]',
+    )
+    .forEach(
+      (
+        button,
+      ) => {
+        button.addEventListener(
+          'click',
+          () => {
+            clearError();
+
+            openNode(
+              button.dataset.nodeSlug ||
+              '',
+            );
+          },
+        );
+      },
+    );
+
+  document
+    .querySelectorAll<HTMLButtonElement>(
+      '[data-close-node]',
+    )
+    .forEach(
+      (
+        button,
+      ) =>
+        button.addEventListener(
+          'click',
+          closeNode,
+        ),
+    );
+
+  document
+    .querySelectorAll<HTMLButtonElement>(
+      '[data-close-history]',
+    )
+    .forEach(
+      (
+        button,
+      ) =>
+        button.addEventListener(
+          'click',
+          closeHistoryModal,
+        ),
+    );
+
+  newHistoryButton?.addEventListener(
+    'click',
+    openHistoryModal,
+  );
+
+  filters.forEach(
+    (
+      button,
+    ) => {
+      button.addEventListener(
+        'click',
+        () => {
+          activeFilter =
+            button.dataset.architectureFilter ||
+            'all';
+
+          filters.forEach(
+            (
+              current,
+            ) =>
+              current.classList.toggle(
+                'active',
+                current ===
+                button,
+              ),
+          );
+
+          renderMapFilter();
+          renderHistory();
+        },
+      );
+    },
+  );
+
+  editNodeButton?.addEventListener(
+    'click',
+    openEditNode,
+  );
+
+  document
+    .querySelectorAll<HTMLButtonElement>(
+      '[data-close-edit-node]',
+    )
+    .forEach(
+      (
+        button,
+      ) =>
+        button.addEventListener(
+          'click',
+          closeEditNode,
+        ),
+    );
+
+  editForm?.addEventListener(
+    'submit',
+    async (
+      event,
+    ) => {
+      event.preventDefault();
+
+      const id =
+        editId?.value ||
+        '';
+
+      const title =
+        editTitle?.value.trim() ||
+        '';
+
+      if (
+        !id ||
+        !title
+      ) {
+        showError(
+          'O componente precisa ter um nome.',
+        );
+
+        return;
+      }
+
+      const submit =
+        editForm.querySelector<HTMLButtonElement>(
+          'button[type="submit"]',
+        );
+
+      const oldText =
+        submit?.textContent;
+
+      try {
+        clearError();
+
+        if (submit) {
+          submit.disabled =
+            true;
+
+          submit.textContent =
+            'Salvando...';
+        }
+
+        await updateArchitectureNode(
+          {
+            id,
+            title,
+            subtitle: editSubtitle?.value.trim() || null,
+            summary: editSummary?.value.trim() || null,
+            description: editDescription?.value.trim() || null,
+            category: editCategory?.value || 'architecture',
+            responsibilities: splitValues(editResponsibilities?.value || ''),
+            technologies: splitValues(editTechnologies?.value || ''),
+            files: splitValues(editFiles?.value || ''),
+            databaseObjects: splitValues(editDatabase?.value || ''),
+          },
+        );
+
+        closeEditNode();
+        await refresh();
+
+        const updated =
+          nodes.find(
+            (
+              current,
+            ) =>
+              current.id ===
+              id,
+          );
+
+        if (updated) {
+          selectedNode =
+            updated;
+
+          openNode(
+            updated.slug,
+          );
+        }
+      } catch (
+        error: any
+      ) {
+        showError(
+          error?.message ||
+          'Não foi possível atualizar o componente.',
+        );
+      } finally {
+        if (submit) {
+          submit.disabled =
+            false;
+
+          submit.textContent =
+            oldText ||
+            'Salvar alterações';
+        }
+      }
+    },
+  );
+
+  historyForm?.addEventListener(
+    'submit',
+    async (
+      event,
+    ) => {
+      event.preventDefault();
+
+      if (!session) {
+        return;
+      }
+
+      const title =
+        historyTitle?.value.trim() ||
+        '';
+
+      const description =
+        historyDescription?.value.trim() ||
+        '';
+
+      const occurredAt =
+        historyDate?.value ||
+        '';
+
+      if (
+        !title ||
+        !description ||
+        !occurredAt
+      ) {
+        showError(
+          'Preencha título, descrição e data.',
+        );
+
+        return;
+      }
+
+      const submit =
+        historyForm.querySelector<HTMLButtonElement>(
+          'button[type="submit"]',
+        );
+
+      const oldText =
+        submit?.textContent;
+
+      try {
+        clearError();
+
+        if (submit) {
+          submit.disabled =
+            true;
+
+          submit.textContent =
+            'Registrando...';
+        }
+
+        await addArchitectureHistoryEntry(
+          {
+            title,
+            description,
+
+            category:
+              historyCategory?.value ||
+              'architecture',
+
+            components:
+              splitValues(
+                historyComponents?.value ||
+                '',
+              ),
+
+            files:
+              splitValues(
+                historyFiles?.value ||
+                '',
+              ),
+
+            databaseObjects:
+              splitValues(
+                historyDatabase?.value ||
+                '',
+              ),
+
+            sourceUrl:
+              historySource?.value.trim() ||
+              null,
+
+            occurredAt,
+          },
+        );
+
+        closeHistoryModal();
+        await refresh();
+      } catch (
+        error: any
+      ) {
+        showError(
+          error?.message ||
+          'Não foi possível registrar a mudança.',
+        );
+      } finally {
+        if (submit) {
+          submit.disabled =
+            false;
+
+          submit.textContent =
+            oldText ||
+            'Registrar';
+        }
+      }
+    },
+  );
+
+  await refresh();
+</script>
+
+<style>
+  .architecture-page{min-height:100vh}
+  .architecture-summary{margin-top:22px;padding:17px 18px;display:flex;align-items:center;justify-content:space-between;gap:24px;border:1px solid rgba(65,104,62,.10);border-radius:17px;background:linear-gradient(135deg,rgba(255,255,255,.92),rgba(238,248,234,.74))}
+  .architecture-summary-kicker{display:block;color:var(--primary-deep);font-size:8px;font-weight:900;letter-spacing:.05em;text-transform:uppercase}
+  .architecture-summary strong{display:block;margin-top:5px;font-size:15px}
+  .architecture-summary-flow{display:flex;align-items:center;gap:8px;color:var(--text-soft)}
+  .architecture-summary-flow span{padding:7px 9px;border:1px solid rgba(65,104,62,.10);border-radius:9px;background:rgba(255,255,255,.78);color:var(--text);font-size:8px;font-weight:850}
+  .architecture-summary-flow i{font-size:10px;font-style:normal}
+  .architecture-toolbar{margin-top:18px;display:flex;align-items:center;justify-content:space-between;gap:14px}
+  .architecture-filters,.architecture-toolbar-actions{display:flex;align-items:center;flex-wrap:wrap;gap:7px}
+  .architecture-filter,.architecture-roadmap-link,.architecture-validation-link,.architecture-new-button{min-height:37px;padding:0 12px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(65,104,62,.11);border-radius:10px;background:rgba(255,255,255,.80);color:var(--text-soft);font:inherit;font-size:8px;font-weight:850;text-decoration:none;cursor:pointer}
+  .architecture-filter.active{background:var(--primary-soft);border-color:rgba(65,104,62,.14);color:var(--primary-deep)}
+  .architecture-new-button{background:var(--primary-deep);border-color:var(--primary-deep);color:#fff}
+  .architecture-error{margin-top:12px;padding:11px 13px;border:1px solid rgba(174,62,62,.14);border-radius:11px;background:rgba(255,240,240,.82);color:#8e3030;font-size:9px}
+  .architecture-map-section,.architecture-history-section{margin-top:26px}
+  .architecture-section-heading{display:flex;align-items:end;justify-content:space-between;gap:28px}
+  .architecture-section-heading>div>span{color:var(--primary-deep);font-size:8px;font-weight:900;letter-spacing:.05em;text-transform:uppercase}
+  .architecture-section-heading h2{margin:5px 0 0;font-size:21px;letter-spacing:-.025em}
+  .architecture-section-heading>p{max-width:470px;margin:0;color:var(--text-soft);font-size:9px;line-height:1.55}
+  .architecture-map{margin-top:14px;padding:24px;border:1px solid rgba(65,104,62,.10);border-radius:18px;background:radial-gradient(circle at 50% 0%,rgba(225,243,219,.55),transparent 44%),rgba(255,255,255,.72);overflow:hidden}
+  .architecture-map-main{display:grid;grid-template-columns:minmax(0,1fr) 30px minmax(0,1fr) 30px minmax(0,1fr);gap:7px;align-items:center}
+  .architecture-arrow{text-align:center;color:rgba(54,95,53,.50);font-size:18px}
+  .architecture-map-branches{position:relative;margin-top:18px;padding-top:22px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+  .architecture-map-branches::before{content:'';position:absolute;top:0;left:12.5%;right:12.5%;height:1px;background:rgba(65,104,62,.14)}
+  .architecture-map-branches::after{content:'';position:absolute;top:-17px;left:50%;width:1px;height:17px;background:rgba(65,104,62,.14)}
+  .architecture-node{min-width:0;min-height:93px;padding:14px;display:flex;flex-direction:column;align-items:flex-start;text-align:left;border:1px solid rgba(65,104,62,.10);border-radius:14px;background:rgba(255,255,255,.92);color:var(--text);box-shadow:0 9px 28px rgba(23,32,25,.035);cursor:pointer;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease}
+  .architecture-node:hover{transform:translateY(-2px);border-color:rgba(65,104,62,.24);box-shadow:0 13px 32px rgba(23,32,25,.06)}
+  .architecture-node-primary{min-height:110px;background:linear-gradient(145deg,#fff,rgba(239,248,235,.90))}
+  .architecture-node small{color:var(--primary-deep);font-size:7px;font-weight:900;letter-spacing:.04em;text-transform:uppercase}
+  .architecture-node strong{margin-top:8px;font-size:14px}
+  .architecture-node span{margin-top:5px;color:var(--text-soft);font-size:8px;line-height:1.45}
+  .architecture-map-note{margin-top:15px;display:flex;align-items:center;gap:8px;color:var(--text-soft)}
+  .architecture-map-note span{width:6px;height:6px;flex:0 0 auto;border-radius:999px;background:#20e426;box-shadow:0 0 8px rgba(32,228,38,.28)}
+  .architecture-map-note p{margin:0;font-size:8px;line-height:1.45}
+  .architecture-history-section{padding-bottom:70px}
+  .architecture-history{margin-top:17px}
+  .architecture-history-item{display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px}
+  .architecture-history-rail{position:relative;display:flex;justify-content:center}
+  .architecture-history-rail span{position:relative;z-index:2;width:10px;height:10px;margin-top:20px;border:2px solid #fff;border-radius:999px;background:var(--primary-deep);box-shadow:0 0 0 1px rgba(65,104,62,.14)}
+  .architecture-history-rail i{position:absolute;top:28px;bottom:-10px;width:1px;background:rgba(65,104,62,.12)}
+  .architecture-history-card{margin-bottom:9px;padding:16px 17px;border:1px solid rgba(65,104,62,.09);border-radius:14px;background:rgba(255,255,255,.76)}
+  .architecture-history-card-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .architecture-history-card-top>div{display:flex;align-items:center;gap:8px}
+  .architecture-history-category{padding:5px 7px;border-radius:999px;background:var(--primary-soft);color:var(--primary-deep);font-size:7px;font-weight:850}
+  .architecture-history-card time{color:var(--text-soft);font-size:7px}
+  .architecture-history-card-top a{color:var(--primary-deep);font-size:7px;font-weight:850;text-decoration:none}
+  .architecture-history-card h3{margin:11px 0 0;font-size:14px}
+  .architecture-history-card>p{max-width:790px;margin:7px 0 0;color:var(--text-soft);font-size:9px;line-height:1.6}
+  .architecture-history-meta{margin-top:10px;display:flex;flex-wrap:wrap;gap:5px}
+  .architecture-history-meta span{padding:5px 7px;border:1px solid rgba(65,104,62,.08);border-radius:7px;background:rgba(247,250,245,.82);color:var(--text-soft);font-size:7px}
+  .architecture-history-card details{margin-top:9px;border-top:1px solid rgba(65,104,62,.07);padding-top:8px}
+  .architecture-history-card summary{color:var(--primary-deep);font-size:7px;font-weight:850;cursor:pointer}
+  .architecture-history-code,.architecture-code-list{margin-top:8px;display:flex;flex-wrap:wrap;gap:5px}
+  .architecture-history-code code,.architecture-code-list code{max-width:100%;padding:5px 7px;overflow:hidden;border-radius:6px;background:#f2f6ef;color:#365f35;font-size:7px;text-overflow:ellipsis}
+  .architecture-empty{margin-top:17px;padding:22px;border:1px dashed rgba(65,104,62,.14);border-radius:14px;background:rgba(255,255,255,.55);text-align:center}
+  .architecture-empty strong,.architecture-empty span{display:block}
+  .architecture-empty strong{font-size:10px}
+  .architecture-empty span{margin-top:4px;color:var(--text-soft);font-size:8px}
+  .architecture-modal{position:fixed;inset:0;z-index:80;display:grid;place-items:center;padding:18px}
+  .architecture-backdrop{position:absolute;inset:0;border:0;background:rgba(23,32,25,.25);backdrop-filter:blur(3px)}
+  .architecture-modal-card{position:relative;z-index:1;width:min(620px,100%);max-height:calc(100vh - 36px);padding:21px;overflow:auto;border:1px solid rgba(65,104,62,.10);border-radius:18px;background:#fbfdf9;box-shadow:0 28px 70px rgba(23,32,25,.18)}
+  .architecture-history-modal-card{width:min(690px,100%)}
+  .architecture-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+  .architecture-modal-head span{color:var(--primary-deep);font-size:8px;font-weight:900;text-transform:uppercase}
+  .architecture-modal-head h2{margin:5px 0 0;font-size:20px}
+  .architecture-modal-head>button{width:32px;height:32px;border:1px solid rgba(65,104,62,.10);border-radius:9px;background:#fff;color:var(--text);cursor:pointer}
+  .architecture-node-description{margin:15px 0 0;color:var(--text-soft);font-size:10px;line-height:1.65}
+  .architecture-node-details{margin-top:18px;display:grid;gap:14px}
+  .architecture-node-details section{padding-top:12px;border-top:1px solid rgba(65,104,62,.08)}
+  .architecture-node-details section>span{color:var(--text-soft);font-size:8px;font-weight:850}
+  .architecture-chip-list{margin-top:8px;display:flex;flex-wrap:wrap;gap:5px}
+  .architecture-chip-list span{padding:6px 8px;border-radius:8px;background:var(--primary-soft);color:var(--primary-deep);font-size:8px}
+  .architecture-chip-list small,.architecture-code-list small{color:var(--text-soft);font-size:8px}
+  #architecture-history-form{margin-top:18px;display:grid;gap:12px}
+  #architecture-history-form label{display:grid;gap:6px}
+  #architecture-history-form label>span{color:var(--text-soft);font-size:8px;font-weight:800}
+  #architecture-history-form input,#architecture-history-form select,#architecture-history-form textarea{width:100%;box-sizing:border-box;border:1px solid rgba(65,104,62,.12);border-radius:10px;background:#fff;color:var(--text);font:inherit;font-size:9px;outline:none}
+  #architecture-history-form input,#architecture-history-form select{min-height:39px;padding:0 11px}
+  #architecture-history-form textarea{padding:10px 11px;resize:vertical;line-height:1.5}
+  #architecture-history-form input:focus,#architecture-history-form select:focus,#architecture-history-form textarea:focus{border-color:rgba(54,95,53,.32);box-shadow:0 0 0 3px rgba(54,95,53,.05)}
+  .architecture-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .architecture-modal-actions{margin-top:4px;display:flex;justify-content:flex-end;gap:8px}
+  .architecture-modal-actions button{min-height:38px;padding:0 13px;border:1px solid rgba(65,104,62,.11);border-radius:10px;background:#fff;color:var(--text);font:inherit;font-size:8px;font-weight:850;cursor:pointer}
+  .architecture-modal-actions .primary{background:var(--primary-deep);border-color:var(--primary-deep);color:#fff}
+  .architecture-modal-actions button:disabled{cursor:wait;opacity:.6}
+
+
+  .architecture-node-actions {
+    margin-top: 16px;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .architecture-node-actions button {
+    min-height: 36px;
+    padding: 0 12px;
+    border: 1px solid var(--primary-deep);
+    border-radius: 10px;
+    background: var(--primary-deep);
+    color: #fff;
+    font: inherit;
+    font-size: 8px;
+    font-weight: 850;
+    cursor: pointer;
+  }
+
+  #architecture-edit-form {
+    margin-top: 18px;
+    display: grid;
+    gap: 12px;
+  }
+
+  #architecture-edit-form label {
+    display: grid;
+    gap: 6px;
+  }
+
+  #architecture-edit-form label > span {
+    color: var(--text-soft);
+    font-size: 8px;
+    font-weight: 800;
+  }
+
+  #architecture-edit-form input,
+  #architecture-edit-form select,
+  #architecture-edit-form textarea {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid rgba(65,104,62,.12);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--text);
+    font: inherit;
+    font-size: 9px;
+    outline: none;
+  }
+
+  #architecture-edit-form input,
+  #architecture-edit-form select {
+    min-height: 39px;
+    padding: 0 11px;
+  }
+
+  #architecture-edit-form textarea {
+    padding: 10px 11px;
+    resize: vertical;
+    line-height: 1.5;
+  }
+
+  .architecture-node-filtered-out {
+    opacity: .14;
+    filter: saturate(.25);
+    transform: scale(.985);
+    pointer-events: none;
+  }
+
+  .architecture-flow-muted {
+    opacity: .18;
+  }
+
+  .architecture-filter.active {
+    box-shadow: 0 0 0 2px rgba(54,95,53,.07);
+  }
+
+  @media(max-width:920px){
+    .architecture-summary,.architecture-toolbar,.architecture-section-heading{align-items:flex-start;flex-direction:column}
+    .architecture-map-main{grid-template-columns:1fr}
+    .architecture-arrow{transform:rotate(90deg)}
+    .architecture-map-branches{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .architecture-map-branches::before,.architecture-map-branches::after{display:none}
+  }
+
+  @media(max-width:620px){
+    .architecture-summary-flow{width:100%;flex-wrap:wrap}
+    .architecture-map{padding:14px}
+    .architecture-map-branches,.architecture-form-grid{grid-template-columns:1fr}
+    .architecture-toolbar-actions,.architecture-new-button,.architecture-roadmap-link,.architecture-validation-link{width:100%}
+    .architecture-history-item{grid-template-columns:20px minmax(0,1fr)}
+    .architecture-history-card-top{align-items:flex-start;flex-direction:column}
+  }
+</style>

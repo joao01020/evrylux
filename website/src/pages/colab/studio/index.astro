@@ -72,38 +72,60 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
           </button>
         </div>
 
-        
-        <a
-          class="studio-validation-button"
-          href="/colab/studio/validation"
-          data-studio-validation-button
-        >
-          <span class="studio-validation-button-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-              <path
-                d="M5 12.5 9.2 17 19 7"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.9"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-          </span>
+        <div class="roadmap-toolbar-actions">
+          <!-- EVRYLUX_STUDIO_ARCHITECTURE_BUTTON_V1 -->
+          <a
+            class="studio-validation-button studio-architecture-button"
+            href="/colab/studio/architecture"
+            data-studio-architecture-button
+          >
+            <span
+              class="studio-validation-button-icon"
+              aria-hidden="true"
+            >
+              ◇
+            </span>
 
-          <span>
-            Validação
-          </span>
-        </a>
+            <span>
+              Arquitetura
+            </span>
+          </a>
 
-<button
-          id="new-roadmap-item"
-          class="roadmap-new-button"
-          type="button"
-        >
-          <span aria-hidden="true">＋</span>
-          Novo item
-        </button>
+          <a
+            class="studio-validation-button"
+            href="/colab/studio/validation"
+            data-studio-validation-button
+          >
+            <span
+              class="studio-validation-button-icon"
+              aria-hidden="true"
+            >
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M5 12.5 9.2 17 19 7"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.9"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+
+            <span>
+              Validação
+            </span>
+          </a>
+
+          <button
+            id="new-roadmap-item"
+            class="roadmap-new-button"
+            type="button"
+          >
+            <span aria-hidden="true">＋</span>
+            Novo item
+          </button>
+        </div>
       </div>
 
       <div
@@ -3179,6 +3201,15 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
     flex-wrap: wrap;
   }
 
+  .roadmap-toolbar-actions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
   .roadmap-filter,
   .roadmap-new-button {
     transition:
@@ -3818,6 +3849,10 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
     box-shadow: 0 7px 20px rgba(54,92,51,.045);
     transition: transform .16s ease,border-color .16s ease,box-shadow .16s ease,background .16s ease;
   }
+  .studio-architecture-button {
+    white-space: nowrap;
+  }
+
   .studio-validation-button:hover {
     transform: translateY(-1px);
     border-color: rgba(95,157,89,.30);
@@ -3842,20 +3877,24 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
     display: flex;
     justify-content: flex-end;
   }
-  .roadmap-toolbar > .studio-validation-button {
-    margin-left: auto;
-  }
-  .roadmap-toolbar > .studio-validation-button + #new-roadmap-item {
-    margin-left: 0;
-  }
   @media (max-width: 720px) {
-    .roadmap-toolbar > .studio-validation-button {
-      width: 100%;
-      order: 2;
+    .roadmap-toolbar {
+      align-items: stretch;
     }
-    .roadmap-toolbar > #new-roadmap-item {
+
+    .roadmap-filter-row {
       width: 100%;
-      order: 3;
+    }
+
+    .roadmap-toolbar-actions {
+      width: 100%;
+      margin-left: 0;
+      justify-content: flex-start;
+    }
+
+    .roadmap-toolbar-actions .studio-validation-button,
+    .roadmap-toolbar-actions .roadmap-new-button {
+      flex: 1 1 auto;
     }
   }
 </style>
