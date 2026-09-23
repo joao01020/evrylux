@@ -227,13 +227,24 @@ flutter doctor -v
 
 ## 10. Variáveis de ambiente
 
-Nunca compartilhe o `.env` real pelo Git.
+O projeto possui ambientes separados para desenvolvimento e produção.
 
-O projeto deve possuir um exemplo sem secrets:
+Durante desenvolvimento normal, os colaboradores devem utilizar somente o
+ambiente DEV.
+
+A aplicação Flutter utiliza:
 
 ```text
-.env.example
+app/.env
 ```
+
+O repositório também deve possuir:
+
+```text
+app/.env.example
+```
+
+O `.env.example` serve apenas como referência de estrutura.
 
 Exemplo:
 
@@ -242,17 +253,177 @@ SUPABASE_URL=
 SUPABASE_PUBLISHABLE_KEY=
 ```
 
-Crie o arquivo local conforme a localização esperada pelo aplicativo.
-
-Exemplo:
+Para criar o arquivo local:
 
 ```bash
+cd app
 cp .env.example .env
 ```
 
-Preencha somente com as credenciais correspondentes ao ambiente correto.
+Depois, preencha o `.env` com as configurações do ambiente DEV.
 
-O arquivo real deve estar no `.gitignore`.
+---
+
+## 11. Supabase DEV oficial
+
+O seguinte projeto Supabase é destinado ao ambiente de desenvolvimento.
+
+Ele pode ser utilizado pelos colaboradores para executar e testar o aplicativo
+durante o desenvolvimento.
+
+```env
+SUPABASE_URL=https://unlsxswbdugdnywkgvzd.supabase.co
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_PeoQ1pPBpHQeKhIjJdi97A_Zc6vx5iz
+```
+
+O arquivo local:
+
+```text
+app/.env
+```
+
+pode ficar assim:
+
+```env
+SUPABASE_URL=https://unlsxswbdugdnywkgvzd.supabase.co
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_PeoQ1pPBpHQeKhIjJdi97A_Zc6vx5iz
+```
+
+Esse projeto deve ser tratado como ambiente:
+
+```text
+development
+```
+
+e não como produção.
+
+---
+
+## 12. Regras do ambiente DEV
+
+O banco DEV existe para permitir:
+
+- desenvolvimento;
+- testes manuais;
+- testes de migrations;
+- testes de RLS;
+- criação de contas fictícias;
+- testes de sync;
+- testes offline-first;
+- testes de colaboração;
+- testes de novas funcionalidades;
+- validação antes de mudanças chegarem à produção.
+
+Dados presentes nesse ambiente não devem ser considerados dados de produção.
+
+Use preferencialmente:
+
+- contas de teste;
+- dados fictícios;
+- arquivos de teste;
+- informações sem valor real.
+
+Evite utilizar:
+
+- dados pessoais reais;
+- contas reais de usuários;
+- dumps de produção;
+- tokens de produção;
+- secrets de produção.
+
+---
+
+## 13. Ambiente de produção
+
+O ambiente de produção deve permanecer separado do ambiente DEV.
+
+Fluxo conceitual:
+
+```text
+DESENVOLVIMENTO
+
+Flutter local
+    ↓
+.env DEV
+    ↓
+Supabase DEV
+
+
+PRODUÇÃO
+
+Aplicativo publicado
+    ↓
+configuração PROD
+    ↓
+Supabase PROD
+```
+
+As credenciais e configurações de produção não devem ser adicionadas a este
+documento.
+
+O acesso ao ambiente PROD deve ser restrito às pessoas e sistemas que realmente
+necessitam dele.
+
+---
+
+## 14. Chaves permitidas no cliente
+
+O aplicativo Flutter pode utilizar uma chave pública destinada ao cliente, como:
+
+```text
+SUPABASE_PUBLISHABLE_KEY
+```
+
+Nunca coloque no Flutter, neste documento ou no repositório:
+
+```text
+service_role
+secret key
+database password
+private key
+access token administrativo
+refresh token
+senha de usuário
+```
+
+A `service_role` possui privilégios elevados e nunca deve ser distribuída dentro
+do aplicativo cliente.
+
+---
+
+## 15. `.env` e Git
+
+O arquivo:
+
+```text
+.env
+```
+
+deve permanecer ignorado pelo Git.
+
+Configuração recomendada no `.gitignore`:
+
+```gitignore
+.env
+.env.*
+!.env.example
+```
+
+Assim:
+
+```text
+.env
+→ não versionado
+
+.env.development
+→ não versionado, se utilizado
+
+.env.production
+→ não versionado
+
+.env.example
+→ versionado
+```
 
 Confirme:
 
@@ -260,13 +431,13 @@ Confirme:
 git status
 ```
 
-O `.env` não deve aparecer como arquivo pronto para commit.
+O `.env` real não deve aparecer como arquivo pronto para commit.
 
 ---
 
-## 11. Ambientes
+## 16. Ambientes
 
-Quando possível, mantenha separação entre:
+O projeto deve manter separação entre:
 
 ```text
 development
@@ -274,14 +445,19 @@ staging
 production
 ```
 
-Não utilize credenciais de produção durante desenvolvimento normal.
+quando cada ambiente estiver disponível.
+
+Atualmente, desenvolvimento deve utilizar o Supabase DEV documentado neste
+arquivo.
+
+Não utilize o banco de produção durante desenvolvimento normal.
 
 Cada colaborador deve utilizar somente as credenciais necessárias ao ambiente em
 que está trabalhando.
 
 ---
 
-## 12. Supabase
+## 17. Supabase
 
 O projeto já inicializado normalmente possui:
 
@@ -289,7 +465,13 @@ O projeto já inicializado normalmente possui:
 supabase/config.toml
 ```
 
-Portanto, não execute `supabase init` novamente sem necessidade.
+Portanto, não execute:
+
+```bash
+supabase init
+```
+
+novamente sem necessidade.
 
 Confirme:
 
@@ -297,17 +479,58 @@ Confirme:
 ls supabase/
 ```
 
-Para vincular o repositório a um projeto remoto:
+---
 
-```bash
-supabase link --project-ref PROJECT_REF
+## 18. Identificando o projeto DEV
+
+A URL configurada para desenvolvimento é:
+
+```text
+https://unlsxswbdugdnywkgvzd.supabase.co
 ```
 
-Use o `PROJECT_REF` correspondente ao ambiente correto.
+O `project-ref` correspondente é:
+
+```text
+unlsxswbdugdnywkgvzd
+```
+
+Para vincular o Supabase CLI ao projeto DEV:
+
+```bash
+supabase link --project-ref unlsxswbdugdnywkgvzd
+```
+
+Esse comando pode solicitar autenticação ou credenciais adicionais dependendo da
+configuração da CLI.
+
+O acesso administrativo ao projeto Supabase deve continuar controlado
+separadamente.
 
 ---
 
-## 13. Supabase local
+## 19. Supabase local
+
+O Supabase remoto DEV e o Supabase executado localmente são conceitos
+diferentes.
+
+### Supabase DEV remoto
+
+```text
+https://unlsxswbdugdnywkgvzd.supabase.co
+```
+
+Utilizado para:
+
+- colaboração;
+- desenvolvimento compartilhado;
+- testes entre máquinas;
+- sync;
+- integração do aplicativo.
+
+### Supabase local
+
+Executado através de Docker na máquina do desenvolvedor.
 
 Docker precisa estar funcionando:
 
@@ -333,9 +556,43 @@ Pare:
 supabase stop
 ```
 
+O Supabase local é útil principalmente para testar migrations e alterações de
+banco antes de aplicá-las no ambiente DEV compartilhado.
+
 ---
 
-## 14. Migrations
+## 20. Fluxo recomendado de banco
+
+Para mudanças estruturais importantes:
+
+```text
+Criar migration
+      ↓
+Supabase local
+      ↓
+Testar
+      ↓
+Revisar SQL
+      ↓
+Revisar RLS
+      ↓
+Aplicar no DEV
+      ↓
+Testar aplicativo
+      ↓
+Pull Request
+      ↓
+Review
+      ↓
+Produção posteriormente
+```
+
+Evite criar alterações diretamente em produção sem passar pelas etapas
+anteriores.
+
+---
+
+## 21. Migrations
 
 Mudanças de schema devem ocorrer através de migrations.
 
@@ -363,7 +620,7 @@ Regras:
 
 ---
 
-## 15. Banco de desenvolvimento
+## 22. Banco de desenvolvimento
 
 Utilize dados fictícios ou contas de teste.
 
@@ -376,9 +633,34 @@ Evite:
 
 O ambiente de desenvolvimento deve ser descartável sempre que possível.
 
+Antes de executar scripts destrutivos, confirme que está conectado ao projeto
+correto.
+
 ---
 
-## 16. Padrão de branches
+## 23. Confirmando ambiente antes de mudanças críticas
+
+Antes de executar comandos que alteram banco remoto, confirme:
+
+```bash
+supabase status
+```
+
+e revise a configuração utilizada.
+
+Para operações importantes, confirme também que o `project-ref` corresponde ao
+DEV:
+
+```text
+unlsxswbdugdnywkgvzd
+```
+
+Nunca execute uma migration destrutiva assumindo que o ambiente conectado é DEV
+sem verificar.
+
+---
+
+## 24. Padrão de branches
 
 Tipos recomendados:
 
@@ -408,7 +690,7 @@ ci/flutter-build
 
 ---
 
-## 17. Durante o desenvolvimento
+## 25. Durante o desenvolvimento
 
 Antes de modificar:
 
@@ -442,7 +724,7 @@ git diff --cached
 
 ---
 
-## 18. Formatação
+## 26. Formatação
 
 Para formatar:
 
@@ -461,7 +743,7 @@ Evite commits com centenas de alterações apenas de formatação que não perte
 
 ---
 
-## 19. Análise
+## 27. Análise
 
 Execute:
 
@@ -475,7 +757,7 @@ Warnings relevantes também devem ser avaliados.
 
 ---
 
-## 20. Testes
+## 28. Testes
 
 Execute:
 
@@ -491,9 +773,17 @@ docs/TESTING.md
 
 para a estratégia completa de testes.
 
+Quando disponível, consulte também:
+
+```text
+docs/TESTING_ROADMAP.md
+```
+
+para os cenários que ainda precisam ser validados.
+
 ---
 
-## 21. Build local
+## 29. Build local
 
 Quando aplicável:
 
@@ -511,7 +801,7 @@ Utilize a plataforma correspondente ao ambiente.
 
 ---
 
-## 22. Commits
+## 30. Commits
 
 Padrão:
 
@@ -537,7 +827,7 @@ Consulte também:
 
 ---
 
-## 23. Antes do commit
+## 31. Antes do commit
 
 Confira:
 
@@ -558,6 +848,7 @@ Verifique especialmente:
 - tokens;
 - senhas;
 - private keys;
+- service role keys;
 - dumps;
 - logs;
 - builds;
@@ -566,7 +857,7 @@ Verifique especialmente:
 
 ---
 
-## 24. Pull Requests
+## 32. Pull Requests
 
 Antes do PR:
 
@@ -605,7 +896,7 @@ git push -u origin sua-branch
 
 ---
 
-## 25. GitHub CLI
+## 33. GitHub CLI
 
 Confirme autenticação:
 
@@ -624,7 +915,7 @@ gh label list
 
 ---
 
-## 26. Segurança
+## 34. Segurança
 
 Nunca faça commit de:
 
@@ -637,6 +928,8 @@ database dumps
 tokens
 credentials
 private keys
+service_role keys
+database passwords
 ```
 
 Se um secret for commitado por engano, removê-lo do arquivo não é suficiente.
@@ -645,7 +938,34 @@ Ele deve ser considerado comprometido e rotacionado.
 
 ---
 
-## 27. Limpeza Flutter
+## 35. Sobre a Publishable Key DEV
+
+A chave:
+
+```text
+SUPABASE_PUBLISHABLE_KEY
+```
+
+utilizada pelo aplicativo cliente não deve ser confundida com uma credencial
+administrativa.
+
+A segurança dos dados não deve depender de esconder essa chave.
+
+A proteção deve ocorrer principalmente através de:
+
+- autenticação;
+- autorização;
+- Row Level Security;
+- políticas adequadas;
+- validações no backend;
+- isolamento entre usuários.
+
+Por isso, qualquer tabela contendo dados privados deve possuir políticas RLS
+adequadas.
+
+---
+
+## 36. Limpeza Flutter
 
 Quando houver comportamento inconsistente de build:
 
@@ -660,7 +980,7 @@ Primeiro tente identificar a causa.
 
 ---
 
-## 28. Problemas comuns
+## 37. Problemas comuns
 
 ### Dependência ausente
 
@@ -693,6 +1013,16 @@ git diff
 flutter pub outdated
 ```
 
+### Ambiente Supabase incorreto
+
+Confirme que o aplicativo está utilizando:
+
+```text
+SUPABASE_URL=https://unlsxswbdugdnywkgvzd.supabase.co
+```
+
+durante o desenvolvimento compartilhado.
+
 ### Mudanças locais antes de trocar de branch
 
 ```bash
@@ -703,7 +1033,74 @@ Faça commit ou stash somente quando entender quais arquivos serão preservados.
 
 ---
 
-## 29. Antes de pedir ajuda
+## 38. Onboarding de um novo colaborador
+
+Fluxo simplificado:
+
+```text
+Clonar repositório
+      ↓
+Selecionar branch correta
+      ↓
+cd app
+      ↓
+flutter pub get
+      ↓
+criar .env
+      ↓
+configurar Supabase DEV
+      ↓
+flutter doctor
+      ↓
+flutter run
+```
+
+Comandos:
+
+```bash
+git clone https://github.com/joao01020/ghost-core.git
+cd ghost-core
+git fetch --all --prune
+cd app
+flutter pub get
+cp .env.example .env
+```
+
+No `.env`:
+
+```env
+SUPABASE_URL=https://unlsxswbdugdnywkgvzd.supabase.co
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_PeoQ1pPBpHQeKhIjJdi97A_Zc6vx5iz
+```
+
+Depois:
+
+```bash
+flutter doctor -v
+flutter run
+```
+
+No Linux:
+
+```bash
+flutter run -d linux
+```
+
+No macOS:
+
+```bash
+flutter run -d macos
+```
+
+No Windows:
+
+```powershell
+flutter run -d windows
+```
+
+---
+
+## 39. Antes de pedir ajuda
 
 Colete:
 
@@ -724,7 +1121,7 @@ Nunca publique secrets junto com logs.
 
 ---
 
-## 30. Definition of Done
+## 40. Definition of Done
 
 Uma tarefa não está pronta apenas porque funciona na máquina do autor.
 
@@ -734,7 +1131,8 @@ Antes de concluir:
 - [ ] `flutter analyze` executado;
 - [ ] testes executados;
 - [ ] build validado quando aplicável;
-- [ ] sem secrets;
+- [ ] ambiente DEV utilizado;
+- [ ] sem secrets administrativos;
 - [ ] documentação atualizada;
 - [ ] migration validada quando aplicável;
 - [ ] segurança avaliada;
@@ -745,7 +1143,7 @@ Antes de concluir:
 
 ---
 
-## 31. Documentação relacionada
+## 41. Documentação relacionada
 
 Consulte também:
 
@@ -754,8 +1152,34 @@ README.md
 .github/CONTRIBUTING.md
 docs/ARCHITECTURE.md
 docs/TESTING.md
+docs/TESTING_ROADMAP.md
 docs/SECURITY_ARCHITECTURE.md
 docs/RELEASE.md
 ```
 
 A documentação deve refletir o processo real do projeto.
+
+---
+
+## 42. Regra principal de ambientes
+
+Durante desenvolvimento:
+
+```text
+Colaboradores
+     ↓
+Supabase DEV
+```
+
+Em produção:
+
+```text
+Aplicativo publicado
+     ↓
+Supabase PROD
+```
+
+Não misture os ambientes.
+
+O ambiente DEV existe para permitir desenvolvimento, testes e erros controlados
+sem colocar os dados de produção em risco.
