@@ -1,0 +1,49 @@
+name: Flutter Build Check
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "app/**"
+      - ".github/workflows/tests.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flutter-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-build:
+    name: Linux desktop build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: app
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Linux desktop dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y             clang             cmake             ninja-build             pkg-config             libgtk-3-dev             liblzma-dev
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Enable Linux desktop
+        run: flutter config --enable-linux-desktop
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Linux app
+        run: flutter build linux --debug

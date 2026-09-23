@@ -1,0 +1,93 @@
+name: Feature request
+description: Sugira uma melhoria ou nova funcionalidade
+title: "[FEATURE] "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Descreva o problema antes de propor a solução.
+
+        Boas propostas explicam claramente o valor da funcionalidade, o fluxo esperado e possíveis impactos.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Verificações iniciais
+      options:
+        - label: Procurei por issues existentes e não encontrei uma solicitação equivalente.
+          required: true
+        - label: Esta solicitação está relacionada ao objetivo do projeto.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problema
+      description: Que problema esta funcionalidade resolveria?
+      placeholder: Atualmente, quando...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Solução proposta
+      description: Explique como você imagina o funcionamento.
+      placeholder: A proposta é...
+    validations:
+      required: true
+
+  - type: textarea
+    id: flow
+    attributes:
+      label: Fluxo esperado
+      placeholder: |
+        1. Usuário...
+        2. Sistema...
+        3. Resultado...
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativas consideradas
+      description: Existem outras formas de resolver o problema?
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área principal
+      options:
+        - Brain
+        - Dashboard
+        - Tasks
+        - Search
+        - Authentication
+        - Sync
+        - Database
+        - Website
+        - Notifications
+        - Security
+        - Performance
+        - Developer Experience
+        - Documentation
+        - Outra
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Critérios de aceite
+      description: O que precisa ser verdade para considerar esta tarefa concluída?
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+        - [ ] ...
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Contexto adicional
+      description: Mockups, referências, screenshots ou observações.

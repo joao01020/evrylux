@@ -1,0 +1,98 @@
+name: Bug report
+description: Relate um comportamento incorreto ou inesperado
+title: "[BUG] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por reportar o problema.
+
+        Não inclua senhas, tokens, chaves, `.env`, dados pessoais ou detalhes de vulnerabilidades de segurança.
+
+        Vulnerabilidades devem seguir o processo definido em `SECURITY.md`.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Verificações iniciais
+      options:
+        - label: Procurei por issues existentes e não encontrei este mesmo problema.
+          required: true
+        - label: Estou utilizando uma versão atual do projeto.
+          required: true
+        - label: Este relato não contém credenciais ou informações sensíveis.
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Descrição do problema
+      description: Explique claramente o que está acontecendo.
+      placeholder: O comportamento observado é...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportamento esperado
+      description: Explique o que deveria acontecer.
+      placeholder: Eu esperava que...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Passos para reproduzir
+      description: Liste os passos mínimos necessários.
+      placeholder: |
+        1. Abra...
+        2. Clique em...
+        3. Informe...
+        4. O problema acontece...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Plataforma
+      options:
+        - Linux
+        - macOS
+        - Windows
+        - Android
+        - iOS
+        - Web
+        - Backend / Supabase
+        - Outra
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Versão, branch ou commit
+      placeholder: "Ex.: main, feature/website-improvements ou abc1234"
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs relevantes
+      description: Cole apenas os trechos relevantes. Remova dados sensíveis.
+      render: shell
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots ou vídeos
+      description: Adicione evidências visuais quando ajudarem a reproduzir o problema.
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Contexto adicional
+      description: Informe qualquer outro detalhe útil.
