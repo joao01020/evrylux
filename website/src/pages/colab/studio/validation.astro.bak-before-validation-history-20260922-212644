@@ -161,93 +161,6 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
       </section>
     </div>
 
-
-    <div id="validation-history-modal" class="validation-modal member-hidden">
-      <button
-        class="validation-backdrop"
-        data-close-history
-        type="button"
-      ></button>
-
-      <section class="validation-modal-card validation-history-modal-card">
-        <div class="validation-modal-head">
-          <div>
-            <span>Etapas da validação</span>
-            <h2>Registrar nova etapa</h2>
-          </div>
-
-          <button data-close-history type="button">×</button>
-        </div>
-
-        <p class="validation-history-help">
-          Registre o que aconteceu nesta fase. Este histórico não substitui
-          o status atual nem a observação oficial do teste.
-        </p>
-
-        <form id="validation-history-form">
-          <input id="validation-history-item-id" type="hidden" />
-
-          <div class="validation-history-form-grid">
-            <label>
-              <span>Fase</span>
-              <select id="validation-history-phase">
-                <option value="planning">Planejamento</option>
-                <option value="implementation">Implementação</option>
-                <option value="test">Teste</option>
-                <option value="fix">Correção</option>
-                <option value="retest">Novo teste</option>
-                <option value="validation">Validação</option>
-                <option value="review">Revisão</option>
-                <option value="removal">Remoção</option>
-                <option value="observation">Observação</option>
-              </select>
-            </label>
-
-            <label>
-              <span>Resultado</span>
-              <select id="validation-history-result">
-                <option value="info">Informativo</option>
-                <option value="pending">Pendente</option>
-                <option value="partial">Parcial</option>
-                <option value="success">Concluído</option>
-                <option value="problem">Problema</option>
-              </select>
-            </label>
-          </div>
-
-          <label>
-            <span>Título da etapa</span>
-            <input
-              id="validation-history-title"
-              maxlength="180"
-              required
-              placeholder="Ex.: Segundo teste no macOS"
-            />
-          </label>
-
-          <label>
-            <span>O que aconteceu?</span>
-            <textarea
-              id="validation-history-description"
-              rows="6"
-              maxlength="5000"
-              placeholder="Descreva a alteração, teste, resultado ou decisão desta fase."
-            ></textarea>
-          </label>
-
-          <div class="validation-modal-actions">
-            <button data-close-history type="button">
-              Cancelar
-            </button>
-
-            <button class="primary" type="submit">
-              Registrar etapa
-            </button>
-          </div>
-        </form>
-      </section>
-    </div>
-
     <div id="validation-editor" class="validation-modal member-hidden">
       <button class="validation-backdrop" data-close-editor type="button"></button>
 
@@ -298,22 +211,15 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
   } from '../../../lib/colab-roadmap';
 
   import {
-    addValidationHistoryEntry,
     canFinalizeValidation,
     createValidationItem,
     editValidationItem,
     finalizeValidation,
-    getValidationHistory,
     getValidationItems,
     proposeRemoval,
     updateValidation,
-    validationHistoryPhaseLabels,
-    validationHistoryResultLabels,
     validationStatusLabels,
     voteValidation,
-    type ValidationHistoryEntry,
-    type ValidationHistoryPhase,
-    type ValidationHistoryResult,
     type ValidationItem,
     type ValidationVote,
   } from '../../../lib/colab-validation';
@@ -346,50 +252,8 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
   const editArea = document.querySelector<HTMLInputElement>('#validation-edit-area');
   const editAssignee = document.querySelector<HTMLSelectElement>('#validation-edit-assignee');
 
-  const historyModal =
-    document.querySelector<HTMLElement>(
-      '#validation-history-modal',
-    );
-
-  const historyForm =
-    document.querySelector<HTMLFormElement>(
-      '#validation-history-form',
-    );
-
-  const historyItemId =
-    document.querySelector<HTMLInputElement>(
-      '#validation-history-item-id',
-    );
-
-  const historyPhase =
-    document.querySelector<HTMLSelectElement>(
-      '#validation-history-phase',
-    );
-
-  const historyResult =
-    document.querySelector<HTMLSelectElement>(
-      '#validation-history-result',
-    );
-
-  const historyTitle =
-    document.querySelector<HTMLInputElement>(
-      '#validation-history-title',
-    );
-
-  const historyDescription =
-    document.querySelector<HTMLTextAreaElement>(
-      '#validation-history-description',
-    );
-
   let items: ValidationItem[] = [];
   let collaborators: CollaboratorProfile[] = [];
-  let historyEntries:
-    ValidationHistoryEntry[] =
-      [];
-
-  const expandedCards =
-    new Set<string>();
-
   let activeFilter = 'all';
   let canFinalize = false;
 
@@ -413,239 +277,6 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
 
   function avatarFor(userId: string | null) {
     return profileFor(userId)?.avatar_url?.trim() || '/branding/default-profile-avatar.png';
-  }
-
-  function historyFor(
-    validationItemId: string,
-  ) {
-    return historyEntries
-      .filter(
-        (
-          entry,
-        ) =>
-          entry.validation_item_id ===
-          validationItemId,
-      )
-      .sort(
-        (
-          a,
-          b,
-        ) =>
-          new Date(
-            a.created_at,
-          ).getTime() -
-          new Date(
-            b.created_at,
-          ).getTime(),
-      );
-  }
-
-  function formatHistoryDate(
-    value: string,
-  ) {
-    const date =
-      new Date(
-        value,
-      );
-
-    if (
-      Number.isNaN(
-        date.getTime(),
-      )
-    ) {
-      return '';
-    }
-
-    return date.toLocaleString(
-      'pt-BR',
-      {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      },
-    );
-  }
-
-  function latestHistoryFor(
-    validationItemId: string,
-  ) {
-    const history =
-      historyFor(
-        validationItemId,
-      );
-
-    return history.length
-      ? history[
-          history.length - 1
-        ]
-      : null;
-  }
-
-  function historyTimeline(
-    item: ValidationItem,
-  ) {
-    const history =
-      historyFor(
-        item.id,
-      );
-
-    if (
-      !history.length
-    ) {
-      return `
-        <div class="validation-history-empty">
-          <strong>Nenhuma etapa registrada ainda.</strong>
-          <span>
-            Use “Registrar etapa” para documentar implementação,
-            teste, correção, novo teste ou validação.
-          </span>
-        </div>
-      `;
-    }
-
-    return `
-      <div class="validation-history-list">
-        ${history.map(
-          (
-            entry,
-            index,
-          ) => `
-            <article
-              class="validation-history-entry"
-              data-history-result="${esc(
-                entry.result,
-              )}"
-            >
-              <div class="validation-history-rail">
-                <span></span>
-                ${
-                  index <
-                  history.length - 1
-                    ? '<i></i>'
-                    : ''
-                }
-              </div>
-
-              <div class="validation-history-entry-body">
-                <div class="validation-history-entry-top">
-                  <span class="validation-history-phase">
-                    ${esc(
-                      validationHistoryPhaseLabels[
-                        entry.phase
-                      ],
-                    )}
-                  </span>
-
-                  <span
-                    class="validation-history-result"
-                    data-result="${esc(
-                      entry.result,
-                    )}"
-                  >
-                    ${esc(
-                      validationHistoryResultLabels[
-                        entry.result
-                      ],
-                    )}
-                  </span>
-
-                  <time>
-                    ${esc(
-                      formatHistoryDate(
-                        entry.created_at,
-                      ),
-                    )}
-                  </time>
-                </div>
-
-                <strong>
-                  ${esc(
-                    entry.title,
-                  )}
-                </strong>
-
-                ${
-                  entry.description
-                    ? `
-                      <p>
-                        ${esc(
-                          entry.description,
-                        )}
-                      </p>
-                    `
-                    : ''
-                }
-              </div>
-            </article>
-          `,
-        ).join('')}
-      </div>
-    `;
-  }
-
-  function openHistoryModal(
-    item: ValidationItem,
-  ) {
-    if (
-      !historyModal ||
-      !historyItemId ||
-      !historyPhase ||
-      !historyResult ||
-      !historyTitle ||
-      !historyDescription
-    ) {
-      return;
-    }
-
-    historyItemId.value =
-      item.id;
-
-    historyPhase.value =
-      item.validation_status ===
-      'testing'
-        ? 'test'
-        : item.validation_status ===
-            'validated'
-          ? 'validation'
-          : item.validation_status ===
-              'review'
-            ? 'review'
-            : item.validation_status ===
-                'removal'
-              ? 'removal'
-              : 'observation';
-
-    historyResult.value =
-      'info';
-
-    historyTitle.value =
-      '';
-
-    historyDescription.value =
-      '';
-
-    historyModal.classList.remove(
-      'member-hidden',
-    );
-
-    historyTitle.focus();
-  }
-
-  function closeHistoryModal() {
-    historyModal?.classList.add(
-      'member-hidden',
-    );
-
-    historyForm?.reset();
-
-    if (
-      historyItemId
-    ) {
-      historyItemId.value =
-        '';
-    }
   }
 
   function visibleItems() {
@@ -689,393 +320,94 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
   }
 
   function card(item: ValidationItem) {
-    const name =
-      nameFor(
-        item.assignee_user_id,
-      );
-
-    const avatar =
-      avatarFor(
-        item.assignee_user_id,
-      );
-
-    const votes =
-      item.vote_keep +
-      item.vote_review +
-      item.vote_remove;
-
-    const removed =
-      item.validation_status ===
-      'removed';
-
-    const itemHistory =
-      historyFor(
-        item.id,
-      );
-
-    const latestHistory =
-      latestHistoryFor(
-        item.id,
-      );
-
-    const expanded =
-      expandedCards.has(
-        item.id,
-      );
+    const name = nameFor(item.assignee_user_id);
+    const avatar = avatarFor(item.assignee_user_id);
+    const votes = item.vote_keep + item.vote_review + item.vote_remove;
+    const removed = item.validation_status === 'removed';
 
     return `
-      <article
-        class="
-          validation-card
-          validation-card-collapsible
-          status-${esc(
-            item.validation_status,
-          )}
-          ${expanded ? 'is-expanded' : ''}
-        "
-        data-validation-card="${esc(
-          item.id,
-        )}"
-        aria-expanded="${String(
-          expanded,
-        )}"
-      >
-        <div class="validation-card-summary">
-          <div class="validation-card-summary-main">
-            <div class="validation-card-top">
-              <span class="validation-status">
-                ${esc(
-                  validationStatusLabels[
-                    item.validation_status
-                  ],
-                )}
-              </span>
-
-              <span class="validation-source">
-                ${
-                  item.source_type ===
-                  'direct'
-                    ? 'Direto'
-                    : 'Roadmap'
-                }
-              </span>
-            </div>
-
-            <h2>
-              ${esc(
-                item.title,
-              )}
-            </h2>
-
-            <div class="validation-card-compact-meta">
-              <span>
-                ${itemHistory.length}
-                ${
-                  itemHistory.length === 1
-                    ? 'etapa'
-                    : 'etapas'
-                }
-              </span>
-
-              ${
-                latestHistory
-                  ? `
-                    <span class="validation-card-latest">
-                      Última:
-                      ${esc(
-                        validationHistoryPhaseLabels[
-                          latestHistory.phase
-                        ],
-                      )}
-                      ·
-                      ${esc(
-                        latestHistory.title,
-                      )}
-                    </span>
-                  `
-                  : `
-                    <span class="validation-card-latest muted">
-                      Nenhuma etapa registrada
-                    </span>
-                  `
-              }
-            </div>
-          </div>
-
-          <button
-            class="validation-card-toggle"
-            type="button"
-            data-toggle-card="${esc(
-              item.id,
-            )}"
-            aria-label="${
-              expanded
-                ? 'Recolher função'
-                : 'Expandir função'
-            }"
-            aria-expanded="${String(
-              expanded,
-            )}"
-            title="${
-              expanded
-                ? 'Recolher'
-                : 'Expandir'
-            }"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="m7 14 5-5 5 5"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-          </button>
+      <article class="validation-card status-${item.validation_status}">
+        <div class="validation-card-top">
+          <span class="validation-status">${esc(validationStatusLabels[item.validation_status])}</span>
+          <span class="validation-source">${item.source_type === 'direct' ? 'Direto' : 'Roadmap'}</span>
         </div>
 
-        <div
-          class="validation-card-expanded"
-          aria-hidden="${String(
-            !expanded,
-          )}"
-        >
-          ${
-            item.description
-              ? `
-                <p class="validation-description">
-                  ${esc(
-                    item.description,
-                  )}
-                </p>
-              `
-              : ''
-          }
+        <h2>${esc(item.title)}</h2>
 
-          <div class="validation-person">
-            <img
-              src="${esc(
-                avatar,
-              )}"
-              alt=""
-              onerror="this.src='/branding/default-profile-avatar.png'"
-            />
+        ${item.description ? `<p class="validation-description">${esc(item.description)}</p>` : ''}
 
-            <div>
-              <span>Responsável</span>
-              <strong>
-                ${esc(
-                  name,
-                )}
-              </strong>
-            </div>
+        <div class="validation-person">
+          <img
+            src="${esc(avatar)}"
+            alt=""
+            onerror="this.src='/branding/default-profile-avatar.png'"
+          />
+
+          <div>
+            <span>Responsável</span>
+            <strong>${esc(name)}</strong>
           </div>
+        </div>
 
-          ${
-            item.test_notes
-              ? `
-                <div class="validation-note">
-                  <span>Observação atual do teste</span>
-                  <p>
-                    ${esc(
-                      item.test_notes,
-                    )}
-                  </p>
-                </div>
-              `
-              : ''
-          }
+        ${item.test_notes ? `
+          <div class="validation-note">
+            <span>Observação do teste</span>
+            <p>${esc(item.test_notes)}</p>
+          </div>
+        ` : ''}
 
-          ${
-            item.removal_reason
-              ? `
-                <div class="validation-removal-note">
-                  <span>Motivo da proposta</span>
-                  <p>
-                    ${esc(
-                      item.removal_reason,
-                    )}
-                  </p>
-                </div>
-              `
-              : ''
-          }
+        ${item.removal_reason ? `
+          <div class="validation-removal-note">
+            <span>Motivo da proposta</span>
+            <p>${esc(item.removal_reason)}</p>
+          </div>
+        ` : ''}
 
-          <div class="validation-actions">
-            ${
-              !removed
-                ? `
-                  <button
-                    type="button"
-                    data-edit-details="${esc(
-                      item.id,
-                    )}"
-                  >
-                    Editar
-                  </button>
-
-                  <button
-                    type="button"
-                    data-edit="${esc(
-                      item.id,
-                    )}"
-                  >
-                    Testar / atualizar
-                  </button>
-                `
-                : ''
-            }
-
-            <button
-              class="history-action"
-              type="button"
-              data-add-history="${esc(
-                item.id,
-              )}"
-            >
-              ＋ Registrar etapa
+        <div class="validation-actions">
+          ${!removed ? `
+            <button type="button" data-edit-details="${esc(item.id)}">
+              Editar
             </button>
 
-            ${
-              !removed &&
-              item.validation_status !==
-                'removal'
-                ? `
-                  <button
-                    class="danger-soft"
-                    type="button"
-                    data-remove="${esc(
-                      item.id,
-                    )}"
-                  >
-                    Propor remoção
-                  </button>
-                `
-                : ''
-            }
-          </div>
+            <button type="button" data-edit="${esc(item.id)}">
+              Testar / atualizar
+            </button>
+          ` : ''}
 
-          <section class="validation-history-section">
-            <div class="validation-history-head">
-              <div>
-                <span>Etapas da validação</span>
-                <strong>
-                  Histórico da função
-                </strong>
-              </div>
-
-              <small>
-                ${itemHistory.length}
-                ${
-                  itemHistory.length === 1
-                    ? 'registro'
-                    : 'registros'
-                }
-              </small>
-            </div>
-
-            ${historyTimeline(
-              item,
-            )}
-          </section>
-
-          <div class="validation-voting">
-            <div class="validation-voting-head">
-              <div>
-                <span>Decisão da equipe</span>
-                <strong>
-                  ${esc(
-                    signal(
-                      item,
-                    ),
-                  )}
-                </strong>
-              </div>
-
-              <small>
-                ${votes}
-                ${
-                  votes === 1
-                    ? 'voto'
-                    : 'votos'
-                }
-              </small>
-            </div>
-
-            <div class="validation-votes">
-              ${voteButton(
-                item,
-                'keep',
-                'Manter',
-                item.vote_keep,
-              )}
-
-              ${voteButton(
-                item,
-                'review',
-                'Revisar',
-                item.vote_review,
-              )}
-
-              ${voteButton(
-                item,
-                'remove',
-                'Remover',
-                item.vote_remove,
-              )}
-            </div>
-          </div>
-
-          ${
-            canFinalize &&
-            [
-              'review',
-              'removal',
-            ].includes(
-              item.validation_status,
-            )
-              ? `
-                <div class="validation-finalize">
-                  <span>Decisão final</span>
-
-                  <div>
-                    <button
-                      type="button"
-                      data-finalize="${esc(
-                        item.id,
-                      )}"
-                      data-decision="validated"
-                    >
-                      Manter
-                    </button>
-
-                    <button
-                      type="button"
-                      data-finalize="${esc(
-                        item.id,
-                      )}"
-                      data-decision="review"
-                    >
-                      Revisar
-                    </button>
-
-                    <button
-                      class="danger"
-                      type="button"
-                      data-finalize="${esc(
-                        item.id,
-                      )}"
-                      data-decision="removed"
-                    >
-                      Confirmar remoção
-                    </button>
-                  </div>
-                </div>
-              `
-              : ''
-          }
+          ${!removed && item.validation_status !== 'removal' ? `
+            <button class="danger-soft" type="button" data-remove="${esc(item.id)}">
+              Propor remoção
+            </button>
+          ` : ''}
         </div>
+
+        <div class="validation-voting">
+          <div class="validation-voting-head">
+            <div>
+              <span>Decisão da equipe</span>
+              <strong>${esc(signal(item))}</strong>
+            </div>
+
+            <small>${votes} ${votes === 1 ? 'voto' : 'votos'}</small>
+          </div>
+
+          <div class="validation-votes">
+            ${voteButton(item,'keep','Manter',item.vote_keep)}
+            ${voteButton(item,'review','Revisar',item.vote_review)}
+            ${voteButton(item,'remove','Remover',item.vote_remove)}
+          </div>
+        </div>
+
+        ${canFinalize && ['review','removal'].includes(item.validation_status) ? `
+          <div class="validation-finalize">
+            <span>Decisão final</span>
+            <div>
+              <button type="button" data-finalize="${esc(item.id)}" data-decision="validated">Manter</button>
+              <button type="button" data-finalize="${esc(item.id)}" data-decision="review">Revisar</button>
+              <button class="danger" type="button" data-finalize="${esc(item.id)}" data-decision="removed">Confirmar remoção</button>
+            </div>
+          </div>
+        ` : ''}
       </article>
     `;
   }
@@ -1123,98 +455,11 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
   }
 
   async function refresh() {
-    const [
-      nextItems,
-      nextHistory,
-    ] =
-      await Promise.all([
-        getValidationItems(),
-        getValidationHistory(),
-      ]);
-
-    items =
-      nextItems;
-
-    historyEntries =
-      nextHistory;
-
+    items = await getValidationItems();
     render();
   }
 
   function bindDynamic() {
-    document
-      .querySelectorAll<HTMLButtonElement>(
-        '[data-toggle-card]',
-      )
-      .forEach(
-        (
-          button,
-        ) => {
-          button.addEventListener(
-            'click',
-            () => {
-              const id =
-                button.dataset.toggleCard ||
-                '';
-
-              if (
-                !id
-              ) {
-                return;
-              }
-
-              if (
-                expandedCards.has(
-                  id,
-                )
-              ) {
-                expandedCards.delete(
-                  id,
-                );
-              } else {
-                expandedCards.add(
-                  id,
-                );
-              }
-
-              render();
-            },
-          );
-        },
-      );
-
-    document
-      .querySelectorAll<HTMLButtonElement>(
-        '[data-add-history]',
-      )
-      .forEach(
-        (
-          button,
-        ) => {
-          button.addEventListener(
-            'click',
-            () => {
-              const item =
-                items.find(
-                  (
-                    current,
-                  ) =>
-                    current.id ===
-                    button.dataset.addHistory,
-                );
-
-              if (
-                item
-              ) {
-                openHistoryModal(
-                  item,
-                );
-              }
-            },
-          );
-        },
-      );
-
     document
       .querySelectorAll<HTMLButtonElement>(
         '[data-edit-details]',
@@ -1307,109 +552,6 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
     });
   }
 
-
-  document
-    .querySelectorAll<HTMLElement>(
-      '[data-close-history]',
-    )
-    .forEach(
-      (
-        element,
-      ) => {
-        element.addEventListener(
-          'click',
-          closeHistoryModal,
-        );
-      },
-    );
-
-  historyForm?.addEventListener(
-    'submit',
-    async (
-      event,
-    ) => {
-      event.preventDefault();
-
-      if (
-        !historyItemId?.value ||
-        !historyPhase?.value ||
-        !historyResult?.value ||
-        !historyTitle?.value.trim()
-      ) {
-        showError(
-          'Preencha a fase e o título da etapa.',
-        );
-
-        return;
-      }
-
-      const submitButton =
-        historyForm.querySelector<HTMLButtonElement>(
-          'button[type="submit"]',
-        );
-
-      if (
-        submitButton
-      ) {
-        submitButton.disabled =
-          true;
-
-        submitButton.textContent =
-          'Registrando...';
-      }
-
-      try {
-        clearError();
-
-        await addValidationHistoryEntry(
-          {
-            validation_item_id:
-              historyItemId.value,
-
-            phase:
-              historyPhase.value as
-                ValidationHistoryPhase,
-
-            title:
-              historyTitle.value.trim(),
-
-            description:
-              historyDescription?.value.trim() ||
-              null,
-
-            result:
-              historyResult.value as
-                ValidationHistoryResult,
-          },
-        );
-
-        expandedCards.add(
-          historyItemId.value,
-        );
-
-        await refresh();
-
-        closeHistoryModal();
-      } catch (
-        error: any
-      ) {
-        showError(
-          error?.message ||
-          'Não foi possível registrar a etapa.',
-        );
-      } finally {
-        if (
-          submitButton
-        ) {
-          submitButton.disabled =
-            false;
-
-          submitButton.textContent =
-            'Registrar etapa';
-        }
-      }
-    },
-  );
 
   function populateAssignees() {
     const selects =
@@ -1704,29 +846,6 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
     }
   });
 
-  document.addEventListener(
-    'keydown',
-    (
-      event,
-    ) => {
-      if (
-        event.key !==
-        'Escape'
-      ) {
-        return;
-      }
-
-      if (
-        historyModal &&
-        !historyModal.classList.contains(
-          'member-hidden',
-        )
-      ) {
-        closeHistoryModal();
-      }
-    },
-  );
-
   if (session) {
     try {
       [collaborators, canFinalize] =
@@ -1962,462 +1081,3 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
     }
   }
 </style>
-
-<style is:global>
-  /* ==========================================================
-     EVRYLUX — CARDS COMPACTOS + ETAPAS DA VALIDAÇÃO
-     ========================================================== */
-
-  .validation-grid {
-    grid-template-columns:
-      repeat(
-        3,
-        minmax(0,1fr)
-      ) !important;
-    gap: 9px !important;
-    align-items: start;
-  }
-
-  .validation-card {
-    padding: 0 !important;
-    overflow: hidden;
-    border-radius: 14px !important;
-  }
-
-  .validation-card-summary {
-    min-height: 72px;
-    padding: 12px 12px 11px;
-    display: grid;
-    grid-template-columns:
-      minmax(0,1fr)
-      32px;
-    align-items: center;
-    gap: 9px;
-  }
-
-  .validation-card-summary-main {
-    min-width: 0;
-  }
-
-  .validation-card-summary
-  .validation-card-top {
-    justify-content: flex-start;
-  }
-
-  .validation-card-summary
-  .validation-source {
-    margin-left: auto;
-  }
-
-  .validation-card-summary h2 {
-    margin: 8px 0 0;
-    font-size: 14px;
-    line-height: 1.24;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .validation-card-compact-meta {
-    margin-top: 6px;
-    min-width: 0;
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    color: var(--text-soft);
-    font-size: 7px;
-    line-height: 1.35;
-  }
-
-  .validation-card-compact-meta > span:first-child {
-    flex: 0 0 auto;
-    padding-right: 7px;
-    border-right:
-      1px solid
-      rgba(65,104,62,.10);
-    font-weight: 820;
-    color: var(--primary-deep);
-  }
-
-  .validation-card-latest {
-    min-width: 0;
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .validation-card-latest.muted {
-    color: rgba(104,116,107,.72);
-  }
-
-  .validation-card-toggle {
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    display: grid;
-    place-items: center;
-    border:
-      1px solid
-      rgba(65,104,62,.11);
-    border-radius: 10px;
-    background:
-      rgba(247,251,244,.94);
-    color: var(--primary-deep);
-    cursor: pointer;
-    transition:
-      transform .16s ease,
-      background .16s ease,
-      border-color .16s ease;
-  }
-
-  .validation-card-toggle:hover {
-    background: var(--primary-soft);
-    border-color:
-      rgba(65,104,62,.20);
-  }
-
-  .validation-card-toggle svg {
-    width: 15px;
-    height: 15px;
-    display: block;
-    transform:
-      rotate(180deg);
-    transition:
-      transform .18s ease;
-  }
-
-  .validation-card.is-expanded
-  .validation-card-toggle svg {
-    transform:
-      rotate(0deg);
-  }
-
-  .validation-card-expanded {
-    display: none;
-    padding:
-      0 12px 13px;
-    border-top:
-      1px solid
-      rgba(65,104,62,.07);
-  }
-
-  .validation-card.is-expanded
-  .validation-card-expanded {
-    display: block;
-  }
-
-  .validation-card-expanded
-  .validation-description {
-    margin-top: 11px;
-  }
-
-  .validation-actions {
-    display: grid !important;
-    grid-template-columns:
-      repeat(
-        2,
-        minmax(0,1fr)
-      ) !important;
-    gap: 6px;
-  }
-
-  .validation-actions
-  .history-action {
-    color: var(--primary-deep);
-    border-color:
-      rgba(65,104,62,.18);
-    background:
-      linear-gradient(
-        145deg,
-        rgba(239,248,235,.92),
-        rgba(248,252,246,.96)
-      );
-  }
-
-  .validation-history-section {
-    margin-top: 13px;
-    padding-top: 12px;
-    border-top:
-      1px solid
-      rgba(65,104,62,.08);
-  }
-
-  .validation-history-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 10px;
-  }
-
-  .validation-history-head span,
-  .validation-history-head small {
-    color: var(--text-soft);
-    font-size: 7px;
-  }
-
-  .validation-history-head strong {
-    display: block;
-    margin-top: 2px;
-    font-size: 9px;
-  }
-
-  .validation-history-list {
-    margin-top: 9px;
-  }
-
-  .validation-history-entry {
-    display: grid;
-    grid-template-columns:
-      16px
-      minmax(0,1fr);
-    gap: 7px;
-  }
-
-  .validation-history-rail {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .validation-history-rail > span {
-    width: 7px;
-    height: 7px;
-    margin-top: 5px;
-    flex: 0 0 auto;
-    border-radius: 999px;
-    background: var(--primary-deep);
-    box-shadow:
-      0 0 0 3px
-      rgba(95,157,89,.10);
-  }
-
-  .validation-history-entry[
-    data-history-result="success"
-  ]
-  .validation-history-rail > span {
-    background: #4f8b4c;
-  }
-
-  .validation-history-entry[
-    data-history-result="problem"
-  ]
-  .validation-history-rail > span {
-    background: #a24b3c;
-  }
-
-  .validation-history-entry[
-    data-history-result="partial"
-  ]
-  .validation-history-rail > span {
-    background: #9a7a34;
-  }
-
-  .validation-history-rail > i {
-    width: 1px;
-    min-height: 42px;
-    flex: 1;
-    margin-top: 3px;
-    background:
-      rgba(65,104,62,.13);
-  }
-
-  .validation-history-entry-body {
-    padding:
-      0 0 11px;
-    min-width: 0;
-  }
-
-  .validation-history-entry-top {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    flex-wrap: wrap;
-  }
-
-  .validation-history-phase,
-  .validation-history-result {
-    min-height: 19px;
-    padding: 0 6px;
-    display: inline-flex;
-    align-items: center;
-    border-radius: 999px;
-    font-size: 6.5px;
-    font-weight: 820;
-  }
-
-  .validation-history-phase {
-    background: var(--primary-soft);
-    color: var(--primary-deep);
-  }
-
-  .validation-history-result {
-    background:
-      rgba(23,32,25,.045);
-    color: var(--text-soft);
-  }
-
-  .validation-history-result[
-    data-result="problem"
-  ] {
-    background: #fff0ed;
-    color: #914638;
-  }
-
-  .validation-history-result[
-    data-result="success"
-  ] {
-    background: #eef8eb;
-    color: #416d3f;
-  }
-
-  .validation-history-result[
-    data-result="partial"
-  ] {
-    background: #fff8e8;
-    color: #806625;
-  }
-
-  .validation-history-entry time {
-    margin-left: auto;
-    color:
-      rgba(104,116,107,.76);
-    font-size: 6.5px;
-  }
-
-  .validation-history-entry-body > strong {
-    display: block;
-    margin-top: 6px;
-    font-size: 8px;
-    line-height: 1.4;
-  }
-
-  .validation-history-entry-body > p {
-    margin: 4px 0 0;
-    color: var(--text-soft);
-    font-size: 7.5px;
-    line-height: 1.5;
-    white-space: pre-wrap;
-  }
-
-  .validation-history-empty {
-    margin-top: 9px;
-    padding: 10px;
-    border:
-      1px dashed
-      rgba(65,104,62,.14);
-    border-radius: 10px;
-    background:
-      rgba(247,251,244,.72);
-  }
-
-  .validation-history-empty strong {
-    display: block;
-    font-size: 8px;
-  }
-
-  .validation-history-empty span {
-    display: block;
-    margin-top: 4px;
-    color: var(--text-soft);
-    font-size: 7px;
-    line-height: 1.45;
-  }
-
-  .validation-history-help {
-    margin: 13px 0 0;
-    padding: 10px;
-    border-radius: 10px;
-    background: var(--primary-soft);
-    color: var(--text-soft);
-    font-size: 8px;
-    line-height: 1.5;
-  }
-
-  #validation-history-form {
-    margin-top: 14px;
-  }
-
-  #validation-history-form label {
-    display: block;
-    margin-top: 11px;
-  }
-
-  #validation-history-form label > span {
-    display: block;
-    margin-bottom: 5px;
-    font-size: 8px;
-    font-weight: 800;
-  }
-
-  #validation-history-form input,
-  #validation-history-form select,
-  #validation-history-form textarea {
-    width: 100%;
-    box-sizing: border-box;
-    border:
-      1px solid
-      rgba(65,104,62,.12);
-    border-radius: 9px;
-    background: #fff;
-    color: var(--text);
-    font: inherit;
-    font-size: 9px;
-  }
-
-  #validation-history-form input,
-  #validation-history-form select {
-    min-height: 38px;
-    padding: 0 9px;
-  }
-
-  #validation-history-form textarea {
-    padding: 9px;
-    resize: vertical;
-  }
-
-  .validation-history-form-grid {
-    display: grid;
-    grid-template-columns:
-      repeat(
-        2,
-        minmax(0,1fr)
-      );
-    gap: 8px;
-  }
-
-  @media (max-width: 1000px) {
-    .validation-grid {
-      grid-template-columns:
-        repeat(
-          2,
-          minmax(0,1fr)
-        ) !important;
-    }
-  }
-
-  @media (max-width: 650px) {
-    .validation-grid {
-      grid-template-columns:
-        1fr !important;
-    }
-
-    .validation-actions,
-    .validation-history-form-grid {
-      grid-template-columns:
-        1fr !important;
-    }
-
-    .validation-card-summary {
-      min-height: 68px;
-      padding: 11px;
-    }
-
-    .validation-history-entry time {
-      width: 100%;
-      margin-left: 0;
-    }
-  }
-</style>
-
