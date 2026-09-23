@@ -1,0 +1,639 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout
+  title="Como contribuir — EVRYLUX"
+  description="Saiba como participar do EVRYLUX, escolher uma área, preparar uma contribuição e colaborar com o projeto open source."
+>
+  <main class="contribute-page">
+    <section class="contribute-hero">
+      <div class="contribute-container">
+        <span class="contribute-eyebrow">
+          Open source
+        </span>
+
+        <h1>
+          Como contribuir com o EVRYLUX
+        </h1>
+
+        <p class="contribute-lead">
+          O EVRYLUX cresce com contribuições reais: código, testes,
+          documentação, design, segurança, pesquisa e ideias que ajudem
+          o projeto a evoluir.
+        </p>
+
+        <div class="contribute-actions">
+          <a
+            class="contribute-button primary"
+            href="https://github.com/joao01020/ghost-core"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Ver projeto no GitHub
+          </a>
+
+          <a
+            class="contribute-button"
+            href="/roadmap"
+          >
+            Ver Roadmap
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="contribute-section">
+      <div class="contribute-container">
+        <div class="contribute-section-head">
+          <span>Comece por onde fizer sentido</span>
+          <h2>Há várias formas de participar</h2>
+          <p>
+            Você não precisa conhecer todo o projeto para começar.
+            Uma contribuição pequena e bem feita já é uma contribuição
+            importante.
+          </p>
+        </div>
+
+        <div class="contribute-areas">
+          <article>
+            <span class="area-number">01</span>
+            <h3>Aplicativo</h3>
+            <p>
+              Flutter, Dart, experiência desktop, interface,
+              desempenho e recursos do EVRYLUX.
+            </p>
+          </article>
+
+          <article>
+            <span class="area-number">02</span>
+            <h3>Website</h3>
+            <p>
+              Astro, TypeScript, Supabase, experiência web,
+              área de colaboradores e ferramentas internas.
+            </p>
+          </article>
+
+          <article>
+            <span class="area-number">03</span>
+            <h3>Testes</h3>
+            <p>
+              Compatibilidade, reprodução de erros, validação de
+              funcionalidades e testes em diferentes sistemas.
+            </p>
+          </article>
+
+          <article>
+            <span class="area-number">04</span>
+            <h3>Documentação</h3>
+            <p>
+              Guias, explicações técnicas, revisão de textos,
+              organização e exemplos de uso.
+            </p>
+          </article>
+
+          <article>
+            <span class="area-number">05</span>
+            <h3>Design</h3>
+            <p>
+              Interface, experiência do usuário, acessibilidade
+              e consistência visual.
+            </p>
+          </article>
+
+          <article>
+            <span class="area-number">06</span>
+            <h3>Segurança</h3>
+            <p>
+              Revisão de arquitetura, privacidade, E2EE,
+              Vault, sincronização e boas práticas.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="contribute-section contribute-flow-section">
+      <div class="contribute-container">
+        <div class="contribute-section-head">
+          <span>Fluxo de contribuição</span>
+          <h2>Do primeiro contato até a integração</h2>
+          <p>
+            O objetivo é manter o processo simples, rastreável
+            e fácil de revisar.
+          </p>
+        </div>
+
+        <div class="contribute-flow">
+          <article>
+            <span>01</span>
+            <div>
+              <h3>Conheça o projeto</h3>
+              <p>
+                Leia a documentação, explore o produto e entenda
+                o problema que deseja ajudar a resolver.
+              </p>
+            </div>
+          </article>
+
+          <article>
+            <span>02</span>
+            <div>
+              <h3>Escolha uma contribuição</h3>
+              <p>
+                Você pode partir de uma tarefa existente, uma issue,
+                um teste ou uma melhoria que faça sentido para o projeto.
+              </p>
+            </div>
+          </article>
+
+          <article>
+            <span>03</span>
+            <div>
+              <h3>Prepare seu ambiente</h3>
+              <p>
+                Clone o repositório, use uma branch própria e mantenha
+                suas mudanças focadas no objetivo escolhido.
+              </p>
+            </div>
+          </article>
+
+          <article>
+            <span>04</span>
+            <div>
+              <h3>Implemente e teste</h3>
+              <p>
+                Verifique o comportamento antes e depois da mudança.
+                Evite misturar alterações não relacionadas.
+              </p>
+            </div>
+          </article>
+
+          <article>
+            <span>05</span>
+            <div>
+              <h3>Envie a contribuição</h3>
+              <p>
+                Faça commits claros e abra um Pull Request explicando
+                o que mudou, por que mudou e como foi testado.
+              </p>
+            </div>
+          </article>
+
+          <article>
+            <span>06</span>
+            <div>
+              <h3>Revise junto com o projeto</h3>
+              <p>
+                Ajustes podem ser pedidos durante a revisão.
+                Depois de validada, a contribuição pode ser integrada.
+              </p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="contribute-section">
+      <div class="contribute-container">
+        <div class="contribute-two-columns">
+          <article class="contribute-panel">
+            <span class="panel-kicker">Antes de enviar</span>
+            <h2>Uma boa contribuição tende a ser</h2>
+
+            <ul>
+              <li>pequena o suficiente para ser revisada com clareza;</li>
+              <li>relacionada a um objetivo específico;</li>
+              <li>testada antes do envio;</li>
+              <li>explicada de forma objetiva no commit ou Pull Request;</li>
+              <li>compatível com a direção atual do projeto.</li>
+            </ul>
+          </article>
+
+          <article class="contribute-panel">
+            <span class="panel-kicker">Não precisa começar grande</span>
+            <h2>Primeiras contribuições</h2>
+
+            <p>
+              Se você está chegando agora, documentação, testes,
+              correções pequenas e melhorias localizadas são ótimos
+              pontos de entrada.
+            </p>
+
+            <p>
+              A ideia não é criar hierarquia artificial. O que importa
+              é a qualidade e a utilidade real da contribuição.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="contribute-section">
+      <div class="contribute-container">
+        <div class="contribute-links">
+          <div>
+            <span>Recursos</span>
+            <h2>Continue daqui</h2>
+          </div>
+
+          <div class="contribute-resource-grid">
+            <a href="/docs">
+              <strong>Documentação</strong>
+              <span>Entenda a estrutura e o funcionamento do projeto.</span>
+            </a>
+
+            <a href="/contributors">
+              <strong>Colaboradores</strong>
+              <span>Veja quem já está participando do EVRYLUX.</span>
+            </a>
+
+            <a href="/roadmap">
+              <strong>Roadmap</strong>
+              <span>Acompanhe o que está sendo desenvolvido.</span>
+            </a>
+
+            <a href="/license">
+              <strong>Licença</strong>
+              <span>Consulte as condições de uso e distribuição.</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="contribute-final">
+      <div class="contribute-container">
+        <div class="contribute-final-card">
+          <span>EVRYLUX Open Source</span>
+
+          <h2>
+            Contribua com algo que ajude o projeto a continuar evoluindo.
+          </h2>
+
+          <p>
+            Explore o código, escolha um ponto em que você possa ajudar
+            e comece com uma mudança clara e verificável.
+          </p>
+
+          <a
+            class="contribute-button primary"
+            href="https://github.com/joao01020/ghost-core"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Abrir repositório
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+</Layout>
+
+<style is:global>
+  .contribute-page {
+    min-height: 100vh;
+    color: #172019;
+    background:
+      radial-gradient(
+        circle at 10% 0%,
+        rgba(218,239,212,.38),
+        transparent 31%
+      ),
+      #f7fbf4;
+  }
+
+  .contribute-container {
+    width: min(1120px, calc(100% - 36px));
+    margin: 0 auto;
+  }
+
+  .contribute-hero {
+    padding: 108px 0 74px;
+    border-bottom: 1px solid rgba(65,104,62,.09);
+  }
+
+  .contribute-eyebrow,
+  .contribute-section-head > span,
+  .panel-kicker,
+  .contribute-links > div:first-child > span,
+  .contribute-final-card > span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 11px;
+    border: 1px solid rgba(65,104,62,.12);
+    border-radius: 999px;
+    background: rgba(255,255,255,.74);
+    color: #3b6939;
+    font-size: 11px;
+    font-weight: 850;
+    letter-spacing: .02em;
+  }
+
+  .contribute-hero h1 {
+    max-width: 760px;
+    margin: 20px 0 0;
+    font-size: clamp(42px, 7vw, 76px);
+    line-height: .98;
+    letter-spacing: -.055em;
+  }
+
+  .contribute-lead {
+    max-width: 700px;
+    margin: 24px 0 0;
+    color: #68746b;
+    font-size: clamp(17px, 2vw, 21px);
+    line-height: 1.6;
+  }
+
+  .contribute-actions {
+    margin-top: 30px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .contribute-button {
+    min-height: 44px;
+    padding: 0 17px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(65,104,62,.15);
+    border-radius: 12px;
+    background: rgba(255,255,255,.88);
+    color: #365f35;
+    font-size: 12px;
+    font-weight: 850;
+    text-decoration: none;
+    transition:
+      transform .16s ease,
+      border-color .16s ease,
+      background .16s ease;
+  }
+
+  .contribute-button:hover {
+    transform: translateY(-1px);
+    border-color: rgba(65,104,62,.28);
+  }
+
+  .contribute-button.primary {
+    border-color: #365f35;
+    background: #365f35;
+    color: #fff;
+  }
+
+  .contribute-section {
+    padding: 72px 0;
+    border-bottom: 1px solid rgba(65,104,62,.08);
+  }
+
+  .contribute-section-head {
+    max-width: 660px;
+  }
+
+  .contribute-section-head h2,
+  .contribute-panel h2,
+  .contribute-links h2,
+  .contribute-final-card h2 {
+    margin: 15px 0 0;
+    font-size: clamp(28px, 4vw, 44px);
+    line-height: 1.06;
+    letter-spacing: -.035em;
+  }
+
+  .contribute-section-head p {
+    margin: 14px 0 0;
+    color: #68746b;
+    font-size: 15px;
+    line-height: 1.65;
+  }
+
+  .contribute-areas {
+    margin-top: 32px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0,1fr));
+    gap: 10px;
+  }
+
+  .contribute-areas article,
+  .contribute-panel,
+  .contribute-resource-grid a {
+    border: 1px solid rgba(65,104,62,.10);
+    background: rgba(255,255,255,.78);
+    box-shadow: 0 14px 38px rgba(23,32,25,.035);
+  }
+
+  .contribute-areas article {
+    min-height: 178px;
+    padding: 20px;
+    border-radius: 18px;
+  }
+
+  .area-number {
+    color: #4c7449;
+    font-size: 10px;
+    font-weight: 900;
+  }
+
+  .contribute-areas h3 {
+    margin: 31px 0 0;
+    font-size: 17px;
+  }
+
+  .contribute-areas p {
+    margin: 8px 0 0;
+    color: #68746b;
+    font-size: 12px;
+    line-height: 1.55;
+  }
+
+  .contribute-flow-section {
+    background: rgba(255,255,255,.32);
+  }
+
+  .contribute-flow {
+    margin-top: 34px;
+    border-top: 1px solid rgba(65,104,62,.10);
+  }
+
+  .contribute-flow article {
+    min-height: 106px;
+    padding: 20px 0;
+    display: grid;
+    grid-template-columns: 62px minmax(0,1fr);
+    gap: 18px;
+    align-items: start;
+    border-bottom: 1px solid rgba(65,104,62,.10);
+  }
+
+  .contribute-flow article > span {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    border-radius: 13px;
+    background: #edf6e9;
+    color: #365f35;
+    font-size: 10px;
+    font-weight: 900;
+  }
+
+  .contribute-flow h3 {
+    margin: 1px 0 0;
+    font-size: 18px;
+  }
+
+  .contribute-flow p {
+    max-width: 760px;
+    margin: 7px 0 0;
+    color: #68746b;
+    font-size: 13px;
+    line-height: 1.58;
+  }
+
+  .contribute-two-columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    gap: 12px;
+  }
+
+  .contribute-panel {
+    padding: 27px;
+    border-radius: 20px;
+  }
+
+  .contribute-panel h2 {
+    max-width: 460px;
+    font-size: 28px;
+  }
+
+  .contribute-panel ul {
+    margin: 22px 0 0;
+    padding-left: 19px;
+    color: #68746b;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+
+  .contribute-panel p {
+    margin: 18px 0 0;
+    color: #68746b;
+    font-size: 13px;
+    line-height: 1.65;
+  }
+
+  .contribute-links {
+    display: grid;
+    grid-template-columns: minmax(0,.7fr) minmax(0,1.3fr);
+    gap: 34px;
+    align-items: start;
+  }
+
+  .contribute-resource-grid {
+    display: grid;
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    gap: 9px;
+  }
+
+  .contribute-resource-grid a {
+    min-height: 122px;
+    padding: 18px;
+    border-radius: 15px;
+    color: inherit;
+    text-decoration: none;
+    transition:
+      transform .16s ease,
+      border-color .16s ease;
+  }
+
+  .contribute-resource-grid a:hover {
+    transform: translateY(-2px);
+    border-color: rgba(65,104,62,.22);
+  }
+
+  .contribute-resource-grid strong {
+    display: block;
+    font-size: 14px;
+  }
+
+  .contribute-resource-grid span {
+    display: block;
+    margin-top: 7px;
+    color: #68746b;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+
+  .contribute-final {
+    padding: 76px 0 100px;
+  }
+
+  .contribute-final-card {
+    padding: 42px;
+    border: 1px solid rgba(65,104,62,.12);
+    border-radius: 26px;
+    background:
+      linear-gradient(
+        145deg,
+        rgba(238,248,234,.98),
+        rgba(255,255,255,.92)
+      );
+  }
+
+  .contribute-final-card h2 {
+    max-width: 780px;
+  }
+
+  .contribute-final-card p {
+    max-width: 650px;
+    margin: 16px 0 24px;
+    color: #68746b;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  @media (max-width: 860px) {
+    .contribute-areas {
+      grid-template-columns: repeat(2,minmax(0,1fr));
+    }
+
+    .contribute-links {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 650px) {
+    .contribute-container {
+      width: min(100% - 24px, 1120px);
+    }
+
+    .contribute-hero {
+      padding: 74px 0 54px;
+    }
+
+    .contribute-section {
+      padding: 52px 0;
+    }
+
+    .contribute-areas,
+    .contribute-two-columns,
+    .contribute-resource-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .contribute-areas article {
+      min-height: 150px;
+    }
+
+    .contribute-final-card {
+      padding: 26px;
+      border-radius: 20px;
+    }
+
+    .contribute-actions .contribute-button {
+      width: 100%;
+    }
+  }
+</style>

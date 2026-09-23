@@ -7,7 +7,7 @@ const nav = [
   { label: 'Planos', href: '/plans' },
   { label: 'Suporte', href: '/support' },
   { label: 'Roadmap', href: '/roadmap' },
-  { label: 'Como contribuir', href: '/contribute' },
+  { label: 'Licença', href: '/license' },
 ];
 ---
 
