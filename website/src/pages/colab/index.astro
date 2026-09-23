@@ -440,7 +440,7 @@ import EvryluxLogoLoader from '../../components/ui/EvryluxLogoLoader.astro';
 
           <a
             class="tool-card"
-            href="/colab/studio/roadmap"
+            href="/colab/studio"
           >
             <div class="tool-card-top">
               <span class="tool-icon">
@@ -1388,7 +1388,7 @@ import EvryluxLogoLoader from '../../components/ui/EvryluxLogoLoader.astro';
 
                 <a
                   class="dashboard-task-open"
-                  href="/colab/studio/roadmap?task=${encodeURIComponent(task.id)}"
+                  href="/colab/studio?task=${encodeURIComponent(task.id)}"
                   data-task-open="${escapeHtml(task.id)}"
                   data-notification-id="${escapeHtml(task.notification_id ?? '')}"
                 >
@@ -1657,7 +1657,7 @@ import EvryluxLogoLoader from '../../components/ui/EvryluxLogoLoader.astro';
 
       <a
         class="task-assignment-toast-open"
-        href="/colab/studio/roadmap?task=${encodeURIComponent(task.id)}"
+        href="/colab/studio?task=${encodeURIComponent(task.id)}"
         data-toast-notification="${escapeHtml(task.notification_id ?? '')}"
       >
         Abrir

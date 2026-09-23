@@ -1190,7 +1190,22 @@ extension _BrainScreenVisualSearch
   String _normalizeSearchHighlightText(
     String value,
   ) {
-    var normalized = value.toLowerCase().trim();
+    // IMPORTANTE:
+    //
+    // Esta normalização precisa preservar exatamente o mesmo número
+    // de caracteres do texto original, porque os índices encontrados
+    // aqui são reutilizados para recortar o texto original no destaque.
+    //
+    // Por isso NÃO usamos trim() e NÃO compactamos espaços com \s+.
+    //
+    // Exemplo:
+    //
+    // original   = "tensão"
+    // normalizado = "tensao"
+    //
+    // Ambos continuam com o mesmo comprimento, então o intervalo
+    // encontrado em "tensao" também aponta corretamente para "tensão".
+    var normalized = value.toLowerCase();
 
     const replacements =
         <
@@ -1234,12 +1249,7 @@ extension _BrainScreenVisualSearch
       },
     );
 
-    return normalized.replaceAll(
-      RegExp(
-        r'\s+',
-      ),
-      ' ',
-    );
+    return normalized;
   }
 
   String _cleanSearchPreviewText(
@@ -1661,31 +1671,64 @@ extension _BrainScreenVisualSearch
           _BrainSearchHighlightMatch
         >[];
 
+    // Normalizamos o texto uma única vez.
+    //
+    // A busca visual passa a obedecer a mesma regra da pesquisa:
+    //
+    // - ignora maiúsculas/minúsculas;
+    // - ignora acentos;
+    // - preserva os índices do texto original.
+    //
+    // Assim:
+    //
+    // "tensao" encontra "tensão"
+    // "tensão" encontra "tensao"
+    // "eletronica" encontra "eletrônica"
+    // "ESP32" encontra "esp32"
+    final normalizedText = _normalizeSearchHighlightText(
+      text,
+    );
+
     for (final term in terms) {
       final normalizedTerm = _normalizeSearchHighlightText(
-        term,
+        term.trim(),
       );
 
       if (normalizedTerm.isEmpty) {
         continue;
       }
 
-      final expression = RegExp(
-        RegExp.escape(
-          term,
-        ),
-        caseSensitive: false,
-      );
+      var searchStart = 0;
 
-      for (final match in expression.allMatches(
-        text,
-      )) {
+      while (searchStart <=
+          normalizedText.length -
+              normalizedTerm.length) {
+        final index = normalizedText.indexOf(
+          normalizedTerm,
+          searchStart,
+        );
+
+        if (index <
+            0) {
+          break;
+        }
+
+        final end =
+            index +
+            normalizedTerm.length;
+
         matches.add(
           _BrainSearchHighlightMatch(
-            start: match.start,
-            end: match.end,
+            start: index,
+            end: end,
           ),
         );
+
+        // Avança até o final da ocorrência atual.
+        //
+        // Isso evita loop infinito e continua encontrando todas as
+        // demais ocorrências da palavra no mesmo título/preview.
+        searchStart = end;
       }
     }
 

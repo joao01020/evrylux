@@ -37,7 +37,7 @@ import '../../styles/members.css';
           </p>
         </div>
 
-        <a class="tasks-roadmap-primary" href="/colab/studio/roadmap">
+        <a class="tasks-roadmap-primary" href="/colab/studio">
           <span>Abrir Roadmap</span>
           <span aria-hidden="true">→</span>
         </a>
@@ -354,7 +354,7 @@ import '../../styles/members.css';
 
           <a
             class="task-open-link"
-            href="/colab/studio/roadmap?task=${encodeURIComponent(task.id)}"
+            href="/colab/studio?task=${encodeURIComponent(task.id)}"
             data-notification-id="${escapeHtml(task.notification_id ?? '')}"
           >
             <span>Abrir tarefa no Roadmap</span>
