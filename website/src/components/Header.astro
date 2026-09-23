@@ -332,9 +332,262 @@ const nav = [
 
         <span id="collaborator-access-label"></span>
       </a>
+      <!-- EVRYLUX_HEADER_LOGOUT_ICON_V3 -->
+      <button
+        id="header-logout-button"
+        class="header-logout-button header-hidden"
+        type="button"
+        aria-label="Sair da conta"
+        title="Sair"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M10 4H6.8A1.8 1.8 0 0 0 5 5.8v12.4A1.8 1.8 0 0 0 6.8 20H10"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M13.5 8.5 17 12l-3.5 3.5M9.5 12H17"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </button>
+
     </div>
   </div>
 </header>
+<script>
+  import {
+    supabase as headerLogoutSupabase,
+  } from '../lib/supabase';
+
+  const headerLogoutButton =
+    document.querySelector<HTMLButtonElement>(
+      '#header-logout-button',
+    );
+
+  function hideLegacyColabLogout() {
+    if (
+      !window.location.pathname.startsWith(
+        '/colab',
+      )
+    ) {
+      return;
+    }
+
+    const candidates =
+      Array.from(
+        document.querySelectorAll<
+          HTMLAnchorElement |
+          HTMLButtonElement
+        >(
+          'a, button, [role="button"]',
+        ),
+      );
+
+    candidates.forEach(
+      (
+        element,
+      ) => {
+        if (
+          element.id ===
+          'header-logout-button'
+        ) {
+          return;
+        }
+
+        const label =
+          (
+            element.textContent ||
+            ''
+          )
+            .replace(
+              /\s+/g,
+              ' ',
+            )
+            .trim()
+            .toLocaleLowerCase(
+              'pt-BR',
+            );
+
+        const ariaLabel =
+          (
+            element.getAttribute(
+              'aria-label',
+            ) ||
+            ''
+          )
+            .trim()
+            .toLocaleLowerCase(
+              'pt-BR',
+            );
+
+        if (
+          label === 'sair' ||
+          ariaLabel === 'sair' ||
+          ariaLabel === 'sair da conta'
+        ) {
+          element.classList.add(
+            'evrylux-legacy-logout-hidden',
+          );
+
+          element.setAttribute(
+            'aria-hidden',
+            'true',
+          );
+
+          element.setAttribute(
+            'tabindex',
+            '-1',
+          );
+        }
+      },
+    );
+  }
+
+  function updateHeaderLogoutVisibility(
+    authenticated: boolean,
+  ) {
+    headerLogoutButton?.classList.toggle(
+      'header-hidden',
+      !authenticated,
+    );
+
+    if (
+      authenticated
+    ) {
+      hideLegacyColabLogout();
+    }
+  }
+
+  async function loadHeaderLogoutState() {
+    try {
+      const {
+        data: {
+          session,
+        },
+      } =
+        await headerLogoutSupabase.auth.getSession();
+
+      updateHeaderLogoutVisibility(
+        Boolean(
+          session,
+        ),
+      );
+    } catch (
+      error
+    ) {
+      console.warn(
+        '[EVRYLUX] Não foi possível verificar o logout do Header:',
+        error,
+      );
+
+      updateHeaderLogoutVisibility(
+        false,
+      );
+    }
+  }
+
+  headerLogoutButton?.addEventListener(
+    'click',
+    async () => {
+      if (
+        !headerLogoutButton ||
+        headerLogoutButton.disabled
+      ) {
+        return;
+      }
+
+      headerLogoutButton.disabled =
+        true;
+
+      headerLogoutButton.classList.add(
+        'is-loading',
+      );
+
+      try {
+        const {
+          error,
+        } =
+          await headerLogoutSupabase.auth.signOut();
+
+        if (
+          error
+        ) {
+          throw error;
+        }
+
+        window.location.assign(
+          '/login',
+        );
+      } catch (
+        error
+      ) {
+        console.error(
+          '[EVRYLUX] Não foi possível sair da conta:',
+          error,
+        );
+
+        headerLogoutButton.disabled =
+          false;
+
+        headerLogoutButton.classList.remove(
+          'is-loading',
+        );
+      }
+    },
+  );
+
+  await loadHeaderLogoutState();
+
+  hideLegacyColabLogout();
+
+  const legacyLogoutObserver =
+    new MutationObserver(
+      () => {
+        hideLegacyColabLogout();
+      },
+    );
+
+  legacyLogoutObserver.observe(
+    document.body,
+    {
+      childList: true,
+      subtree: true,
+    },
+  );
+
+  headerLogoutSupabase.auth.onAuthStateChange(
+    (
+      _event,
+      session,
+    ) => {
+      updateHeaderLogoutVisibility(
+        Boolean(
+          session,
+        ),
+      );
+    },
+  );
+
+  window.addEventListener(
+    'pagehide',
+    () => {
+      legacyLogoutObserver.disconnect();
+    },
+    {
+      once: true,
+    },
+  );
+</script>
+
 
 <script>
   import {
@@ -2247,6 +2500,76 @@ const nav = [
 
   #notification-popover-tasks:not(.header-hidden) {
     display: flex;
+  }
+</style>
+<style>
+  /* EVRYLUX_HEADER_LOGOUT_ICON_V3 */
+
+  .evrylux-legacy-logout-hidden {
+    display: none !important;
+  }
+
+  .header-logout-button {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    display: inline-grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid rgba(65, 104, 62, .13);
+    border-radius: 13px;
+    background: rgba(255, 255, 255, .84);
+    color: #5f6d61;
+    box-shadow: 0 6px 18px rgba(23, 32, 25, .025);
+    cursor: pointer;
+    transition:
+      color .16s ease,
+      background .16s ease,
+      border-color .16s ease,
+      transform .16s ease,
+      box-shadow .16s ease;
+  }
+
+  .header-logout-button:hover {
+    color: #315f31;
+    background: #fff;
+    border-color: rgba(54, 95, 53, .24);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(23, 32, 25, .05);
+  }
+
+  .header-logout-button:focus-visible {
+    outline: 3px solid rgba(65, 104, 62, .13);
+    outline-offset: 2px;
+  }
+
+  .header-logout-button svg {
+    width: 20px;
+    height: 20px;
+    display: block;
+  }
+
+  .header-logout-button.is-loading {
+    opacity: .55;
+    cursor: wait;
+  }
+
+  .header-logout-button:disabled {
+    pointer-events: none;
+  }
+
+  @media (max-width: 760px) {
+    .header-logout-button {
+      width: 39px;
+      height: 39px;
+      flex-basis: 39px;
+      border-radius: 12px;
+    }
+
+    .header-logout-button svg {
+      width: 19px;
+      height: 19px;
+    }
   }
 </style>
 
