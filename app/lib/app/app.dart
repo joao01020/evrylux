@@ -33,13 +33,8 @@ import '../welcome/welcome_screen.dart';
 
 import 'dependencies/app_dependencies.dart';
 
-class GhostApp
-    extends
-        StatefulWidget {
-  const GhostApp({
-    super.key,
-    required this.evolutionController,
-  });
+class GhostApp extends StatefulWidget {
+  const GhostApp({super.key, required this.evolutionController});
 
   // ============================================================
   // CONTROLLER
@@ -52,59 +47,44 @@ class GhostApp
   // ============================================================
 
   @override
-  State<
-    GhostApp
-  >
-  createState() {
+  State<GhostApp> createState() {
     return _GhostAppState();
   }
 }
 
-class _GhostAppState
-    extends
-        State<
-          GhostApp
-        > {
+class _GhostAppState extends State<GhostApp> {
+  final Stopwatch _startupWatch = Stopwatch()..start();
+
+  void _startupLog(String message) {
+    debugPrint(
+      '[STARTUP][APP] +${_startupWatch.elapsedMilliseconds}ms $message',
+    );
+  }
+
   // ============================================================
   // CORES
   // ============================================================
 
-  static const Color _primaryDark = Color(
-    0xFF3B6939,
-  );
+  static const Color _primaryDark = Color(0xFF3B6939);
 
   // ============================================================
   // NAVIGATOR
   // ============================================================
 
-  final GlobalKey<
-    NavigatorState
-  >
-  _navigatorKey =
-      GlobalKey<
-        NavigatorState
-      >();
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
   // ============================================================
   // SCAFFOLD MESSENGER
   // ============================================================
 
-  final GlobalKey<
-    ScaffoldMessengerState
-  >
-  _scaffoldMessengerKey =
-      GlobalKey<
-        ScaffoldMessengerState
-      >();
+  final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey =
+      GlobalKey<ScaffoldMessengerState>();
 
   // ============================================================
   // AUTH
   // ============================================================
 
-  StreamSubscription<
-    AuthState
-  >?
-  _authSubscription;
+  StreamSubscription<AuthState>? _authSubscription;
 
   bool _authenticated = false;
 
@@ -121,6 +101,11 @@ class _GhostAppState
   bool _loadingProfile = true;
 
   String? _profileError;
+
+  Future<void>? _profileLoadInFlight;
+
+  bool _firstFrameRendered = false;
+  bool _deferredStartupStarted = false;
 
   // ============================================================
   // REMINDER STATE
@@ -148,129 +133,107 @@ class _GhostAppState
   void initState() {
     super.initState();
 
+    _startupLog('GhostApp initState');
     _profileRepository = ProfileRepository();
 
-    unawaited(
-      _loadProfile(),
-    );
-
-    unawaited(
-      _profileRepository.syncPendingCurrentPreferences(),
-    );
-
+    // Objetos leves podem ser construídos no initState, mas trabalho de
+    // cache, rede, reminders, presença e updates só começa depois do
+    // primeiro frame. Isso evita disputar o isolate/I/O com o build inicial.
     _updateNotificationController = UpdateNotificationController(
-      service: const AppUpdateService(
-        currentVersion: AppInfo.version,
-      ),
-    );
-
-    unawaited(
-      _updateNotificationController.initialize(),
+      service: const AppUpdateService(currentVersion: AppInfo.version),
     );
 
     _activeUserId = supabaseClient.auth.currentUser?.id;
 
-    notifyAppUserChanged(
-      _activeUserId,
-    );
+    notifyAppUserChanged(_activeUserId);
 
-    _authenticated =
-        _activeUserId !=
-        null;
+    _authenticated = _activeUserId != null;
 
-    _authSubscription = supabaseClient.auth.onAuthStateChange.listen(
-      (
-        authState,
-      ) {
-        final String? newUserId = authState.session?.user.id;
+    _authSubscription = supabaseClient.auth.onAuthStateChange.listen((
+      authState,
+    ) {
+      final String? newUserId = authState.session?.user.id;
 
-        final bool isAuthenticated =
-            newUserId !=
-            null;
+      final bool isAuthenticated = newUserId != null;
 
-        if (_activeUserId !=
-            newUserId) {
-          notifyAppUserChanged(
-            newUserId,
-          );
+      if (_activeUserId != newUserId) {
+        notifyAppUserChanged(newUserId);
 
-          _activeUserId = newUserId;
+        _activeUserId = newUserId;
+        _deferredStartupStarted = false;
+        _profileLoadInFlight = null;
 
-          brainController.resetForAccountChange();
+        brainController.resetForAccountChange();
 
-          reviewController.resetForAccountChange();
+        reviewController.resetForAccountChange();
+      }
+
+      if (mounted && _authenticated != isAuthenticated) {
+        setState(() {
+          _authenticated = isAuthenticated;
+        });
+      }
+
+      if (isAuthenticated) {
+        if (_firstFrameRendered) {
+          _startDeferredStartupTasks();
+        } else {
+          _startupLog('tarefas secundárias aguardando primeiro frame');
         }
+      } else if (mounted) {
+        accountDevicePresenceService.stop();
 
-        if (mounted &&
-            _authenticated !=
-                isAuthenticated) {
-          setState(
-            () {
-              _authenticated = isAuthenticated;
-            },
-          );
-        }
+        setState(() {
+          _profile = null;
+          _cachedProfileEmail = null;
+          _loadingProfile = true;
+          _profileError = null;
+        });
+      }
+    });
 
-        if (isAuthenticated) {
-          unawaited(
-            _loadProfile(),
-          );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _firstFrameRendered = true;
+      _startupLog('primeiro frame do GhostApp');
+      _startDeferredStartupTasks();
+    });
+  }
 
-          unawaited(
-            _profileRepository.syncPendingCurrentPreferences(),
-          );
+  // ============================================================
+  // DEFERRED STARTUP TASKS
+  // ============================================================
 
-          unawaited(
-            _startReminderService(),
-          );
+  void _startDeferredStartupTasks() {
+    if (!_firstFrameRendered || _deferredStartupStarted) {
+      return;
+    }
 
-          unawaited(
-            _startAccountDevicePresence(),
-          );
-        } else if (mounted) {
-          accountDevicePresenceService.stop();
+    _deferredStartupStarted = true;
+    _startupLog('tarefas secundárias pós-frame iniciadas');
 
-          setState(
-            () {
-              _profile = null;
-              _cachedProfileEmail = null;
-              _loadingProfile = true;
-              _profileError = null;
-            },
-          );
-        }
-      },
-    );
+    unawaited(_updateNotificationController.initialize());
 
-    WidgetsBinding.instance.addPostFrameCallback(
-      (
-        _,
-      ) {
-        if (_authenticated) {
-          unawaited(
-            _startReminderService(),
-          );
+    if (!_authenticated) {
+      return;
+    }
 
-          unawaited(
-            _startAccountDevicePresence(),
-          );
-        }
-      },
-    );
+    unawaited(_loadProfile());
+
+    unawaited(_profileRepository.syncPendingCurrentPreferences());
+
+    unawaited(_startReminderService());
+
+    unawaited(_startAccountDevicePresence());
   }
 
   // ============================================================
   // ACCOUNT DEVICE PRESENCE
   // ============================================================
 
-  Future<
-    void
-  >
-  _startAccountDevicePresence() async {
+  Future<void> _startAccountDevicePresence() async {
     final user = supabaseClient.auth.currentUser;
 
-    if (user ==
-        null) {
+    if (user == null) {
       accountDevicePresenceService.stop();
 
       return;
@@ -285,31 +248,21 @@ class _GhostAppState
 
           _scaffoldMessengerKey.currentState?.showSnackBar(
             const SnackBar(
-              content: Text(
-                'Este dispositivo foi desconectado da sua conta.',
-              ),
+              content: Text('Este dispositivo foi desconectado da sua conta.'),
             ),
           );
 
           try {
-            await supabaseClient.auth.signOut(
-              scope: SignOutScope.local,
-            );
-          } catch (
-            error
-          ) {
+            await supabaseClient.auth.signOut(scope: SignOutScope.local);
+          } catch (error) {
             debugPrint(
               '[ACCOUNT DEVICE] Erro ao encerrar sessão revogada: $error',
             );
           }
         },
       );
-    } catch (
-      error
-    ) {
-      debugPrint(
-        '[ACCOUNT DEVICE] Presença indisponível: $error',
-      );
+    } catch (error) {
+      debugPrint('[ACCOUNT DEVICE] Presença indisponível: $error');
     }
   }
 
@@ -317,35 +270,25 @@ class _GhostAppState
   // START REMINDER SERVICE
   // ============================================================
 
-  Future<
-    void
-  >
-  _startReminderService() async {
+  Future<void> _startReminderService() async {
     if (_reminderServiceStarted) {
       return;
     }
 
     final user = supabaseClient.auth.currentUser;
 
-    if (user ==
-        null) {
+    if (user == null) {
       return;
     }
 
     _reminderServiceStarted = true;
 
     try {
-      await reminderService.start(
-        onReminderDue: _onReminderDue,
-      );
-    } catch (
-      error
-    ) {
+      await reminderService.start(onReminderDue: _onReminderDue);
+    } catch (error) {
       _reminderServiceStarted = false;
 
-      debugPrint(
-        '[APP] Erro ao iniciar ReminderService: $error',
-      );
+      debugPrint('[APP] Erro ao iniciar ReminderService: $error');
     }
   }
 
@@ -353,67 +296,37 @@ class _GhostAppState
   // REMINDER DUE
   // ============================================================
 
-  Future<
-    void
-  >
-  _onReminderDue(
-    ReminderModel reminder,
-  ) async {
+  Future<void> _onReminderDue(ReminderModel reminder) async {
     while (_showingReminder) {
-      await Future<
-        void
-      >.delayed(
-        const Duration(
-          milliseconds: 300,
-        ),
-      );
+      await Future<void>.delayed(const Duration(milliseconds: 300));
     }
 
     final BuildContext? context = _navigatorKey.currentContext;
 
-    if (context ==
-            null ||
-        !context.mounted) {
+    if (context == null || !context.mounted) {
       return;
     }
 
     _showingReminder = true;
 
     try {
-      final _ReminderAction? result =
-          await showDialog<
-            _ReminderAction
-          >(
-            context: context,
-            barrierDismissible: false,
-            builder:
-                (
-                  BuildContext context,
-                ) {
-                  return _ReminderNotificationDialog(
-                    reminder: reminder,
-                  );
-                },
-          );
+      final _ReminderAction? result = await showDialog<_ReminderAction>(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return _ReminderNotificationDialog(reminder: reminder);
+        },
+      );
 
-      if (result ==
-          _ReminderAction.complete) {
-        final bool success = await reminderController.complete(
-          reminder.id,
-        );
+      if (result == _ReminderAction.complete) {
+        final bool success = await reminderController.complete(reminder.id);
 
         if (success) {
-          _showSuccessMessage(
-            'Lembrete concluído.',
-          );
+          _showSuccessMessage('Lembrete concluído.');
         }
       }
-    } catch (
-      error
-    ) {
-      debugPrint(
-        '[APP] Erro ao exibir lembrete: $error',
-      );
+    } catch (error) {
+      debugPrint('[APP] Erro ao exibir lembrete: $error');
     } finally {
       _showingReminder = false;
     }
@@ -423,18 +336,14 @@ class _GhostAppState
   // OPEN UPDATE NOTIFICATIONS
   // ============================================================
 
-  Future<
-    void
-  >
-  _openUpdateNotifications() async {
+  Future<void> _openUpdateNotifications() async {
     if (_showingUpdateNotifications) {
       return;
     }
 
     final BuildContext? context = _navigatorKey.currentContext;
 
-    if (context ==
-        null) {
+    if (context == null) {
       return;
     }
 
@@ -443,73 +352,41 @@ class _GhostAppState
     _updateNotificationController.markAsRead();
 
     try {
-      await showGeneralDialog<
-        void
-      >(
+      await showGeneralDialog<void>(
         context: context,
         useRootNavigator: true,
         barrierDismissible: true,
         barrierLabel: 'Fechar notificações',
-        barrierColor: Colors.black.withValues(
-          alpha: .08,
-        ),
-        transitionDuration: const Duration(
-          milliseconds: 160,
-        ),
-        pageBuilder:
-            (
-              _,
-              _,
-              _,
-            ) {
-              return SafeArea(
-                child: Align(
-                  alignment: Alignment.topRight,
-                  child: Padding(
-                    padding: const EdgeInsets.only(
-                      top: 14,
-                      right: 16,
-                    ),
-                    child: UpdateNotificationPanel(
-                      controller: _updateNotificationController,
-                    ),
-                  ),
+        barrierColor: Colors.black.withValues(alpha: .08),
+        transitionDuration: const Duration(milliseconds: 160),
+        pageBuilder: (_, _, _) {
+          return SafeArea(
+            child: Align(
+              alignment: Alignment.topRight,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 14, right: 16),
+                child: UpdateNotificationPanel(
+                  controller: _updateNotificationController,
                 ),
-              );
-            },
-        transitionBuilder:
-            (
-              _,
-              animation,
-              _,
-              child,
-            ) {
-              final Animation<
-                double
-              >
-              curved = CurvedAnimation(
-                parent: animation,
-                curve: Curves.easeOutCubic,
-              );
+              ),
+            ),
+          );
+        },
+        transitionBuilder: (_, animation, _, child) {
+          final Animation<double> curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
 
-              return FadeTransition(
-                opacity: curved,
-                child: ScaleTransition(
-                  scale:
-                      Tween<
-                            double
-                          >(
-                            begin: .97,
-                            end: 1,
-                          )
-                          .animate(
-                            curved,
-                          ),
-                  alignment: Alignment.topRight,
-                  child: child,
-                ),
-              );
-            },
+          return FadeTransition(
+            opacity: curved,
+            child: ScaleTransition(
+              scale: Tween<double>(begin: .97, end: 1).animate(curved),
+              alignment: Alignment.topRight,
+              child: child,
+            ),
+          );
+        },
       );
     } finally {
       _showingUpdateNotifications = false;
@@ -520,48 +397,58 @@ class _GhostAppState
   // LOAD PROFILE
   // ============================================================
 
-  Future<
-    void
-  >
-  _loadProfile() async {
+  Future<void> _loadProfile() {
+    final existing = _profileLoadInFlight;
+    if (existing != null) {
+      _startupLog('loadProfile já em andamento; reutilizando');
+      return existing;
+    }
+
+    late final Future<void> future;
+    future = _loadProfileInternal().whenComplete(() {
+      if (identical(_profileLoadInFlight, future)) {
+        _profileLoadInFlight = null;
+      }
+    });
+
+    _profileLoadInFlight = future;
+    return future;
+  }
+
+  Future<void> _loadProfileInternal() async {
+    final profileWatch = Stopwatch()..start();
+    _startupLog('loadProfile iniciado');
+
     UserProfile? cachedProfile;
 
     try {
+      final cacheStage = Stopwatch()..start();
       cachedProfile = await _profileRepository.getCachedCurrentProfile();
 
-      final String? cachedEmail = await _profileRepository.getCachedCurrentEmail();
+      final String? cachedEmail = await _profileRepository
+          .getCachedCurrentEmail();
+      _startupLog('cache do perfil (${cacheStage.elapsedMilliseconds}ms)');
 
-      if (mounted &&
-          (cachedProfile !=
-                  null ||
-              cachedEmail !=
-                  null)) {
-        setState(
-          () {
-            _profile =
-                cachedProfile ??
-                _profile;
+      if (mounted && (cachedProfile != null || cachedEmail != null)) {
+        setState(() {
+          _profile = cachedProfile ?? _profile;
 
-            _cachedProfileEmail =
-                cachedEmail ??
-                _cachedProfileEmail;
+          _cachedProfileEmail = cachedEmail ?? _cachedProfileEmail;
 
-            _loadingProfile = false;
+          _loadingProfile = false;
 
-            _profileError = null;
-          },
-        );
+          _profileError = null;
+        });
       }
-    } catch (
-      error
-    ) {
-      debugPrint(
-        '[APP] Erro lendo cache do perfil: $error',
-      );
+    } catch (error) {
+      debugPrint('[APP] Erro lendo cache do perfil: $error');
     }
 
     try {
-      final UserProfile? profile = await _profileRepository.refreshCurrentProfile();
+      final remoteStage = Stopwatch()..start();
+      final UserProfile? profile = await _profileRepository
+          .refreshCurrentProfile();
+      _startupLog('perfil remoto (${remoteStage.elapsedMilliseconds}ms)');
 
       final String? currentEmail = supabaseClient.auth.currentUser?.email;
 
@@ -569,45 +456,34 @@ class _GhostAppState
         return;
       }
 
-      setState(
-        () {
-          _profile =
-              profile ??
-              _profile;
+      setState(() {
+        _profile = profile ?? _profile;
 
-          _cachedProfileEmail =
-              currentEmail ??
-              _cachedProfileEmail;
+        _cachedProfileEmail = currentEmail ?? _cachedProfileEmail;
 
-          _loadingProfile = false;
+        _loadingProfile = false;
 
-          _profileError = null;
-        },
-      );
-    } catch (
-      error
-    ) {
-      debugPrint(
-        '[APP] Erro atualizando perfil remoto: $error',
-      );
+        _profileError = null;
+      });
+    } catch (error) {
+      debugPrint('[APP] Erro atualizando perfil remoto: $error');
 
       if (!mounted) {
         return;
       }
 
-      if (cachedProfile ==
-              null &&
-          _profile ==
-              null) {
-        setState(
-          () {
-            _loadingProfile = false;
+      if (cachedProfile == null && _profile == null) {
+        setState(() {
+          _loadingProfile = false;
 
-            _profileError = error.toString();
-          },
-        );
+          _profileError = error.toString();
+        });
       }
     }
+
+    _startupLog(
+      'loadProfile concluído (${profileWatch.elapsedMilliseconds}ms)',
+    );
   }
 
   // ============================================================
@@ -617,9 +493,7 @@ class _GhostAppState
   String get _displayName {
     final String? name = _profile?.fullName.trim();
 
-    if (name ==
-            null ||
-        name.isEmpty) {
+    if (name == null || name.isEmpty) {
       return 'Usuário';
     }
 
@@ -630,31 +504,18 @@ class _GhostAppState
   // OPEN PROFILE SETTINGS
   // ============================================================
 
-  Future<
-    void
-  >
-  _openProfileSettings(
-    ProfileSettingsSection section,
-  ) async {
+  Future<void> _openProfileSettings(ProfileSettingsSection section) async {
     final NavigatorState? navigator = _navigatorKey.currentState;
 
-    if (navigator ==
-        null) {
+    if (navigator == null) {
       return;
     }
 
     await navigator.push(
-      MaterialPageRoute<
-        void
-      >(
-        builder:
-            (
-              _,
-            ) {
-              return ProfileSettingsPage(
-                initialSection: section,
-              );
-            },
+      MaterialPageRoute<void>(
+        builder: (_) {
+          return ProfileSettingsPage(initialSection: section);
+        },
       ),
     );
 
@@ -669,10 +530,7 @@ class _GhostAppState
   // PROFILE MODAL
   // ============================================================
 
-  Future<
-    void
-  >
-  _showProfileModal() async {
+  Future<void> _showProfileModal() async {
     if (_showingProfileModal) {
       return;
     }
@@ -682,241 +540,181 @@ class _GhostAppState
     try {
       final BuildContext? context = _navigatorKey.currentContext;
 
-      if (context ==
-          null) {
+      if (context == null) {
         return;
       }
 
-      final ColorScheme colorScheme = Theme.of(
-        context,
-      ).colorScheme;
+      final ColorScheme colorScheme = Theme.of(context).colorScheme;
 
       final user = supabaseClient.auth.currentUser;
 
-      await showModalBottomSheet<
-        void
-      >(
+      await showModalBottomSheet<void>(
         context: context,
         isScrollControlled: true,
         useSafeArea: true,
         showDragHandle: true,
         backgroundColor: colorScheme.surface,
-        constraints: const BoxConstraints(
-          maxWidth: 560,
-        ),
-        builder:
-            (
-              BuildContext modalContext,
-            ) {
-              return Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  20,
-                  4,
-                  20,
-                  24,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        constraints: const BoxConstraints(maxWidth: 560),
+        builder: (BuildContext modalContext) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: colorScheme.primaryContainer,
-                            borderRadius: BorderRadius.circular(
-                              14,
-                            ),
-                          ),
-                          child: Icon(
-                            Icons.person_outline_rounded,
-                            color: colorScheme.primary,
-                            size: 23,
-                          ),
-                        ),
-
-                        const SizedBox(
-                          width: 12,
-                        ),
-
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Meu perfil',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              SizedBox(
-                                height: 3,
-                              ),
-                              Text(
-                                'Informações da sua conta.',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        IconButton(
-                          onPressed: () {
-                            Navigator.of(
-                              modalContext,
-                            ).pop();
-                          },
-                          icon: const Icon(
-                            Icons.close_rounded,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(
-                      height: 22,
-                    ),
-
                     Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(
-                        18,
-                      ),
+                      width: 44,
+                      height: 44,
                       decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(
-                          18,
-                        ),
-                        border: Border.all(
-                          color: colorScheme.outlineVariant,
-                        ),
+                        color: colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                      child: Row(
+                      child: Icon(
+                        Icons.person_outline_rounded,
+                        color: colorScheme.primary,
+                        size: 23,
+                      ),
+                    ),
+
+                    const SizedBox(width: 12),
+
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: 64,
-                            height: 64,
-                            decoration: BoxDecoration(
-                              color: colorScheme.primaryContainer,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: colorScheme.primary.withValues(
-                                  alpha: .20,
-                                ),
-                              ),
-                            ),
-                            child: Icon(
-                              Icons.person_rounded,
-                              color: colorScheme.primary,
-                              size: 32,
+                          Text(
+                            'Meu perfil',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
-
-                          const SizedBox(
-                            width: 14,
-                          ),
-
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _loadingProfile
-                                      ? 'Carregando...'
-                                      : _displayName,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-
-                                const SizedBox(
-                                  height: 5,
-                                ),
-
-                                Text(
-                                  user?.email ??
-                                      _cachedProfileEmail ??
-                                      'E-mail não disponível',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: colorScheme.onSurfaceVariant,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
+                          SizedBox(height: 3),
+                          Text(
+                            'Informações da sua conta.',
+                            style: TextStyle(fontSize: 11),
                           ),
                         ],
                       ),
                     ),
 
-                    if (_profileError !=
-                        null) ...[
-                      const SizedBox(
-                        height: 10,
-                      ),
-
-                      TextButton.icon(
-                        onPressed: _loadProfile,
-                        icon: const Icon(
-                          Icons.refresh_rounded,
-                        ),
-                        label: const Text(
-                          'Tentar carregar perfil novamente',
-                        ),
-                      ),
-                    ],
-
-                    const SizedBox(
-                      height: 14,
-                    ),
-
-                    _GlobalProfileActionTile(
-                      icon: Icons.tune_rounded,
-                      title: 'Preferências',
-                      subtitle: 'Ajuste comportamento e experiência do app.',
-                      onTap: () async {
-                        Navigator.of(
-                          modalContext,
-                        ).pop();
-
-                        await _openProfileSettings(
-                          ProfileSettingsSection.preferences,
-                        );
+                    IconButton(
+                      onPressed: () {
+                        Navigator.of(modalContext).pop();
                       },
-                    ),
-
-                    const SizedBox(
-                      height: 10,
-                    ),
-
-                    _GlobalProfileActionTile(
-                      icon: Icons.shield_outlined,
-                      title: 'Segurança',
-                      subtitle: 'Gerencie senha e dados de acesso.',
-                      onTap: () async {
-                        Navigator.of(
-                          modalContext,
-                        ).pop();
-
-                        await _openProfileSettings(
-                          ProfileSettingsSection.security,
-                        );
-                      },
+                      icon: const Icon(Icons.close_rounded),
                     ),
                   ],
                 ),
-              );
-            },
+
+                const SizedBox(height: 22),
+
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: colorScheme.outlineVariant),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 64,
+                        height: 64,
+                        decoration: BoxDecoration(
+                          color: colorScheme.primaryContainer,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: colorScheme.primary.withValues(alpha: .20),
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.person_rounded,
+                          color: colorScheme.primary,
+                          size: 32,
+                        ),
+                      ),
+
+                      const SizedBox(width: 14),
+
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _loadingProfile ? 'Carregando...' : _displayName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+
+                            const SizedBox(height: 5),
+
+                            Text(
+                              user?.email ??
+                                  _cachedProfileEmail ??
+                                  'E-mail não disponível',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: colorScheme.onSurfaceVariant,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                if (_profileError != null) ...[
+                  const SizedBox(height: 10),
+
+                  TextButton.icon(
+                    onPressed: _loadProfile,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Tentar carregar perfil novamente'),
+                  ),
+                ],
+
+                const SizedBox(height: 14),
+
+                _GlobalProfileActionTile(
+                  icon: Icons.tune_rounded,
+                  title: 'Preferências',
+                  subtitle: 'Ajuste comportamento e experiência do app.',
+                  onTap: () async {
+                    Navigator.of(modalContext).pop();
+
+                    await _openProfileSettings(
+                      ProfileSettingsSection.preferences,
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 10),
+
+                _GlobalProfileActionTile(
+                  icon: Icons.shield_outlined,
+                  title: 'Segurança',
+                  subtitle: 'Gerencie senha e dados de acesso.',
+                  onTap: () async {
+                    Navigator.of(modalContext).pop();
+
+                    await _openProfileSettings(ProfileSettingsSection.security);
+                  },
+                ),
+              ],
+            ),
+          );
+        },
       );
     } finally {
       _showingProfileModal = false;
@@ -927,53 +725,36 @@ class _GhostAppState
   // SIGN OUT
   // ============================================================
 
-  Future<
-    void
-  >
-  _signOut() async {
+  Future<void> _signOut() async {
     if (_isSigningOut) {
       return;
     }
 
-    setState(
-      () {
-        _isSigningOut = true;
-      },
-    );
+    setState(() {
+      _isSigningOut = true;
+    });
 
     try {
       try {
         await accountDeviceRepository.disconnectCurrentDevice();
-      } catch (
-        error
-      ) {
+      } catch (error) {
         debugPrint(
           '[ACCOUNT DEVICE] Não foi possível marcar a sessão como encerrada: $error',
         );
       }
 
       await supabaseClient.auth.signOut();
-    } catch (
-      error
-    ) {
-      debugPrint(
-        '[APP] Erro ao sair da conta: $error',
-      );
+    } catch (error) {
+      debugPrint('[APP] Erro ao sair da conta: $error');
 
       _scaffoldMessengerKey.currentState?.showSnackBar(
-        SnackBar(
-          content: Text(
-            'Não foi possível sair da conta: $error',
-          ),
-        ),
+        SnackBar(content: Text('Não foi possível sair da conta: $error')),
       );
     } finally {
       if (mounted) {
-        setState(
-          () {
-            _isSigningOut = false;
-          },
-        );
+        setState(() {
+          _isSigningOut = false;
+        });
       }
     }
   }
@@ -982,13 +763,11 @@ class _GhostAppState
   // SUCCESS MESSAGE
   // ============================================================
 
-  void _showSuccessMessage(
-    String message,
-  ) {
-    final ScaffoldMessengerState? messenger = _scaffoldMessengerKey.currentState;
+  void _showSuccessMessage(String message) {
+    final ScaffoldMessengerState? messenger =
+        _scaffoldMessengerKey.currentState;
 
-    if (messenger ==
-        null) {
+    if (messenger == null) {
       return;
     }
 
@@ -1031,23 +810,13 @@ class _GhostAppState
   // ============================================================
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
 
-      locale: const Locale(
-        'pt',
-        'BR',
-      ),
+      locale: const Locale('pt', 'BR'),
 
-      supportedLocales: const [
-        Locale(
-          'pt',
-          'BR',
-        ),
-      ],
+      supportedLocales: const [Locale('pt', 'BR')],
 
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
@@ -1061,59 +830,38 @@ class _GhostAppState
 
       theme: AppTheme.theme,
 
-      builder:
-          (
-            BuildContext context,
-            Widget? child,
-          ) {
-            return _GlobalSyncOverlay(
-              visible: _authenticated,
-              updateNotificationController: _updateNotificationController,
-              onNotificationTap: _openUpdateNotifications,
-              onProfileTap: _showProfileModal,
-              onLogoutTap: _signOut,
-              isSigningOut: _isSigningOut,
-              child:
-                  child ??
-                  const SizedBox.shrink(),
-            );
-          },
+      builder: (BuildContext context, Widget? child) {
+        return _GlobalSyncOverlay(
+          visible: _authenticated,
+          updateNotificationController: _updateNotificationController,
+          onNotificationTap: _openUpdateNotifications,
+          onProfileTap: _showProfileModal,
+          onLogoutTap: _signOut,
+          isSigningOut: _isSigningOut,
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
 
       home: AuthGate(
         prepareUser: initializeAuthenticatedOfflineFirst,
         onUserChanged: notifyAppUserChanged,
-        authenticatedBuilder:
-            (
-              BuildContext context,
-              user,
-            ) {
-              return WelcomeScreen(
-                controller: widget.evolutionController,
-              );
-            },
+        authenticatedBuilder: (BuildContext context, user) {
+          return WelcomeScreen(controller: widget.evolutionController);
+        },
       ),
 
       routes: {
-        '/study':
-            (
-              BuildContext context,
-            ) {
-              return const StudyScreen();
-            },
+        '/study': (BuildContext context) {
+          return const StudyScreen();
+        },
 
-        '/training':
-            (
-              BuildContext context,
-            ) {
-              return const TrainingScreen();
-            },
+        '/training': (BuildContext context) {
+          return const TrainingScreen();
+        },
 
-        '/routine':
-            (
-              BuildContext context,
-            ) {
-              return const RoutineScreen();
-            },
+        '/routine': (BuildContext context) {
+          return const RoutineScreen();
+        },
       },
     );
   }
@@ -1123,9 +871,7 @@ class _GhostAppState
 // GLOBAL SYNC OVERLAY
 // ============================================================
 
-class _GlobalSyncOverlay
-    extends
-        StatelessWidget {
+class _GlobalSyncOverlay extends StatelessWidget {
   const _GlobalSyncOverlay({
     required this.visible,
     required this.updateNotificationController,
@@ -1150,18 +896,12 @@ class _GlobalSyncOverlay
 
   final Widget child;
 
-  static const Color _background = Color(
-    0xFFF7FBF1,
-  );
+  static const Color _background = Color(0xFFF7FBF1);
 
-  static const Color _border = Color(
-    0xFFC7DFC9,
-  );
+  static const Color _border = Color(0xFFC7DFC9);
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Column(
       children: [
         SafeArea(
@@ -1169,17 +909,10 @@ class _GlobalSyncOverlay
           child: Container(
             width: double.infinity,
             height: 46,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: const BoxDecoration(
               color: _background,
-              border: Border(
-                bottom: BorderSide(
-                  color: _border,
-                  width: 1,
-                ),
-              ),
+              border: Border(bottom: BorderSide(color: _border, width: 1)),
             ),
             alignment: Alignment.centerRight,
             child: visible
@@ -1191,18 +924,14 @@ class _GlobalSyncOverlay
                         onTap: onNotificationTap,
                       ),
 
-                      const SizedBox(
-                        width: 8,
-                      ),
+                      const SizedBox(width: 8),
 
                       SyncStatusIndicator(
                         syncService: syncService,
                         connectivityService: connectivityService,
                       ),
 
-                      const SizedBox(
-                        width: 8,
-                      ),
+                      const SizedBox(width: 8),
 
                       _GlobalTopIconButton(
                         semanticsLabel: 'Meu perfil',
@@ -1211,18 +940,14 @@ class _GlobalSyncOverlay
                         filled: true,
                       ),
 
-                      const SizedBox(
-                        width: 6,
-                      ),
+                      const SizedBox(width: 6),
 
                       _GlobalTopIconButton(
                         semanticsLabel: isSigningOut
                             ? 'Saindo da conta'
                             : 'Sair da conta',
                         icon: Icons.logout_rounded,
-                        onTap: isSigningOut
-                            ? null
-                            : onLogoutTap,
+                        onTap: isSigningOut ? null : onLogoutTap,
                         loading: isSigningOut,
                       ),
                     ],
@@ -1231,11 +956,7 @@ class _GlobalSyncOverlay
           ),
         ),
 
-        Expanded(
-          child: ClipRect(
-            child: child,
-          ),
-        ),
+        Expanded(child: ClipRect(child: child)),
       ],
     );
   }
@@ -1245,9 +966,7 @@ class _GlobalSyncOverlay
 // GLOBAL TOP ICON BUTTON
 // ============================================================
 
-class _GlobalTopIconButton
-    extends
-        StatelessWidget {
+class _GlobalTopIconButton extends StatelessWidget {
   const _GlobalTopIconButton({
     required this.semanticsLabel,
     required this.icon,
@@ -1266,18 +985,12 @@ class _GlobalTopIconButton
 
   final bool loading;
 
-  static const Color _primary = Color(
-    0xFF3B6939,
-  );
+  static const Color _primary = Color(0xFF3B6939);
 
-  static const Color _primarySoft = Color(
-    0xFFBCF0B4,
-  );
+  static const Color _primarySoft = Color(0xFFBCF0B4);
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Semantics(
       button: true,
       label: semanticsLabel,
@@ -1285,27 +998,17 @@ class _GlobalTopIconButton
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(
-            999,
-          ),
+          borderRadius: BorderRadius.circular(999),
           child: AnimatedContainer(
-            duration: const Duration(
-              milliseconds: 180,
-            ),
+            duration: const Duration(milliseconds: 180),
             width: 32,
             height: 32,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: filled
-                  ? _primarySoft
-                  : Colors.transparent,
+              color: filled ? _primarySoft : Colors.transparent,
               shape: BoxShape.circle,
               border: filled
-                  ? Border.all(
-                      color: _primary.withValues(
-                        alpha: .28,
-                      ),
-                    )
+                  ? Border.all(color: _primary.withValues(alpha: .28))
                   : null,
             ),
             child: loading
@@ -1317,11 +1020,7 @@ class _GlobalTopIconButton
                       color: _primary,
                     ),
                   )
-                : Icon(
-                    icon,
-                    size: 18,
-                    color: _primary,
-                  ),
+                : Icon(icon, size: 18, color: _primary),
           ),
         ),
       ),
@@ -1333,9 +1032,7 @@ class _GlobalTopIconButton
 // GLOBAL PROFILE ACTION TILE
 // ============================================================
 
-class _GlobalProfileActionTile
-    extends
-        StatelessWidget {
+class _GlobalProfileActionTile extends StatelessWidget {
   const _GlobalProfileActionTile({
     required this.icon,
     required this.title,
@@ -1352,33 +1049,21 @@ class _GlobalProfileActionTile
   final VoidCallback onTap;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final ColorScheme colorScheme = Theme.of(
-      context,
-    ).colorScheme;
+  Widget build(BuildContext context) {
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(
-          14,
-        ),
+        borderRadius: BorderRadius.circular(14),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(
-            13,
-          ),
+          padding: const EdgeInsets.all(13),
           decoration: BoxDecoration(
             color: colorScheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(
-              14,
-            ),
-            border: Border.all(
-              color: colorScheme.outlineVariant,
-            ),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: colorScheme.outlineVariant),
           ),
           child: Row(
             children: [
@@ -1387,20 +1072,12 @@ class _GlobalProfileActionTile
                 height: 40,
                 decoration: BoxDecoration(
                   color: colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(
-                    12,
-                  ),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  icon,
-                  size: 19,
-                  color: colorScheme.primary,
-                ),
+                child: Icon(icon, size: 19, color: colorScheme.primary),
               ),
 
-              const SizedBox(
-                width: 11,
-              ),
+              const SizedBox(width: 11),
 
               Expanded(
                 child: Column(
@@ -1414,9 +1091,7 @@ class _GlobalProfileActionTile
                       ),
                     ),
 
-                    const SizedBox(
-                      height: 2,
-                    ),
+                    const SizedBox(height: 2),
 
                     Text(
                       subtitle,
@@ -1446,91 +1121,53 @@ class _GlobalProfileActionTile
 // REMINDER ACTION
 // ============================================================
 
-enum _ReminderAction {
-  dismiss,
-  complete,
-}
+enum _ReminderAction { dismiss, complete }
 
 // ============================================================
 // REMINDER NOTIFICATION DIALOG
 // ============================================================
 
-class _ReminderNotificationDialog
-    extends
-        StatelessWidget {
-  const _ReminderNotificationDialog({
-    required this.reminder,
-  });
+class _ReminderNotificationDialog extends StatelessWidget {
+  const _ReminderNotificationDialog({required this.reminder});
 
   final ReminderModel reminder;
 
-  static const Color _background = Color(
-    0xFFFFFFFF,
-  );
+  static const Color _background = Color(0xFFFFFFFF);
 
-  static const Color _surfaceSoft = Color(
-    0xFFF3F8EE,
-  );
+  static const Color _surfaceSoft = Color(0xFFF3F8EE);
 
-  static const Color _border = Color(
-    0xFFC7DFC9,
-  );
+  static const Color _border = Color(0xFFC7DFC9);
 
-  static const Color _primary = Color(
-    0xFFBCF0B4,
-  );
+  static const Color _primary = Color(0xFFBCF0B4);
 
-  static const Color _primaryDark = Color(
-    0xFF3B6939,
-  );
+  static const Color _primaryDark = Color(0xFF3B6939);
 
-  static const Color _text = Color(
-    0xFF172019,
-  );
+  static const Color _text = Color(0xFF172019);
 
-  static const Color _muted = Color(
-    0xFF68746B,
-  );
+  static const Color _muted = Color(0xFF68746B);
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.all(
-        24,
-      ),
+      insetPadding: const EdgeInsets.all(24),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: 450,
-        ),
+        constraints: const BoxConstraints(maxWidth: 450),
         child: Container(
           decoration: BoxDecoration(
             color: _background,
-            borderRadius: BorderRadius.circular(
-              22,
-            ),
-            border: Border.all(
-              color: _border,
-            ),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: _border),
             boxShadow: const [
               BoxShadow(
-                color: Color(
-                  0x1A000000,
-                ),
+                color: Color(0x1A000000),
                 blurRadius: 30,
-                offset: Offset(
-                  0,
-                  10,
-                ),
+                offset: Offset(0, 10),
               ),
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.all(
-              22,
-            ),
+            padding: const EdgeInsets.all(22),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1542,9 +1179,7 @@ class _ReminderNotificationDialog
                       height: 48,
                       decoration: BoxDecoration(
                         color: _primary,
-                        borderRadius: BorderRadius.circular(
-                          14,
-                        ),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                       child: const Icon(
                         Icons.notifications_active_outlined,
@@ -1553,9 +1188,7 @@ class _ReminderNotificationDialog
                       ),
                     ),
 
-                    const SizedBox(
-                      width: 13,
-                    ),
+                    const SizedBox(width: 13),
 
                     const Expanded(
                       child: Column(
@@ -1569,15 +1202,10 @@ class _ReminderNotificationDialog
                               fontWeight: FontWeight.w900,
                             ),
                           ),
-                          SizedBox(
-                            height: 2,
-                          ),
+                          SizedBox(height: 2),
                           Text(
                             'Chegou a hora de lembrar.',
-                            style: TextStyle(
-                              color: _muted,
-                              fontSize: 11,
-                            ),
+                            style: TextStyle(color: _muted, fontSize: 11),
                           ),
                         ],
                       ),
@@ -1585,23 +1213,15 @@ class _ReminderNotificationDialog
                   ],
                 ),
 
-                const SizedBox(
-                  height: 20,
-                ),
+                const SizedBox(height: 20),
 
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(
-                    16,
-                  ),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: _surfaceSoft,
-                    borderRadius: BorderRadius.circular(
-                      15,
-                    ),
-                    border: Border.all(
-                      color: _border,
-                    ),
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(color: _border),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1616,9 +1236,7 @@ class _ReminderNotificationDialog
                       ),
 
                       if (reminder.message.trim().isNotEmpty) ...[
-                        const SizedBox(
-                          height: 8,
-                        ),
+                        const SizedBox(height: 8),
 
                         Text(
                           reminder.message,
@@ -1631,31 +1249,21 @@ class _ReminderNotificationDialog
                         ),
                       ],
 
-                      const SizedBox(
-                        height: 14,
-                      ),
+                      const SizedBox(height: 14),
 
-                      _ReminderTime(
-                        date: reminder.remindAt.toLocal(),
-                      ),
+                      _ReminderTime(date: reminder.remindAt.toLocal()),
                     ],
                   ),
                 ),
 
-                const SizedBox(
-                  height: 20,
-                ),
+                const SizedBox(height: 20),
 
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton(
                       onPressed: () {
-                        Navigator.of(
-                          context,
-                        ).pop(
-                          _ReminderAction.dismiss,
-                        );
+                        Navigator.of(context).pop(_ReminderAction.dismiss);
                       },
                       child: const Text(
                         'Fechar',
@@ -1666,17 +1274,11 @@ class _ReminderNotificationDialog
                       ),
                     ),
 
-                    const SizedBox(
-                      width: 8,
-                    ),
+                    const SizedBox(width: 8),
 
                     ElevatedButton.icon(
                       onPressed: () {
-                        Navigator.of(
-                          context,
-                        ).pop(
-                          _ReminderAction.complete,
-                        );
+                        Navigator.of(context).pop(_ReminderAction.complete);
                       },
                       style: ElevatedButton.styleFrom(
                         elevation: 0,
@@ -1687,20 +1289,13 @@ class _ReminderNotificationDialog
                           vertical: 13,
                         ),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            12,
-                          ),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      icon: const Icon(
-                        Icons.check_rounded,
-                        size: 18,
-                      ),
+                      icon: const Icon(Icons.check_rounded, size: 18),
                       label: const Text(
                         'Concluir',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                        ),
+                        style: TextStyle(fontWeight: FontWeight.w800),
                       ),
                     ),
                   ],
@@ -1718,63 +1313,34 @@ class _ReminderNotificationDialog
 // REMINDER TIME
 // ============================================================
 
-class _ReminderTime
-    extends
-        StatelessWidget {
-  const _ReminderTime({
-    required this.date,
-  });
+class _ReminderTime extends StatelessWidget {
+  const _ReminderTime({required this.date});
 
   final DateTime date;
 
-  static const Color _primaryDark = Color(
-    0xFF3B6939,
-  );
+  static const Color _primaryDark = Color(0xFF3B6939);
 
-  static const Color _muted = Color(
-    0xFF68746B,
-  );
+  static const Color _muted = Color(0xFF68746B);
 
-  String _twoDigits(
-    int value,
-  ) {
-    return value.toString().padLeft(
-      2,
-      '0',
-    );
+  String _twoDigits(int value) {
+    return value.toString().padLeft(2, '0');
   }
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final String day = _twoDigits(
-      date.day,
-    );
+  Widget build(BuildContext context) {
+    final String day = _twoDigits(date.day);
 
-    final String month = _twoDigits(
-      date.month,
-    );
+    final String month = _twoDigits(date.month);
 
-    final String hour = _twoDigits(
-      date.hour,
-    );
+    final String hour = _twoDigits(date.hour);
 
-    final String minute = _twoDigits(
-      date.minute,
-    );
+    final String minute = _twoDigits(date.minute);
 
     return Row(
       children: [
-        const Icon(
-          Icons.schedule_rounded,
-          size: 16,
-          color: _primaryDark,
-        ),
+        const Icon(Icons.schedule_rounded, size: 16, color: _primaryDark),
 
-        const SizedBox(
-          width: 6,
-        ),
+        const SizedBox(width: 6),
 
         Text(
           '$day/$month/${date.year} às $hour:$minute',

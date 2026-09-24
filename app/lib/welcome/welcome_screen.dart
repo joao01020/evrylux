@@ -11,69 +11,39 @@ import '../routine/screen/routine_screen.dart';
 import '../study/study_screen.dart';
 import '../training/training_screen.dart';
 
-class WelcomeScreen
-    extends
-        StatefulWidget {
-  const WelcomeScreen({
-    super.key,
-    required this.controller,
-  });
+class WelcomeScreen extends StatefulWidget {
+  const WelcomeScreen({super.key, required this.controller});
 
   final EvolutionController controller;
 
   @override
-  State<
-    WelcomeScreen
-  >
-  createState() {
+  State<WelcomeScreen> createState() {
     return _WelcomeScreenState();
   }
 }
 
-class _WelcomeScreenState
-    extends
-        State<
-          WelcomeScreen
-        > {
+class _WelcomeScreenState extends State<WelcomeScreen> {
   // ============================================================
   // COLORS
   // ============================================================
 
-  static const Color _background = Color(
-    0xFFF8FBF4,
-  );
+  static const Color _background = Color(0xFFF8FBF4);
 
-  static const Color _surface = Color(
-    0xFFFFFFFF,
-  );
+  static const Color _surface = Color(0xFFFFFFFF);
 
-  static const Color _surfaceSoft = Color(
-    0xFFF4F8F1,
-  );
+  static const Color _surfaceSoft = Color(0xFFF4F8F1);
 
-  static const Color _border = Color(
-    0xFFDCE7DB,
-  );
+  static const Color _border = Color(0xFFDCE7DB);
 
-  static const Color _primary = Color(
-    0xFFB8EFB0,
-  );
+  static const Color _primary = Color(0xFFB8EFB0);
 
-  static const Color _primaryDark = Color(
-    0xFF365E34,
-  );
+  static const Color _primaryDark = Color(0xFF365E34);
 
-  static const Color _text = Color(
-    0xFF172019,
-  );
+  static const Color _text = Color(0xFF172019);
 
-  static const Color _muted = Color(
-    0xFF68746B,
-  );
+  static const Color _muted = Color(0xFF68746B);
 
-  static const Color _mutedSoft = Color(
-    0xFF98A29A,
-  );
+  static const Color _mutedSoft = Color(0xFF98A29A);
 
   // ============================================================
   // PROFILE
@@ -95,72 +65,60 @@ class _WelcomeScreenState
 
   Timer? _introTimer;
 
+  final Stopwatch _startupWatch = Stopwatch();
+
+  bool _firstBuildLogged = false;
+
+  bool _firstFrameLogged = false;
+
   // ============================================================
   // OBJECTIVES
   // ============================================================
 
-  static const List<
-    _WelcomeObjective
-  >
-  _objectives = [
+  static const List<_WelcomeObjective> _objectives = [
     _WelcomeObjective(
       name: 'Estudar',
-      description: 'Construa conhecimento, registre ideias e desenvolva seu Cérebro.',
+      description:
+          'Construa conhecimento, registre ideias e desenvolva seu Cérebro.',
       icon: Icons.psychology_alt_outlined,
-      accent: Color(
-        0xFFBCEFB4,
-      ),
-      accentDark: Color(
-        0xFF3C6B39,
-      ),
+      accent: Color(0xFFBCEFB4),
+      accentDark: Color(0xFF3C6B39),
     ),
 
     _WelcomeObjective(
       name: 'Treinar',
-      description: 'Cuide do corpo, acompanhe treinos e mantenha sua consistência.',
+      description:
+          'Cuide do corpo, acompanhe treinos e mantenha sua consistência.',
       icon: Icons.favorite_border_rounded,
-      accent: Color(
-        0xFFFFE0E0,
-      ),
-      accentDark: Color(
-        0xFFA84D4D,
-      ),
+      accent: Color(0xFFFFE0E0),
+      accentDark: Color(0xFFA84D4D),
     ),
 
     _WelcomeObjective(
       name: 'Financeiro',
-      description: 'Organize suas finanças e acompanhe sua evolução financeira.',
+      description:
+          'Organize suas finanças e acompanhe sua evolução financeira.',
       icon: Icons.account_balance_wallet_outlined,
-      accent: Color(
-        0xFFFFEDBD,
-      ),
-      accentDark: Color(
-        0xFF8A6B22,
-      ),
+      accent: Color(0xFFFFEDBD),
+      accentDark: Color(0xFF8A6B22),
     ),
 
     _WelcomeObjective(
       name: 'Rotina',
-      description: 'Planeje seus dias, organize tarefas e transforme ideias em ação.',
+      description:
+          'Planeje seus dias, organize tarefas e transforme ideias em ação.',
       icon: Icons.calendar_month_outlined,
-      accent: Color(
-        0xFFDDE8FF,
-      ),
-      accentDark: Color(
-        0xFF46649A,
-      ),
+      accent: Color(0xFFDDE8FF),
+      accentDark: Color(0xFF46649A),
     ),
 
     _WelcomeObjective(
       name: 'Evolução',
-      description: 'Veja seu progresso e acompanhe o que mudou ao longo do tempo.',
+      description:
+          'Veja seu progresso e acompanhe o que mudou ao longo do tempo.',
       icon: Icons.trending_up_rounded,
-      accent: Color(
-        0xFFE6DEFF,
-      ),
-      accentDark: Color(
-        0xFF66539B,
-      ),
+      accent: Color(0xFFE6DEFF),
+      accentDark: Color(0xFF66539B),
     ),
   ];
 
@@ -172,28 +130,51 @@ class _WelcomeScreenState
   void initState() {
     super.initState();
 
+    _startupWatch.start();
+
+    debugPrint('[STARTUP][WELCOME] +0ms WelcomeScreen initState');
+
     _profileRepository = ProfileRepository();
 
-    unawaited(
-      _loadProfile(),
-    );
+    // O perfil não disputa I/O com o primeiro frame da Welcome.
+    // O AuthGate já confirmou a conta; aqui precisamos apenas atualizar
+    // a saudação exibida nesta tela.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
 
-    _introTimer = Timer(
-      const Duration(
-        milliseconds: 1250,
-      ),
-      () {
-        if (!mounted) {
-          return;
-        }
+      if (!_firstFrameLogged) {
+        _firstFrameLogged = true;
 
-        setState(
-          () {
-            _showOptions = true;
-          },
+        debugPrint(
+          '[STARTUP][WELCOME] +${_startupWatch.elapsedMilliseconds}ms '
+          'primeiro frame da Welcome renderizado',
         );
-      },
-    );
+      }
+
+      debugPrint(
+        '[STARTUP][WELCOME] +${_startupWatch.elapsedMilliseconds}ms '
+        'carregamento do perfil pós-frame iniciado',
+      );
+
+      unawaited(_loadProfile());
+    });
+
+    _introTimer = Timer(const Duration(milliseconds: 1250), () {
+      if (!mounted) {
+        return;
+      }
+
+      debugPrint(
+        '[STARTUP][WELCOME] +${_startupWatch.elapsedMilliseconds}ms '
+        'transição para conteúdo principal iniciada',
+      );
+
+      setState(() {
+        _showOptions = true;
+      });
+    });
   }
 
   // ============================================================
@@ -211,10 +192,9 @@ class _WelcomeScreenState
   // LOAD PROFILE
   // ============================================================
 
-  Future<
-    void
-  >
-  _loadProfile() async {
+  Future<void> _loadProfile() async {
+    final profileWatch = Stopwatch()..start();
+
     try {
       final profile = await _profileRepository.getCurrentProfile();
 
@@ -222,38 +202,32 @@ class _WelcomeScreenState
         return;
       }
 
-      setState(
-        () {
-          _profile = profile;
+      setState(() {
+        _profile = profile;
 
-          _loadingProfile = false;
+        _loadingProfile = false;
 
-          _profileError = null;
-        },
-      );
-    } catch (
-      error,
-      stackTrace
-    ) {
-      debugPrint(
-        '[WELCOME] Erro ao carregar perfil: $error',
-      );
+        _profileError = null;
+      });
 
       debugPrint(
-        stackTrace.toString(),
+        '[STARTUP][WELCOME] +${_startupWatch.elapsedMilliseconds}ms '
+        'perfil disponível (${profileWatch.elapsedMilliseconds}ms)',
       );
+    } catch (error, stackTrace) {
+      debugPrint('[WELCOME] Erro ao carregar perfil: $error');
+
+      debugPrint(stackTrace.toString());
 
       if (!mounted) {
         return;
       }
 
-      setState(
-        () {
-          _loadingProfile = false;
+      setState(() {
+        _loadingProfile = false;
 
-          _profileError = error.toString();
-        },
-      );
+        _profileError = error.toString();
+      });
     }
   }
 
@@ -264,9 +238,7 @@ class _WelcomeScreenState
   String get _displayName {
     final name = _profile?.fullName.trim();
 
-    if (name ==
-            null ||
-        name.isEmpty) {
+    if (name == null || name.isEmpty) {
       return 'Usuário';
     }
 
@@ -280,22 +252,14 @@ class _WelcomeScreenState
       return 'Usuário';
     }
 
-    return displayName
-        .split(
-          RegExp(
-            r'\s+',
-          ),
-        )
-        .first;
+    return displayName.split(RegExp(r'\s+')).first;
   }
 
   // ============================================================
   // OPEN OBJECTIVE
   // ============================================================
 
-  void _openObjective(
-    String name,
-  ) {
+  void _openObjective(String name) {
     final Widget? page = switch (name) {
       'Estudar' => const StudyScreen(),
 
@@ -305,30 +269,20 @@ class _WelcomeScreenState
 
       'Rotina' => const RoutineScreen(),
 
-      'Evolução' => EvolutionScreen(
-        controller: widget.controller,
-      ),
+      'Evolução' => EvolutionScreen(controller: widget.controller),
 
       _ => null,
     };
 
-    if (page ==
-        null) {
+    if (page == null) {
       return;
     }
 
-    Navigator.of(
-      context,
-    ).push(
-      MaterialPageRoute<
-        void
-      >(
-        builder:
-            (
-              _,
-            ) {
-              return page;
-            },
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) {
+          return page;
+        },
       ),
     );
   }
@@ -338,9 +292,16 @@ class _WelcomeScreenState
   // ============================================================
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
+    if (!_firstBuildLogged) {
+      _firstBuildLogged = true;
+
+      debugPrint(
+        '[STARTUP][WELCOME] +${_startupWatch.elapsedMilliseconds}ms '
+        'primeiro build iniciado',
+      );
+    }
+
     return Scaffold(
       backgroundColor: _background,
 
@@ -353,18 +314,13 @@ class _WelcomeScreenState
             const Positioned(
               top: -170,
               right: -120,
-              child: _BackgroundGlow(
-                size: 430,
-              ),
+              child: _BackgroundGlow(size: 430),
             ),
 
             const Positioned(
               bottom: -210,
               left: -170,
-              child: _BackgroundGlow(
-                size: 390,
-                opacity: 0.22,
-              ),
+              child: _BackgroundGlow(size: 390, opacity: 0.22),
             ),
 
             // ==================================================
@@ -375,33 +331,20 @@ class _WelcomeScreenState
                 ignoring: _showOptions,
 
                 child: AnimatedOpacity(
-                  opacity: _showOptions
-                      ? 0
-                      : 1,
+                  opacity: _showOptions ? 0 : 1,
 
-                  duration: const Duration(
-                    milliseconds: 520,
-                  ),
+                  duration: const Duration(milliseconds: 520),
 
                   curve: Curves.easeOutCubic,
 
                   child: AnimatedSlide(
-                    offset: _showOptions
-                        ? const Offset(
-                            0,
-                            -0.05,
-                          )
-                        : Offset.zero,
+                    offset: _showOptions ? const Offset(0, -0.05) : Offset.zero,
 
-                    duration: const Duration(
-                      milliseconds: 650,
-                    ),
+                    duration: const Duration(milliseconds: 650),
 
                     curve: Curves.easeInOutCubic,
 
-                    child: Center(
-                      child: _buildGreeting(),
-                    ),
+                    child: Center(child: _buildGreeting()),
                   ),
                 ),
               ),
@@ -415,31 +358,25 @@ class _WelcomeScreenState
                 ignoring: !_showOptions,
 
                 child: AnimatedOpacity(
-                  opacity: _showOptions
-                      ? 1
-                      : 0,
+                  opacity: _showOptions ? 1 : 0,
 
-                  duration: const Duration(
-                    milliseconds: 540,
-                  ),
+                  duration: const Duration(milliseconds: 540),
 
                   curve: Curves.easeOutCubic,
 
                   child: AnimatedSlide(
-                    offset: _showOptions
-                        ? Offset.zero
-                        : const Offset(
-                            0,
-                            0.055,
-                          ),
+                    offset: _showOptions ? Offset.zero : const Offset(0, 0.055),
 
-                    duration: const Duration(
-                      milliseconds: 680,
-                    ),
+                    duration: const Duration(milliseconds: 680),
 
                     curve: Curves.easeOutCubic,
 
-                    child: _buildMainContent(),
+                    // Não constrói a árvore pesada dos cards enquanto
+                    // ela está 100% invisível durante a introdução.
+                    // Isso reduz layout/paint no primeiro frame.
+                    child: _showOptions
+                        ? _buildMainContent()
+                        : const SizedBox.expand(),
                   ),
                 ),
               ),
@@ -455,21 +392,12 @@ class _WelcomeScreenState
   // ============================================================
 
   Widget _buildGreeting() {
-    if (_loadingProfile) {
-      return const SizedBox(
-        width: 26,
-        height: 26,
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-          color: _primaryDark,
-        ),
-      );
-    }
-
+    // A saudação pode ser desenhada imediatamente.
+    // Enquanto o perfil local é resolvido pós-frame, _firstName usa
+    // o fallback "Usuário"; assim não seguramos o primeiro frame
+    // atrás de um spinner ou acesso a storage.
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 24,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
 
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -479,36 +407,23 @@ class _WelcomeScreenState
           // BRAND
           // ====================================================
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 7,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
 
             decoration: BoxDecoration(
-              color: _surface.withValues(
-                alpha: 0.80,
-              ),
+              color: _surface.withValues(alpha: 0.80),
 
-              borderRadius: BorderRadius.circular(
-                999,
-              ),
+              borderRadius: BorderRadius.circular(999),
 
-              border: Border.all(
-                color: _border,
-              ),
+              border: Border.all(color: _border),
             ),
 
             child: const Row(
               mainAxisSize: MainAxisSize.min,
 
               children: [
-                _LeafMark(
-                  size: 16,
-                ),
+                _LeafMark(size: 16),
 
-                SizedBox(
-                  width: 7,
-                ),
+                SizedBox(width: 7),
 
                 Text(
                   'EVRYLUX',
@@ -523,9 +438,7 @@ class _WelcomeScreenState
             ),
           ),
 
-          const SizedBox(
-            height: 26,
-          ),
+          const SizedBox(height: 26),
 
           // ====================================================
           // GREETING
@@ -543,9 +456,7 @@ class _WelcomeScreenState
             ),
           ),
 
-          const SizedBox(
-            height: 9,
-          ),
+          const SizedBox(height: 9),
 
           const Row(
             mainAxisSize: MainAxisSize.min,
@@ -560,34 +471,19 @@ class _WelcomeScreenState
                 ),
               ),
 
-              SizedBox(
-                width: 5,
-              ),
+              SizedBox(width: 5),
 
-              Text(
-                '👋',
-                style: TextStyle(
-                  fontSize: 17,
-                ),
-              ),
+              Text('👋', style: TextStyle(fontSize: 17)),
             ],
           ),
 
-          if (_profileError !=
-              null) ...[
-            const SizedBox(
-              height: 18,
-            ),
+          if (_profileError != null) ...[
+            const SizedBox(height: 18),
 
             TextButton.icon(
               onPressed: _loadProfile,
-              icon: const Icon(
-                Icons.refresh_rounded,
-                size: 16,
-              ),
-              label: const Text(
-                'Tentar carregar nome novamente',
-              ),
+              icon: const Icon(Icons.refresh_rounded, size: 16),
+              label: const Text('Tentar carregar nome novamente'),
             ),
           ],
         ],
@@ -601,128 +497,87 @@ class _WelcomeScreenState
 
   Widget _buildMainContent() {
     return LayoutBuilder(
-      builder:
-          (
-            context,
-            constraints,
-          ) {
-            final compact =
-                constraints.maxHeight <
-                760;
+      builder: (context, constraints) {
+        final compact = constraints.maxHeight < 760;
 
-            final veryCompact =
-                constraints.maxHeight <
-                650;
+        final veryCompact = constraints.maxHeight < 650;
 
-            final horizontalPadding =
-                constraints.maxWidth <
-                    700
-                ? 18.0
-                : 32.0;
+        final horizontalPadding = constraints.maxWidth < 700 ? 18.0 : 32.0;
 
-            return Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: 860,
-                ),
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 860),
 
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    horizontalPadding,
-                    compact
-                        ? 28
-                        : 42,
-                    horizontalPadding,
-                    compact
-                        ? 18
-                        : 28,
-                  ),
-
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-
-                    children: [
-                      // ==================================================
-                      // TOP BAR
-                      // ==================================================
-                      _buildTopBar(
-                        compact: compact,
-                      ),
-
-                      SizedBox(
-                        height: compact
-                            ? 26
-                            : 34,
-                      ),
-
-                      // ==================================================
-                      // HEADER
-                      // ==================================================
-                      _buildContentHeader(
-                        compact: compact,
-                      ),
-
-                      SizedBox(
-                        height: compact
-                            ? 20
-                            : 28,
-                      ),
-
-                      // ==================================================
-                      // CARDS
-                      // ==================================================
-                      Expanded(
-                        child: Column(
-                          children: [
-                            for (
-                              var index = 0;
-                              index <
-                                  _objectives.length;
-                              index++
-                            ) ...[
-                              Expanded(
-                                child: _AnimatedObjectiveEntrance(
-                                  index: index,
-                                  active: _showOptions,
-                                  child: _WelcomeObjectiveCard(
-                                    objective: _objectives[index],
-                                    compact: compact,
-                                    veryCompact: veryCompact,
-                                    onTap: () {
-                                      _openObjective(
-                                        _objectives[index].name,
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
-
-                              if (index <
-                                  _objectives.length -
-                                      1)
-                                SizedBox(
-                                  height: compact
-                                      ? 7
-                                      : 10,
-                                ),
-                            ],
-                          ],
-                        ),
-                      ),
-
-                      if (!veryCompact) ...[
-                        const SizedBox(
-                          height: 16,
-                        ),
-
-                        _buildFooter(),
-                      ],
-                    ],
-                  ),
-                ),
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                horizontalPadding,
+                compact ? 28 : 42,
+                horizontalPadding,
+                compact ? 18 : 28,
               ),
-            );
-          },
+
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+
+                children: [
+                  // ==================================================
+                  // TOP BAR
+                  // ==================================================
+                  _buildTopBar(compact: compact),
+
+                  SizedBox(height: compact ? 26 : 34),
+
+                  // ==================================================
+                  // HEADER
+                  // ==================================================
+                  _buildContentHeader(compact: compact),
+
+                  SizedBox(height: compact ? 20 : 28),
+
+                  // ==================================================
+                  // CARDS
+                  // ==================================================
+                  Expanded(
+                    child: Column(
+                      children: [
+                        for (
+                          var index = 0;
+                          index < _objectives.length;
+                          index++
+                        ) ...[
+                          Expanded(
+                            child: _AnimatedObjectiveEntrance(
+                              index: index,
+                              active: _showOptions,
+                              child: _WelcomeObjectiveCard(
+                                objective: _objectives[index],
+                                compact: compact,
+                                veryCompact: veryCompact,
+                                onTap: () {
+                                  _openObjective(_objectives[index].name);
+                                },
+                              ),
+                            ),
+                          ),
+
+                          if (index < _objectives.length - 1)
+                            SizedBox(height: compact ? 7 : 10),
+                        ],
+                      ],
+                    ),
+                  ),
+
+                  if (!veryCompact) ...[
+                    const SizedBox(height: 16),
+
+                    _buildFooter(),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -730,18 +585,12 @@ class _WelcomeScreenState
   // TOP BAR
   // ============================================================
 
-  Widget _buildTopBar({
-    required bool compact,
-  }) {
+  Widget _buildTopBar({required bool compact}) {
     return Row(
       children: [
-        const _LeafMark(
-          size: 20,
-        ),
+        const _LeafMark(size: 20),
 
-        const SizedBox(
-          width: 8,
-        ),
+        const SizedBox(width: 8),
 
         const Text(
           'EVRYLUX',
@@ -757,24 +606,16 @@ class _WelcomeScreenState
 
         Container(
           padding: EdgeInsets.symmetric(
-            horizontal: compact
-                ? 10
-                : 12,
-            vertical: compact
-                ? 6
-                : 7,
+            horizontal: compact ? 10 : 12,
+            vertical: compact ? 6 : 7,
           ),
 
           decoration: BoxDecoration(
             color: _surfaceSoft,
 
-            borderRadius: BorderRadius.circular(
-              999,
-            ),
+            borderRadius: BorderRadius.circular(999),
 
-            border: Border.all(
-              color: _border,
-            ),
+            border: Border.all(color: _border),
           ),
 
           child: Row(
@@ -786,16 +627,12 @@ class _WelcomeScreenState
                 height: 7,
 
                 decoration: const BoxDecoration(
-                  color: Color(
-                    0xFF5EA75A,
-                  ),
+                  color: Color(0xFF5EA75A),
                   shape: BoxShape.circle,
                 ),
               ),
 
-              const SizedBox(
-                width: 7,
-              ),
+              const SizedBox(width: 7),
 
               Text(
                 _firstName,
@@ -819,27 +656,18 @@ class _WelcomeScreenState
   // CONTENT HEADER
   // ============================================================
 
-  Widget _buildContentHeader({
-    required bool compact,
-  }) {
+  Widget _buildContentHeader({required bool compact}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
 
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 9,
-            vertical: 5,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
 
           decoration: BoxDecoration(
-            color: _primary.withValues(
-              alpha: 0.43,
-            ),
+            color: _primary.withValues(alpha: 0.43),
 
-            borderRadius: BorderRadius.circular(
-              8,
-            ),
+            borderRadius: BorderRadius.circular(8),
           ),
 
           child: const Text(
@@ -853,38 +681,26 @@ class _WelcomeScreenState
           ),
         ),
 
-        SizedBox(
-          height: compact
-              ? 8
-              : 11,
-        ),
+        SizedBox(height: compact ? 8 : 11),
 
         Text(
           'O que você quer desenvolver hoje?',
           style: TextStyle(
             color: _text,
-            fontSize: compact
-                ? 24
-                : 29,
+            fontSize: compact ? 24 : 29,
             height: 1.10,
             fontWeight: FontWeight.w900,
             letterSpacing: -0.7,
           ),
         ),
 
-        SizedBox(
-          height: compact
-              ? 5
-              : 7,
-        ),
+        SizedBox(height: compact ? 5 : 7),
 
         Text(
           'Escolha uma área para continuar sua evolução.',
           style: TextStyle(
             color: _muted,
-            fontSize: compact
-                ? 11.5
-                : 12.5,
+            fontSize: compact ? 11.5 : 12.5,
             height: 1.4,
             fontWeight: FontWeight.w500,
           ),
@@ -900,15 +716,9 @@ class _WelcomeScreenState
   Widget _buildFooter() {
     return const Row(
       children: [
-        Icon(
-          Icons.auto_awesome_outlined,
-          color: _mutedSoft,
-          size: 13,
-        ),
+        Icon(Icons.auto_awesome_outlined, color: _mutedSoft, size: 13),
 
-        SizedBox(
-          width: 6,
-        ),
+        SizedBox(width: 6),
 
         Text(
           'Pequenos avanços também contam.',
@@ -951,9 +761,7 @@ class _WelcomeObjective {
 // OBJECTIVE CARD
 // ============================================================
 
-class _WelcomeObjectiveCard
-    extends
-        StatefulWidget {
+class _WelcomeObjectiveCard extends StatefulWidget {
   const _WelcomeObjectiveCard({
     required this.objective,
     required this.compact,
@@ -970,126 +778,79 @@ class _WelcomeObjectiveCard
   final VoidCallback onTap;
 
   @override
-  State<
-    _WelcomeObjectiveCard
-  >
-  createState() => _WelcomeObjectiveCardState();
+  State<_WelcomeObjectiveCard> createState() => _WelcomeObjectiveCardState();
 }
 
-class _WelcomeObjectiveCardState
-    extends
-        State<
-          _WelcomeObjectiveCard
-        > {
+class _WelcomeObjectiveCardState extends State<_WelcomeObjectiveCard> {
   // ============================================================
   // COLORS
   // ============================================================
 
-  static const Color _surface = Color(
-    0xFFFFFFFF,
-  );
+  static const Color _surface = Color(0xFFFFFFFF);
 
-  static const Color _border = Color(
-    0xFFDCE7DB,
-  );
+  static const Color _border = Color(0xFFDCE7DB);
 
-  static const Color _text = Color(
-    0xFF172019,
-  );
+  static const Color _text = Color(0xFF172019);
 
-  static const Color _muted = Color(
-    0xFF68746B,
-  );
+  static const Color _muted = Color(0xFF68746B);
 
   bool _hovered = false;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     final objective = widget.objective;
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
 
-      onEnter:
-          (
-            _,
-          ) {
-            setState(
-              () {
-                _hovered = true;
-              },
-            );
-          },
+      onEnter: (_) {
+        setState(() {
+          _hovered = true;
+        });
+      },
 
-      onExit:
-          (
-            _,
-          ) {
-            setState(
-              () {
-                _hovered = false;
-              },
-            );
-          },
+      onExit: (_) {
+        setState(() {
+          _hovered = false;
+        });
+      },
 
       child: AnimatedScale(
-        duration: const Duration(
-          milliseconds: 160,
-        ),
+        duration: const Duration(milliseconds: 160),
 
         curve: Curves.easeOutCubic,
 
-        scale: _hovered
-            ? 1.008
-            : 1,
+        scale: _hovered ? 1.008 : 1,
 
         child: AnimatedContainer(
-          duration: const Duration(
-            milliseconds: 180,
-          ),
+          duration: const Duration(milliseconds: 180),
 
           curve: Curves.easeOutCubic,
 
           decoration: BoxDecoration(
             color: _surface,
 
-            borderRadius: BorderRadius.circular(
-              18,
-            ),
+            borderRadius: BorderRadius.circular(18),
 
             border: Border.all(
               color: _hovered
-                  ? objective.accentDark.withValues(
-                      alpha: 0.28,
-                    )
+                  ? objective.accentDark.withValues(alpha: 0.28)
                   : _border,
             ),
 
             boxShadow: _hovered
                 ? [
                     BoxShadow(
-                      color: objective.accentDark.withValues(
-                        alpha: 0.07,
-                      ),
+                      color: objective.accentDark.withValues(alpha: 0.07),
                       blurRadius: 24,
-                      offset: const Offset(
-                        0,
-                        8,
-                      ),
+                      offset: const Offset(0, 8),
                     ),
                   ]
                 : const [
                     BoxShadow(
-                      color: Color(
-                        0x09000000,
-                      ),
+                      color: Color(0x09000000),
                       blurRadius: 12,
-                      offset: Offset(
-                        0,
-                        4,
-                      ),
+                      offset: Offset(0, 4),
                     ),
                   ],
           ),
@@ -1100,15 +861,11 @@ class _WelcomeObjectiveCardState
             child: InkWell(
               onTap: widget.onTap,
 
-              borderRadius: BorderRadius.circular(
-                18,
-              ),
+              borderRadius: BorderRadius.circular(18),
 
               child: Padding(
                 padding: EdgeInsets.symmetric(
-                  horizontal: widget.compact
-                      ? 15
-                      : 18,
+                  horizontal: widget.compact ? 15 : 18,
 
                   vertical: widget.veryCompact
                       ? 7
@@ -1123,9 +880,7 @@ class _WelcomeObjectiveCardState
                     // ICON
                     // ============================================
                     AnimatedContainer(
-                      duration: const Duration(
-                        milliseconds: 180,
-                      ),
+                      duration: const Duration(milliseconds: 180),
 
                       width: widget.veryCompact
                           ? 38
@@ -1143,9 +898,7 @@ class _WelcomeObjectiveCardState
                         color: objective.accent,
 
                         borderRadius: BorderRadius.circular(
-                          widget.compact
-                              ? 12
-                              : 14,
+                          widget.compact ? 12 : 14,
                         ),
                       ),
 
@@ -1162,11 +915,7 @@ class _WelcomeObjectiveCardState
                       ),
                     ),
 
-                    SizedBox(
-                      width: widget.compact
-                          ? 13
-                          : 16,
-                    ),
+                    SizedBox(width: widget.compact ? 13 : 16),
 
                     // ============================================
                     // TEXT
@@ -1199,9 +948,7 @@ class _WelcomeObjectiveCardState
                           ),
 
                           if (!widget.veryCompact) ...[
-                            const SizedBox(
-                              height: 4,
-                            ),
+                            const SizedBox(height: 4),
 
                             Text(
                               objective.description,
@@ -1213,9 +960,7 @@ class _WelcomeObjectiveCardState
                               style: TextStyle(
                                 color: _muted,
 
-                                fontSize: widget.compact
-                                    ? 10.5
-                                    : 11.5,
+                                fontSize: widget.compact ? 10.5 : 11.5,
 
                                 height: 1.3,
 
@@ -1227,19 +972,13 @@ class _WelcomeObjectiveCardState
                       ),
                     ),
 
-                    SizedBox(
-                      width: widget.compact
-                          ? 10
-                          : 14,
-                    ),
+                    SizedBox(width: widget.compact ? 10 : 14),
 
                     // ============================================
                     // ARROW
                     // ============================================
                     AnimatedContainer(
-                      duration: const Duration(
-                        milliseconds: 180,
-                      ),
+                      duration: const Duration(milliseconds: 180),
 
                       width: 31,
 
@@ -1248,9 +987,7 @@ class _WelcomeObjectiveCardState
                       decoration: BoxDecoration(
                         color: _hovered
                             ? objective.accent
-                            : const Color(
-                                0xFFF5F7F5,
-                              ),
+                            : const Color(0xFFF5F7F5),
 
                         shape: BoxShape.circle,
                       ),
@@ -1260,9 +997,7 @@ class _WelcomeObjectiveCardState
 
                         size: 16,
 
-                        color: _hovered
-                            ? objective.accentDark
-                            : _muted,
+                        color: _hovered ? objective.accentDark : _muted,
                       ),
                     ),
                   ],
@@ -1280,9 +1015,7 @@ class _WelcomeObjectiveCardState
 // ENTRANCE ANIMATION
 // ============================================================
 
-class _AnimatedObjectiveEntrance
-    extends
-        StatefulWidget {
+class _AnimatedObjectiveEntrance extends StatefulWidget {
   const _AnimatedObjectiveEntrance({
     required this.index,
     required this.active,
@@ -1296,17 +1029,12 @@ class _AnimatedObjectiveEntrance
   final Widget child;
 
   @override
-  State<
-    _AnimatedObjectiveEntrance
-  >
-  createState() => _AnimatedObjectiveEntranceState();
+  State<_AnimatedObjectiveEntrance> createState() =>
+      _AnimatedObjectiveEntranceState();
 }
 
 class _AnimatedObjectiveEntranceState
-    extends
-        State<
-          _AnimatedObjectiveEntrance
-        > {
+    extends State<_AnimatedObjectiveEntrance> {
   bool _visible = false;
 
   Timer? _timer;
@@ -1319,15 +1047,10 @@ class _AnimatedObjectiveEntranceState
   }
 
   @override
-  void didUpdateWidget(
-    covariant _AnimatedObjectiveEntrance oldWidget,
-  ) {
-    super.didUpdateWidget(
-      oldWidget,
-    );
+  void didUpdateWidget(covariant _AnimatedObjectiveEntrance oldWidget) {
+    super.didUpdateWidget(oldWidget);
 
-    if (widget.active &&
-        !oldWidget.active) {
+    if (widget.active && !oldWidget.active) {
       _schedule();
     }
   }
@@ -1341,25 +1064,15 @@ class _AnimatedObjectiveEntranceState
 
     _timer?.cancel();
 
-    _timer = Timer(
-      Duration(
-        milliseconds:
-            90 +
-            (widget.index *
-                55),
-      ),
-      () {
-        if (!mounted) {
-          return;
-        }
+    _timer = Timer(Duration(milliseconds: 90 + (widget.index * 55)), () {
+      if (!mounted) {
+        return;
+      }
 
-        setState(
-          () {
-            _visible = true;
-          },
-        );
-      },
-    );
+      setState(() {
+        _visible = true;
+      });
+    });
   }
 
   @override
@@ -1370,33 +1083,20 @@ class _AnimatedObjectiveEntranceState
   }
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return AnimatedOpacity(
-      duration: const Duration(
-        milliseconds: 360,
-      ),
+      duration: const Duration(milliseconds: 360),
 
       curve: Curves.easeOutCubic,
 
-      opacity: _visible
-          ? 1
-          : 0,
+      opacity: _visible ? 1 : 0,
 
       child: AnimatedSlide(
-        duration: const Duration(
-          milliseconds: 420,
-        ),
+        duration: const Duration(milliseconds: 420),
 
         curve: Curves.easeOutCubic,
 
-        offset: _visible
-            ? Offset.zero
-            : const Offset(
-                0,
-                0.10,
-              ),
+        offset: _visible ? Offset.zero : const Offset(0, 0.10),
 
         child: widget.child,
       ),
@@ -1408,22 +1108,15 @@ class _AnimatedObjectiveEntranceState
 // BACKGROUND GLOW
 // ============================================================
 
-class _BackgroundGlow
-    extends
-        StatelessWidget {
-  const _BackgroundGlow({
-    required this.size,
-    this.opacity = 0.30,
-  });
+class _BackgroundGlow extends StatelessWidget {
+  const _BackgroundGlow({required this.size, this.opacity = 0.30});
 
   final double size;
 
   final double opacity;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return IgnorePointer(
       child: Container(
         width: size,
@@ -1434,17 +1127,9 @@ class _BackgroundGlow
 
           gradient: RadialGradient(
             colors: [
-              const Color(
-                0xFFB8EFB0,
-              ).withValues(
-                alpha: opacity,
-              ),
+              const Color(0xFFB8EFB0).withValues(alpha: opacity),
 
-              const Color(
-                0xFFB8EFB0,
-              ).withValues(
-                alpha: 0,
-              ),
+              const Color(0xFFB8EFB0).withValues(alpha: 0),
             ],
           ),
         ),
@@ -1457,46 +1142,28 @@ class _BackgroundGlow
 // LEAF MARK
 // ============================================================
 
-class _LeafMark
-    extends
-        StatelessWidget {
-  const _LeafMark({
-    required this.size,
-  });
+class _LeafMark extends StatelessWidget {
+  const _LeafMark({required this.size});
 
   final double size;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Transform.rotate(
       angle: -0.38,
 
       child: Container(
         width: size,
-        height:
-            size *
-            0.72,
+        height: size * 0.72,
 
         decoration: const BoxDecoration(
-          color: Color(
-            0xFF69B964,
-          ),
+          color: Color(0xFF69B964),
 
           borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(
-              20,
-            ),
-            bottomRight: Radius.circular(
-              20,
-            ),
-            topRight: Radius.circular(
-              5,
-            ),
-            bottomLeft: Radius.circular(
-              5,
-            ),
+            topLeft: Radius.circular(20),
+            bottomRight: Radius.circular(20),
+            topRight: Radius.circular(5),
+            bottomLeft: Radius.circular(5),
           ),
         ),
       ),

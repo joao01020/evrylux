@@ -40,6 +40,14 @@ class AuthGate extends StatefulWidget {
 // ============================================================
 
 class _AuthGateState extends State<AuthGate> {
+  final Stopwatch _startupWatch = Stopwatch()..start();
+
+  void _startupLog(String message) {
+    debugPrint(
+      '[STARTUP][AUTH] +${_startupWatch.elapsedMilliseconds}ms $message',
+    );
+  }
+
   // ============================================================
   // SUPABASE
   // ============================================================
@@ -78,6 +86,10 @@ class _AuthGateState extends State<AuthGate> {
 
   int _profileRequestId = 0;
 
+  String? _backgroundPrepareUserId;
+  Future<void>? _backgroundPrepareFuture;
+  String? _scheduledPrepareUserId;
+
   // ============================================================
   // INIT
   // ============================================================
@@ -88,6 +100,7 @@ class _AuthGateState extends State<AuthGate> {
 
     _profileRepository = ProfileRepository(client: _supabase);
 
+    _startupLog('AuthGate criado');
     _initialize();
   }
 
@@ -98,6 +111,7 @@ class _AuthGateState extends State<AuthGate> {
   Future<void> _initialize() async {
     try {
       debugPrint('[AUTH GATE] Inicializando...');
+      _startupLog('inicialização iniciada');
 
       // --------------------------------------------------------
       // Escuta login/logout/refresh.
@@ -125,6 +139,9 @@ class _AuthGateState extends State<AuthGate> {
       // --------------------------------------------------------
 
       final user = _supabase.auth.currentUser;
+      _startupLog(
+        user == null ? 'sessão local sem usuário' : 'sessão local encontrada',
+      );
 
       debugPrint('[AUTH GATE] Usuário atual: ${user?.id ?? 'null'}');
 
@@ -185,6 +202,16 @@ class _AuthGateState extends State<AuthGate> {
 
     debugPrint('[AUTH GATE] Usuário: ${user?.id ?? 'null'}');
 
+    // O Supabase normalmente emite initialSession logo depois que
+    // currentUser já foi lido em _initialize(). Nesse caso, não
+    // repetimos o mesmo carregamento de perfil/startup da conta.
+    if (state.event == AuthChangeEvent.initialSession &&
+        user != null &&
+        _user?.id == user.id) {
+      _startupLog('initialSession duplicada ignorada');
+      return;
+    }
+
     // ----------------------------------------------------------
     // Logout
     // ----------------------------------------------------------
@@ -192,6 +219,7 @@ class _AuthGateState extends State<AuthGate> {
     if (user == null) {
       widget.onUserChanged(null);
       _profileRequestId++;
+      _scheduledPrepareUserId = null;
 
       setState(() {
         _user = null;
@@ -233,7 +261,10 @@ class _AuthGateState extends State<AuthGate> {
     final requestId = ++_profileRequestId;
 
     try {
-      await widget.prepareUser(user.id);
+      // A preparação privada da conta (Vault, migração, E2EE e sync)
+      // NÃO participa do caminho crítico da primeira tela útil.
+      // Primeiro validamos o perfil e liberamos a interface. Depois que
+      // o frame autenticado for renderizado, iniciamos esse trabalho.
 
       if (requestId != _profileRequestId ||
           !mounted ||
@@ -245,7 +276,12 @@ class _AuthGateState extends State<AuthGate> {
 
       debugPrint('[AUTH GATE] User ID: ${user.id}');
 
+      _startupLog('getProfile iniciado');
+      final profileStage = Stopwatch()..start();
       final profile = await _profileRepository.getProfile(user.id);
+      _startupLog(
+        'getProfile concluído (${profileStage.elapsedMilliseconds}ms)',
+      );
 
       // --------------------------------------------------------
       // Uma nova requisição começou antes desta terminar.
@@ -278,6 +314,8 @@ class _AuthGateState extends State<AuthGate> {
 
       debugPrint('[AUTH GATE] Perfil completo: $profileComplete');
 
+      _startupLog('interface autenticada liberada');
+
       setState(() {
         _user = currentUser;
 
@@ -287,6 +325,8 @@ class _AuthGateState extends State<AuthGate> {
 
         _errorMessage = null;
       });
+
+      _schedulePrepareUserAfterAuthenticatedFrame(currentUser.id);
     } on PostgrestException catch (error) {
       if (requestId != _profileRequestId ||
           _supabase.auth.currentUser?.id != user.id) {
@@ -328,6 +368,75 @@ class _AuthGateState extends State<AuthGate> {
         _errorMessage = 'Não foi possível carregar seu perfil.\n\n$error';
       });
     }
+  }
+
+  // ============================================================
+  // SCHEDULE PREPARE USER AFTER AUTHENTICATED FRAME
+  // ============================================================
+
+  void _schedulePrepareUserAfterAuthenticatedFrame(String userId) {
+    if (_scheduledPrepareUserId == userId ||
+        (_backgroundPrepareUserId == userId &&
+            _backgroundPrepareFuture != null)) {
+      return;
+    }
+
+    _scheduledPrepareUserId = userId;
+    _startupLog('prepareUser agendado após frame autenticado');
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
+      if (_scheduledPrepareUserId != userId ||
+          _supabase.auth.currentUser?.id != userId) {
+        return;
+      }
+
+      _scheduledPrepareUserId = null;
+      _startupLog('frame autenticado renderizado; iniciando prepareUser');
+      _startPrepareUserInBackground(userId);
+    });
+  }
+
+  // ============================================================
+  // PREPARE USER IN BACKGROUND
+  // ============================================================
+
+  void _startPrepareUserInBackground(String userId) {
+    if (_backgroundPrepareUserId == userId &&
+        _backgroundPrepareFuture != null) {
+      _startupLog('prepareUser já está em andamento; reutilizando');
+      return;
+    }
+
+    _backgroundPrepareUserId = userId;
+    final stage = Stopwatch()..start();
+    _startupLog('prepareUser em background iniciado');
+
+    late final Future<void> future;
+    future = widget
+        .prepareUser(userId)
+        .then<void>((_) {
+          _startupLog(
+            'prepareUser em background concluído (${stage.elapsedMilliseconds}ms)',
+          );
+        })
+        .catchError((Object error, StackTrace stackTrace) {
+          debugPrint('[AUTH GATE] prepareUser em background falhou: $error');
+          _startupLog(
+            'prepareUser em background falhou (${stage.elapsedMilliseconds}ms)',
+          );
+        })
+        .whenComplete(() {
+          if (identical(_backgroundPrepareFuture, future)) {
+            _backgroundPrepareFuture = null;
+          }
+        });
+
+    _backgroundPrepareFuture = future;
+    unawaited(future);
   }
 
   // ============================================================

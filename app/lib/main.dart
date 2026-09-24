@@ -28,6 +28,16 @@ const String _mindMapWindowType = 'mind_map';
 // ============================================================
 
 Future<void> main(List<String> args) async {
+  final startupTotal = Stopwatch()..start();
+
+  void startupLog(String message) {
+    debugPrint(
+      '[STARTUP][MAIN] +${startupTotal.elapsedMilliseconds}ms $message',
+    );
+  }
+
+  startupLog('main iniciado');
+
   // ==========================================================
   // UPDATER PREFLIGHT
   // ==========================================================
@@ -56,6 +66,7 @@ Future<void> main(List<String> args) async {
   // ==========================================================
 
   WidgetsFlutterBinding.ensureInitialized();
+  startupLog('WidgetsFlutterBinding pronto');
 
   // ==========================================================
   // UPDATER HEALTH
@@ -73,7 +84,11 @@ Future<void> main(List<String> args) async {
   // CURRENT WINDOW
   // ==========================================================
 
+  final windowControllerStage = Stopwatch()..start();
   final windowController = await WindowController.fromCurrentEngine();
+  startupLog(
+    'WindowController pronto (${windowControllerStage.elapsedMilliseconds}ms)',
+  );
 
   final windowArguments = windowController.arguments.trim();
 
@@ -87,7 +102,11 @@ Future<void> main(List<String> args) async {
   //
   // ==========================================================
 
+  final windowManagerStage = Stopwatch()..start();
   await windowManager.ensureInitialized();
+  startupLog(
+    'windowManager pronto (${windowManagerStage.elapsedMilliseconds}ms)',
+  );
 
   // ==========================================================
   // SECONDARY MIND MAP WINDOW
@@ -117,7 +136,9 @@ Future<void> main(List<String> args) async {
   // MAIN WINDOW - ENV
   // ==========================================================
 
+  final dotenvStage = Stopwatch()..start();
   await dotenv.load(fileName: '.env');
+  startupLog('dotenv carregado (${dotenvStage.elapsedMilliseconds}ms)');
 
   final supabaseUrl = dotenv.env['SUPABASE_URL']?.trim();
 
@@ -137,24 +158,37 @@ Future<void> main(List<String> args) async {
   // SUPABASE - MAIN ENGINE ONLY
   // ==========================================================
 
+  final supabaseStage = Stopwatch()..start();
   await Supabase.initialize(
     url: supabaseUrl,
     publishableKey: supabasePublishableKey,
   );
+  startupLog('Supabase pronto (${supabaseStage.elapsedMilliseconds}ms)');
 
   // ==========================================================
   // LOCAL DATABASE - MAIN ENGINE ONLY
   // ==========================================================
 
+  final databaseStage = Stopwatch()..start();
   await appDatabase.initialize();
+  startupLog('AppDatabase pronto (${databaseStage.elapsedMilliseconds}ms)');
 
   // ==========================================================
   // OFFLINE-FIRST - MAIN ENGINE ONLY
   // ==========================================================
 
+  final offlineStage = Stopwatch()..start();
   await initializeOfflineFirst();
+  startupLog(
+    'initializeOfflineFirst concluído (${offlineStage.elapsedMilliseconds}ms)',
+  );
 
   runApp(GhostApp(evolutionController: evolutionController));
+  startupLog('runApp chamado');
+
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    startupLog('primeiro frame renderizado');
+  });
 
   // A healthy acknowledgement means initialization completed and the main
   // engine rendered a frame. It does not claim every feature was tested.

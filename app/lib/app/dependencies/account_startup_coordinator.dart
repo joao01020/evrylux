@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+
 // ============================================================
 // ACCOUNT STARTUP CANCELLED
 // ============================================================
@@ -8,9 +10,7 @@ import 'dart:async';
 /// a uma conta que deixou de ser a conta ativa.
 ///
 /// Não cria identidade local e não substitui autenticação.
-class AccountStartupCancelled
-    implements
-        Exception {
+class AccountStartupCancelled implements Exception {
   const AccountStartupCancelled();
 }
 
@@ -47,29 +47,15 @@ class AccountStartupCoordinator {
   ///
   /// `check` deve ser executado durante operações longas para
   /// garantir que a conta ainda seja a mesma.
-  final Future<
-    void
-  >
-  Function(
-    String userId,
-    void Function() check,
-  )
-  initialize;
+  final Future<void> Function(String userId, void Function() check) initialize;
 
   /// Interrompe ou drena recursos pertencentes à conta anterior.
-  final Future<
-    void
-  >
-  Function()
-  stop;
+  final Future<void> Function() stop;
 
   /// Notifica consumidores sobre a identidade atualmente válida.
   ///
   /// `null` revoga imediatamente qualquer identidade anterior.
-  final void Function(
-    String? userId,
-  )
-  onIdentityChanged;
+  final void Function(String? userId) onIdentityChanged;
 
   // ============================================================
   // STATE
@@ -81,18 +67,9 @@ class AccountStartupCoordinator {
 
   int _generation = 0;
 
-  Future<
-    void
-  >
-  _tail =
-      Future<
-        void
-      >.value();
+  Future<void> _tail = Future<void>.value();
 
-  Future<
-    void
-  >?
-  _pending;
+  Future<void>? _pending;
 
   // ============================================================
   // READY USER
@@ -104,14 +81,10 @@ class AccountStartupCoordinator {
   // NORMALIZE
   // ============================================================
 
-  String? _normalize(
-    String? value,
-  ) {
+  String? _normalize(String? value) {
     final String? normalized = value?.trim();
 
-    if (normalized ==
-            null ||
-        normalized.isEmpty) {
+    if (normalized == null || normalized.isEmpty) {
       return null;
     }
 
@@ -122,15 +95,10 @@ class AccountStartupCoordinator {
   // SET USER
   // ============================================================
 
-  void setUser(
-    String? userId,
-  ) {
-    final String? next = _normalize(
-      userId,
-    );
+  void setUser(String? userId) {
+    final String? next = _normalize(userId);
 
-    if (next ==
-        _desiredUserId) {
+    if (next == _desiredUserId) {
       return;
     }
 
@@ -153,39 +121,19 @@ class AccountStartupCoordinator {
     //
     // ========================================================
 
-    onIdentityChanged(
-      null,
-    );
+    onIdentityChanged(null);
 
-    _enqueue(
-      stop,
-    );
+    _enqueue(stop);
   }
 
   // ============================================================
   // QUEUE
   // ============================================================
 
-  Future<
-    void
-  >
-  _enqueue(
-    Future<
-      void
-    >
-    Function()
-    action,
-  ) {
-    final Future<
-      void
-    >
-    result = _tail.then(
-      (
-        _,
-      ) {
-        return action();
-      },
-    );
+  Future<void> _enqueue(Future<void> Function() action) {
+    final Future<void> result = _tail.then((_) {
+      return action();
+    });
 
     // ========================================================
     // IMPORTANTE
@@ -202,24 +150,15 @@ class AccountStartupCoordinator {
     //
     // ========================================================
 
-    _tail =
-        result.then<
-          void
-        >(
-          (
-            _,
-          ) {},
-          onError:
-              (
-                Object error,
-                StackTrace stackTrace,
-              ) {
-                // O erro é absorvido apenas pela cauda interna da fila.
-                //
-                // `result` continua contendo o erro original e será
-                // propagado normalmente para o chamador.
-              },
-        );
+    _tail = result.then<void>(
+      (_) {},
+      onError: (Object error, StackTrace stackTrace) {
+        // O erro é absorvido apenas pela cauda interna da fila.
+        //
+        // `result` continua contendo o erro original e será
+        // propagado normalmente para o chamador.
+      },
+    );
 
     return result;
   }
@@ -229,10 +168,7 @@ class AccountStartupCoordinator {
   // ============================================================
 
   /// Aguarda tudo que já foi serializado na fila.
-  Future<
-    void
-  >
-  settle() {
+  Future<void> settle() {
     return _tail;
   }
 
@@ -240,61 +176,43 @@ class AccountStartupCoordinator {
   // ENSURE
   // ============================================================
 
-  Future<
-    void
-  >
-  ensure(
-    String userId,
-  ) {
-    final String? owner = _normalize(
-      userId,
-    );
+  Future<void> ensure(String userId) {
+    final startupWatch = Stopwatch()..start();
 
-    if (owner ==
-        null) {
-      return Future<
-        void
-      >.error(
-        StateError(
-          'Usuário autenticado obrigatório.',
-        ),
+    void startupLog(String message) {
+      debugPrint(
+        '[STARTUP][COORDINATOR] +${startupWatch.elapsedMilliseconds}ms $message',
       );
+    }
+
+    startupLog('ensure iniciado');
+    final String? owner = _normalize(userId);
+
+    if (owner == null) {
+      return Future<void>.error(StateError('Usuário autenticado obrigatório.'));
     }
 
     // ========================================================
     // DEFINE A IDENTIDADE DESEJADA
     // ========================================================
 
-    setUser(
-      owner,
-    );
+    setUser(owner);
 
     // ========================================================
     // JÁ INICIALIZADO
     // ========================================================
 
-    if (_readyUserId ==
-            owner &&
-        _normalize(
-              currentUserId(),
-            ) ==
-            owner) {
-      return Future<
-        void
-      >.value();
+    if (_readyUserId == owner && _normalize(currentUserId()) == owner) {
+      return Future<void>.value();
     }
 
     // ========================================================
     // INICIALIZAÇÃO JÁ EM ANDAMENTO
     // ========================================================
 
-    final Future<
-      void
-    >?
-    existing = _pending;
+    final Future<void>? existing = _pending;
 
-    if (existing !=
-        null) {
+    if (existing != null) {
       return existing;
     }
 
@@ -312,23 +230,14 @@ class AccountStartupCoordinator {
     final int generation = _generation;
 
     void check() {
-      final bool generationChanged =
-          generation !=
-          _generation;
+      final bool generationChanged = generation != _generation;
 
-      final bool ownerChanged =
-          _desiredUserId !=
-          owner;
+      final bool ownerChanged = _desiredUserId != owner;
 
       final bool authenticatedUserChanged =
-          _normalize(
-            currentUserId(),
-          ) !=
-          owner;
+          _normalize(currentUserId()) != owner;
 
-      if (generationChanged ||
-          ownerChanged ||
-          authenticatedUserChanged) {
+      if (generationChanged || ownerChanged || authenticatedUserChanged) {
         throw const AccountStartupCancelled();
       }
     }
@@ -337,75 +246,69 @@ class AccountStartupCoordinator {
     // INITIALIZATION
     // ========================================================
 
-    late final Future<
-      void
-    >
-    pending;
+    late final Future<void> pending;
 
-    pending = _enqueue(
-      () async {
-        // ====================================================
-        // DRAIN
-        // ====================================================
-        //
-        // Executamos stop novamente mesmo que algum stop
-        // enfileirado anteriormente tenha falhado.
-        //
-        // Isso garante que a nova inicialização não reutilize
-        // recursos parcialmente pertencentes à conta anterior.
-        //
-        // ====================================================
+    pending = _enqueue(() async {
+      // ====================================================
+      // DRAIN
+      // ====================================================
+      //
+      // Executamos stop novamente mesmo que algum stop
+      // enfileirado anteriormente tenha falhado.
+      //
+      // Isso garante que a nova inicialização não reutilize
+      // recursos parcialmente pertencentes à conta anterior.
+      //
+      // ====================================================
 
-        await stop();
+      final stopStage = Stopwatch()..start();
+      await stop();
+      startupLog('stop concluído (${stopStage.elapsedMilliseconds}ms)');
+
+      check();
+
+      try {
+        startupLog('initialize privado iniciado');
+        final initializeStage = Stopwatch()..start();
+        await initialize(owner, check);
+        startupLog(
+          'initialize privado concluído (${initializeStage.elapsedMilliseconds}ms)',
+        );
 
         check();
 
+        _readyUserId = owner;
+        startupLog('usuário marcado como pronto');
+      } catch (_) {
+        // ==================================================
+        // INVALIDAR IDENTIDADE
+        // ==================================================
+
+        onIdentityChanged(null);
+
+        // ==================================================
+        // LIMPEZA APÓS FALHA
+        // ==================================================
+        //
+        // Tentamos parar recursos parcialmente inicializados.
+        //
+        // Se este stop também falhar, preservamos o erro
+        // original da inicialização.
+        //
+        // A próxima tentativa executará stop novamente antes
+        // de inicializar.
+        //
+        // ==================================================
+
         try {
-          await initialize(
-            owner,
-            check,
-          );
-
-          check();
-
-          _readyUserId = owner;
-        } catch (
-          _
-        ) {
-          // ==================================================
-          // INVALIDAR IDENTIDADE
-          // ==================================================
-
-          onIdentityChanged(
-            null,
-          );
-
-          // ==================================================
-          // LIMPEZA APÓS FALHA
-          // ==================================================
-          //
-          // Tentamos parar recursos parcialmente inicializados.
-          //
-          // Se este stop também falhar, preservamos o erro
-          // original da inicialização.
-          //
-          // A próxima tentativa executará stop novamente antes
-          // de inicializar.
-          //
-          // ==================================================
-
-          try {
-            await stop();
-          } catch (
-            _
-          ) {
-            // Ignoramos apenas esta falha secundária de cleanup.
-          }
-
-          rethrow;
+          await stop();
+        } catch (_) {
+          // Ignoramos apenas esta falha secundária de cleanup.
         }
-      },
-    );
+
+        rethrow;
+      }
+    });
 
     _pending = pending;
 
@@ -422,31 +325,17 @@ class AccountStartupCoordinator {
     // ========================================================
 
     unawaited(
-      pending.then<
-        void
-      >(
-        (
-          _,
-        ) {
-          if (identical(
-            _pending,
-            pending,
-          )) {
+      pending.then<void>(
+        (_) {
+          if (identical(_pending, pending)) {
             _pending = null;
           }
         },
-        onError:
-            (
-              Object error,
-              StackTrace stackTrace,
-            ) {
-              if (identical(
-                _pending,
-                pending,
-              )) {
-                _pending = null;
-              }
-            },
+        onError: (Object error, StackTrace stackTrace) {
+          if (identical(_pending, pending)) {
+            _pending = null;
+          }
+        },
       ),
     );
 
