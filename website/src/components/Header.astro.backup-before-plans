@@ -61,7 +61,7 @@ const nav = [
     <div class="header-actions">
       <a
         class="github"
-        href="https://github.com/joao01020/ghost-core"
+        href="https://github.com/joao01020/evrylux"
         target="_blank"
         rel="noopener noreferrer"
         aria-label="GitHub do projeto EVRYLUX"

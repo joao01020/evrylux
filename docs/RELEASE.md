@@ -403,8 +403,8 @@ Se a release distribuir binários, confirme:
 Exemplo de nomenclatura:
 
 ```text
-ghost-core-1.4.0-linux-x64.tar.gz
-ghost-core-1.4.0-windows-x64.zip
+evrylux-1.4.0-linux-x64.tar.gz
+evrylux-1.4.0-windows-x64.zip
 ```
 
 Evite nomes genéricos como:

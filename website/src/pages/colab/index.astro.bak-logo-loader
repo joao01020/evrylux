@@ -193,7 +193,7 @@ import EvryluxNeuralLoader from '../../components/ui/EvryluxNeuralLoader.astro';
 
               <a
                 class="member-link-card"
-                href="https://github.com/joao01020/ghost-core"
+                href="https://github.com/joao01020/evrylux"
                 target="_blank"
                 rel="noopener noreferrer"
               >

@@ -1,5 +1,5 @@
 export const GITHUB_OWNER = 'joao01020';
-export const GITHUB_REPO = 'ghost-core';
+export const GITHUB_REPO = 'evrylux';
 export const GITHUB_API_VERSION = '2026-03-10';
 
 export type GitHubContributor = {

@@ -78,7 +78,7 @@ Corrija erros relevantes antes de começar o desenvolvimento.
 Clone:
 
 ```bash
-git clone https://github.com/joao01020/ghost-core.git
+git clone https://github.com/joao01020/evrylux.git
 cd ghost-core
 ```
 
@@ -1058,7 +1058,7 @@ flutter run
 Comandos:
 
 ```bash
-git clone https://github.com/joao01020/ghost-core.git
+git clone https://github.com/joao01020/evrylux.git
 cd ghost-core
 git fetch --all --prune
 cd app

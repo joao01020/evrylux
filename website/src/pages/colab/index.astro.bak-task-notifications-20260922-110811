@@ -251,7 +251,7 @@ import EvryluxLogoLoader from '../../components/ui/EvryluxLogoLoader.astro';
 
             <a
               class="quick-access-item"
-              href="https://github.com/joao01020/ghost-core"
+              href="https://github.com/joao01020/evrylux"
               target="_blank"
               rel="noopener noreferrer"
             >

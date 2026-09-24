@@ -91,7 +91,7 @@ Evite aumentar complexidade sem necessidade concreta.
 ## 4. Estrutura principal
 
 ```text
-ghost-core/
+evrylux/
 ├── app/
 ├── website/
 ├── supabase/

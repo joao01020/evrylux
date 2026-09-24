@@ -73,7 +73,7 @@ Configura o comportamento da página de criação de issues.
 O projeto direciona vulnerabilidades para o canal privado:
 
 ```text
-https://github.com/joao01020/ghost-core/security/advisories/new
+https://github.com/joao01020/evrylux/security/advisories/new
 ```
 
 Vulnerabilidades não devem ser abertas como issues públicas.

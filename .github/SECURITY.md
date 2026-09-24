@@ -15,7 +15,7 @@ enviar relatórios de segurança de forma privada.
 Acesse:
 
 ```text
-https://github.com/joao01020/ghost-core/security/advisories/new
+https://github.com/joao01020/evrylux/security/advisories/new
 ```
 
 Se futuramente o projeto disponibilizar outros canais privados oficiais, eles

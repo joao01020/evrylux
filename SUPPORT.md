@@ -157,7 +157,7 @@ Consulte:
 O canal privado do repositório é:
 
 ```text
-https://github.com/joao01020/ghost-core/security/advisories/new
+https://github.com/joao01020/evrylux/security/advisories/new
 ```
 
 Use esse canal para reportar possíveis vulnerabilidades de forma privada.
