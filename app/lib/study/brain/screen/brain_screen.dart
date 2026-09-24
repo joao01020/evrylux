@@ -6,6 +6,21 @@ import '../../../app/dependencies/app_dependencies.dart' as dependencies;
 import '../../../brain/visualization/brain_visualization.dart';
 import '../../../brain/visualization/painters/brain_paths.dart';
 
+// ============================================================
+// BRAIN AI
+// ============================================================
+
+import '../ai/models/brain_ai_response.dart';
+import '../ai/services/brain_ai_context_builder.dart';
+import '../ai/services/brain_ai_intent_detector.dart';
+import '../ai/services/brain_ai_orchestrator.dart';
+import '../ai/services/brain_ai_supabase_client.dart';
+import '../ai/widgets/brain_ai_result_card.dart';
+
+// ============================================================
+// BRAIN CORE
+// ============================================================
+
 import '../controllers/brain_controller.dart';
 import '../experience/controllers/brain_experience_controller.dart';
 import '../experience/services/brain_initialization_service.dart';
@@ -32,6 +47,10 @@ import 'warning/warning_screen.dart';
 import 'note/brain_note_screen.dart';
 import 'widgets/brain_add_knowledge_button.dart';
 
+// ============================================================
+// PARTS
+// ============================================================
+
 part 'brain_screen_parts/brain_screen_core.dart';
 part 'brain_screen_parts/brain_screen_visual_search.dart';
 part 'brain_screen_parts/brain_screen_creation.dart';
@@ -57,6 +76,40 @@ part 'brain_screen_parts/brain_screen_models.dart';
 //
 // O BrainController continua sendo a instância global offline-first
 // criada em app_dependencies.dart.
+//
+// ============================================================
+//
+// EVRYLUX BRAIN AI
+//
+// A BrainScreen também mantém o estado visual da experiência de IA.
+//
+// O fluxo é:
+//
+// texto digitado
+//      ↓
+// BrainAiIntentDetector
+//      ↓
+// pesquisa local / Vault
+//      ↓
+// BrainAiContextBuilder
+//      ↓
+// contexto compacto
+//      ↓
+// BrainAiOrchestrator
+//      ↓
+// BrainAiSupabaseClient
+//      ↓
+// Supabase Edge Function
+//      ↓
+// Groq
+//
+// IMPORTANTE:
+//
+// - busca normal continua local;
+// - IA não é chamada durante cada tecla;
+// - IA só entra quando uma intenção compatível é confirmada;
+// - GROQ_API_KEY nunca existe no Flutter;
+// - somente contexto selecionado é enviado ao backend.
 //
 // ============================================================
 
@@ -88,6 +141,47 @@ class _BrainScreenState
   late final BrainController _controller;
 
   late final BrainExperienceController _experienceController;
+
+  // ============================================================
+  // BRAIN AI — SERVIÇOS
+  // ============================================================
+  //
+  // O detector é puro e não possui estado.
+  //
+  // O orchestrator coordena:
+  //
+  // intenção
+  //      ↓
+  // contexto compacto
+  //      ↓
+  // client Supabase
+  //
+  // ============================================================
+
+  static const BrainAiIntentDetector _brainAiIntentDetector = BrainAiIntentDetector();
+
+  late final BrainAiOrchestrator _brainAiOrchestrator;
+
+  // ============================================================
+  // BRAIN AI — ESTADO VISUAL
+  // ============================================================
+  //
+  // _brainAiLoading:
+  //   existe uma consulta inteligente em andamento.
+  //
+  // _brainAiResponse:
+  //   resposta estruturada recebida da Edge Function.
+  //
+  // _brainAiError:
+  //   mensagem amigável caso a consulta falhe.
+  //
+  // ============================================================
+
+  bool _brainAiLoading = false;
+
+  BrainAiResponse? _brainAiResponse;
+
+  String? _brainAiError;
 
   // ============================================================
   // CÉREBRO VISUAL — EVRYLUX
@@ -229,6 +323,32 @@ class _BrainScreenState
     _controller = dependencies.brainController;
 
     // ========================================================
+    // BRAIN AI
+    // ========================================================
+    //
+    // Aqui conectamos a arquitetura de IA ao client REAL.
+    //
+    // Não existe mock.
+    //
+    // BrainAiSupabaseClient
+    //      ↓
+    // sessão atual Supabase
+    //      ↓
+    // access token
+    //      ↓
+    // /functions/v1/brain-assistant
+    //      ↓
+    // Groq
+    //
+    // ========================================================
+
+    _brainAiOrchestrator = BrainAiOrchestrator(
+      intentDetector: const BrainAiIntentDetector(),
+      contextBuilder: const BrainAiContextBuilder(),
+      client: const BrainAiSupabaseClient(),
+    );
+
+    // ========================================================
     // PRIMEIRA EXPERIÊNCIA
     // ========================================================
     //
@@ -291,6 +411,21 @@ class _BrainScreenState
     _searchDebounceTimer?.cancel();
 
     _brainSearchPulseStopTimer?.cancel();
+
+    // ========================================================
+    // LIMPAR ESTADO DA IA
+    // ========================================================
+    //
+    // O orchestrator não possui recurso descartável,
+    // portanto não precisa de dispose().
+    //
+    // Apenas soltamos referências visuais da resposta.
+    //
+    // ========================================================
+
+    _brainAiResponse = null;
+    _brainAiError = null;
+    _brainAiLoading = false;
 
     // ========================================================
     // CÉREBRO VISUAL

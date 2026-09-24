@@ -767,6 +767,9 @@ extension _BrainScreenVisualSearch
         () {
           _committedSearchQuery = '';
           _showAllSearchResults = false;
+          _brainAiLoading = false;
+          _brainAiResponse = null;
+          _brainAiError = null;
         },
       );
 
@@ -798,6 +801,9 @@ extension _BrainScreenVisualSearch
           _searchQuery = rawQuery;
           _committedSearchQuery = '';
           _showAllSearchResults = false;
+          _brainAiLoading = false;
+          _brainAiResponse = null;
+          _brainAiError = null;
         },
       );
 
@@ -813,6 +819,10 @@ extension _BrainScreenVisualSearch
         _searchQuery = rawQuery;
         _committedSearchQuery = rawQuery;
         _showAllSearchResults = false;
+
+        // A resposta anterior não pertence à nova consulta.
+        _brainAiResponse = null;
+        _brainAiError = null;
       },
     );
 
@@ -1158,6 +1168,251 @@ extension _BrainScreenVisualSearch
     if (rawQuery.trim().isEmpty) {
       return;
     }
+  }
+
+  // ============================================================
+  // BRAIN AI — CONSULTA INTELIGENTE
+  // ============================================================
+  //
+  // A IA NÃO é chamada durante a digitação.
+  //
+  // Fluxo:
+  //
+  // usuário confirma a consulta
+  //      ↓
+  // detector identifica se a intenção exige IA
+  //      ↓
+  // busca local já confirmada fornece os resultados relevantes
+  //      ↓
+  // BrainAiContextBuilder compacta o contexto
+  //      ↓
+  // BrainAiSupabaseClient chama a Edge Function
+  //      ↓
+  // Groq responde em JSON estruturado
+  //
+  // Busca normal continua 100% local.
+  //
+  // ============================================================
+
+  Future<
+    void
+  >
+  _runBrainSmartQuery(
+    String rawQuery,
+  ) async {
+    final query = rawQuery.trim();
+
+    if (query.isEmpty) {
+      _clearBrainAiState();
+      return;
+    }
+
+    final inputState = _brainSearchInputState(
+      query,
+    );
+
+    if (!inputState.canSearch) {
+      _clearBrainAiState();
+      return;
+    }
+
+    final intent = _BrainScreenState._brainAiIntentDetector.detect(
+      query,
+    );
+
+    // ==========================================================
+    // BUSCA NORMAL
+    // ==========================================================
+    //
+    // Exemplo:
+    //
+    // ESP32
+    // Flutter
+    // criptografia
+    //
+    // Nenhuma chamada externa acontece.
+    //
+    // ==========================================================
+
+    if (!intent.usesAi) {
+      _clearBrainAiState();
+      return;
+    }
+
+    final requestQuery = query;
+
+    _mutateState(
+      () {
+        _brainAiLoading = true;
+        _brainAiResponse = null;
+        _brainAiError = null;
+      },
+    );
+
+    debugPrint(
+      '[BRAIN AI] Consulta inteligente iniciada. '
+      'intent=${intent.wireName}',
+    );
+
+    try {
+      final response = await _brainAiOrchestrator.run(
+        rawQuery: requestQuery,
+        notes: _controller.notes,
+        searchResponse: _searchResponse,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      // ========================================================
+      // DESCARTAR RESPOSTA ANTIGA
+      // ========================================================
+      //
+      // Se o usuário mudou o texto enquanto a Groq respondia,
+      // a resposta anterior não deve aparecer para a nova consulta.
+      //
+      // ========================================================
+
+      if (_searchQuery.trim() !=
+              requestQuery ||
+          _committedSearchQuery.trim() !=
+              requestQuery) {
+        debugPrint(
+          '[BRAIN AI] Resposta descartada porque a consulta mudou.',
+        );
+
+        return;
+      }
+
+      _mutateState(
+        () {
+          _brainAiLoading = false;
+          _brainAiResponse = response;
+          _brainAiError = null;
+        },
+      );
+
+      debugPrint(
+        '[BRAIN AI] Consulta inteligente concluída. '
+        'sugestoes=${response.suggestions.length}',
+      );
+    } catch (
+      error,
+      stackTrace
+    ) {
+      debugPrint(
+        '[BRAIN AI] Falha na consulta: $error',
+      );
+
+      debugPrintStack(
+        stackTrace: stackTrace,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      // Não mostrar erro de uma consulta que já deixou de ser atual.
+      if (_searchQuery.trim() !=
+          requestQuery) {
+        return;
+      }
+
+      _mutateState(
+        () {
+          _brainAiLoading = false;
+          _brainAiResponse = null;
+          _brainAiError = 'Não foi possível analisar seu Brain agora. Tente novamente.';
+        },
+      );
+    }
+  }
+
+  // ============================================================
+  // BRAIN AI — LIMPAR ESTADO
+  // ============================================================
+
+  void _clearBrainAiState() {
+    if (!_brainAiLoading &&
+        _brainAiResponse ==
+            null &&
+        _brainAiError ==
+            null) {
+      return;
+    }
+
+    _mutateState(
+      () {
+        _brainAiLoading = false;
+        _brainAiResponse = null;
+        _brainAiError = null;
+      },
+    );
+  }
+
+  // ============================================================
+  // BRAIN AI — ERRO
+  // ============================================================
+
+  Widget _buildBrainAiErrorCard(
+    BuildContext context,
+  ) {
+    final message = _brainAiError;
+
+    if (message ==
+            null ||
+        message.trim().isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final colorScheme = Theme.of(
+      context,
+    ).colorScheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 15,
+      ),
+      decoration: BoxDecoration(
+        color: colorScheme.errorContainer.withValues(
+          alpha: 0.32,
+        ),
+        borderRadius: BorderRadius.circular(
+          16,
+        ),
+        border: Border.all(
+          color: colorScheme.error.withValues(
+            alpha: 0.30,
+          ),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.error_outline_rounded,
+            size: 20,
+            color: colorScheme.error,
+          ),
+
+          const SizedBox(
+            width: 10,
+          ),
+
+          Expanded(
+            child: Text(
+              message,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   // ============================================================
@@ -2059,6 +2314,12 @@ extension _BrainScreenVisualSearch
                       _committedSearchQuery = '';
 
                       _showAllSearchResults = false;
+
+                      // Uma nova digitação invalida qualquer resposta
+                      // inteligente pertencente à consulta anterior.
+                      _brainAiLoading = false;
+                      _brainAiResponse = null;
+                      _brainAiError = null;
                     },
                   );
 
@@ -2081,12 +2342,21 @@ extension _BrainScreenVisualSearch
             onSubmitted:
                 (
                   value,
-                ) {
+                ) async {
+                  // Primeiro confirma a pesquisa local.
+                  //
+                  // Isso garante que _searchResponse já represente
+                  // exatamente a consulta que será usada para montar
+                  // o contexto compacto enviado à IA.
                   _commitSearchImmediately(
                     value,
                     activityHold: const Duration(
                       milliseconds: 1600,
                     ),
+                  );
+
+                  await _runBrainSmartQuery(
+                    value,
                   );
                 },
 
@@ -2113,6 +2383,10 @@ extension _BrainScreenVisualSearch
                             _committedSearchQuery = '';
 
                             _showAllSearchResults = false;
+
+                            _brainAiLoading = false;
+                            _brainAiResponse = null;
+                            _brainAiError = null;
                           },
                         );
 
@@ -2244,7 +2518,44 @@ extension _BrainScreenVisualSearch
     }
 
     // ==========================================================
-    // RESULTADO CONFIRMADO
+    // BRAIN AI — ESTADO DA CONSULTA INTELIGENTE
+    // ==========================================================
+    //
+    // Quando uma intenção inteligente foi confirmada, a mesma área
+    // que normalmente mostra resultados locais passa a mostrar:
+    //
+    // loading
+    //    ↓
+    // resposta da IA
+    //    ↓
+    // ou erro recuperável
+    //
+    // Uma busca normal ignora este bloco e continua abaixo.
+    //
+    // ==========================================================
+
+    if (_brainAiLoading) {
+      return const BrainAiLoadingCard();
+    }
+
+    final aiResponse = _brainAiResponse;
+
+    if (aiResponse !=
+        null) {
+      return BrainAiResultCard(
+        response: aiResponse,
+      );
+    }
+
+    if (_brainAiError !=
+        null) {
+      return _buildBrainAiErrorCard(
+        context,
+      );
+    }
+
+    // ==========================================================
+    // RESULTADO LOCAL CONFIRMADO
     // ==========================================================
 
     final response = _searchResponse;
