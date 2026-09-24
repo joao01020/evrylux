@@ -247,10 +247,17 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
             ></span>
           </div>
 
-          <p
-            class="roadmap-card-description"
-            data-role="description"
-          ></p>
+          <!-- EVRYLUX_ROADMAP_SUMMARY_LABEL_V1 -->
+          <div class="roadmap-card-description-block">
+            <span class="roadmap-card-description-label">
+              Resumo
+            </span>
+
+            <p
+              class="roadmap-card-description"
+              data-role="description"
+            ></p>
+          </div>
 
           <div class="roadmap-card-assignee">
             <span
@@ -268,14 +275,37 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
           </div>
 
           <div class="roadmap-card-progress">
+            <!-- EVRYLUX_ROADMAP_PROGRESS_STEP_CONTROLS_V1 -->
             <div class="roadmap-card-progress-head">
               <span>
                 Progresso
               </span>
 
-              <strong data-role="progress-label">
-                0%
-              </strong>
+              <div class="roadmap-card-progress-controls">
+                <button
+                  class="roadmap-card-progress-step"
+                  type="button"
+                  data-role="progress-minus"
+                  aria-label="Diminuir progresso em 5%"
+                  title="Diminuir 5%"
+                >
+                  −
+                </button>
+
+                <strong data-role="progress-label">
+                  0%
+                </strong>
+
+                <button
+                  class="roadmap-card-progress-step"
+                  type="button"
+                  data-role="progress-plus"
+                  aria-label="Aumentar progresso em 5%"
+                  title="Aumentar 5%"
+                >
+                  +
+                </button>
+              </div>
             </div>
 
             <div class="roadmap-card-progress-track">
@@ -1396,9 +1426,29 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
       );
     }
 
+    // EVRYLUX_ROADMAP_DESCRIPTION_FIRST_SENTENCE_V1
+    const fullDescription =
+      item.description?.trim() ||
+      '';
+
+    const firstFullStopIndex =
+      fullDescription.indexOf(
+        '.',
+      );
+
+    const descriptionPreview =
+      firstFullStopIndex >= 0
+        ? fullDescription
+            .slice(
+              0,
+              firstFullStopIndex + 1,
+            )
+            .trim()
+        : fullDescription;
+
     setText(
       '[data-role="description"]',
-      item.description?.trim() ||
+      descriptionPreview ||
         'Sem descrição.',
     );
 
@@ -1454,6 +1504,196 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
       fill.style.width =
         `${item.progress}%`;
     }
+
+    const progressLabel =
+      card.querySelector<HTMLElement>(
+        '[data-role="progress-label"]',
+      );
+
+    const progressMinus =
+      card.querySelector<HTMLButtonElement>(
+        '[data-role="progress-minus"]',
+      );
+
+    const progressPlus =
+      card.querySelector<HTMLButtonElement>(
+        '[data-role="progress-plus"]',
+      );
+
+    const syncProgressStepButtons =
+      () => {
+        if (progressMinus) {
+          progressMinus.disabled =
+            item.progress <= 0;
+        }
+
+        if (progressPlus) {
+          progressPlus.disabled =
+            item.progress >= 100;
+        }
+      };
+
+    const persistProgressStep =
+      async (
+        delta: number,
+        button:
+          HTMLButtonElement |
+          null,
+      ) => {
+        const nextProgress =
+          Math.min(
+            100,
+            Math.max(
+              0,
+              item.progress +
+                delta,
+            ),
+          );
+
+        if (
+          nextProgress ===
+          item.progress
+        ) {
+          syncProgressStepButtons();
+          return;
+        }
+
+        if (button) {
+          button.disabled =
+            true;
+        }
+
+        if (progressMinus) {
+          progressMinus.disabled =
+            true;
+        }
+
+        if (progressPlus) {
+          progressPlus.disabled =
+            true;
+        }
+
+        const previousProgress =
+          item.progress;
+
+        item.progress =
+          nextProgress;
+
+        if (progressLabel) {
+          progressLabel.textContent =
+            `${nextProgress}%`;
+        }
+
+        if (fill) {
+          fill.style.width =
+            `${nextProgress}%`;
+        }
+
+        try {
+          const input:
+            RoadmapItemInput = {
+              title:
+                item.title,
+
+              description:
+                item.description,
+
+              stage:
+                item.stage,
+
+              status:
+                item.status,
+
+              priority:
+                item.priority,
+
+              assignee_user_id:
+                item.assignee_user_id,
+
+              area:
+                item.area,
+
+              progress:
+                nextProgress,
+
+              due_date:
+                item.due_date,
+
+              notes:
+                item.notes,
+            };
+
+          await updateRoadmapItem(
+            item.id,
+            input,
+          );
+
+          syncProgressStepButtons();
+        } catch (error) {
+          console.error(
+            '[EVRYLUX] Não foi possível atualizar o progresso:',
+            error,
+          );
+
+          item.progress =
+            previousProgress;
+
+          if (progressLabel) {
+            progressLabel.textContent =
+              `${previousProgress}%`;
+          }
+
+          if (fill) {
+            fill.style.width =
+              `${previousProgress}%`;
+          }
+
+          syncProgressStepButtons();
+
+          const roadmapError =
+            document.querySelector<HTMLElement>(
+              '#roadmap-error',
+            );
+
+          if (roadmapError) {
+            roadmapError.textContent =
+              'Não foi possível atualizar o progresso.';
+            roadmapError.classList.remove(
+              'member-hidden',
+            );
+          }
+        }
+      };
+
+    progressMinus?.addEventListener(
+      'click',
+      async (
+        event,
+      ) => {
+        event.stopPropagation();
+
+        await persistProgressStep(
+          -5,
+          progressMinus,
+        );
+      },
+    );
+
+    progressPlus?.addEventListener(
+      'click',
+      async (
+        event,
+      ) => {
+        event.stopPropagation();
+
+        await persistProgressStep(
+          5,
+          progressPlus,
+        );
+      },
+    );
+
+    syncProgressStepButtons();
 
     const expandedBody =
       card.querySelector<HTMLElement>(
@@ -2957,6 +3197,20 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
     overflow-wrap: anywhere;
   }
 
+  .roadmap-card-description-block {
+    margin-top: 2px;
+  }
+
+  .roadmap-card-description-label {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--text-soft);
+    font-size: 7px;
+    font-weight: 850;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
   .roadmap-card-description {
     margin: 7px 0 0;
     color: var(--text-soft, #68746b);
@@ -3033,6 +3287,52 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
 
   .roadmap-card-progress {
     margin-top: 12px;
+  }
+
+  .roadmap-card-progress-controls {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 5px;
+  }
+
+  .roadmap-card-progress-step {
+    width: 22px;
+    height: 22px;
+    display: inline-grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid rgba(65, 104, 62, .13);
+    border-radius: 7px;
+    background: rgba(247, 251, 244, .95);
+    color: var(--primary-deep);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1;
+    cursor: pointer;
+    transition:
+      background .14s ease,
+      border-color .14s ease,
+      transform .14s ease,
+      opacity .14s ease;
+  }
+
+  .roadmap-card-progress-step:hover:not(:disabled) {
+    background: #fff;
+    border-color: rgba(54, 95, 53, .28);
+    transform: translateY(-1px);
+  }
+
+  .roadmap-card-progress-step:disabled {
+    opacity: .30;
+    cursor: default;
+  }
+
+  .roadmap-card-progress-controls
+    [data-role="progress-label"] {
+    min-width: 30px;
+    text-align: center;
   }
 
   .roadmap-card-progress-head {
