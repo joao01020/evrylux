@@ -245,6 +245,13 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
               class="roadmap-pill roadmap-status"
               data-role="status"
             ></span>
+
+            <!-- EVRYLUX_ROADMAP_DUE_DATE_CARD_V2 -->
+            <span
+              class="roadmap-card-due-date member-hidden"
+              data-role="due-date"
+              title="Prazo de entrega"
+            ></span>
           </div>
 
           <!-- EVRYLUX_ROADMAP_SUMMARY_LABEL_V1 -->
@@ -1472,6 +1479,97 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
     if (status) {
       status.dataset.status =
         item.status;
+    }
+
+    // EVRYLUX_ROADMAP_DUE_DATE_STATUS_UNIVERSAL_V1
+    const dueDate =
+      card.querySelector<HTMLElement>(
+        '[data-role="due-date"]',
+      );
+
+    if (dueDate) {
+      const rawDueDate =
+        item.due_date?.trim() ||
+        '';
+
+      dueDate.classList.remove(
+        'roadmap-card-due-date-safe',
+        'roadmap-card-due-date-warning',
+        'roadmap-card-due-date-critical',
+        'roadmap-card-due-date-neutral',
+      );
+
+      if (rawDueDate) {
+        dueDate.textContent =
+          `Prazo ${formatDate(rawDueDate)}`;
+
+        dueDate.classList.remove(
+          'member-hidden',
+        );
+
+        const isCompleted =
+          item.status === 'done' ||
+          item.stage === 'done';
+
+        if (isCompleted) {
+          dueDate.classList.add(
+            'roadmap-card-due-date-neutral',
+          );
+          dueDate.title = 'Item concluído';
+        } else {
+          const dateOnly = rawDueDate.slice(0, 10);
+          const [year, month, day] = dateOnly.split('-').map(Number);
+
+          if (!year || !month || !day) {
+            dueDate.classList.add(
+              'roadmap-card-due-date-neutral',
+            );
+            dueDate.title = 'Prazo de entrega';
+          } else {
+            const now = new Date();
+            const todayUtc = Date.UTC(
+              now.getFullYear(),
+              now.getMonth(),
+              now.getDate(),
+            );
+            const dueUtc = Date.UTC(
+              year,
+              month - 1,
+              day,
+            );
+            const millisecondsPerDay = 24 * 60 * 60 * 1000;
+            const daysRemaining = Math.round(
+              (dueUtc - todayUtc) / millisecondsPerDay,
+            );
+
+            if (daysRemaining < 2) {
+              dueDate.classList.add(
+                'roadmap-card-due-date-critical',
+              );
+              dueDate.title =
+                daysRemaining < 0
+                  ? 'Prazo vencido'
+                  : daysRemaining === 0
+                    ? 'Prazo vence hoje'
+                    : 'Prazo vence amanhã';
+            } else if (daysRemaining <= 7) {
+              dueDate.classList.add(
+                'roadmap-card-due-date-warning',
+              );
+              dueDate.title = `Prazo em ${daysRemaining} dias`;
+            } else {
+              dueDate.classList.add(
+                'roadmap-card-due-date-safe',
+              );
+              dueDate.title = `Prazo em ${daysRemaining} dias`;
+            }
+          }
+        }
+      } else {
+        dueDate.textContent = '';
+        dueDate.title = 'Prazo de entrega';
+        dueDate.classList.add('member-hidden');
+      }
     }
 
     setText(
@@ -4324,5 +4422,50 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
       margin-left: 6px;
     }
   }
+
+  /* EVRYLUX_ROADMAP_DUE_DATE_CARD_V2 */
+  .roadmap-card-due-date {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    min-height: 20px;
+    padding: 0 7px;
+    border: 1px solid rgba(65, 104, 62, .10);
+    border-radius: 999px;
+    background: rgba(247, 251, 244, .92);
+    color: var(--text-soft);
+    font-size: 7px;
+    font-weight: 800;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .roadmap-card-due-date.member-hidden {
+    display: none !important;
+  }
+
+
+  /* EVRYLUX_ROADMAP_DUE_DATE_STATUS_UNIVERSAL_V1 */
+  .roadmap-card-due-date.roadmap-card-due-date-safe {
+    border-color: rgba(46, 125, 50, .30) !important;
+    background: #e2f4e2 !important;
+    color: #24682d !important;
+  }
+  .roadmap-card-due-date.roadmap-card-due-date-warning {
+    border-color: rgba(177, 128, 0, .34) !important;
+    background: #fff0ae !important;
+    color: #765500 !important;
+  }
+  .roadmap-card-due-date.roadmap-card-due-date-critical {
+    border-color: rgba(181, 56, 56, .34) !important;
+    background: #ffd9d4 !important;
+    color: #9d302b !important;
+  }
+  .roadmap-card-due-date.roadmap-card-due-date-neutral {
+    border-color: rgba(65, 104, 62, .10) !important;
+    background: rgba(247, 251, 244, .92) !important;
+    color: var(--text-soft) !important;
+  }
+
 </style>
 
