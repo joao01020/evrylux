@@ -183,7 +183,7 @@ Future<void> main(List<String> args) async {
     'initializeOfflineFirst concluído (${offlineStage.elapsedMilliseconds}ms)',
   );
 
-  runApp(GhostApp(evolutionController: evolutionController));
+  runApp(EvryluxApp(evolutionController: evolutionController));
   startupLog('runApp chamado');
 
   WidgetsBinding.instance.addPostFrameCallback((_) {

@@ -33,8 +33,8 @@ import '../welcome/welcome_screen.dart';
 
 import 'dependencies/app_dependencies.dart';
 
-class GhostApp extends StatefulWidget {
-  const GhostApp({super.key, required this.evolutionController});
+class EvryluxApp extends StatefulWidget {
+  const EvryluxApp({super.key, required this.evolutionController});
 
   // ============================================================
   // CONTROLLER
@@ -47,12 +47,12 @@ class GhostApp extends StatefulWidget {
   // ============================================================
 
   @override
-  State<GhostApp> createState() {
-    return _GhostAppState();
+  State<EvryluxApp> createState() {
+    return _EvryluxAppState();
   }
 }
 
-class _GhostAppState extends State<GhostApp> {
+class _EvryluxAppState extends State<EvryluxApp> {
   final Stopwatch _startupWatch = Stopwatch()..start();
 
   void _startupLog(String message) {
@@ -133,7 +133,7 @@ class _GhostAppState extends State<GhostApp> {
   void initState() {
     super.initState();
 
-    _startupLog('GhostApp initState');
+    _startupLog('EvryluxApp initState');
     _profileRepository = ProfileRepository();
 
     // Objetos leves podem ser construídos no initState, mas trabalho de
@@ -194,7 +194,7 @@ class _GhostAppState extends State<GhostApp> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _firstFrameRendered = true;
-      _startupLog('primeiro frame do GhostApp');
+      _startupLog('primeiro frame do EvryluxApp');
       _startDeferredStartupTasks();
     });
   }

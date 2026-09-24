@@ -22,11 +22,10 @@ class AppUpdateService {
   final AppUpdateFetcher? fetchLatestUpdate;
 
   // Opcional para testes/DI. O fallback mantém compatibilidade com
-  // o GhostApp atual, que instancia const AppUpdateService(...).
+  // o EvryluxApp atual, que instancia const AppUpdateService(...).
   final AppUpdateCacheDao? cacheDao;
 
-  static final AppUpdateCacheDao _defaultCacheDao =
-      AppUpdateCacheDao();
+  static final AppUpdateCacheDao _defaultCacheDao = AppUpdateCacheDao();
 
   AppUpdateCacheDao get _cacheDao {
     return cacheDao ?? _defaultCacheDao;
@@ -49,10 +48,7 @@ class AppUpdateService {
 
     // Se o usuário já atualizou o app desde a última execução,
     // descartamos um cache que deixou de representar update real.
-    if (!isVersionNewer(
-      cached.version,
-      currentVersion,
-    )) {
+    if (!isVersionNewer(cached.version, currentVersion)) {
       await _cacheDao.clear();
       return null;
     }
@@ -60,26 +56,19 @@ class AppUpdateService {
     return cached;
   }
 
-  Future<void> saveCachedUpdate(
-    AppUpdateNotification notification,
-  ) {
-    return _cacheDao.save(
-      notification,
-    );
+  Future<void> saveCachedUpdate(AppUpdateNotification notification) {
+    return _cacheDao.save(notification);
   }
 
   Future<void> clearCachedUpdate() {
     return _cacheDao.clear();
   }
 
-
   // ============================================================
   // REALTIME
   // ============================================================
 
-  RealtimeChannel subscribeToRealtime({
-    required VoidCallback onChanged,
-  }) {
+  RealtimeChannel subscribeToRealtime({required VoidCallback onChanged}) {
     final channel = _supabase
         .channel(
           'app_updates_notifications_${DateTime.now().microsecondsSinceEpoch}',
@@ -89,9 +78,7 @@ class AppUpdateService {
           schema: 'public',
           table: 'app_updates',
           callback: (payload) {
-            debugPrint(
-              '[APP UPDATE] Alteração Realtime recebida: $payload',
-            );
+            debugPrint('[APP UPDATE] Alteração Realtime recebida: $payload');
 
             onChanged();
           },
@@ -102,23 +89,12 @@ class AppUpdateService {
     return channel;
   }
 
-  Future<void> unsubscribeFromRealtime(
-    RealtimeChannel channel,
-  ) async {
+  Future<void> unsubscribeFromRealtime(RealtimeChannel channel) async {
     try {
-      await _supabase.removeChannel(
-        channel,
-      );
-    } catch (
-      error,
-      stackTrace
-    ) {
-      debugPrint(
-        '[APP UPDATE] Erro ao remover canal Realtime: $error',
-      );
-      debugPrint(
-        '$stackTrace',
-      );
+      await _supabase.removeChannel(channel);
+    } catch (error, stackTrace) {
+      debugPrint('[APP UPDATE] Erro ao remover canal Realtime: $error');
+      debugPrint('$stackTrace');
     }
   }
 
@@ -145,9 +121,7 @@ class AppUpdateService {
       }
 
       if (latest == null) {
-        debugPrint(
-          '[APP UPDATE] Nenhuma atualização encontrada.',
-        );
+        debugPrint('[APP UPDATE] Nenhuma atualização encontrada.');
 
         await clearCachedUpdate();
         return null;
@@ -160,15 +134,10 @@ class AppUpdateService {
         return null;
       }
 
-      final newer = isVersionNewer(
-        latestVersion,
-        installedVersion,
-      );
+      final newer = isVersionNewer(latestVersion, installedVersion);
 
       if (!newer) {
-        debugPrint(
-          '[APP UPDATE] Aplicativo já está atualizado.',
-        );
+        debugPrint('[APP UPDATE] Aplicativo já está atualizado.');
 
         await clearCachedUpdate();
         return null;
@@ -178,28 +147,17 @@ class AppUpdateService {
 
       final normalized = latest.copyWith(
         // A mesma versão preserva o estado de leitura local.
-        isRead:
-            cached != null &&
-                cached.version == latest.version
+        isRead: cached != null && cached.version == latest.version
             ? cached.isRead
             : false,
       );
 
-      await saveCachedUpdate(
-        normalized,
-      );
+      await saveCachedUpdate(normalized);
 
       return normalized;
-    } catch (
-      error,
-      stackTrace
-    ) {
-      debugPrint(
-        '[APP UPDATE] Erro ao verificar atualização: $error',
-      );
-      debugPrint(
-        '$stackTrace',
-      );
+    } catch (error, stackTrace) {
+      debugPrint('[APP UPDATE] Erro ao verificar atualização: $error');
+      debugPrint('$stackTrace');
 
       // Em falha de rede/auth, preservamos e devolvemos o cache.
       // Isso impede a notificação de sumir durante inicialização
@@ -222,48 +180,27 @@ class AppUpdateService {
     }
 
     final rows = await _supabase
-        .from(
-          'app_updates',
-        )
+        .from('app_updates')
         .select()
-        .eq(
-          'active',
-          true,
-        )
-        .order(
-          'published_at',
-          ascending: false,
-        )
-        .limit(
-          1,
-        );
+        .eq('active', true)
+        .order('published_at', ascending: false)
+        .limit(1);
 
     if (rows.isEmpty) {
       return null;
     }
 
-    return AppUpdateNotification.fromMap(
-      Map<String, dynamic>.from(
-        rows.first,
-      ),
-    );
+    return AppUpdateNotification.fromMap(Map<String, dynamic>.from(rows.first));
   }
 
   // ============================================================
   // VERSION
   // ============================================================
 
-  static bool isVersionNewer(
-    String candidate,
-    String current,
-  ) {
-    final candidateParts = _parseVersion(
-      candidate,
-    );
+  static bool isVersionNewer(String candidate, String current) {
+    final candidateParts = _parseVersion(candidate);
 
-    final currentParts = _parseVersion(
-      current,
-    );
+    final currentParts = _parseVersion(current);
 
     final maxLength = candidateParts.length > currentParts.length
         ? candidateParts.length
@@ -290,56 +227,27 @@ class AppUpdateService {
     return false;
   }
 
-  static List<int> _parseVersion(
-    String value,
-  ) {
+  static List<int> _parseVersion(String value) {
     final normalized = value
         .trim()
         .toLowerCase()
-        .replaceFirst(
-          RegExp(
-            r'^v',
-          ),
-          '',
-        )
-        .split(
-          '+',
-        )
+        .replaceFirst(RegExp(r'^v'), '')
+        .split('+')
         .first
-        .split(
-          '-',
-        )
+        .split('-')
         .first;
 
     return normalized
-        .split(
-          '.',
-        )
-        .map(
-          (
-            part,
-          ) {
-            final numeric = RegExp(
-              r'\d+',
-            ).firstMatch(
-              part,
-            );
+        .split('.')
+        .map((part) {
+          final numeric = RegExp(r'\d+').firstMatch(part);
 
-            if (numeric == null) {
-              return 0;
-            }
+          if (numeric == null) {
+            return 0;
+          }
 
-            return int.tryParse(
-                  numeric.group(
-                        0,
-                      ) ??
-                      '',
-                ) ??
-                0;
-          },
-        )
-        .toList(
-          growable: false,
-        );
+          return int.tryParse(numeric.group(0) ?? '') ?? 0;
+        })
+        .toList(growable: false);
   }
 }
