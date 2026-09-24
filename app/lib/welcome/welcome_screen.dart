@@ -53,8 +53,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   UserProfile? _profile;
 
-  bool _loadingProfile = true;
-
   String? _profileError;
 
   // ============================================================
@@ -205,8 +203,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       setState(() {
         _profile = profile;
 
-        _loadingProfile = false;
-
         _profileError = null;
       });
 
@@ -224,8 +220,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       }
 
       setState(() {
-        _loadingProfile = false;
-
         _profileError = error.toString();
       });
     }
