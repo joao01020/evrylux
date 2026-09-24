@@ -1214,13 +1214,32 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
     );
   }
 
+  // EVRYLUX_ROADMAP_HIDE_ITEMS_IN_VALIDATION_V1
+  function roadmapItemsOutsideValidation() {
+    return roadmapItems.filter(
+      (
+        item,
+      ) =>
+        !validationItems.some(
+          (
+            validation,
+          ) =>
+            validation.roadmap_item_id ===
+            item.id,
+        ),
+    );
+  }
+
   function filteredItems() {
+    const availableItems =
+      roadmapItemsOutsideValidation();
+
     if (!session) {
-      return roadmapItems;
+      return availableItems;
     }
 
     if (activeFilter === 'mine') {
-      return roadmapItems.filter(
+      return availableItems.filter(
         (item) =>
           item.assignee_user_id ===
           session.user.id,
@@ -1231,7 +1250,7 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
       activeFilter ===
       'in_progress'
     ) {
-      return roadmapItems.filter(
+      return availableItems.filter(
         (item) =>
           item.status ===
           'in_progress',
@@ -1239,14 +1258,14 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
     }
 
     if (activeFilter === 'done') {
-      return roadmapItems.filter(
+      return availableItems.filter(
         (item) =>
           item.status === 'done' ||
           item.stage === 'done',
       );
     }
 
-    return roadmapItems;
+    return availableItems;
   }
 
   function createEmpty(
@@ -1613,7 +1632,10 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
           validationItems =
             await getValidationItems();
 
-          refreshValidationButton();
+          // O item agora pertence visualmente à etapa de Validação.
+          // Re-renderiza o Roadmap sem apagar o registro original.
+          renderRoadmap();
+
           validationButton.disabled = false;
         } catch (error: any) {
           console.error(
@@ -2181,6 +2203,19 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
       );
 
       roadmapItems =
+        [];
+    }
+
+    try {
+      validationItems =
+        await getValidationItems();
+    } catch (error) {
+      console.warn(
+        '[EVRYLUX] Não foi possível carregar os itens em validação:',
+        error,
+      );
+
+      validationItems =
         [];
     }
 
