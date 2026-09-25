@@ -83,16 +83,75 @@ export async function markTaskNotificationRead(
   }
 }
 
+// EVRYLUX_TASK_SYNC_REFRESH_V1
+//
+// Além do INSERT de notificação em tempo real, atualiza silenciosamente
+// a lista quando a aba volta ao foco e em intervalo leve.
+// Isso corrige mudanças de responsável feitas em outra sessão/dispositivo.
 export async function connectTaskAssignments(
   userId: string,
   onAssignment: (
     notificationId: string,
   ) => void | Promise<void>,
 ): Promise<() => Promise<void>> {
+  const normalizedUserId =
+    userId.trim();
+
+  if (!normalizedUserId) {
+    throw new Error(
+      'Usuário inválido para sincronização de tarefas.',
+    );
+  }
+
   const channel =
     supabase.channel(
-      `evrylux-task-assignments-${userId}`,
+      `evrylux-task-assignments-${normalizedUserId}`,
     );
+
+  let lastPassiveRefreshAt =
+    0;
+
+  let passiveRefreshRunning =
+    false;
+
+  const runPassiveRefresh =
+    async () => {
+      const now =
+        Date.now();
+
+      if (
+        passiveRefreshRunning ||
+        (
+          now -
+          lastPassiveRefreshAt
+        ) <
+        1500
+      ) {
+        return;
+      }
+
+      passiveRefreshRunning =
+        true;
+
+      lastPassiveRefreshAt =
+        now;
+
+      try {
+        await onAssignment(
+          '',
+        );
+      } catch (
+        error
+      ) {
+        console.warn(
+          '[EVRYLUX] Não foi possível sincronizar tarefas:',
+          error,
+        );
+      } finally {
+        passiveRefreshRunning =
+          false;
+      }
+    };
 
   channel.on(
     'postgres_changes',
@@ -107,7 +166,7 @@ export async function connectTaskAssignments(
         'colab_task_notifications',
 
       filter:
-        `user_id=eq.${userId}`,
+        `user_id=eq.${normalizedUserId}`,
     },
     async (
       payload,
@@ -185,7 +244,59 @@ export async function connectTaskAssignments(
     },
   );
 
+  const handleFocus =
+    () => {
+      void runPassiveRefresh();
+    };
+
+  const handleVisibilityChange =
+    () => {
+      if (
+        document.visibilityState ===
+        'visible'
+      ) {
+        void runPassiveRefresh();
+      }
+    };
+
+  window.addEventListener(
+    'focus',
+    handleFocus,
+  );
+
+  document.addEventListener(
+    'visibilitychange',
+    handleVisibilityChange,
+  );
+
+  const passiveInterval =
+    window.setInterval(
+      () => {
+        if (
+          document.visibilityState ===
+          'visible'
+        ) {
+          void runPassiveRefresh();
+        }
+      },
+      15000,
+    );
+
   return async () => {
+    window.clearInterval(
+      passiveInterval,
+    );
+
+    window.removeEventListener(
+      'focus',
+      handleFocus,
+    );
+
+    document.removeEventListener(
+      'visibilitychange',
+      handleVisibilityChange,
+    );
+
     await supabase.removeChannel(
       channel,
     );
