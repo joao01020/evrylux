@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../app/dependencies/app_dependencies.dart' as dependencies;
@@ -28,7 +30,36 @@ class _ExampleScreenState
         > {
   final BrainRepository _repository = dependencies.brainRepository;
 
+  // ============================================================
+  // CACHE DE SESSÃO
+  // ============================================================
+  //
+  // A tela antiga sempre chamava loadConceptsByType() no initState.
+  //
+  // Mesmo com o Vault otimizado, não faz sentido bloquear a primeira
+  // pintura da página se os mesmos dados já estão disponíveis:
+  //
+  // - no BrainController;
+  // - ou no cache desta própria tela.
+  //
+  // O cache abaixo existe SOMENTE em memória.
+  //
+  // O repositório/Vault continua sendo a fonte persistente de verdade.
+  //
+  // ============================================================
+
+  static List<
+    BrainConcept
+  >?
+  _sessionExampleCache;
+
+  // ============================================================
+  // STATE
+  // ============================================================
+
   bool _isLoading = true;
+
+  bool _isRefreshing = false;
 
   bool _isDeleting = false;
 
@@ -37,7 +68,16 @@ class _ExampleScreenState
   List<
     BrainConcept
   >
-  _items = [];
+  _items =
+      <
+        BrainConcept
+      >[];
+
+  // Evita mais de uma leitura simultânea do repositório.
+  Future<
+    void
+  >?
+  _loadFuture;
 
   // ============================================================
   // INIT
@@ -47,7 +87,162 @@ class _ExampleScreenState
   void initState() {
     super.initState();
 
-    _load();
+    _bootstrap();
+  }
+
+  // ============================================================
+  // BOOTSTRAP
+  // ============================================================
+
+  void _bootstrap() {
+    // ==========================================================
+    // 1. CACHE DA PRÓPRIA TELA
+    // ==========================================================
+
+    final cached = _sessionExampleCache;
+
+    if (cached !=
+        null) {
+      _items =
+          List<
+            BrainConcept
+          >.of(
+            cached,
+            growable: false,
+          );
+
+      _isLoading = false;
+
+      // Mostra imediatamente e atualiza silenciosamente depois.
+      WidgetsBinding.instance.addPostFrameCallback(
+        (
+          _,
+        ) {
+          if (!mounted) {
+            return;
+          }
+
+          unawaited(
+            _load(
+              showBlockingLoader: false,
+            ),
+          );
+        },
+      );
+
+      return;
+    }
+
+    // ==========================================================
+    // 2. APROVEITAR O CÉREBRO JÁ CARREGADO
+    // ==========================================================
+    //
+    // Na navegação normal, o BrainController frequentemente já possui
+    // as notas descriptografadas em memória.
+    //
+    // Extraímos os exemplos dessas notas e mostramos sem reler o Vault.
+    //
+    // ==========================================================
+
+    final warmItems = _examplesFromLoadedBrain();
+
+    if (warmItems.isNotEmpty) {
+      _items = warmItems;
+
+      _sessionExampleCache =
+          List<
+            BrainConcept
+          >.of(
+            warmItems,
+            growable: false,
+          );
+
+      _isLoading = false;
+
+      WidgetsBinding.instance.addPostFrameCallback(
+        (
+          _,
+        ) {
+          if (!mounted) {
+            return;
+          }
+
+          unawaited(
+            _load(
+              showBlockingLoader: false,
+            ),
+          );
+        },
+      );
+
+      return;
+    }
+
+    // ==========================================================
+    // 3. PRIMEIRA ABERTURA SEM DADOS AQUECIDOS
+    // ==========================================================
+
+    unawaited(
+      _load(
+        showBlockingLoader: true,
+      ),
+    );
+  }
+
+  // ============================================================
+  // EXEMPLOS JÁ CARREGADOS NO BRAIN CONTROLLER
+  // ============================================================
+
+  List<
+    BrainConcept
+  >
+  _examplesFromLoadedBrain() {
+    final notes = dependencies.brainController.notes;
+
+    if (notes.isEmpty) {
+      return const <
+        BrainConcept
+      >[];
+    }
+
+    final seen =
+        <
+          String
+        >{};
+
+    final result =
+        <
+          BrainConcept
+        >[];
+
+    for (final note in notes) {
+      for (final concept in note.concepts) {
+        if (concept.type !=
+            BrainConceptType.example) {
+          continue;
+        }
+
+        final id = concept.id.trim();
+
+        if (id.isNotEmpty &&
+            !seen.add(
+              id,
+            )) {
+          continue;
+        }
+
+        result.add(
+          concept,
+        );
+      }
+    }
+
+    return List<
+      BrainConcept
+    >.of(
+      result,
+      growable: false,
+    );
   }
 
   // ============================================================
@@ -57,45 +252,128 @@ class _ExampleScreenState
   Future<
     void
   >
-  _load() async {
-    setState(
-      () {
-        _isLoading = true;
+  _load({
+    bool showBlockingLoader = false,
+  }) {
+    final running = _loadFuture;
 
-        _errorMessage = null;
+    if (running !=
+        null) {
+      return running;
+    }
+
+    final future = _performLoad(
+      showBlockingLoader: showBlockingLoader,
+    );
+
+    _loadFuture = future;
+
+    return future.whenComplete(
+      () {
+        if (identical(
+          _loadFuture,
+          future,
+        )) {
+          _loadFuture = null;
+        }
       },
     );
+  }
+
+  Future<
+    void
+  >
+  _performLoad({
+    required bool showBlockingLoader,
+  }) async {
+    if (mounted) {
+      setState(
+        () {
+          if (showBlockingLoader &&
+              _items.isEmpty) {
+            _isLoading = true;
+          } else {
+            _isRefreshing = true;
+          }
+
+          _errorMessage = null;
+        },
+      );
+    }
+
+    final stopwatch = Stopwatch()..start();
 
     try {
       final items = await _repository.loadConceptsByType(
         BrainConceptType.example,
       );
 
+      stopwatch.stop();
+
+      debugPrint(
+        '[EXAMPLE SCREEN] '
+        'loadConceptsByType=${stopwatch.elapsedMilliseconds}ms '
+        'itens=${items.length}',
+      );
+
       if (!mounted) {
         return;
       }
 
+      final immutableItems =
+          List<
+            BrainConcept
+          >.of(
+            items,
+            growable: false,
+          );
+
+      _sessionExampleCache = immutableItems;
+
       setState(
         () {
-          _items = items;
+          _items = immutableItems;
 
           _isLoading = false;
+
+          _isRefreshing = false;
+
+          _errorMessage = null;
         },
       );
     } catch (
       error
     ) {
+      stopwatch.stop();
+
+      debugPrint(
+        '[EXAMPLE SCREEN] '
+        'falha após ${stopwatch.elapsedMilliseconds}ms: $error',
+      );
+
       if (!mounted) {
         return;
       }
 
       setState(
         () {
-          _errorMessage = error.toString();
-
           _isLoading = false;
+
+          _isRefreshing = false;
+
+          // Se já temos dados aquecidos, não substituímos toda a tela
+          // por um erro só porque o refresh em background falhou.
+          if (_items.isEmpty) {
+            _errorMessage = error.toString();
+          }
         },
       );
+
+      if (_items.isNotEmpty) {
+        _showMessage(
+          'Não foi possível atualizar os exemplos agora.',
+        );
+      }
     }
   }
 
@@ -179,16 +457,25 @@ class _ExampleScreenState
         return;
       }
 
-      setState(
-        () {
-          _items.removeWhere(
+      final updated = _items
+          .where(
             (
               current,
-            ) {
-              return current.id ==
-                  item.id;
-            },
+            ) =>
+                current.id !=
+                item.id,
+          )
+          .toList(
+            growable: false,
           );
+
+      _sessionExampleCache = updated;
+
+      setState(
+        () {
+          _items = updated;
+
+          _isDeleting = false;
         },
       );
 
@@ -202,17 +489,15 @@ class _ExampleScreenState
         return;
       }
 
+      setState(
+        () {
+          _isDeleting = false;
+        },
+      );
+
       _showMessage(
         'Não foi possível excluir o exemplo e a anotação de origem.',
       );
-    } finally {
-      if (mounted) {
-        setState(
-          () {
-            _isDeleting = false;
-          },
-        );
-      }
     }
   }
 
@@ -265,11 +550,32 @@ class _ExampleScreenState
           ],
         ),
         actions: [
+          if (_isRefreshing)
+            const Padding(
+              padding: EdgeInsets.only(
+                right: 4,
+              ),
+              child: Center(
+                child: SizedBox(
+                  width: 17,
+                  height: 17,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.8,
+                  ),
+                ),
+              ),
+            ),
           IconButton(
             tooltip: 'Atualizar',
-            onPressed: _isDeleting
+            onPressed:
+                _isDeleting ||
+                    _isRefreshing
                 ? null
-                : _load,
+                : () {
+                    _load(
+                      showBlockingLoader: false,
+                    );
+                  },
             icon: const Icon(
               Icons.refresh_rounded,
             ),
@@ -288,14 +594,16 @@ class _ExampleScreenState
   // ============================================================
 
   Widget _buildBody() {
-    if (_isLoading) {
+    if (_isLoading &&
+        _items.isEmpty) {
       return const Center(
         child: CircularProgressIndicator(),
       );
     }
 
     if (_errorMessage !=
-        null) {
+            null &&
+        _items.isEmpty) {
       return _buildError();
     }
 
@@ -304,9 +612,14 @@ class _ExampleScreenState
     }
 
     return RefreshIndicator(
-      onRefresh: _load,
+      onRefresh: () {
+        return _load(
+          showBlockingLoader: false,
+        );
+      },
       child: ListView.separated(
         physics: const AlwaysScrollableScrollPhysics(),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: const EdgeInsets.all(
           18,
         ),
@@ -342,92 +655,93 @@ class _ExampleScreenState
     BuildContext context,
     BrainConcept item,
   ) {
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(
-          16,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: item.color.withValues(
-                  alpha: 0.10,
-                ),
-                borderRadius: BorderRadius.circular(
-                  12,
-                ),
-                border: Border.all(
+    return RepaintBoundary(
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(
+            16,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
                   color: item.color.withValues(
-                    alpha: 0.20,
+                    alpha: 0.10,
+                  ),
+                  borderRadius: BorderRadius.circular(
+                    12,
+                  ),
+                  border: Border.all(
+                    color: item.color.withValues(
+                      alpha: 0.20,
+                    ),
                   ),
                 ),
+                child: Icon(
+                  item.icon,
+                  color: item.color,
+                ),
               ),
-              child: Icon(
-                item.icon,
-                color: item.color,
+              const SizedBox(
+                width: 14,
               ),
-            ),
-
-            const SizedBox(
-              width: 14,
-            ),
-
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        item.emoji,
-                      ),
-
-                      const SizedBox(
-                        width: 7,
-                      ),
-
-                      Expanded(
-                        child: Text(
-                          item.title,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          item.emoji,
+                        ),
+                        const SizedBox(
+                          width: 7,
+                        ),
+                        Expanded(
+                          child: Text(
+                            item.title,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
                           ),
                         ),
-                      ),
-
-                      IconButton(
-                        tooltip: 'Excluir exemplo',
-                        onPressed: _isDeleting
-                            ? null
-                            : () {
-                                _deleteExample(
-                                  item,
-                                );
-                              },
-                        icon: const Icon(
-                          Icons.delete_outline_rounded,
+                        IconButton(
+                          tooltip: 'Excluir exemplo',
+                          onPressed: _isDeleting
+                              ? null
+                              : () {
+                                  _deleteExample(
+                                    item,
+                                  );
+                                },
+                          icon: const Icon(
+                            Icons.delete_outline_rounded,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                    const SizedBox(
+                      height: 10,
+                    ),
 
-                  const SizedBox(
-                    height: 10,
-                  ),
-
-                  SelectableText(
-                    item.description,
-                  ),
-                ],
+                    // SelectableText é mantido para preservar exatamente
+                    // o comportamento atual da tela.
+                    //
+                    // O RepaintBoundary acima evita que a pintura de um card
+                    // afete todos os outros durante atualizações da página.
+                    SelectableText(
+                      item.description,
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -439,7 +753,11 @@ class _ExampleScreenState
 
   Widget _buildEmpty() {
     return RefreshIndicator(
-      onRefresh: _load,
+      onRefresh: () {
+        return _load(
+          showBlockingLoader: false,
+        );
+      },
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         children: const [
@@ -500,11 +818,9 @@ class _ExampleScreenState
               Icons.error_outline,
               size: 46,
             ),
-
             const SizedBox(
               height: 12,
             ),
-
             const Text(
               'Não foi possível carregar os exemplos.',
               textAlign: TextAlign.center,
@@ -512,23 +828,23 @@ class _ExampleScreenState
                 fontWeight: FontWeight.w700,
               ),
             ),
-
             const SizedBox(
               height: 8,
             ),
-
             Text(
               _errorMessage ??
                   'Erro desconhecido.',
               textAlign: TextAlign.center,
             ),
-
             const SizedBox(
               height: 14,
             ),
-
             FilledButton.icon(
-              onPressed: _load,
+              onPressed: () {
+                _load(
+                  showBlockingLoader: true,
+                );
+              },
               icon: const Icon(
                 Icons.refresh,
               ),
