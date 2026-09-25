@@ -1,5 +1,41 @@
 part of '../brain_screen.dart';
 
+// ============================================================
+// IA — HISTÓRICO DE SUGESTÕES DA SESSÃO
+// ============================================================
+//
+// Objetivo:
+//
+// evitar que uma mesma consulta para um mesmo assunto mostre sempre
+// os mesmos "Próximos caminhos".
+//
+// Regras:
+//
+// - histórico somente em memória;
+// - separado por assunto;
+// - máximo de 12 títulos recentes por assunto;
+// - não altera nem salva conhecimento do usuário;
+// - ao reiniciar o aplicativo, o histórico recomeça.
+//
+// ============================================================
+
+const int
+_brainAiRecentSuggestionHistoryLimit = 12;
+
+final Map<
+  String,
+  List<
+    String
+  >
+>
+_brainAiRecentSuggestionHistory =
+    <
+      String,
+      List<
+        String
+      >
+    >{};
+
 // Visual lifecycle + local/Vault-first search experience.
 extension _BrainScreenVisualSearch
     on
@@ -183,6 +219,26 @@ extension _BrainScreenVisualSearch
     'o que eu já sei sobre',
     'o que eu já aprendi sobre',
     'o que eu já anotei sobre',
+
+    // ==========================================================
+    // IA — LACUNAS DE ESTUDO
+    // ==========================================================
+    'o que falta eu aprender sobre',
+
+    // ==========================================================
+    // IA — REVISÃO
+    // ==========================================================
+    'o que eu deveria revisar sobre',
+
+    // ==========================================================
+    // IA — CONHECIMENTOS RELACIONADOS
+    // ==========================================================
+    'quais conhecimentos estão relacionados a',
+
+    // ==========================================================
+    // IA — PERGUNTAS EM ABERTO
+    // ==========================================================
+    'quais perguntas eu ainda tenho sobre',
   ];
 
   // ============================================================
@@ -1194,6 +1250,187 @@ extension _BrainScreenVisualSearch
   //
   // ============================================================
 
+  // ============================================================
+  // BRAIN AI — HISTÓRICO DE PRÓXIMOS CAMINHOS
+  // ============================================================
+
+  String _brainAiSuggestionHistoryKey({
+    required String query,
+    String? topic,
+  }) {
+    final cleanTopic =
+        topic?.trim() ??
+        '';
+
+    final source = cleanTopic.isNotEmpty
+        ? cleanTopic
+        : query.trim();
+
+    return _normalizeBrainSearchStructure(
+      source,
+    );
+  }
+
+  List<
+    String
+  >
+  _brainAiRecentSuggestionsFor(
+    String historyKey,
+  ) {
+    final items = _brainAiRecentSuggestionHistory[historyKey];
+
+    if (items ==
+            null ||
+        items.isEmpty) {
+      return const <
+        String
+      >[];
+    }
+
+    return List<
+      String
+    >.unmodifiable(
+      items,
+    );
+  }
+
+  void _rememberBrainAiSuggestions({
+    required String historyKey,
+    required BrainAiResponse response,
+  }) {
+    if (historyKey.trim().isEmpty ||
+        response.suggestions.isEmpty) {
+      return;
+    }
+
+    final history = _brainAiRecentSuggestionHistory.putIfAbsent(
+      historyKey,
+      () =>
+          <
+            String
+          >[],
+    );
+
+    for (final suggestion in response.suggestions) {
+      final title = suggestion.title.trim();
+
+      if (title.isEmpty) {
+        continue;
+      }
+
+      final normalizedTitle = _normalizeBrainSearchStructure(
+        title,
+      );
+
+      history.removeWhere(
+        (
+          existing,
+        ) =>
+            _normalizeBrainSearchStructure(
+              existing,
+            ) ==
+            normalizedTitle,
+      );
+
+      history.add(
+        title,
+      );
+    }
+
+    while (history.length >
+        _brainAiRecentSuggestionHistoryLimit) {
+      history.removeAt(
+        0,
+      );
+    }
+
+    debugPrint(
+      '[BRAIN AI] Histórico de sugestões atualizado. '
+      'tema="$historyKey" '
+      'itens=${history.length}',
+    );
+  }
+
+  // ============================================================
+  // BRAIN AI — BUSCA LOCAL DO CONTEXTO
+  // ============================================================
+  //
+  // PROBLEMA QUE ESTA FUNÇÃO RESOLVE:
+  //
+  // A frase:
+  //
+  // "o que falta eu aprender sobre ESP32"
+  //
+  // NÃO deve ser usada literalmente para procurar anotações.
+  //
+  // Para recuperar o conhecimento que será enviado à IA, usamos:
+  //
+  // "ESP32"
+  //
+  // Assim a busca local encontra os conhecimentos reais do assunto
+  // e somente depois a IA interpreta a intenção da pergunta.
+  //
+  // ============================================================
+
+  BrainSearchResponse _brainAiSearchResponseForTopic(
+    String rawTopic,
+  ) {
+    final topic = rawTopic.trim();
+
+    if (topic.isEmpty) {
+      return BrainSearchResponse.fromResults(
+        const <
+          BrainFile
+        >[],
+      );
+    }
+
+    final parsedTopic = _BrainScreenState._searchParser.parse(
+      topic,
+    );
+
+    if (parsedTopic.isEmpty) {
+      return BrainSearchResponse.fromResults(
+        const <
+          BrainFile
+        >[],
+      );
+    }
+
+    return _BrainScreenState._searchEngine.search(
+      notes: _controller.notes,
+      query: parsedTopic,
+      topLimit: 8,
+    );
+  }
+
+  // ============================================================
+  // BRAIN AI — CONSULTA INTELIGENTE
+  // ============================================================
+  //
+  // Fluxo corrigido:
+  //
+  // usuário confirma com Enter
+  //      ↓
+  // detector identifica intenção + assunto
+  //      ↓
+  // busca local procura SOMENTE o assunto
+  //      ↓
+  // resultados relevantes viram contexto compacto
+  //      ↓
+  // Supabase Edge Function
+  //      ↓
+  // Groq
+  //      ↓
+  // resposta estruturada
+  //
+  // A frase original continua sendo enviada para a IA para que ela
+  // saiba O QUE o usuário perguntou.
+  //
+  // O contexto, porém, vem da pesquisa local pelo ASSUNTO.
+  //
+  // ============================================================
+
   Future<
     void
   >
@@ -1224,13 +1461,13 @@ extension _BrainScreenVisualSearch
     // BUSCA NORMAL
     // ==========================================================
     //
-    // Exemplo:
+    // Uma pesquisa como:
     //
     // ESP32
     // Flutter
     // criptografia
     //
-    // Nenhuma chamada externa acontece.
+    // continua 100% local.
     //
     // ==========================================================
 
@@ -1240,6 +1477,31 @@ extension _BrainScreenVisualSearch
     }
 
     final requestQuery = query;
+
+    // O detector é a fonte principal do assunto.
+    //
+    // O effectiveQuery é um fallback seguro para as estruturas que
+    // a própria tela já reconhece e das quais já extrai o complemento.
+    final detectedTopic =
+        intent.topic?.trim() ??
+        '';
+
+    final topic = detectedTopic.isNotEmpty
+        ? detectedTopic
+        : inputState.effectiveQuery.trim();
+
+    final suggestionHistoryKey = _brainAiSuggestionHistoryKey(
+      query: requestQuery,
+      topic: topic,
+    );
+
+    final avoidSuggestions = _brainAiRecentSuggestionsFor(
+      suggestionHistoryKey,
+    );
+
+    final aiSearchResponse = _brainAiSearchResponseForTopic(
+      topic,
+    );
 
     _mutateState(
       () {
@@ -1251,14 +1513,18 @@ extension _BrainScreenVisualSearch
 
     debugPrint(
       '[BRAIN AI] Consulta inteligente iniciada. '
-      'intent=${intent.wireName}',
+      'intent=${intent.wireName} '
+      'topic="$topic" '
+      'resultados=${aiSearchResponse.allResults.length} '
+      'evitarSugestoes=${avoidSuggestions.length}',
     );
 
     try {
       final response = await _brainAiOrchestrator.run(
         rawQuery: requestQuery,
         notes: _controller.notes,
-        searchResponse: _searchResponse,
+        searchResponse: aiSearchResponse,
+        avoidSuggestions: avoidSuggestions,
       );
 
       if (!mounted) {
@@ -1285,6 +1551,11 @@ extension _BrainScreenVisualSearch
         return;
       }
 
+      _rememberBrainAiSuggestions(
+        historyKey: suggestionHistoryKey,
+        response: response,
+      );
+
       _mutateState(
         () {
           _brainAiLoading = false;
@@ -1295,6 +1566,7 @@ extension _BrainScreenVisualSearch
 
       debugPrint(
         '[BRAIN AI] Consulta inteligente concluída. '
+        'contexto=${aiSearchResponse.allResults.length} '
         'sugestoes=${response.suggestions.length}',
       );
     } catch (
@@ -1323,7 +1595,7 @@ extension _BrainScreenVisualSearch
         () {
           _brainAiLoading = false;
           _brainAiResponse = null;
-          _brainAiError = 'Não foi possível analisar seu Brain agora. Tente novamente.';
+          _brainAiError = 'Não foi possível analisar seu Cérebro agora. Tente novamente.';
         },
       );
     }

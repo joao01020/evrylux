@@ -21,6 +21,7 @@ class BrainAiOrchestrator {
     required String rawQuery,
     required List<BrainFile> notes,
     required BrainSearchResponse searchResponse,
+    List<String> avoidSuggestions = const <String>[],
   }) async {
     final intent = intentDetector.detect(rawQuery);
 
@@ -37,6 +38,7 @@ class BrainAiOrchestrator {
       BrainAiRequest(
         intent: intent,
         knowledge: context,
+        avoidSuggestions: avoidSuggestions,
       ),
     );
   }

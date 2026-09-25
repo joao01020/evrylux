@@ -3,22 +3,13 @@ import '../../search/models/brain_search_response.dart';
 import '../models/brain_ai_context_item.dart';
 
 class BrainAiContextBuilder {
-  const BrainAiContextBuilder({
-    this.maxItems = 8,
-    this.maxSummaryChars = 240,
-  });
+  const BrainAiContextBuilder({this.maxItems = 8, this.maxSummaryChars = 240});
 
   final int maxItems;
   final int maxSummaryChars;
 
-  List<
-    BrainAiContextItem
-  >
-  build({
-    required List<
-      BrainFile
-    >
-    allNotes,
+  List<BrainAiContextItem> build({
+    required List<BrainFile> allNotes,
     required BrainSearchResponse searchResponse,
   }) {
     // ============================================================
@@ -34,7 +25,7 @@ class BrainAiContextBuilder {
     // - privada;
     // - relevante.
     //
-    // A IA NÃO recebe o Brain inteiro.
+    // A IA NÃO recebe o Cérebro inteiro.
     //
     // Ela recebe somente os resultados que a busca local já
     // classificou como relacionados à pergunta atual.
@@ -52,22 +43,17 @@ class BrainAiContextBuilder {
     //
     // ============================================================
 
-    final ranked =
-        <
-          BrainFile
-        >[
-          ...searchResponse.topResults,
-          ...searchResponse.allResults,
-        ];
+    final ranked = <BrainFile>[
+      ...searchResponse.topResults,
+      ...searchResponse.allResults,
+    ];
 
     // ============================================================
     // SEM RESULTADO LOCAL
     // ============================================================
 
     if (ranked.isEmpty) {
-      return const <
-        BrainAiContextItem
-      >[];
+      return const <BrainAiContextItem>[];
     }
 
     // ============================================================
@@ -83,15 +69,9 @@ class BrainAiContextBuilder {
     //
     // ============================================================
 
-    final seen =
-        <
-          String
-        >{};
+    final seen = <String>{};
 
-    final output =
-        <
-          BrainAiContextItem
-        >[];
+    final output = <BrainAiContextItem>[];
 
     for (final note in ranked) {
       // ==========================================================
@@ -113,9 +93,7 @@ class BrainAiContextBuilder {
           : '${note.createdAt.microsecondsSinceEpoch}:'
                 '${note.title.hashCode}';
 
-      if (!seen.add(
-        id,
-      )) {
+      if (!seen.add(id)) {
         continue;
       }
 
@@ -125,9 +103,7 @@ class BrainAiContextBuilder {
 
       final trimmedTitle = note.title.trim();
 
-      final title = trimmedTitle.isEmpty
-          ? 'Sem título'
-          : trimmedTitle;
+      final title = trimmedTitle.isEmpty ? 'Sem título' : trimmedTitle;
 
       // ==========================================================
       // RESUMO COMPACTO
@@ -144,29 +120,20 @@ class BrainAiContextBuilder {
       //
       // ==========================================================
 
-      final summary = _compact(
-        note.content,
-      );
+      final summary = _compact(note.content);
 
       // ==========================================================
       // TIPO
       // ==========================================================
 
-      final type = note.concepts.isEmpty
-          ? 'note'
-          : 'knowledge';
+      final type = note.concepts.isEmpty ? 'note' : 'knowledge';
 
       // ==========================================================
       // CONTEXTO
       // ==========================================================
 
       output.add(
-        BrainAiContextItem(
-          id: id,
-          title: title,
-          summary: summary,
-          type: type,
-        ),
+        BrainAiContextItem(id: id, title: title, summary: summary, type: type),
       );
 
       // ==========================================================
@@ -179,8 +146,7 @@ class BrainAiContextBuilder {
       //
       // ==========================================================
 
-      if (output.length >=
-          maxItems) {
+      if (output.length >= maxItems) {
         break;
       }
     }
@@ -203,17 +169,8 @@ class BrainAiContextBuilder {
   // "SPI permite comunicação entre dispositivos..."
   //
   // ==============================================================
-  String _compact(
-    String value,
-  ) {
-    final clean = value
-        .replaceAll(
-          RegExp(
-            r'\s+',
-          ),
-          ' ',
-        )
-        .trim();
+  String _compact(String value) {
+    final clean = value.replaceAll(RegExp(r'\s+'), ' ').trim();
 
     // ============================================================
     // CONTEÚDO VAZIO
@@ -227,8 +184,7 @@ class BrainAiContextBuilder {
     // JÁ CABE NO LIMITE
     // ============================================================
 
-    if (clean.length <=
-        maxSummaryChars) {
+    if (clean.length <= maxSummaryChars) {
       return clean;
     }
 
@@ -240,23 +196,11 @@ class BrainAiContextBuilder {
     //
     // ============================================================
 
-    final rawCut = clean.substring(
-      0,
-      maxSummaryChars,
-    );
+    final rawCut = clean.substring(0, maxSummaryChars);
 
-    final lastSpace = rawCut.lastIndexOf(
-      ' ',
-    );
+    final lastSpace = rawCut.lastIndexOf(' ');
 
-    final compacted =
-        lastSpace >
-            80
-        ? rawCut.substring(
-            0,
-            lastSpace,
-          )
-        : rawCut;
+    final compacted = lastSpace > 80 ? rawCut.substring(0, lastSpace) : rawCut;
 
     return '${compacted.trim()}…';
   }
