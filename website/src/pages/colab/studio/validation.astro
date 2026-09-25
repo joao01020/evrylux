@@ -299,6 +299,7 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
 
   import {
     addValidationHistoryEntry,
+    archiveValidationItem,
     canFinalizeValidation,
     downloadValidationMarkdownAttachment,
     createValidationItem,
@@ -1094,6 +1095,29 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
                   >
                     Testar / atualizar
                   </button>
+
+
+                  ${
+                    (
+                      item.created_by ===
+                        session?.user?.id ||
+                      canFinalize
+                    )
+                      ? `
+                        <!-- EVRYLUX_VALIDATION_ARCHIVE_ACTION_V1 -->
+                        <button
+                          class="danger-soft validation-archive-button"
+                          type="button"
+                          data-archive-validation="${esc(
+                            item.id,
+                          )}"
+                          title="Retirar esta função da lista de Validação"
+                        >
+                          Remover da lista
+                        </button>
+                      `
+                      : ''
+                  }
                 `
                 : ''
             }
@@ -1723,6 +1747,85 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
         if (item) openEditor(item);
       });
     });
+
+    document
+      .querySelectorAll<HTMLButtonElement>(
+        '[data-archive-validation]',
+      )
+      .forEach(
+        (
+          button,
+        ) => {
+          button.addEventListener(
+            'click',
+            async () => {
+              const item =
+                items.find(
+                  (
+                    current,
+                  ) =>
+                    current.id ===
+                    button.dataset.archiveValidation,
+                );
+
+              if (!item) {
+                return;
+              }
+
+              const message =
+                item.source_type ===
+                  'roadmap'
+                  ? 'Remover esta função da Validação? Ela deixará esta lista e poderá voltar a aparecer no Roadmap.'
+                  : 'Remover esta função da lista de Validação? O histórico técnico continuará preservado no banco.';
+
+              if (
+                !window.confirm(
+                  message,
+                )
+              ) {
+                return;
+              }
+
+              const oldText =
+                button.textContent;
+
+              try {
+                clearError();
+
+                button.disabled =
+                  true;
+
+                button.textContent =
+                  'Removendo...';
+
+                await archiveValidationItem(
+                  item.id,
+                );
+
+                expandedCards.delete(
+                  item.id,
+                );
+
+                await refresh();
+              } catch (
+                error: any
+              ) {
+                button.disabled =
+                  false;
+
+                button.textContent =
+                  oldText ||
+                  'Remover da lista';
+
+                showError(
+                  error?.message ||
+                  'Não foi possível remover a função da lista.',
+                );
+              }
+            },
+          );
+        },
+      );
 
     document.querySelectorAll<HTMLButtonElement>('[data-remove]').forEach((button) => {
       button.addEventListener('click', async () => {
@@ -3142,6 +3245,19 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
     .validation-attachment-download {
       grid-column: 1 / -1;
     }
+  }
+
+
+  /* EVRYLUX_VALIDATION_ARCHIVE_ACTION_V1 */
+  .validation-archive-button {
+    border-color: rgba(155, 71, 57, .16) !important;
+    background: #fff8f6 !important;
+    color: #934a3f !important;
+  }
+
+  .validation-archive-button:hover:not(:disabled) {
+    border-color: rgba(155, 71, 57, .28) !important;
+    background: #fff1ed !important;
   }
 
 </style>

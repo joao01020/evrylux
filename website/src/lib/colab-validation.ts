@@ -625,3 +625,33 @@ export async function downloadValidationMarkdownAttachment(
 
   return data as Blob;
 }
+
+/**
+ * Remove um item da lista ativa de Validação sem apagar o histórico físico.
+ *
+ * - item vindo do Roadmap: deixa a Validação e pode voltar a aparecer no Roadmap;
+ * - item criado diretamente: desaparece da lista ativa;
+ * - histórico/anexos permanecem preservados no banco.
+ */
+export async function archiveValidationItem(
+  id: string,
+) {
+  const {
+    error,
+  } =
+    await supabase.rpc(
+      'archive_colab_validation_item',
+      {
+        p_validation_id:
+          id,
+      },
+    );
+
+  if (error) {
+    fail(
+      error,
+      'Não foi possível remover a função da lista.',
+    );
+  }
+}
+

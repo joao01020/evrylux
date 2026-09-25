@@ -2025,12 +2025,96 @@ import EvryluxLogoLoader from '../../../components/ui/EvryluxLogoLoader.astro';
           return;
         }
 
+        // EVRYLUX_ROADMAP_SORT_BY_DUE_DATE_V1
+        //
+        // Dentro de cada coluna:
+        // 1. prazo mais próximo primeiro;
+        // 2. prazo mais distante depois;
+        // 3. itens sem prazo ficam por último.
         const stageItems =
-          items.filter(
-            (item) =>
-              item.stage ===
-              stage,
-          );
+          items
+            .filter(
+              (item) =>
+                item.stage ===
+                stage,
+            )
+            .sort(
+              (
+                a,
+                b,
+              ) => {
+                const aDue =
+                  a.due_date?.trim() ||
+                  '';
+
+                const bDue =
+                  b.due_date?.trim() ||
+                  '';
+
+                if (
+                  !aDue &&
+                  !bDue
+                ) {
+                  return 0;
+                }
+
+                if (!aDue) {
+                  return 1;
+                }
+
+                if (!bDue) {
+                  return -1;
+                }
+
+                const aTime =
+                  Date.parse(
+                    aDue.slice(
+                      0,
+                      10,
+                    ),
+                  );
+
+                const bTime =
+                  Date.parse(
+                    bDue.slice(
+                      0,
+                      10,
+                    ),
+                  );
+
+                if (
+                  Number.isNaN(
+                    aTime,
+                  ) &&
+                  Number.isNaN(
+                    bTime,
+                  )
+                ) {
+                  return 0;
+                }
+
+                if (
+                  Number.isNaN(
+                    aTime,
+                  )
+                ) {
+                  return 1;
+                }
+
+                if (
+                  Number.isNaN(
+                    bTime,
+                  )
+                ) {
+                  return -1;
+                }
+
+                return (
+                  aTime -
+                  bTime
+                );
+              },
+            );
 
         if (count) {
           count.textContent =
