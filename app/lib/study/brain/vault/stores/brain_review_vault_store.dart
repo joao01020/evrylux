@@ -1,53 +1,51 @@
+import 'package:flutter/foundation.dart';
+
 import '../../models/brain_review_item.dart';
 
 import '../mappers/brain_review_vault_mapper.dart';
-
 import '../models/brain_review_vault_entry.dart';
-import '../models/brain_vault_object.dart';
 import '../models/brain_vault_object_type.dart';
-
 import '../services/brain_vault_service.dart';
 
 // ============================================================
 // BRAIN REVIEW VAULT STORE
 // ============================================================
 //
-// Camada especializada em BrainReviewItem.
+// PERFORMANCE
 //
-// Arquitetura:
+// Antes:
 //
-// ReviewRepository
+// loadAllEncryptedObjects()
 //      ↓
-// BrainReviewVaultStore
+// para cada objeto
 //      ↓
-// BrainReviewVaultMapper
+// await readObject(objectId)
 //      ↓
-// BrainVaultService
+// reabre Vault / relê objeto / obtém chave / decrypt
 //      ↓
-// Vault criptografado
+// processamento sequencial
 //
-// ============================================================
+// Agora:
 //
-// RESPONSABILIDADES:
+// loadAllEncryptedObjects()
+//      ↓
+// remove tombstones
+//      ↓
+// decodeEncryptedObjects(concurrency: 12)
+//      ↓
+// Vault aberto uma vez
+//      ↓
+// Master Key obtida uma vez
+//      ↓
+// decrypt em lotes
+//      ↓
+// cache/índices somente em memória
 //
-// - inicializar o Vault;
-// - criar revisão;
-// - atualizar revisão;
-// - carregar revisões;
-// - buscar revisão por ID;
-// - buscar revisão por conceptId;
-// - excluir revisão usando tombstone;
-// - esconder objectId do ReviewRepository quando possível.
-//
-// ============================================================
-//
-// NÃO:
-//
-// - conhece Supabase;
-// - conhece SyncQueue;
-// - conhece ReviewStorage legado;
-// - conhece autenticação;
-// - armazena plaintext fora do Vault.
+// E2EE continua preservado:
+// - payload não é persistido em plaintext;
+// - verifyBinding continua dentro do BrainVaultService;
+// - keyVersion continua validada;
+// - tombstones continuam ignorados.
 //
 // ============================================================
 
@@ -58,13 +56,36 @@ class BrainReviewVaultStore {
   }) : _vaultService = vaultService,
        _mapper = mapper;
 
-  // ============================================================
-  // DEPENDENCIES
-  // ============================================================
-
   final BrainVaultService _vaultService;
-
   final BrainReviewVaultMapper _mapper;
+
+  static const int _decodeConcurrency = 12;
+
+  List<
+    BrainReviewVaultEntry
+  >?
+  _entryCache;
+
+  Map<
+    String,
+    BrainReviewVaultEntry
+  >?
+  _entryByReviewId;
+
+  Map<
+    String,
+    List<
+      BrainReviewVaultEntry
+    >
+  >?
+  _entriesByConceptId;
+
+  Future<
+    List<
+      BrainReviewVaultEntry
+    >
+  >?
+  _loadFuture;
 
   // ============================================================
   // INITIALIZE
@@ -78,7 +99,17 @@ class BrainReviewVaultStore {
   }
 
   // ============================================================
-  // LOAD ALL
+  // CACHE
+  // ============================================================
+
+  void invalidateCache() {
+    _entryCache = null;
+    _entryByReviewId = null;
+    _entriesByConceptId = null;
+  }
+
+  // ============================================================
+  // LOAD REVIEWS
   // ============================================================
 
   Future<
@@ -86,16 +117,22 @@ class BrainReviewVaultStore {
       BrainReviewItem
     >
   >
-  loadReviews() async {
-    final entries = await loadEntries();
+  loadReviews({
+    bool forceRefresh = false,
+  }) async {
+    final entries = await loadEntries(
+      forceRefresh: forceRefresh,
+    );
 
-    final reviews = entries.map(
-      (
-        entry,
-      ) {
-        return entry.review;
-      },
-    ).toList();
+    final reviews = entries
+        .map(
+          (
+            entry,
+          ) => entry.review,
+        )
+        .toList(
+          growable: false,
+        );
 
     _sortReviews(
       reviews,
@@ -107,52 +144,183 @@ class BrainReviewVaultStore {
   // ============================================================
   // LOAD ENTRIES
   // ============================================================
-  //
-  // Nesta primeira versão ainda não existe um índice próprio:
-  //
-  // review.id -> objectId
-  //
-  // Portanto percorremos os objetos ativos do Vault.
-  //
-  // Isso é proposital nesta etapa.
-  //
-  // Depois poderemos introduzir um índice persistente sem alterar
-  // a API pública deste Store.
-  //
-  // ============================================================
 
   Future<
     List<
       BrainReviewVaultEntry
     >
   >
-  loadEntries() async {
+  loadEntries({
+    bool forceRefresh = false,
+  }) {
+    if (!forceRefresh) {
+      final cached = _entryCache;
+
+      if (cached !=
+          null) {
+        return SynchronousFuture<
+          List<
+            BrainReviewVaultEntry
+          >
+        >(
+          List<
+            BrainReviewVaultEntry
+          >.unmodifiable(
+            cached,
+          ),
+        );
+      }
+
+      final running = _loadFuture;
+
+      if (running !=
+          null) {
+        return running;
+      }
+    }
+
+    final future = _loadEntriesFromVault();
+
+    _loadFuture = future;
+
+    return future.whenComplete(
+      () {
+        if (identical(
+          _loadFuture,
+          future,
+        )) {
+          _loadFuture = null;
+        }
+      },
+    );
+  }
+
+  Future<
+    List<
+      BrainReviewVaultEntry
+    >
+  >
+  _loadEntriesFromVault() async {
     await initialize();
 
+    final totalWatch = Stopwatch()..start();
+
+    final rawWatch = Stopwatch()..start();
+
     final objects = await _vaultService.loadAllEncryptedObjects();
+
+    rawWatch.stop();
+
+    final activeObjects = objects
+        .where(
+          (
+            object,
+          ) => !object.isDeleted,
+        )
+        .toList(
+          growable: false,
+        );
+
+    final decodeWatch = Stopwatch()..start();
+
+    final decodedObjects = await _vaultService.decodeEncryptedObjects(
+      activeObjects,
+      concurrency: _decodeConcurrency,
+    );
+
+    decodeWatch.stop();
 
     final entries =
         <
           BrainReviewVaultEntry
         >[];
 
-    for (final object in objects) {
-      if (object.isDeleted) {
-        continue;
-      }
+    final byReviewId =
+        <
+          String,
+          BrainReviewVaultEntry
+        >{};
 
-      final entry = await _decodeReviewObject(
-        object,
-      );
+    final byConceptId =
+        <
+          String,
+          List<
+            BrainReviewVaultEntry
+          >
+        >{};
 
-      if (entry ==
+    for (
+      var index = 0;
+      index <
+          activeObjects.length;
+      index++
+    ) {
+      final object = activeObjects[index];
+
+      final decoded = decodedObjects[index];
+
+      if (decoded ==
           null) {
         continue;
       }
 
-      entries.add(
-        entry,
-      );
+      // Compatibilidade:
+      // alguns payloads antigos podem ter model=brain_review.
+      final model = decoded.data['model']?.toString().trim();
+
+      final claimsReview =
+          decoded.type ==
+              BrainVaultObjectType.review ||
+          model ==
+              'brain_review';
+
+      if (!claimsReview) {
+        continue;
+      }
+
+      try {
+        final review = _normalizeReview(
+          _mapper.fromVaultData(
+            decoded.data,
+          ),
+        );
+
+        final entry = BrainReviewVaultEntry(
+          objectId: object.header.objectId,
+          review: review,
+        );
+
+        if (!entry.isValid) {
+          throw const FormatException(
+            'BrainReviewVaultEntry inválida.',
+          );
+        }
+
+        entries.add(
+          entry,
+        );
+
+        byReviewId[review.id] = entry;
+
+        byConceptId
+            .putIfAbsent(
+              review.conceptId,
+              () =>
+                  <
+                    BrainReviewVaultEntry
+                  >[],
+            )
+            .add(
+              entry,
+            );
+      } catch (
+        error
+      ) {
+        debugPrint(
+          '[BRAIN REVIEW VAULT] '
+          'Review inválida ignorada: $error',
+        );
+      }
     }
 
     entries.sort(
@@ -167,11 +335,52 @@ class BrainReviewVaultStore {
       },
     );
 
-    return entries;
+    totalWatch.stop();
+
+    _entryCache =
+        List<
+          BrainReviewVaultEntry
+        >.of(
+          entries,
+          growable: false,
+        );
+
+    _entryByReviewId = byReviewId;
+
+    _entriesByConceptId = byConceptId;
+
+    debugPrint(
+      '[BRAIN REVIEW PERF] '
+      'objetos=${objects.length} '
+      'ativos=${activeObjects.length} '
+      'reviews=${entries.length}',
+    );
+
+    debugPrint(
+      '[BRAIN REVIEW PERF] '
+      'loadAllEncryptedObjects=${rawWatch.elapsedMilliseconds}ms',
+    );
+
+    debugPrint(
+      '[BRAIN REVIEW PERF] '
+      'batch decode=${decodeWatch.elapsedMilliseconds}ms '
+      '(concorrencia=$_decodeConcurrency)',
+    );
+
+    debugPrint(
+      '[BRAIN REVIEW PERF] '
+      'TOTAL=${totalWatch.elapsedMilliseconds}ms',
+    );
+
+    return List<
+      BrainReviewVaultEntry
+    >.unmodifiable(
+      entries,
+    );
   }
 
   // ============================================================
-  // GET REVIEW
+  // GET REVIEW BY ID
   // ============================================================
 
   Future<
@@ -187,10 +396,6 @@ class BrainReviewVaultStore {
     return entry?.review;
   }
 
-  // ============================================================
-  // GET ENTRY
-  // ============================================================
-
   Future<
     BrainReviewVaultEntry?
   >
@@ -203,20 +408,13 @@ class BrainReviewVaultStore {
       return null;
     }
 
-    final entries = await loadEntries();
+    await loadEntries();
 
-    for (final entry in entries) {
-      if (entry.review.id ==
-          cleanId) {
-        return entry;
-      }
-    }
-
-    return null;
+    return _entryByReviewId?[cleanId];
   }
 
   // ============================================================
-  // GET BY CONCEPT ID
+  // GET REVIEW BY CONCEPT
   // ============================================================
 
   Future<
@@ -232,10 +430,6 @@ class BrainReviewVaultStore {
     return entry?.review;
   }
 
-  // ============================================================
-  // GET ENTRY BY CONCEPT ID
-  // ============================================================
-
   Future<
     BrainReviewVaultEntry?
   >
@@ -248,21 +442,18 @@ class BrainReviewVaultStore {
       return null;
     }
 
-    final entries = await loadEntries();
+    await loadEntries();
 
-    for (final entry in entries) {
-      if (entry.review.conceptId ==
-          cleanConceptId) {
-        return entry;
-      }
+    final entries = _entriesByConceptId?[cleanConceptId];
+
+    if (entries ==
+            null ||
+        entries.isEmpty) {
+      return null;
     }
 
-    return null;
+    return entries.first;
   }
-
-  // ============================================================
-  // EXISTS
-  // ============================================================
 
   Future<
     bool
@@ -280,18 +471,6 @@ class BrainReviewVaultStore {
 
   // ============================================================
   // SAVE
-  // ============================================================
-  //
-  // Upsert lógico:
-  //
-  // review.id já existe
-  //      ↓
-  // updateObject()
-  //
-  // review.id não existe
-  //      ↓
-  // createObject()
-  //
   // ============================================================
 
   Future<
@@ -320,28 +499,24 @@ class BrainReviewVaultStore {
         type: BrainVaultObjectType.review,
         data: data,
       );
-
-      return normalized;
+    } else {
+      await _vaultService.updateObject(
+        objectId: existing.objectId,
+        type: BrainVaultObjectType.review,
+        data: data,
+      );
     }
 
-    await _vaultService.updateObject(
-      objectId: existing.objectId,
-      type: BrainVaultObjectType.review,
-      data: data,
-    );
+    invalidateCache();
 
     return normalized;
   }
-
-  // ============================================================
-  // SAVE MANY
-  // ============================================================
 
   Future<
     void
   >
   saveReviews(
-    List<
+    Iterable<
       BrainReviewItem
     >
     reviews,
@@ -354,15 +529,7 @@ class BrainReviewVaultStore {
   }
 
   // ============================================================
-  // DELETE
-  // ============================================================
-  //
-  // Não apagamos fisicamente o .evobj.
-  //
-  // BrainVaultService.deleteObject() cria tombstone.
-  //
-  // Isso será importante posteriormente para sync.
-  //
+  // DELETE BY ID
   // ============================================================
 
   Future<
@@ -377,22 +544,24 @@ class BrainReviewVaultStore {
       return;
     }
 
-    final existing = await getEntry(
+    final entry = await getEntry(
       cleanId,
     );
 
-    if (existing ==
+    if (entry ==
         null) {
       return;
     }
 
     await _vaultService.deleteObject(
-      existing.objectId,
+      entry.objectId,
     );
+
+    invalidateCache();
   }
 
   // ============================================================
-  // DELETE BY CONCEPT
+  // DELETE BY CONCEPT ID
   // ============================================================
 
   Future<
@@ -407,33 +576,33 @@ class BrainReviewVaultStore {
       return;
     }
 
-    final entries = await loadEntries();
+    await loadEntries();
 
-    final matches = entries.where(
-      (
-        entry,
-      ) {
-        return entry.review.conceptId ==
-            cleanConceptId;
-      },
-    ).toList();
+    final matches =
+        List<
+          BrainReviewVaultEntry
+        >.of(
+          _entriesByConceptId?[cleanConceptId] ??
+              const <
+                BrainReviewVaultEntry
+              >[],
+        );
+
+    if (matches.isEmpty) {
+      return;
+    }
 
     for (final entry in matches) {
       await _vaultService.deleteObject(
         entry.objectId,
       );
     }
+
+    invalidateCache();
   }
 
   // ============================================================
   // DELETE BY SOURCE NOTE PATH
-  // ============================================================
-  //
-  // sourceNotePath ainda é legado.
-  //
-  // Futuramente esta relação será substituída por objectId
-  // estável da nota.
-  //
   // ============================================================
 
   Future<
@@ -450,24 +619,34 @@ class BrainReviewVaultStore {
 
     final entries = await loadEntries();
 
-    final matches = entries.where(
-      (
-        entry,
-      ) {
-        return entry.review.sourceNotePath.trim() ==
-            cleanPath;
-      },
-    ).toList();
+    final matches = entries
+        .where(
+          (
+            entry,
+          ) {
+            return entry.review.sourceNotePath.trim() ==
+                cleanPath;
+          },
+        )
+        .toList(
+          growable: false,
+        );
+
+    if (matches.isEmpty) {
+      return;
+    }
 
     for (final entry in matches) {
       await _vaultService.deleteObject(
         entry.objectId,
       );
     }
+
+    invalidateCache();
   }
 
   // ============================================================
-  // LOAD DUE
+  // DUE
   // ============================================================
 
   Future<
@@ -478,25 +657,29 @@ class BrainReviewVaultStore {
   loadDueReviews({
     DateTime? now,
   }) async {
-    final current =
+    final reference =
         now ??
         DateTime.now();
 
     final reviews = await loadReviews();
 
-    final result = reviews.where(
-      (
-        review,
-      ) {
-        if (review.archived) {
-          return false;
-        }
+    final result = reviews
+        .where(
+          (
+            review,
+          ) {
+            if (review.archived) {
+              return false;
+            }
 
-        return !review.nextReviewAt.isAfter(
-          current,
+            return !review.nextReviewAt.isAfter(
+              reference,
+            );
+          },
+        )
+        .toList(
+          growable: false,
         );
-      },
-    ).toList();
 
     _sortReviews(
       result,
@@ -506,7 +689,7 @@ class BrainReviewVaultStore {
   }
 
   // ============================================================
-  // LOAD UPCOMING
+  // UPCOMING
   // ============================================================
 
   Future<
@@ -517,25 +700,29 @@ class BrainReviewVaultStore {
   loadUpcomingReviews({
     DateTime? now,
   }) async {
-    final current =
+    final reference =
         now ??
         DateTime.now();
 
     final reviews = await loadReviews();
 
-    final result = reviews.where(
-      (
-        review,
-      ) {
-        if (review.archived) {
-          return false;
-        }
+    final result = reviews
+        .where(
+          (
+            review,
+          ) {
+            if (review.archived) {
+              return false;
+            }
 
-        return review.nextReviewAt.isAfter(
-          current,
+            return review.nextReviewAt.isAfter(
+              reference,
+            );
+          },
+        )
+        .toList(
+          growable: false,
         );
-      },
-    ).toList();
 
     _sortReviews(
       result,
@@ -545,7 +732,7 @@ class BrainReviewVaultStore {
   }
 
   // ============================================================
-  // LOAD ACTIVE
+  // ACTIVE
   // ============================================================
 
   Future<
@@ -556,13 +743,15 @@ class BrainReviewVaultStore {
   loadActiveReviews() async {
     final reviews = await loadReviews();
 
-    final result = reviews.where(
-      (
-        review,
-      ) {
-        return !review.archived;
-      },
-    ).toList();
+    final result = reviews
+        .where(
+          (
+            review,
+          ) => !review.archived,
+        )
+        .toList(
+          growable: false,
+        );
 
     _sortReviews(
       result,
@@ -572,7 +761,7 @@ class BrainReviewVaultStore {
   }
 
   // ============================================================
-  // LOAD ARCHIVED
+  // ARCHIVED
   // ============================================================
 
   Future<
@@ -583,13 +772,15 @@ class BrainReviewVaultStore {
   loadArchivedReviews() async {
     final reviews = await loadReviews();
 
-    final result = reviews.where(
-      (
-        review,
-      ) {
-        return review.archived;
-      },
-    ).toList();
+    final result = reviews
+        .where(
+          (
+            review,
+          ) => review.archived,
+        )
+        .toList(
+          growable: false,
+        );
 
     result.sort(
       (
@@ -624,78 +815,6 @@ class BrainReviewVaultStore {
     final reviews = await loadReviews();
 
     return reviews.length;
-  }
-
-  // ============================================================
-  // DECODE OBJECT
-  // ============================================================
-
-  Future<
-    BrainReviewVaultEntry?
-  >
-  _decodeReviewObject(
-    BrainVaultObject object,
-  ) async {
-    final decoded = await _vaultService.readObject(
-      object.header.objectId,
-    );
-
-    if (decoded ==
-        null) {
-      return null;
-    }
-
-    final data = decoded.data;
-
-    // ==========================================================
-    // FILTER OTHER OBJECT TYPES
-    // ==========================================================
-    //
-    // O tipo lógico também existe dentro do payload
-    // criptografado.
-    //
-    // Fazemos esta verificação ANTES do mapper para não confundir
-    // um objeto que simplesmente não é review com uma review
-    // corrompida.
-    //
-    // ==========================================================
-
-    final model = data['model']?.toString().trim();
-
-    if (model !=
-        'brain_review') {
-      return null;
-    }
-
-    // ==========================================================
-    // DECODE REVIEW
-    // ==========================================================
-    //
-    // A partir daqui sabemos que o objeto afirma ser uma review.
-    //
-    // Se o mapper lançar FormatException, NÃO escondemos o erro.
-    //
-    // Isso evita transformar corrupção de uma review em simples
-    // "review inexistente".
-    //
-    // ==========================================================
-
-    final review = _mapper.fromVaultData(
-      data,
-    );
-
-    final entry = BrainReviewVaultEntry(
-      objectId: object.header.objectId,
-      review: review,
-    );
-
-    if (!entry.isValid) {
-      throw const FormatException(
-        'BrainReviewVaultEntry inválida.',
-      );
-    }
-
-    return entry;
   }
 
   // ============================================================
@@ -771,10 +890,6 @@ class BrainReviewVaultStore {
       _compareReviews,
     );
   }
-
-  // ============================================================
-  // COMPARE
-  // ============================================================
 
   int _compareReviews(
     BrainReviewItem first,

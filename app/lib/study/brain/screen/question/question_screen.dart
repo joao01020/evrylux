@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../app/dependencies/app_dependencies.dart' as dependencies;
@@ -68,6 +70,70 @@ class _QuestionScreenState
       >{};
 
   // ============================================================
+  // SNAPSHOT DA TELA
+  // ============================================================
+  //
+  // Evita recalcular overdue/today/future/active/archived várias
+  // vezes durante o mesmo build.
+  //
+  // O ReviewController continua sendo a fonte de verdade.
+  //
+  // ============================================================
+
+  List<
+    BrainReviewItem
+  >
+  _overdueSnapshot =
+      const <
+        BrainReviewItem
+      >[];
+  List<
+    BrainReviewItem
+  >
+  _todaySnapshot =
+      const <
+        BrainReviewItem
+      >[];
+  List<
+    BrainReviewItem
+  >
+  _futureSnapshot =
+      const <
+        BrainReviewItem
+      >[];
+  List<
+    BrainReviewItem
+  >
+  _dueNowSnapshot =
+      const <
+        BrainReviewItem
+      >[];
+  List<
+    BrainReviewItem
+  >
+  _activeSnapshot =
+      const <
+        BrainReviewItem
+      >[];
+  List<
+    BrainReviewItem
+  >
+  _archivedSnapshot =
+      const <
+        BrainReviewItem
+      >[];
+
+  Set<
+    String
+  >
+  _overdueIds =
+      const <
+        String
+      >{};
+
+  bool _backgroundRefreshRunning = false;
+
+  // ============================================================
   // INIT
   // ============================================================
 
@@ -86,7 +152,11 @@ class _QuestionScreenState
       _onControllerChanged,
     );
 
-    _initialize();
+    _rebuildSnapshots();
+
+    unawaited(
+      _initialize(),
+    );
   }
 
   // ============================================================
@@ -111,11 +181,22 @@ class _QuestionScreenState
     void
   >
   _initialize() async {
+    final watch = Stopwatch()..start();
+
     await _controller.initialize();
+
+    watch.stop();
+
+    debugPrint(
+      '[QUESTION SCREEN] initialize=${watch.elapsedMilliseconds}ms '
+      'reviews=${_controller.reviews.length}',
+    );
 
     if (!mounted) {
       return;
     }
+
+    _rebuildSnapshots();
 
     _showMessages();
   }
@@ -129,9 +210,198 @@ class _QuestionScreenState
       return;
     }
 
+    _rebuildSnapshots();
+
     setState(
       () {},
     );
+  }
+
+  // ============================================================
+  // SNAPSHOT / AGRUPAMENTOS
+  // ============================================================
+
+  void _rebuildSnapshots() {
+    final now = DateTime.now();
+
+    final today = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    );
+
+    final tomorrow = today.add(
+      const Duration(
+        days: 1,
+      ),
+    );
+
+    final overdue =
+        <
+          BrainReviewItem
+        >[];
+    final todayItems =
+        <
+          BrainReviewItem
+        >[];
+    final future =
+        <
+          BrainReviewItem
+        >[];
+    final dueNow =
+        <
+          BrainReviewItem
+        >[];
+    final active =
+        <
+          BrainReviewItem
+        >[];
+    final archived =
+        <
+          BrainReviewItem
+        >[];
+
+    for (final review in _controller.reviews) {
+      if (review.archived) {
+        archived.add(
+          review,
+        );
+
+        continue;
+      }
+
+      active.add(
+        review,
+      );
+
+      final next = review.nextReviewAt.toLocal();
+
+      if (!next.isAfter(
+        now,
+      )) {
+        dueNow.add(
+          review,
+        );
+      }
+
+      if (next.isBefore(
+        today,
+      )) {
+        overdue.add(
+          review,
+        );
+      } else if (next.isBefore(
+        tomorrow,
+      )) {
+        todayItems.add(
+          review,
+        );
+      } else {
+        future.add(
+          review,
+        );
+      }
+    }
+
+    int byNextReview(
+      BrainReviewItem first,
+      BrainReviewItem second,
+    ) {
+      return first.nextReviewAt.compareTo(
+        second.nextReviewAt,
+      );
+    }
+
+    overdue.sort(
+      byNextReview,
+    );
+
+    todayItems.sort(
+      byNextReview,
+    );
+
+    future.sort(
+      byNextReview,
+    );
+
+    dueNow.sort(
+      byNextReview,
+    );
+
+    active.sort(
+      byNextReview,
+    );
+
+    archived.sort(
+      (
+        first,
+        second,
+      ) {
+        final firstDate =
+            first.archivedAt ??
+            first.createdAt;
+        final secondDate =
+            second.archivedAt ??
+            second.createdAt;
+
+        return secondDate.compareTo(
+          firstDate,
+        );
+      },
+    );
+
+    _overdueSnapshot =
+        List<
+          BrainReviewItem
+        >.unmodifiable(
+          overdue,
+        );
+
+    _todaySnapshot =
+        List<
+          BrainReviewItem
+        >.unmodifiable(
+          todayItems,
+        );
+
+    _futureSnapshot =
+        List<
+          BrainReviewItem
+        >.unmodifiable(
+          future,
+        );
+
+    _dueNowSnapshot =
+        List<
+          BrainReviewItem
+        >.unmodifiable(
+          dueNow,
+        );
+
+    _activeSnapshot =
+        List<
+          BrainReviewItem
+        >.unmodifiable(
+          active,
+        );
+
+    _archivedSnapshot =
+        List<
+          BrainReviewItem
+        >.unmodifiable(
+          archived,
+        );
+
+    _overdueIds =
+        Set<
+          String
+        >.unmodifiable(
+          overdue.map(
+            (
+              review,
+            ) => review.id,
+          ),
+        );
   }
 
   // ============================================================
@@ -142,25 +412,59 @@ class _QuestionScreenState
     void
   >
   _refresh() async {
+    final watch = Stopwatch()..start();
+
     await _controller.loadReviews();
+
+    watch.stop();
+
+    debugPrint(
+      '[QUESTION SCREEN] reload local=${watch.elapsedMilliseconds}ms '
+      'reviews=${_controller.reviews.length}',
+    );
 
     if (!mounted) {
       return;
     }
 
-    // O dado local já está disponível. A atualização remota é
-    // complementar e não bloqueia o modo offline.
+    _rebuildSnapshots();
+
+    _showMessages();
+
+    // A sincronização remota é complementar.
+    //
+    // Não mantemos o pull-to-refresh preso aguardando rede depois
+    // que o estado local já foi atualizado.
+    unawaited(
+      _refreshRemoteInBackground(),
+    );
+  }
+
+  Future<
+    void
+  >
+  _refreshRemoteInBackground() async {
+    if (_backgroundRefreshRunning) {
+      return;
+    }
+
+    _backgroundRefreshRunning = true;
+
     try {
       await _controller.refreshFromRemote();
     } catch (
       _
     ) {
       // O controller mantém a mensagem de erro.
+    } finally {
+      _backgroundRefreshRunning = false;
     }
 
     if (!mounted) {
       return;
     }
+
+    _rebuildSnapshots();
 
     _showMessages();
   }
@@ -179,28 +483,28 @@ class _QuestionScreenState
     BrainReviewItem
   >
   get _overdueReviews {
-    return _controller.overdueReviews;
+    return _overdueSnapshot;
   }
 
   List<
     BrainReviewItem
   >
   get _todayReviews {
-    return _controller.todayReviews;
+    return _todaySnapshot;
   }
 
   List<
     BrainReviewItem
   >
   get _futureReviews {
-    return _controller.futureReviews;
+    return _futureSnapshot;
   }
 
   List<
     BrainReviewItem
   >
   get _dueNowReviews {
-    return _controller.dueReviews;
+    return _dueNowSnapshot;
   }
 
   // ============================================================
@@ -222,10 +526,10 @@ class _QuestionScreenState
         return _futureReviews;
 
       case 3:
-        return _controller.activeReviews;
+        return _activeSnapshot;
 
       case 4:
-        return _controller.archivedReviews;
+        return _archivedSnapshot;
 
       default:
         return const <
@@ -268,11 +572,10 @@ class _QuestionScreenState
       return;
     }
 
-    await _controller.loadReviews();
-
-    if (!mounted) {
-      return;
-    }
+    // ReviewScreen trabalha com o mesmo ReviewController global.
+    // O estado já foi atualizado durante a sessão; não reler o Vault
+    // ao simplesmente voltar para esta tela.
+    _rebuildSnapshots();
 
     _showMessages();
   }
@@ -322,11 +625,10 @@ class _QuestionScreenState
       return;
     }
 
-    await _controller.loadReviews();
-
-    if (!mounted) {
-      return;
-    }
+    // ReviewScreen trabalha com o mesmo ReviewController global.
+    // O estado já foi atualizado durante a sessão; não reler o Vault
+    // ao simplesmente voltar para esta tela.
+    _rebuildSnapshots();
 
     _showMessages();
   }
@@ -1131,7 +1433,7 @@ class _QuestionScreenState
             Expanded(
               child: _metric(
                 label: 'Ativas',
-                value: _controller.activeCount,
+                value: _activeSnapshot.length,
                 icon: Icons.psychology_alt_outlined,
               ),
             ),
@@ -1358,181 +1660,246 @@ class _QuestionScreenState
 
     final overdue =
         !review.archived &&
-        _controller.overdueReviews.any(
-          (
-            item,
-          ) {
-            return item.id ==
-                review.id;
-          },
+        _overdueIds.contains(
+          review.id,
         );
 
     final selected = _selectedReviewIds.contains(
       review.id,
     );
 
-    return Card(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onLongPress: _isDeleting
-            ? null
-            : () {
-                _enterSelectionMode(
-                  review,
-                );
-              },
-        onTap: _isDeleting
-            ? null
-            : () {
-                if (_selectionMode) {
-                  _toggleReviewSelection(
+    return RepaintBoundary(
+      child: Card(
+        margin: EdgeInsets.zero,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onLongPress: _isDeleting
+              ? null
+              : () {
+                  _enterSelectionMode(
                     review,
                   );
-                  return;
-                }
+                },
+          onTap: _isDeleting
+              ? null
+              : () {
+                  if (_selectionMode) {
+                    _toggleReviewSelection(
+                      review,
+                    );
+                    return;
+                  }
 
-                if (!review.archived) {
-                  _openReview(
-                    review,
-                  );
-                }
-              },
-        child: ListTile(
-          selected: selected,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 10,
-          ),
-          leading: _selectionMode
-              ? Checkbox(
-                  value: selected,
-                  onChanged: _isDeleting
-                      ? null
-                      : (
-                          _,
-                        ) {
-                          _toggleReviewSelection(
-                            review,
-                          );
-                        },
-                )
-              : CircleAvatar(
-                  child: Icon(
-                    review.archived
-                        ? Icons.archive_outlined
-                        : overdue
-                        ? Icons.notification_important_outlined
-                        : due
-                        ? Icons.notifications_active_outlined
-                        : Icons.help_outline_rounded,
-                  ),
-                ),
-          title: Text(
-            review.question,
-            style: const TextStyle(
-              fontWeight: FontWeight.w700,
+                  if (!review.archived) {
+                    _openReview(
+                      review,
+                    );
+                  }
+                },
+          child: ListTile(
+            selected: selected,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 10,
             ),
-          ),
-          subtitle: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(
-                height: 6,
+            leading: _selectionMode
+                ? Checkbox(
+                    value: selected,
+                    onChanged: _isDeleting
+                        ? null
+                        : (
+                            _,
+                          ) {
+                            _toggleReviewSelection(
+                              review,
+                            );
+                          },
+                  )
+                : CircleAvatar(
+                    child: Icon(
+                      review.archived
+                          ? Icons.archive_outlined
+                          : overdue
+                          ? Icons.notification_important_outlined
+                          : due
+                          ? Icons.notifications_active_outlined
+                          : Icons.help_outline_rounded,
+                    ),
+                  ),
+            title: Text(
+              review.question,
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
               ),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(
+                  height: 6,
+                ),
 
-              Text(
-                review.archived
-                    ? 'Arquivada'
-                    : overdue
-                    ? 'Revisão atrasada desde ${_formatDate(review.nextReviewAt)}'
-                    : due
-                    ? 'Disponível para revisar agora'
-                    : 'Próxima revisão: ${_formatDate(review.nextReviewAt)}',
-              ),
+                Text(
+                  review.archived
+                      ? 'Arquivada'
+                      : overdue
+                      ? 'Revisão atrasada desde ${_formatDate(review.nextReviewAt)}'
+                      : due
+                      ? 'Disponível para revisar agora'
+                      : 'Próxima revisão: ${_formatDate(review.nextReviewAt)}',
+                ),
 
-              if (review.sourceNoteTitle.trim().isNotEmpty) ...[
+                if (review.sourceNoteTitle.trim().isNotEmpty) ...[
+                  const SizedBox(
+                    height: 4,
+                  ),
+                  Text(
+                    'Origem: ${review.sourceNoteTitle}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+
                 const SizedBox(
                   height: 4,
                 ),
+
                 Text(
-                  'Origem: ${review.sourceNoteTitle}',
+                  'Revisões: ${review.reviewCount} • '
+                  'Acertos: ${review.correctCount} • '
+                  'Erros: ${review.wrongCount} • '
+                  'Sequência: ${review.streak}',
                   style: const TextStyle(
                     fontSize: 12,
                   ),
                 ),
               ],
+            ),
+            trailing: _selectionMode
+                ? null
+                : PopupMenuButton<
+                    String
+                  >(
+                    tooltip: 'Opções',
+                    enabled: !_isDeleting,
+                    onSelected:
+                        (
+                          value,
+                        ) async {
+                          switch (value) {
+                            case 'review':
+                              await _openReview(
+                                review,
+                              );
+                              break;
 
-              const SizedBox(
-                height: 4,
-              ),
+                            case 'select':
+                              _enterSelectionMode(
+                                review,
+                              );
+                              break;
 
-              Text(
-                'Revisões: ${review.reviewCount} • '
-                'Acertos: ${review.correctCount} • '
-                'Erros: ${review.wrongCount} • '
-                'Sequência: ${review.streak}',
-                style: const TextStyle(
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-          trailing: _selectionMode
-              ? null
-              : PopupMenuButton<
-                  String
-                >(
-                  tooltip: 'Opções',
-                  enabled: !_isDeleting,
-                  onSelected:
-                      (
-                        value,
-                      ) async {
-                        switch (value) {
-                          case 'review':
-                            await _openReview(
-                              review,
-                            );
-                            break;
+                            case 'postpone':
+                              await _postpone(
+                                review,
+                              );
+                              break;
 
-                          case 'select':
-                            _enterSelectionMode(
-                              review,
-                            );
-                            break;
+                            case 'archive':
+                              await _archive(
+                                review,
+                              );
+                              break;
 
-                          case 'postpone':
-                            await _postpone(
-                              review,
-                            );
-                            break;
+                            case 'restore':
+                              await _restore(
+                                review,
+                              );
+                              break;
 
-                          case 'archive':
-                            await _archive(
-                              review,
-                            );
-                            break;
+                            case 'delete':
+                              await _deleteReview(
+                                review,
+                              );
+                              break;
+                          }
+                        },
+                    itemBuilder:
+                        (
+                          _,
+                        ) {
+                          if (review.archived) {
+                            return const [
+                              PopupMenuItem(
+                                value: 'select',
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.check_box_outlined,
+                                    ),
+                                    SizedBox(
+                                      width: 10,
+                                    ),
+                                    Text(
+                                      'Selecionar',
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: 'restore',
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.unarchive_outlined,
+                                    ),
+                                    SizedBox(
+                                      width: 10,
+                                    ),
+                                    Text(
+                                      'Restaurar',
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuDivider(),
+                              PopupMenuItem(
+                                value: 'delete',
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.delete_outline_rounded,
+                                    ),
+                                    SizedBox(
+                                      width: 10,
+                                    ),
+                                    Text(
+                                      'Excluir',
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ];
+                          }
 
-                          case 'restore':
-                            await _restore(
-                              review,
-                            );
-                            break;
-
-                          case 'delete':
-                            await _deleteReview(
-                              review,
-                            );
-                            break;
-                        }
-                      },
-                  itemBuilder:
-                      (
-                        _,
-                      ) {
-                        if (review.archived) {
                           return const [
+                            PopupMenuItem(
+                              value: 'review',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.psychology_alt_outlined,
+                                  ),
+                                  SizedBox(
+                                    width: 10,
+                                  ),
+                                  Text(
+                                    'Revisar',
+                                  ),
+                                ],
+                              ),
+                            ),
                             PopupMenuItem(
                               value: 'select',
                               child: Row(
@@ -1550,17 +1917,33 @@ class _QuestionScreenState
                               ),
                             ),
                             PopupMenuItem(
-                              value: 'restore',
+                              value: 'postpone',
                               child: Row(
                                 children: [
                                   Icon(
-                                    Icons.unarchive_outlined,
+                                    Icons.schedule_outlined,
                                   ),
                                   SizedBox(
                                     width: 10,
                                   ),
                                   Text(
-                                    'Restaurar',
+                                    'Adiar 1 dia',
+                                  ),
+                                ],
+                              ),
+                            ),
+                            PopupMenuItem(
+                              value: 'archive',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.archive_outlined,
+                                  ),
+                                  SizedBox(
+                                    width: 10,
+                                  ),
+                                  Text(
+                                    'Arquivar',
                                   ),
                                 ],
                               ),
@@ -1583,93 +1966,9 @@ class _QuestionScreenState
                               ),
                             ),
                           ];
-                        }
-
-                        return const [
-                          PopupMenuItem(
-                            value: 'review',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.psychology_alt_outlined,
-                                ),
-                                SizedBox(
-                                  width: 10,
-                                ),
-                                Text(
-                                  'Revisar',
-                                ),
-                              ],
-                            ),
-                          ),
-                          PopupMenuItem(
-                            value: 'select',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.check_box_outlined,
-                                ),
-                                SizedBox(
-                                  width: 10,
-                                ),
-                                Text(
-                                  'Selecionar',
-                                ),
-                              ],
-                            ),
-                          ),
-                          PopupMenuItem(
-                            value: 'postpone',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.schedule_outlined,
-                                ),
-                                SizedBox(
-                                  width: 10,
-                                ),
-                                Text(
-                                  'Adiar 1 dia',
-                                ),
-                              ],
-                            ),
-                          ),
-                          PopupMenuItem(
-                            value: 'archive',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.archive_outlined,
-                                ),
-                                SizedBox(
-                                  width: 10,
-                                ),
-                                Text(
-                                  'Arquivar',
-                                ),
-                              ],
-                            ),
-                          ),
-                          PopupMenuDivider(),
-                          PopupMenuItem(
-                            value: 'delete',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.delete_outline_rounded,
-                                ),
-                                SizedBox(
-                                  width: 10,
-                                ),
-                                Text(
-                                  'Excluir',
-                                ),
-                              ],
-                            ),
-                          ),
-                        ];
-                      },
-                ),
+                        },
+                  ),
+          ),
         ),
       ),
     );
