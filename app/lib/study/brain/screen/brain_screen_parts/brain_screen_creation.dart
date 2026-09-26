@@ -1,30 +1,18 @@
 part of '../brain_screen.dart';
 
-class _BrainPulsingProgressBar
-    extends
-        StatefulWidget {
-  const _BrainPulsingProgressBar({
-    required this.progress,
-    this.height = 7,
-  });
+class _BrainPulsingProgressBar extends StatefulWidget {
+  const _BrainPulsingProgressBar({required this.progress, this.height = 7});
 
   final double progress;
   final double height;
 
   @override
-  State<
-    _BrainPulsingProgressBar
-  >
-  createState() => _BrainPulsingProgressBarState();
+  State<_BrainPulsingProgressBar> createState() =>
+      _BrainPulsingProgressBarState();
 }
 
-class _BrainPulsingProgressBarState
-    extends
-        State<
-          _BrainPulsingProgressBar
-        >
-    with
-        SingleTickerProviderStateMixin {
+class _BrainPulsingProgressBarState extends State<_BrainPulsingProgressBar>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _pulseController;
 
   @override
@@ -32,9 +20,7 @@ class _BrainPulsingProgressBarState
     super.initState();
     _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(
-        milliseconds: 1150,
-      ),
+      duration: const Duration(milliseconds: 1150),
     )..repeat();
   }
 
@@ -45,58 +31,28 @@ class _BrainPulsingProgressBarState
   }
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final theme = Theme.of(
-      context,
-    );
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(
-        999,
-      ),
+      borderRadius: BorderRadius.circular(999),
       child: AnimatedBuilder(
         animation: _pulseController,
-        builder:
-            (
-              context,
-              child,
-            ) {
-              final value = _pulseController.value;
-              final pulse =
-                  value <=
-                      0.5
-                  ? value *
-                        2
-                  : (1 -
-                            value) *
-                        2;
+        builder: (context, child) {
+          final value = _pulseController.value;
+          final pulse = value <= 0.5 ? value * 2 : (1 - value) * 2;
 
-              return LinearProgressIndicator(
-                value: widget.progress
-                    .clamp(
-                      0.0,
-                      1.0,
-                    )
-                    .toDouble(),
-                minHeight: widget.height,
-                backgroundColor: theme.colorScheme.primary.withValues(
-                  alpha: 0.10,
-                ),
-                valueColor:
-                    AlwaysStoppedAnimation<
-                      Color
-                    >(
-                      theme.colorScheme.primary.withValues(
-                        alpha:
-                            0.72 +
-                            (pulse *
-                                0.20),
-                      ),
-                    ),
-              );
-            },
+          return LinearProgressIndicator(
+            value: widget.progress.clamp(0.0, 1.0).toDouble(),
+            minHeight: widget.height,
+            backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.10),
+            valueColor: AlwaysStoppedAnimation<Color>(
+              theme.colorScheme.primary.withValues(
+                alpha: 0.72 + (pulse * 0.20),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -105,12 +61,9 @@ class _BrainPulsingProgressBarState
 // Knowledge creation flow: save, review, type selection, source editing and question batches.
 // Prevents a second knowledge creation flow from reusing the same BrainController
 // while a minimized concept save is still finishing in the background.
-bool
-_brainKnowledgeSaveInProgress = false;
+bool _brainKnowledgeSaveInProgress = false;
 
-extension _BrainScreenCreation
-    on
-        _BrainScreenState {
+extension _BrainScreenCreation on _BrainScreenState {
   // ============================================================
   // SALVAR CONHECIMENTO
   // ============================================================
@@ -131,25 +84,12 @@ extension _BrainScreenCreation
   //
   // ============================================================
 
-  Future<
-    bool
-  >
-  _saveKnowledge({
+  Future<bool> _saveKnowledge({
     required BrainConceptType type,
     DateTime? firstReviewAt,
     bool reviewEnabled = false,
-    List<
-          BrainSource
-        >
-        sources =
-        const <
-          BrainSource
-        >[],
-    void Function(
-      String status,
-      String description,
-    )?
-    onProgress,
+    List<BrainSource> sources = const <BrainSource>[],
+    void Function(String status, String description)? onProgress,
     bool showCompletionMessage = true,
   }) async {
     final title = _controller.titleController.text.trim();
@@ -176,8 +116,7 @@ extension _BrainScreenCreation
 
     if (title.isEmpty) {
       _showMessage(
-        type ==
-                BrainConceptType.question
+        type == BrainConceptType.question
             ? 'Digite a pergunta antes de salvar.'
             : 'Digite um título antes de salvar.',
       );
@@ -187,8 +126,7 @@ extension _BrainScreenCreation
 
     if (content.isEmpty) {
       _showMessage(
-        type ==
-                BrainConceptType.question
+        type == BrainConceptType.question
             ? 'Digite a resposta antes de salvar.'
             : 'Digite o conteúdo da anotação antes de salvar.',
       );
@@ -203,12 +141,9 @@ extension _BrainScreenCreation
     BrainConcept? existingConcept;
 
     for (final item in _controller.concepts) {
-      if (item.type ==
-              type &&
-          item.title.trim() ==
-              title &&
-          item.description.trim() ==
-              content) {
+      if (item.type == type &&
+          item.title.trim() == title &&
+          item.description.trim() == content) {
         existingConcept = item;
 
         break;
@@ -233,19 +168,15 @@ extension _BrainScreenCreation
     // ADICIONAR AO ARQUIVO
     // ==========================================================
 
-    if (type ==
-        BrainConceptType.concept) {
+    if (type == BrainConceptType.concept) {
       onProgress?.call(
         'Organizando estrutura',
         'Preparando conceitos e detalhes antes da proteção no Vault.',
       );
     }
 
-    if (existingConcept ==
-        null) {
-      await _controller.addConcept(
-        concept,
-      );
+    if (existingConcept == null) {
+      await _controller.addConcept(concept);
 
       if (!mounted) {
         return false;
@@ -256,12 +187,8 @@ extension _BrainScreenCreation
     // SALVAR OFFLINE-FIRST
     // ==========================================================
 
-    if (type ==
-        BrainConceptType.concept) {
-      onProgress?.call(
-        'Criptografando o conhecimento',
-        '',
-      );
+    if (type == BrainConceptType.concept) {
+      onProgress?.call('Criptografando o conhecimento', '');
     }
 
     final saved = await _controller.saveNote();
@@ -276,8 +203,7 @@ extension _BrainScreenCreation
       return false;
     }
 
-    if (type ==
-        BrainConceptType.concept) {
+    if (type == BrainConceptType.concept) {
       onProgress?.call(
         'Integridade validada',
         'Seu conhecimento está criptografado e a gravação segura foi validada.',
@@ -298,22 +224,17 @@ extension _BrainScreenCreation
     //
     // ==========================================================
 
-    if (type ==
-            BrainConceptType.concept &&
-        sources.isNotEmpty) {
+    if (type == BrainConceptType.concept && sources.isNotEmpty) {
       onProgress?.call(
         'Conectando fontes',
-        sources.length ==
-                1
+        sources.length == 1
             ? 'Vinculando a fonte deste conhecimento.'
             : 'Vinculando ${sources.length} fontes a este conhecimento.',
       );
     }
 
     for (final source in sources) {
-      final sourceSaved = await _controller.addSource(
-        source,
-      );
+      final sourceSaved = await _controller.addSource(source);
 
       if (!mounted) {
         return false;
@@ -330,11 +251,8 @@ extension _BrainScreenCreation
     // PERGUNTA → SISTEMA DE REVISÃO
     // ==========================================================
 
-    if (type ==
-        BrainConceptType.question) {
-      final sourceNotePath =
-          _controller.selectedNote?.path.trim() ??
-          '';
+    if (type == BrainConceptType.question) {
+      final sourceNotePath = _controller.selectedNote?.path.trim() ?? '';
 
       if (sourceNotePath.isEmpty) {
         _showMessage(
@@ -349,9 +267,7 @@ extension _BrainScreenCreation
         answer: content,
         title: title,
         sourceNotePath: sourceNotePath,
-        firstReviewAt:
-            firstReviewAt ??
-            DateTime.now(),
+        firstReviewAt: firstReviewAt ?? DateTime.now(),
       );
 
       if (!mounted) {
@@ -368,20 +284,14 @@ extension _BrainScreenCreation
     // gera perguntas abertas e persiste cada uma como BrainReviewItem.
     // ==========================================================
 
-    if (type ==
-            BrainConceptType.concept &&
-        reviewEnabled) {
+    if (type == BrainConceptType.concept && reviewEnabled) {
       onProgress?.call(
         'Preparando revisão',
         'Criando perguntas para revisar este conhecimento.',
       );
 
-      final sourceNotePath =
-          _controller.selectedNote?.path.trim() ??
-          '';
-      final sourceNoteTitle =
-          _controller.selectedNote?.title.trim() ??
-          title;
+      final sourceNotePath = _controller.selectedNote?.path.trim() ?? '';
+      final sourceNoteTitle = _controller.selectedNote?.title.trim() ?? title;
 
       if (sourceNotePath.isEmpty) {
         _showMessage(
@@ -395,9 +305,7 @@ extension _BrainScreenCreation
         concept: concept,
         sourceNotePath: sourceNotePath,
         sourceNoteTitle: sourceNoteTitle,
-        firstReviewAt:
-            firstReviewAt ??
-            DateTime.now(),
+        firstReviewAt: firstReviewAt ?? DateTime.now(),
       );
 
       if (!mounted) {
@@ -405,8 +313,7 @@ extension _BrainScreenCreation
       }
 
       final reviewError = reviewController.errorMessage;
-      if (reviewError !=
-          null) {
+      if (reviewError != null) {
         _showMessage(
           'O conhecimento foi salvo, mas as perguntas de revisão não puderam ser geradas: $reviewError',
         );
@@ -430,10 +337,7 @@ extension _BrainScreenCreation
   // REVIEW
   // ============================================================
 
-  Future<
-    void
-  >
-  _createQuestionReview({
+  Future<void> _createQuestionReview({
     required BrainConcept concept,
     required String answer,
     required String title,
@@ -470,12 +374,9 @@ extension _BrainScreenCreation
 
     await reviewController.initialize();
 
-    final existing = reviewController.findByConceptId(
-      concept.id,
-    );
+    final existing = reviewController.findByConceptId(concept.id);
 
-    if (existing !=
-        null) {
+    if (existing != null) {
       return;
     }
 
@@ -493,11 +394,8 @@ extension _BrainScreenCreation
 
     final error = reviewController.errorMessage;
 
-    if (error !=
-        null) {
-      _showMessage(
-        error,
-      );
+    if (error != null) {
+      _showMessage(error);
 
       reviewController.clearMessages();
     }
@@ -518,101 +416,77 @@ extension _BrainScreenCreation
   //
   // ============================================================
 
-  Future<
-    BrainConceptType?
-  >
-  _showSaveTypeDialog() {
-    return showDialog<
-      BrainConceptType
-    >(
+  Future<BrainConceptType?> _showSaveTypeDialog() {
+    return showDialog<BrainConceptType>(
       context: context,
       barrierDismissible: true,
-      builder:
-          (
-            dialogContext,
-          ) {
-            return Dialog(
-              clipBehavior: Clip.antiAlias,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: 540,
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(
-                    24,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
+      builder: (dialogContext) {
+        return Dialog(
+          clipBehavior: Clip.antiAlias,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 540),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      Row(
-                        children: [
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Salvar conhecimento',
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                SizedBox(
-                                  height: 2,
-                                ),
-                                Text(
-                                  'Escolha o que deseja criar.',
-                                ),
-                              ],
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Salvar conhecimento',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(
-                        height: 24,
-                      ),
-
-                      _buildSaveTypeOption(
-                        dialogContext: dialogContext,
-                        type: BrainConceptType.concept,
-                        subtitle: 'Registre algo que você aprendeu e queira consultar depois.',
-                      ),
-
-                      const SizedBox(
-                        height: 10,
-                      ),
-
-                      _buildSaveTypeOption(
-                        dialogContext: dialogContext,
-                        type: BrainConceptType.question,
-                        subtitle: 'Crie uma pergunta para transformar o conhecimento em revisão ativa.',
-                      ),
-
-                      const SizedBox(
-                        height: 18,
-                      ),
-
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: () {
-                            Navigator.pop(
-                              dialogContext,
-                            );
-                          },
-                          child: const Text(
-                            'Cancelar',
-                          ),
+                            SizedBox(height: 2),
+                            Text('Escolha o que deseja criar.'),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                ),
+
+                  const SizedBox(height: 24),
+
+                  _buildSaveTypeOption(
+                    dialogContext: dialogContext,
+                    type: BrainConceptType.concept,
+                    subtitle:
+                        'Registre algo que você aprendeu e queira consultar depois.',
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  _buildSaveTypeOption(
+                    dialogContext: dialogContext,
+                    type: BrainConceptType.question,
+                    subtitle:
+                        'Crie uma pergunta para transformar o conhecimento em revisão ativa.',
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.pop(dialogContext);
+                      },
+                      child: const Text('Cancelar'),
+                    ),
+                  ),
+                ],
               ),
-            );
-          },
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -628,32 +502,17 @@ extension _BrainScreenCreation
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(
-          16,
-        ),
+        borderRadius: BorderRadius.circular(16),
         onTap: () {
-          Navigator.pop(
-            dialogContext,
-            type,
-          );
+          Navigator.pop(dialogContext, type);
         },
         child: Ink(
           width: double.infinity,
-          padding: const EdgeInsets.all(
-            14,
-          ),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: type.color.withValues(
-              alpha: 0.055,
-            ),
-            borderRadius: BorderRadius.circular(
-              16,
-            ),
-            border: Border.all(
-              color: type.color.withValues(
-                alpha: 0.20,
-              ),
-            ),
+            color: type.color.withValues(alpha: 0.055),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: type.color.withValues(alpha: 0.20)),
           ),
           child: Row(
             children: [
@@ -665,23 +524,13 @@ extension _BrainScreenCreation
                 height: 46,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: type.color.withValues(
-                    alpha: 0.12,
-                  ),
-                  borderRadius: BorderRadius.circular(
-                    13,
-                  ),
+                  color: type.color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(13),
                 ),
-                child: Icon(
-                  type.icon,
-                  color: type.color,
-                  size: 23,
-                ),
+                child: Icon(type.icon, color: type.color, size: 23),
               ),
 
-              const SizedBox(
-                width: 14,
-              ),
+              const SizedBox(width: 14),
 
               // ==================================================
               // TEXTO
@@ -700,23 +549,17 @@ extension _BrainScreenCreation
                       ),
                     ),
 
-                    const SizedBox(
-                      height: 4,
-                    ),
+                    const SizedBox(height: 4),
 
                     Text(
                       subtitle,
-                      style: Theme.of(
-                        dialogContext,
-                      ).textTheme.bodySmall,
+                      style: Theme.of(dialogContext).textTheme.bodySmall,
                     ),
                   ],
                 ),
               ),
 
-              const SizedBox(
-                width: 8,
-              ),
+              const SizedBox(width: 8),
 
               // ==================================================
               // SETA
@@ -736,34 +579,25 @@ extension _BrainScreenCreation
   // NOVO CONHECIMENTO
   // ============================================================
 
-  Future<
-    void
-  >
-  _showCreateNoteDialog() async {
+  Future<void> _showCreateNoteDialog() async {
     if (_brainKnowledgeSaveInProgress) {
-      _showMessage(
-        'Um conhecimento ainda está sendo salvo em segundo plano.',
-      );
+      _showMessage('Um conhecimento ainda está sendo salvo em segundo plano.');
       return;
     }
 
-    if (_controller.isSaving ||
-        !mounted) {
+    if (_controller.isSaving || !mounted) {
       return;
     }
 
     final type = await _showSaveTypeDialog();
 
-    if (!mounted ||
-        type ==
-            null) {
+    if (!mounted || type == null) {
       return;
     }
 
     _controller.createNewNote();
 
-    if (type ==
-        BrainConceptType.question) {
+    if (type == BrainConceptType.question) {
       await _showCreateQuestionDialog();
 
       return;
@@ -772,29 +606,19 @@ extension _BrainScreenCreation
     // O seletor principal expõe somente Conceito e Pergunta.
     // Example/Warning continuam válidos no modelo, mas são usados
     // apenas como detalhes opcionais dentro do conceito.
-    await _showCreateNoteEditorDialog(
-      BrainConceptType.concept,
-    );
+    await _showCreateNoteEditorDialog(BrainConceptType.concept);
   }
 
   // ============================================================
   // MODAL DE CONCEITO
   // ============================================================
 
-  Future<
-    void
-  >
-  _showCreateNoteEditorDialog(
-    BrainConceptType type,
-  ) async {
+  Future<void> _showCreateNoteEditorDialog(BrainConceptType type) async {
     if (!mounted) {
       return;
     }
 
-    final sources =
-        <
-          BrainSource
-        >[];
+    final sources = <BrainSource>[];
 
     final exampleController = TextEditingController();
 
@@ -816,1228 +640,1023 @@ extension _BrainScreenCreation
     var savingStatus = 'Preparando conhecimento';
     var savingDescription = 'Organizando o conteúdo antes de salvar.';
     OverlayEntry? minimizedSavingOverlay;
+    var savingFinished = false;
 
     void removeMinimizedSavingOverlay() {
-      minimizedSavingOverlay?.remove();
+      final entry = minimizedSavingOverlay;
       minimizedSavingOverlay = null;
-    }
 
-    void showMinimizedSavingOverlay() {
-      if (!mounted ||
-          minimizedSavingOverlay !=
-              null) {
+      if (entry == null) {
         return;
       }
 
-      final overlay = Overlay.of(
-        context,
-        rootOverlay: true,
-      );
+      if (entry.mounted) {
+        entry.remove();
+      }
+    }
+
+    void showMinimizedSavingOverlay() {
+      if (!mounted || savingFinished || minimizedSavingOverlay != null) {
+        return;
+      }
+
+      final overlay = Overlay.of(context, rootOverlay: true);
+
+      if (!overlay.mounted) {
+        return;
+      }
 
       minimizedSavingOverlay = OverlayEntry(
-        builder:
-            (
-              overlayContext,
-            ) {
-              return IgnorePointer(
-                child: SafeArea(
-                  minimum: const EdgeInsets.fromLTRB(
-                    16,
-                    16,
-                    16,
-                    18,
-                  ),
-                  child: Align(
-                    alignment: Alignment.bottomCenter,
-                    child: _buildMinimizedKnowledgeSavingBar(
-                      context: overlayContext,
-                      progress: savingProgress,
-                      status: savingStatus,
-                      description: savingDescription,
-                    ),
-                  ),
+        builder: (overlayContext) {
+          return IgnorePointer(
+            child: SafeArea(
+              minimum: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: _buildMinimizedKnowledgeSavingBar(
+                  context: overlayContext,
+                  progress: savingProgress,
+                  status: savingStatus,
+                  description: savingDescription,
                 ),
-              );
-            },
+              ),
+            ),
+          );
+        },
       );
 
-      overlay.insert(
-        minimizedSavingOverlay!,
-      );
+      overlay.insert(minimizedSavingOverlay!);
     }
 
     try {
-      await showDialog<
-        void
-      >(
+      await showDialog<void>(
         context: context,
         barrierDismissible: false,
-        builder:
-            (
-              dialogContext,
-            ) {
-              return StatefulBuilder(
-                builder:
-                    (
-                      dialogContext,
-                      setDialogState,
-                    ) {
-                      Future<
-                        void
-                      >
-                      addSource() async {
-                        if (saving ||
-                            _controller.isSaving) {
-                          return;
-                        }
+        builder: (dialogContext) {
+          return StatefulBuilder(
+            builder: (dialogContext, setDialogState) {
+              Future<void> addSource() async {
+                if (saving || _controller.isSaving) {
+                  return;
+                }
 
-                        final source = await BrainSourceDialog.show(
+                final source = await BrainSourceDialog.show(
+                  context: dialogContext,
+                );
+
+                if (source == null || !dialogContext.mounted) {
+                  return;
+                }
+
+                final duplicate = sources.any(
+                  (item) =>
+                      item.id == source.id ||
+                      item.contentKey == source.contentKey,
+                );
+
+                if (duplicate) {
+                  _showMessage('Essa fonte já foi adicionada.');
+
+                  return;
+                }
+
+                setDialogState(() {
+                  sources.add(source);
+                  showSources = true;
+                });
+              }
+
+              Future<void> editSource(int index) async {
+                if (saving || index < 0 || index >= sources.length) {
+                  return;
+                }
+
+                final updated = await BrainSourceDialog.show(
+                  context: dialogContext,
+                  initialSource: sources[index],
+                );
+
+                if (updated == null || !dialogContext.mounted) {
+                  return;
+                }
+
+                setDialogState(() {
+                  sources[index] = updated;
+                });
+              }
+
+              void removeSource(int index) {
+                if (saving || index < 0 || index >= sources.length) {
+                  return;
+                }
+
+                setDialogState(() {
+                  sources.removeAt(index);
+                });
+              }
+
+              Future<void> saveConcept() async {
+                if (saving ||
+                    _controller.isSaving ||
+                    _brainKnowledgeSaveInProgress) {
+                  return;
+                }
+
+                final title = _controller.titleController.text.trim();
+                final content = _controller.contentController.text.trim();
+
+                if (title.isEmpty) {
+                  _showMessage('Digite um título antes de salvar.');
+                  return;
+                }
+
+                if (content.isEmpty) {
+                  _showMessage('Escreva o que você aprendeu antes de salvar.');
+                  return;
+                }
+
+                // Capture everything that belongs to the modal before the
+                // first await. After this point the progress UI may be
+                // minimized and the dialog can leave the widget tree while
+                // the save continues safely.
+                final example = exampleController.text.trim();
+                final warning = warningController.text.trim();
+                final pendingSources = List<BrainSource>.unmodifiable(sources);
+                final shouldPrepareReview = useKnowledgeForReview;
+
+                // Percurso fixo + animação visual progressiva.
+                //
+                // A barra agora nasce em 0% e percorre visualmente o caminho
+                // até a etapa real de criptografia. Os marcos de segurança
+                // continuam dependentes das operações reais: "Integridade
+                // validada" só aparece depois que o Vault confirma a leitura.
+                double progressForStatus(String status) {
+                  switch (status) {
+                    case 'Preparando conhecimento':
+                      return 0.08;
+                    case 'Organizando estrutura':
+                      return 0.22;
+                    case 'Criptografando o conhecimento':
+                      return 0.40;
+                    case 'Integridade validada':
+                      return 0.58;
+                    case 'Conectando fontes':
+                      return 0.68;
+                    case 'Preparando revisão':
+                      return 0.76;
+                    case 'Criando caminhos':
+                      return 0.88;
+                    case 'Finalizando armazenamento':
+                      return 1.0;
+                    case 'Conhecimento protegido':
+                      return 1.0;
+                    default:
+                      return savingProgress;
+                  }
+                }
+
+                void rebuildSavingProgress() {
+                  if (dialogContext.mounted) {
+                    setDialogState(() {});
+                  }
+
+                  final entry = minimizedSavingOverlay;
+
+                  if (entry != null && entry.mounted) {
+                    entry.markNeedsBuild();
+                  }
+                }
+
+                void updateSavingProgress(String status, String description) {
+                  final target = progressForStatus(status);
+
+                  savingStatus = status;
+                  savingDescription = description;
+
+                  // Nunca deixa a barra voltar para trás quando uma etapa
+                  // real chega enquanto a animação visual ainda está ativa.
+                  if (target > savingProgress) {
+                    savingProgress = target;
+                  }
+
+                  rebuildSavingProgress();
+                }
+
+                Future<void> animateSavingProgress({
+                  required double from,
+                  required double to,
+                  required Duration duration,
+                  required String status,
+                  required String description,
+                  String? stopWhenStatusChangesFrom,
+                }) async {
+                  const frames = 18;
+                  final frameDelay = Duration(
+                    milliseconds: duration.inMilliseconds ~/ frames,
+                  );
+
+                  for (var frame = 0; frame <= frames; frame++) {
+                    if (!mounted) {
+                      return;
+                    }
+
+                    if (stopWhenStatusChangesFrom != null &&
+                        savingStatus != stopWhenStatusChangesFrom) {
+                      return;
+                    }
+
+                    final t = frame / frames;
+                    final eased = 1 - (1 - t) * (1 - t);
+                    final animatedValue = from + ((to - from) * eased);
+
+                    savingStatus = status;
+                    savingDescription = description;
+
+                    if (animatedValue > savingProgress) {
+                      savingProgress = animatedValue;
+                    }
+
+                    rebuildSavingProgress();
+
+                    if (frame < frames) {
+                      await Future<void>.delayed(frameDelay);
+                    }
+                  }
+                }
+
+                setDialogState(() {
+                  saving = true;
+                  savingProgress = 0.0;
+                  savingStatus = 'Preparando conhecimento';
+                  savingDescription =
+                      'Preparando o conteúdo para armazenamento seguro.';
+                });
+
+                _brainKnowledgeSaveInProgress = true;
+
+                // Durante o percurso visual inicial, os estados reais
+                // podem avançar mais rápido que a animação. Guardamos o marco
+                // real mais recente e só o exibimos depois que a barra chegar
+                // visualmente aos 40%. Assim o Vault não espera pela animação.
+                var openingJourneyFinished = false;
+                String? deferredStatus;
+                String? deferredDescription;
+                var deferredProgress = 0.0;
+
+                final originalUpdateSavingProgress = updateSavingProgress;
+
+                void updateSavingProgressDuringOpening(
+                  String status,
+                  String description,
+                ) {
+                  final target = progressForStatus(status);
+
+                  if (!openingJourneyFinished) {
+                    if (target >= deferredProgress) {
+                      deferredProgress = target;
+                      deferredStatus = status;
+                      deferredDescription = description;
+                    }
+                    return;
+                  }
+
+                  originalUpdateSavingProgress(status, description);
+                }
+
+                try {
+                  // ============================================
+                  // DETALHES OPCIONAIS
+                  // ============================================
+
+                  updateSavingProgressDuringOpening(
+                    'Organizando estrutura',
+                    'Organizando conceitos e detalhes com integridade.',
+                  );
+
+                  if (example.isNotEmpty) {
+                    await _controller.addConcept(
+                      BrainConcept(
+                        id: '${DateTime.now().microsecondsSinceEpoch}-example',
+                        title: '$title — Exemplo',
+                        description: example,
+                        type: BrainConceptType.example,
+                      ),
+                    );
+
+                    if (!mounted) {
+                      return;
+                    }
+                  }
+
+                  if (warning.isNotEmpty) {
+                    await _controller.addConcept(
+                      BrainConcept(
+                        id: '${DateTime.now().microsecondsSinceEpoch}-warning',
+                        title: '$title — Ponto de atenção',
+                        description: warning,
+                        type: BrainConceptType.warning,
+                      ),
+                    );
+
+                    if (!mounted) {
+                      return;
+                    }
+                  }
+
+                  // ============================================
+                  // SAVE REAL + PERCURSO VISUAL EM PARALELO
+                  // ============================================
+                  //
+                  // O salvamento real começa AGORA. A animação abaixo não
+                  // atrasa criptografia, gravação ou validação no Vault.
+                  final saveFuture = _saveKnowledge(
+                    type: BrainConceptType.concept,
+                    reviewEnabled: shouldPrepareReview,
+                    sources: pendingSources,
+                    onProgress: updateSavingProgressDuringOpening,
+                    showCompletionMessage: false,
+                  );
+
+                  // 0% -> 40% em ~1,4 s, apenas como percurso visual.
+                  // Enquanto isso o saveFuture continua executando.
+                  await animateSavingProgress(
+                    from: 0.0,
+                    to: 0.10,
+                    duration: const Duration(milliseconds: 350),
+                    status: 'Preparando conhecimento',
+                    description:
+                        'Preparando o conteúdo para armazenamento seguro.',
+                  );
+
+                  await animateSavingProgress(
+                    from: 0.10,
+                    to: 0.22,
+                    duration: const Duration(milliseconds: 450),
+                    status: 'Organizando estrutura',
+                    description:
+                        'Organizando conceitos e detalhes com integridade.',
+                  );
+
+                  await animateSavingProgress(
+                    from: 0.22,
+                    to: 0.40,
+                    duration: const Duration(milliseconds: 600),
+                    status: 'Criptografando o conhecimento',
+                    description: '',
+                  );
+
+                  openingJourneyFinished = true;
+
+                  // Se o Vault já avançou além dos 40% enquanto a animação
+                  // ocorria, agora mostramos o estado real mais recente.
+                  final pendingStatus = deferredStatus;
+                  final pendingDescription = deferredDescription;
+
+                  if (pendingStatus != null && deferredProgress > 0.40) {
+                    originalUpdateSavingProgress(
+                      pendingStatus,
+                      pendingDescription ?? '',
+                    );
+                  } else {
+                    originalUpdateSavingProgress(
+                      'Criptografando o conhecimento',
+                      '',
+                    );
+                  }
+
+                  // Enquanto a criptografia ainda estiver ocorrendo, a barra
+                  // continua se mexendo suavemente até no máximo 55%.
+                  // Não aguardamos essa animação para concluir o save.
+                  final cryptoAnimation = animateSavingProgress(
+                    from: savingProgress < 0.40 ? 0.40 : savingProgress,
+                    to: 0.55,
+                    duration: const Duration(milliseconds: 1200),
+                    status: 'Criptografando o conhecimento',
+                    description: '',
+                    stopWhenStatusChangesFrom: 'Criptografando o conhecimento',
+                  );
+
+                  final saved = await saveFuture;
+
+                  if (!mounted || !saved) {
+                    return;
+                  }
+
+                  // Evita warning de Future não utilizado sem bloquear o fluxo.
+                  cryptoAnimation.ignore();
+
+                  updateSavingProgress(
+                    'Criando caminhos',
+                    'Criando caminhos e conexões para organizar este conhecimento no Brain.',
+                  );
+
+                  // Keep the real visual-knowledge synchronization, but do
+                  // not force the user to wait for the growth preview
+                  // animation after the synchronization itself has finished.
+                  await _syncBrainVisualKnowledge(
+                    // A animação de crescimento não faz parte da persistência
+                    // segura e aumentava a espera percebida após o Vault já
+                    // ter confirmado o conhecimento. Mantemos a sincronização
+                    // real, mas sem bloquear o usuário com a animação.
+                    animateGrowth: false,
+                    reloadLocal: true,
+                  );
+
+                  if (!mounted) {
+                    return;
+                  }
+
+                  // ==================================================
+                  // CONFIRMAÇÃO FINAL
+                  // ==================================================
+                  //
+                  // Só chegamos aqui depois de:
+                  // - persistir no Vault;
+                  // - validar integridade;
+                  // - concluir as conexões locais do Brain.
+                  //
+                  // A UI troca a barra pelo estado final com check.
+                  updateSavingProgress(
+                    'Conhecimento protegido',
+                    'Seu conhecimento foi criptografado e salvo com integridade.',
+                  );
+
+                  // Mantém a confirmação visível tempo suficiente para
+                  // o usuário perceber que o processo realmente terminou.
+                  await Future<void>.delayed(
+                    const Duration(milliseconds: 1100),
+                  );
+
+                  if (!mounted) {
+                    removeMinimizedSavingOverlay();
+                    return;
+                  }
+
+                  if (dialogContext.mounted) {
+                    Navigator.of(dialogContext).pop();
+                  }
+
+                  removeMinimizedSavingOverlay();
+
+                  // Only now, after every real operation and 100%, expose the
+                  // normal success message/card to the user.
+                  _showControllerMessage();
+
+                  _controller.createNewNote();
+
+                  _mutateState(() {});
+                } finally {
+                  savingFinished = true;
+                  _brainKnowledgeSaveInProgress = false;
+
+                  if (savingProgress < 1.0) {
+                    removeMinimizedSavingOverlay();
+                  }
+
+                  if (dialogContext.mounted) {
+                    setDialogState(() {
+                      saving = false;
+                    });
+                  }
+                }
+              }
+
+              final conceptColor = BrainConceptType.concept.color;
+
+              return Dialog(
+                clipBehavior: Clip.antiAlias,
+                backgroundColor: saving ? Colors.transparent : null,
+                elevation: saving ? 0 : null,
+                insetPadding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 24,
+                ),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: 650,
+                    maxHeight: 820,
+                  ),
+                  child: saving
+                      ? _buildKnowledgeSavingPanel(
                           context: dialogContext,
-                        );
-
-                        if (source ==
-                                null ||
-                            !dialogContext.mounted) {
-                          return;
-                        }
-
-                        final duplicate = sources.any(
-                          (
-                            item,
-                          ) =>
-                              item.id ==
-                                  source.id ||
-                              item.contentKey ==
-                                  source.contentKey,
-                        );
-
-                        if (duplicate) {
-                          _showMessage(
-                            'Essa fonte já foi adicionada.',
-                          );
-
-                          return;
-                        }
-
-                        setDialogState(
-                          () {
-                            sources.add(
-                              source,
-                            );
-                            showSources = true;
-                          },
-                        );
-                      }
-
-                      Future<
-                        void
-                      >
-                      editSource(
-                        int index,
-                      ) async {
-                        if (saving ||
-                            index <
-                                0 ||
-                            index >=
-                                sources.length) {
-                          return;
-                        }
-
-                        final updated = await BrainSourceDialog.show(
-                          context: dialogContext,
-                          initialSource: sources[index],
-                        );
-
-                        if (updated ==
-                                null ||
-                            !dialogContext.mounted) {
-                          return;
-                        }
-
-                        setDialogState(
-                          () {
-                            sources[index] = updated;
-                          },
-                        );
-                      }
-
-                      void removeSource(
-                        int index,
-                      ) {
-                        if (saving ||
-                            index <
-                                0 ||
-                            index >=
-                                sources.length) {
-                          return;
-                        }
-
-                        setDialogState(
-                          () {
-                            sources.removeAt(
-                              index,
-                            );
-                          },
-                        );
-                      }
-
-                      Future<
-                        void
-                      >
-                      saveConcept() async {
-                        if (saving ||
-                            _controller.isSaving ||
-                            _brainKnowledgeSaveInProgress) {
-                          return;
-                        }
-
-                        final title = _controller.titleController.text.trim();
-                        final content = _controller.contentController.text.trim();
-
-                        if (title.isEmpty) {
-                          _showMessage(
-                            'Digite um título antes de salvar.',
-                          );
-                          return;
-                        }
-
-                        if (content.isEmpty) {
-                          _showMessage(
-                            'Escreva o que você aprendeu antes de salvar.',
-                          );
-                          return;
-                        }
-
-                        // Capture everything that belongs to the modal before the
-                        // first await. After this point the progress UI may be
-                        // minimized and the dialog can leave the widget tree while
-                        // the save continues safely.
-                        final example = exampleController.text.trim();
-                        final warning = warningController.text.trim();
-                        final pendingSources =
-                            List<
-                              BrainSource
-                            >.unmodifiable(
-                              sources,
-                            );
-                        final shouldPrepareReview = useKnowledgeForReview;
-
-                        // Percurso fixo + animação visual progressiva.
-                        //
-                        // A barra agora nasce em 0% e percorre visualmente o caminho
-                        // até a etapa real de criptografia. Os marcos de segurança
-                        // continuam dependentes das operações reais: "Integridade
-                        // validada" só aparece depois que o Vault confirma a leitura.
-                        double progressForStatus(
-                          String status,
-                        ) {
-                          switch (status) {
-                            case 'Preparando conhecimento':
-                              return 0.08;
-                            case 'Organizando estrutura':
-                              return 0.22;
-                            case 'Criptografando o conhecimento':
-                              return 0.40;
-                            case 'Integridade validada':
-                              return 0.58;
-                            case 'Conectando fontes':
-                              return 0.68;
-                            case 'Preparando revisão':
-                              return 0.76;
-                            case 'Criando caminhos':
-                              return 0.88;
-                            case 'Finalizando armazenamento':
-                              return 1.0;
-                            case 'Conhecimento protegido':
-                              return 1.0;
-                            default:
-                              return savingProgress;
-                          }
-                        }
-
-                        void rebuildSavingProgress() {
-                          if (dialogContext.mounted) {
-                            setDialogState(
-                              () {},
-                            );
-                          }
-
-                          minimizedSavingOverlay?.markNeedsBuild();
-                        }
-
-                        void updateSavingProgress(
-                          String status,
-                          String description,
-                        ) {
-                          final target = progressForStatus(
-                            status,
-                          );
-
-                          savingStatus = status;
-                          savingDescription = description;
-
-                          // Nunca deixa a barra voltar para trás quando uma etapa
-                          // real chega enquanto a animação visual ainda está ativa.
-                          if (target >
-                              savingProgress) {
-                            savingProgress = target;
-                          }
-
-                          rebuildSavingProgress();
-                        }
-
-                        Future<
-                          void
-                        >
-                        animateSavingProgress({
-                          required double from,
-                          required double to,
-                          required Duration duration,
-                          required String status,
-                          required String description,
-                          String? stopWhenStatusChangesFrom,
-                        }) async {
-                          const frames = 18;
-                          final frameDelay = Duration(
-                            milliseconds:
-                                duration.inMilliseconds ~/
-                                frames,
-                          );
-
-                          for (
-                            var frame = 0;
-                            frame <=
-                                frames;
-                            frame++
-                          ) {
-                            if (!mounted) {
+                          progress: savingProgress,
+                          status: savingStatus,
+                          description: savingDescription,
+                          onMinimize: () {
+                            if (!dialogContext.mounted) {
                               return;
                             }
 
-                            if (stopWhenStatusChangesFrom !=
-                                    null &&
-                                savingStatus !=
-                                    stopWhenStatusChangesFrom) {
-                              return;
-                            }
+                            // Fecha primeiro o Dialog. O OverlayEntry só entra
+                            // no frame seguinte, evitando que o novo overlay
+                            // seja anexado enquanto a rota Material do Dialog
+                            // ainda está desmontando no desktop/macOS.
+                            Navigator.of(dialogContext).pop();
 
-                            final t =
-                                frame /
-                                frames;
-                            final eased =
-                                1 -
-                                (1 -
-                                        t) *
-                                    (1 -
-                                        t);
-                            final animatedValue =
-                                from +
-                                ((to -
-                                        from) *
-                                    eased);
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (!mounted ||
+                                  savingFinished ||
+                                  minimizedSavingOverlay != null) {
+                                return;
+                              }
 
-                            savingStatus = status;
-                            savingDescription = description;
-
-                            if (animatedValue >
-                                savingProgress) {
-                              savingProgress = animatedValue;
-                            }
-
-                            rebuildSavingProgress();
-
-                            if (frame <
-                                frames) {
-                              await Future<
-                                void
-                              >.delayed(
-                                frameDelay,
-                              );
-                            }
-                          }
-                        }
-
-                        setDialogState(
-                          () {
-                            saving = true;
-                            savingProgress = 0.0;
-                            savingStatus = 'Preparando conhecimento';
-                            savingDescription = 'Preparando o conteúdo para armazenamento seguro.';
+                              showMinimizedSavingOverlay();
+                            });
                           },
-                        );
-
-                        _brainKnowledgeSaveInProgress = true;
-
-                        // Durante o percurso visual inicial, os estados reais
-                        // podem avançar mais rápido que a animação. Guardamos o marco
-                        // real mais recente e só o exibimos depois que a barra chegar
-                        // visualmente aos 40%. Assim o Vault não espera pela animação.
-                        var openingJourneyFinished = false;
-                        String? deferredStatus;
-                        String? deferredDescription;
-                        var deferredProgress = 0.0;
-
-                        final originalUpdateSavingProgress = updateSavingProgress;
-
-                        void updateSavingProgressDuringOpening(
-                          String status,
-                          String description,
-                        ) {
-                          final target = progressForStatus(
-                            status,
-                          );
-
-                          if (!openingJourneyFinished) {
-                            if (target >=
-                                deferredProgress) {
-                              deferredProgress = target;
-                              deferredStatus = status;
-                              deferredDescription = description;
-                            }
-                            return;
-                          }
-
-                          originalUpdateSavingProgress(
-                            status,
-                            description,
-                          );
-                        }
-
-                        try {
-                          // ============================================
-                          // DETALHES OPCIONAIS
-                          // ============================================
-
-                          updateSavingProgressDuringOpening(
-                            'Organizando estrutura',
-                            'Organizando conceitos e detalhes com integridade.',
-                          );
-
-                          if (example.isNotEmpty) {
-                            await _controller.addConcept(
-                              BrainConcept(
-                                id: '${DateTime.now().microsecondsSinceEpoch}-example',
-                                title: '$title — Exemplo',
-                                description: example,
-                                type: BrainConceptType.example,
+                        )
+                      : Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // ========================================
+                            // HEADER
+                            // ========================================
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                20,
+                                16,
+                                12,
+                                12,
                               ),
-                            );
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      color: conceptColor.withValues(
+                                        alpha: 0.12,
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Icon(
+                                      BrainConceptType.concept.icon,
+                                      color: conceptColor,
+                                    ),
+                                  ),
 
-                            if (!mounted) {
-                              return;
-                            }
-                          }
+                                  const SizedBox(width: 11),
 
-                          if (warning.isNotEmpty) {
-                            await _controller.addConcept(
-                              BrainConcept(
-                                id: '${DateTime.now().microsecondsSinceEpoch}-warning',
-                                title: '$title — Ponto de atenção',
-                                description: warning,
-                                type: BrainConceptType.warning,
+                                  const Expanded(
+                                    child: Text(
+                                      'Novo conceito',
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+
+                                  IconButton(
+                                    tooltip: 'Fechar',
+                                    onPressed: saving || _controller.isSaving
+                                        ? null
+                                        : () {
+                                            Navigator.of(dialogContext).pop();
+                                          },
+                                    icon: const Icon(Icons.close_rounded),
+                                  ),
+                                ],
                               ),
-                            );
-
-                            if (!mounted) {
-                              return;
-                            }
-                          }
-
-                          // ============================================
-                          // SAVE REAL + PERCURSO VISUAL EM PARALELO
-                          // ============================================
-                          //
-                          // O salvamento real começa AGORA. A animação abaixo não
-                          // atrasa criptografia, gravação ou validação no Vault.
-                          final saveFuture = _saveKnowledge(
-                            type: BrainConceptType.concept,
-                            reviewEnabled: shouldPrepareReview,
-                            sources: pendingSources,
-                            onProgress: updateSavingProgressDuringOpening,
-                            showCompletionMessage: false,
-                          );
-
-                          // 0% -> 40% em ~1,4 s, apenas como percurso visual.
-                          // Enquanto isso o saveFuture continua executando.
-                          await animateSavingProgress(
-                            from: 0.0,
-                            to: 0.10,
-                            duration: const Duration(
-                              milliseconds: 350,
                             ),
-                            status: 'Preparando conhecimento',
-                            description: 'Preparando o conteúdo para armazenamento seguro.',
-                          );
 
-                          await animateSavingProgress(
-                            from: 0.10,
-                            to: 0.22,
-                            duration: const Duration(
-                              milliseconds: 450,
+                            Divider(
+                              height: 1,
+                              color: Theme.of(
+                                dialogContext,
+                              ).dividerColor.withValues(alpha: 0.45),
                             ),
-                            status: 'Organizando estrutura',
-                            description: 'Organizando conceitos e detalhes com integridade.',
-                          );
 
-                          await animateSavingProgress(
-                            from: 0.22,
-                            to: 0.40,
-                            duration: const Duration(
-                              milliseconds: 600,
-                            ),
-                            status: 'Criptografando o conhecimento',
-                            description: '',
-                          );
-
-                          openingJourneyFinished = true;
-
-                          // Se o Vault já avançou além dos 40% enquanto a animação
-                          // ocorria, agora mostramos o estado real mais recente.
-                          final pendingStatus = deferredStatus;
-                          final pendingDescription = deferredDescription;
-
-                          if (pendingStatus !=
-                                  null &&
-                              deferredProgress >
-                                  0.40) {
-                            originalUpdateSavingProgress(
-                              pendingStatus,
-                              pendingDescription ??
-                                  '',
-                            );
-                          } else {
-                            originalUpdateSavingProgress(
-                              'Criptografando o conhecimento',
-                              '',
-                            );
-                          }
-
-                          // Enquanto a criptografia ainda estiver ocorrendo, a barra
-                          // continua se mexendo suavemente até no máximo 55%.
-                          // Não aguardamos essa animação para concluir o save.
-                          final cryptoAnimation = animateSavingProgress(
-                            from:
-                                savingProgress <
-                                    0.40
-                                ? 0.40
-                                : savingProgress,
-                            to: 0.55,
-                            duration: const Duration(
-                              milliseconds: 1200,
-                            ),
-                            status: 'Criptografando o conhecimento',
-                            description: '',
-                            stopWhenStatusChangesFrom: 'Criptografando o conhecimento',
-                          );
-
-                          final saved = await saveFuture;
-
-                          if (!mounted ||
-                              !saved) {
-                            return;
-                          }
-
-                          // Evita warning de Future não utilizado sem bloquear o fluxo.
-                          cryptoAnimation.ignore();
-
-                          updateSavingProgress(
-                            'Criando caminhos',
-                            'Criando caminhos e conexões para organizar este conhecimento no Brain.',
-                          );
-
-                          // Keep the real visual-knowledge synchronization, but do
-                          // not force the user to wait for the growth preview
-                          // animation after the synchronization itself has finished.
-                          await _syncBrainVisualKnowledge(
-                            // A animação de crescimento não faz parte da persistência
-                            // segura e aumentava a espera percebida após o Vault já
-                            // ter confirmado o conhecimento. Mantemos a sincronização
-                            // real, mas sem bloquear o usuário com a animação.
-                            animateGrowth: false,
-                            reloadLocal: true,
-                          );
-
-                          if (!mounted) {
-                            return;
-                          }
-
-                          // ==================================================
-                          // CONFIRMAÇÃO FINAL
-                          // ==================================================
-                          //
-                          // Só chegamos aqui depois de:
-                          // - persistir no Vault;
-                          // - validar integridade;
-                          // - concluir as conexões locais do Brain.
-                          //
-                          // A UI troca a barra pelo estado final com check.
-                          updateSavingProgress(
-                            'Conhecimento protegido',
-                            'Seu conhecimento foi criptografado e salvo com integridade.',
-                          );
-
-                          // Mantém a confirmação visível tempo suficiente para
-                          // o usuário perceber que o processo realmente terminou.
-                          await Future<
-                            void
-                          >.delayed(
-                            const Duration(
-                              milliseconds: 1100,
-                            ),
-                          );
-
-                          if (!mounted) {
-                            removeMinimizedSavingOverlay();
-                            return;
-                          }
-
-                          if (dialogContext.mounted) {
-                            Navigator.of(
-                              dialogContext,
-                            ).pop();
-                          }
-
-                          removeMinimizedSavingOverlay();
-
-                          // Only now, after every real operation and 100%, expose the
-                          // normal success message/card to the user.
-                          _showControllerMessage();
-
-                          _controller.createNewNote();
-
-                          _mutateState(
-                            () {},
-                          );
-                        } finally {
-                          _brainKnowledgeSaveInProgress = false;
-
-                          if (savingProgress <
-                              1.0) {
-                            removeMinimizedSavingOverlay();
-                          }
-
-                          if (dialogContext.mounted) {
-                            setDialogState(
-                              () {
-                                saving = false;
-                              },
-                            );
-                          }
-                        }
-                      }
-
-                      final conceptColor = BrainConceptType.concept.color;
-
-                      return Dialog(
-                        clipBehavior: Clip.antiAlias,
-                        backgroundColor: saving
-                            ? Colors.transparent
-                            : null,
-                        elevation: saving
-                            ? 0
-                            : null,
-                        insetPadding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 24,
-                        ),
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(
-                            maxWidth: 650,
-                            maxHeight: 820,
-                          ),
-                          child: saving
-                              ? _buildKnowledgeSavingPanel(
-                                  context: dialogContext,
-                                  progress: savingProgress,
-                                  status: savingStatus,
-                                  description: savingDescription,
-                                  onMinimize: () {
-                                    if (!dialogContext.mounted) {
-                                      return;
-                                    }
-
-                                    showMinimizedSavingOverlay();
-
-                                    Navigator.of(
-                                      dialogContext,
-                                    ).pop();
-                                  },
-                                )
-                              : Column(
-                                  mainAxisSize: MainAxisSize.min,
+                            Flexible(
+                              child: SingleChildScrollView(
+                                padding: const EdgeInsets.all(20),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
                                   children: [
-                                    // ========================================
-                                    // HEADER
-                                    // ========================================
-                                    Padding(
-                                      padding: const EdgeInsets.fromLTRB(
-                                        20,
-                                        16,
-                                        12,
-                                        12,
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Container(
-                                            width: 40,
-                                            height: 40,
-                                            decoration: BoxDecoration(
-                                              color: conceptColor.withValues(
-                                                alpha: 0.12,
-                                              ),
-                                              borderRadius: BorderRadius.circular(
-                                                12,
-                                              ),
-                                            ),
-                                            child: Icon(
-                                              BrainConceptType.concept.icon,
-                                              color: conceptColor,
-                                            ),
-                                          ),
-
-                                          const SizedBox(
-                                            width: 11,
-                                          ),
-
-                                          const Expanded(
-                                            child: Text(
-                                              'Novo conceito',
-                                              style: TextStyle(
-                                                fontSize: 20,
-                                                fontWeight: FontWeight.w800,
-                                              ),
-                                            ),
-                                          ),
-
-                                          IconButton(
-                                            tooltip: 'Fechar',
-                                            onPressed:
-                                                saving ||
-                                                    _controller.isSaving
-                                                ? null
-                                                : () {
-                                                    Navigator.of(
-                                                      dialogContext,
-                                                    ).pop();
-                                                  },
-                                            icon: const Icon(
-                                              Icons.close_rounded,
-                                            ),
-                                          ),
-                                        ],
+                                    // ==============================
+                                    // TÍTULO
+                                    // ==============================
+                                    const Text(
+                                      'Título',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
                                       ),
                                     ),
 
-                                    Divider(
-                                      height: 1,
-                                      color:
-                                          Theme.of(
-                                            dialogContext,
-                                          ).dividerColor.withValues(
-                                            alpha: 0.45,
-                                          ),
+                                    const SizedBox(height: 7),
+
+                                    TextField(
+                                      controller: _controller.titleController,
+                                      enabled: !saving && !_controller.isSaving,
+                                      textInputAction: TextInputAction.next,
+                                      onSubmitted: (_) {
+                                        _controller.contentFocusNode
+                                            .requestFocus();
+                                      },
+                                      decoration: const InputDecoration(
+                                        hintText:
+                                            'Dê um nome para este conceito',
+                                        border: OutlineInputBorder(),
+                                      ),
                                     ),
 
-                                    Flexible(
-                                      child: SingleChildScrollView(
-                                        padding: const EdgeInsets.all(
-                                          20,
+                                    const SizedBox(height: 18),
+
+                                    // ==============================
+                                    // CONTEÚDO
+                                    // ==============================
+                                    const Text(
+                                      'O que você aprendeu?',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+
+                                    const SizedBox(height: 7),
+
+                                    TextField(
+                                      controller: _controller.contentController,
+                                      focusNode: _controller.contentFocusNode,
+                                      enabled: !saving && !_controller.isSaving,
+                                      minLines: 5,
+                                      maxLines: 12,
+                                      keyboardType: TextInputType.multiline,
+                                      textInputAction: TextInputAction.newline,
+                                      decoration: const InputDecoration(
+                                        hintText:
+                                            'Explique com suas próprias palavras...',
+                                        alignLabelWithHint: true,
+                                        border: OutlineInputBorder(),
+                                      ),
+                                    ),
+
+                                    const SizedBox(height: 14),
+
+                                    // ==============================
+                                    // ADICIONAR DETALHES
+                                    // ==============================
+                                    if (!showDetailOptions)
+                                      Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: TextButton.icon(
+                                          onPressed:
+                                              saving || _controller.isSaving
+                                              ? null
+                                              : () {
+                                                  setDialogState(() {
+                                                    showDetailOptions = true;
+                                                  });
+                                                },
+                                          icon: const Icon(Icons.add_rounded),
+                                          label: const Text(
+                                            'Adicionar detalhes',
+                                          ),
+                                        ),
+                                      )
+                                    else ...[
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(dialogContext)
+                                              .colorScheme
+                                              .surfaceContainerLow
+                                              .withValues(alpha: 0.55),
+                                          borderRadius: BorderRadius.circular(
+                                            14,
+                                          ),
+                                          border: Border.all(
+                                            color: Theme.of(dialogContext)
+                                                .dividerColor
+                                                .withValues(alpha: 0.35),
+                                          ),
                                         ),
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
-                                            // ==============================
-                                            // TÍTULO
-                                            // ==============================
                                             const Text(
-                                              'Título',
+                                              'Detalhes opcionais',
                                               style: TextStyle(
-                                                fontSize: 13,
+                                                fontSize: 12,
                                                 fontWeight: FontWeight.w700,
                                               ),
                                             ),
 
-                                            const SizedBox(
-                                              height: 7,
-                                            ),
+                                            const SizedBox(height: 10),
 
-                                            TextField(
-                                              controller: _controller.titleController,
-                                              enabled:
-                                                  !saving &&
-                                                  !_controller.isSaving,
-                                              textInputAction: TextInputAction.next,
-                                              onSubmitted:
-                                                  (
-                                                    _,
-                                                  ) {
-                                                    _controller.contentFocusNode.requestFocus();
-                                                  },
-                                              decoration: const InputDecoration(
-                                                hintText: 'Dê um nome para este conceito',
-                                                border: OutlineInputBorder(),
-                                              ),
-                                            ),
-
-                                            const SizedBox(
-                                              height: 18,
-                                            ),
-
-                                            // ==============================
-                                            // CONTEÚDO
-                                            // ==============================
-                                            const Text(
-                                              'O que você aprendeu?',
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-
-                                            const SizedBox(
-                                              height: 7,
-                                            ),
-
-                                            TextField(
-                                              controller: _controller.contentController,
-                                              focusNode: _controller.contentFocusNode,
-                                              enabled:
-                                                  !saving &&
-                                                  !_controller.isSaving,
-                                              minLines: 5,
-                                              maxLines: 12,
-                                              keyboardType: TextInputType.multiline,
-                                              textInputAction: TextInputAction.newline,
-                                              decoration: const InputDecoration(
-                                                hintText: 'Explique com suas próprias palavras...',
-                                                alignLabelWithHint: true,
-                                                border: OutlineInputBorder(),
-                                              ),
-                                            ),
-
-                                            const SizedBox(
-                                              height: 14,
-                                            ),
-
-                                            // ==============================
-                                            // ADICIONAR DETALHES
-                                            // ==============================
-                                            if (!showDetailOptions)
-                                              Align(
-                                                alignment: Alignment.centerLeft,
-                                                child: TextButton.icon(
-                                                  onPressed:
-                                                      saving ||
-                                                          _controller.isSaving
-                                                      ? null
-                                                      : () {
-                                                          setDialogState(
-                                                            () {
-                                                              showDetailOptions = true;
-                                                            },
-                                                          );
-                                                        },
-                                                  icon: const Icon(
-                                                    Icons.add_rounded,
-                                                  ),
-                                                  label: const Text(
-                                                    'Adicionar detalhes',
-                                                  ),
-                                                ),
-                                              )
-                                            else ...[
-                                              Container(
-                                                width: double.infinity,
-                                                padding: const EdgeInsets.all(
-                                                  12,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color:
-                                                      Theme.of(
-                                                        dialogContext,
-                                                      ).colorScheme.surfaceContainerLow.withValues(
-                                                        alpha: 0.55,
-                                                      ),
-                                                  borderRadius: BorderRadius.circular(
-                                                    14,
-                                                  ),
-                                                  border: Border.all(
-                                                    color:
-                                                        Theme.of(
-                                                          dialogContext,
-                                                        ).dividerColor.withValues(
-                                                          alpha: 0.35,
-                                                        ),
-                                                  ),
-                                                ),
-                                                child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                                  children: [
-                                                    const Text(
-                                                      'Detalhes opcionais',
-                                                      style: TextStyle(
-                                                        fontSize: 12,
-                                                        fontWeight: FontWeight.w700,
-                                                      ),
-                                                    ),
-
-                                                    const SizedBox(
-                                                      height: 10,
-                                                    ),
-
-                                                    Wrap(
-                                                      spacing: 8,
-                                                      runSpacing: 8,
-                                                      children: [
-                                                        if (!showExample)
-                                                          OutlinedButton.icon(
-                                                            onPressed: saving
-                                                                ? null
-                                                                : () {
-                                                                    setDialogState(
-                                                                      () {
-                                                                        showExample = true;
-                                                                      },
-                                                                    );
-                                                                  },
-                                                            icon: const Icon(
-                                                              Icons.add_rounded,
-                                                              size: 18,
-                                                            ),
-                                                            label: const Text(
-                                                              'Exemplo',
-                                                            ),
-                                                          ),
-
-                                                        if (!showWarning)
-                                                          OutlinedButton.icon(
-                                                            onPressed: saving
-                                                                ? null
-                                                                : () {
-                                                                    setDialogState(
-                                                                      () {
-                                                                        showWarning = true;
-                                                                      },
-                                                                    );
-                                                                  },
-                                                            icon: const Icon(
-                                                              Icons.add_rounded,
-                                                              size: 18,
-                                                            ),
-                                                            label: const Text(
-                                                              'Ponto de atenção',
-                                                            ),
-                                                          ),
-
-                                                        if (!showSources)
-                                                          OutlinedButton.icon(
-                                                            onPressed: saving
-                                                                ? null
-                                                                : () async {
-                                                                    setDialogState(
-                                                                      () {
-                                                                        showSources = true;
-                                                                      },
-                                                                    );
-
-                                                                    await addSource();
-                                                                  },
-                                                            icon: const Icon(
-                                                              Icons.add_rounded,
-                                                              size: 18,
-                                                            ),
-                                                            label: const Text(
-                                                              'Fonte',
-                                                            ),
-                                                          ),
-                                                      ],
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-
-                                              // ============================
-                                              // EXEMPLO
-                                              // ============================
-                                              if (showExample) ...[
-                                                const SizedBox(
-                                                  height: 14,
-                                                ),
-
-                                                TextField(
-                                                  controller: exampleController,
-                                                  enabled:
-                                                      !saving &&
-                                                      !_controller.isSaving,
-                                                  minLines: 2,
-                                                  maxLines: 6,
-                                                  decoration: InputDecoration(
-                                                    labelText: 'Exemplo',
-                                                    hintText: 'Adicione uma aplicação, situação prática ou código...',
-                                                    alignLabelWithHint: true,
-                                                    prefixIcon: Icon(
-                                                      BrainConceptType.example.icon,
-                                                      color: BrainConceptType.example.color,
-                                                    ),
-                                                    suffixIcon: IconButton(
-                                                      tooltip: 'Remover exemplo',
-                                                      onPressed: saving
-                                                          ? null
-                                                          : () {
-                                                              setDialogState(
-                                                                () {
-                                                                  showExample = false;
-                                                                  exampleController.clear();
-                                                                },
-                                                              );
-                                                            },
-                                                      icon: const Icon(
-                                                        Icons.close_rounded,
-                                                      ),
-                                                    ),
-                                                    border: const OutlineInputBorder(),
-                                                  ),
-                                                ),
-                                              ],
-
-                                              // ============================
-                                              // PONTO DE ATENÇÃO
-                                              // ============================
-                                              if (showWarning) ...[
-                                                const SizedBox(
-                                                  height: 14,
-                                                ),
-
-                                                TextField(
-                                                  controller: warningController,
-                                                  enabled:
-                                                      !saving &&
-                                                      !_controller.isSaving,
-                                                  minLines: 2,
-                                                  maxLines: 6,
-                                                  decoration: InputDecoration(
-                                                    labelText: 'Ponto de atenção',
-                                                    hintText: 'Registre um cuidado, exceção ou erro importante...',
-                                                    alignLabelWithHint: true,
-                                                    prefixIcon: Icon(
-                                                      BrainConceptType.warning.icon,
-                                                      color: BrainConceptType.warning.color,
-                                                    ),
-                                                    suffixIcon: IconButton(
-                                                      tooltip: 'Remover ponto de atenção',
-                                                      onPressed: saving
-                                                          ? null
-                                                          : () {
-                                                              setDialogState(
-                                                                () {
-                                                                  showWarning = false;
-                                                                  warningController.clear();
-                                                                },
-                                                              );
-                                                            },
-                                                      icon: const Icon(
-                                                        Icons.close_rounded,
-                                                      ),
-                                                    ),
-                                                    border: const OutlineInputBorder(),
-                                                  ),
-                                                ),
-                                              ],
-
-                                              // ============================
-                                              // FONTES
-                                              // ============================
-                                              if (showSources) ...[
-                                                const SizedBox(
-                                                  height: 14,
-                                                ),
-
-                                                _buildPendingSourcesEditor(
-                                                  context: dialogContext,
-                                                  sources: sources,
-                                                  enabled:
-                                                      !saving &&
-                                                      !_controller.isSaving,
-                                                  onAdd: addSource,
-                                                  onEdit: editSource,
-                                                  onRemove: removeSource,
-                                                ),
-                                              ],
-                                            ],
-
-                                            const SizedBox(
-                                              height: 20,
-                                            ),
-
-                                            // ==============================
-                                            // USAR PARA REVISÃO
-                                            // ==============================
-                                            Container(
-                                              width: double.infinity,
-                                              padding: const EdgeInsets.fromLTRB(
-                                                14,
-                                                10,
-                                                12,
-                                                10,
-                                              ),
-                                              decoration: BoxDecoration(
-                                                color:
-                                                    Theme.of(
-                                                      dialogContext,
-                                                    ).colorScheme.surfaceContainerLow.withValues(
-                                                      alpha: 0.58,
-                                                    ),
-                                                borderRadius: BorderRadius.circular(
-                                                  14,
-                                                ),
-                                                border: Border.all(
-                                                  color:
-                                                      Theme.of(
-                                                        dialogContext,
-                                                      ).dividerColor.withValues(
-                                                        alpha: 0.34,
-                                                      ),
-                                                ),
-                                              ),
-                                              child: CheckboxListTile(
-                                                value: useKnowledgeForReview,
-                                                onChanged:
-                                                    saving ||
-                                                        _controller.isSaving
-                                                    ? null
-                                                    : (
-                                                        value,
-                                                      ) {
-                                                        setDialogState(
-                                                          () {
-                                                            useKnowledgeForReview =
-                                                                value ??
-                                                                false;
-                                                          },
-                                                        );
-                                                      },
-                                                controlAffinity: ListTileControlAffinity.leading,
-                                                contentPadding: EdgeInsets.zero,
-                                                dense: true,
-                                                title: const Text(
-                                                  'Usar este conhecimento para revisão',
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                    fontWeight: FontWeight.w700,
-                                                  ),
-                                                ),
-                                                subtitle: const Padding(
-                                                  padding: EdgeInsets.only(
-                                                    top: 4,
-                                                  ),
-                                                  child: Text(
-                                                    'Podemos criar perguntas a partir deste conteúdo para ajudar você a revisar o que aprendeu. Deixe desmarcado se não quer revisar',
-                                                    style: TextStyle(
-                                                      fontSize: 11,
-                                                      height: 1.4,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-
-                                            if (useKnowledgeForReview) ...[
-                                              const SizedBox(
-                                                height: 8,
-                                              ),
-                                              Padding(
-                                                padding: const EdgeInsets.symmetric(
-                                                  horizontal: 4,
-                                                ),
-                                                child: Row(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                                  children: [
-                                                    Expanded(
-                                                      child: Text(
-                                                        'Marcado para revisão. A geração automática das perguntas será conectada ao sistema de revisão na próxima etapa.',
-                                                        style: Theme.of(
-                                                          dialogContext,
-                                                        ).textTheme.bodySmall,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ],
-
-                                            const SizedBox(
-                                              height: 22,
-                                            ),
-
-                                            // ==============================
-                                            // ACTIONS
-                                            // ==============================
-                                            Row(
-                                              mainAxisAlignment: MainAxisAlignment.end,
+                                            Wrap(
+                                              spacing: 8,
+                                              runSpacing: 8,
                                               children: [
-                                                TextButton(
-                                                  onPressed:
-                                                      saving ||
-                                                          _controller.isSaving
-                                                      ? null
-                                                      : () {
-                                                          Navigator.of(
-                                                            dialogContext,
-                                                          ).pop();
-                                                        },
-                                                  child: const Text(
-                                                    'Cancelar',
+                                                if (!showExample)
+                                                  OutlinedButton.icon(
+                                                    onPressed: saving
+                                                        ? null
+                                                        : () {
+                                                            setDialogState(() {
+                                                              showExample =
+                                                                  true;
+                                                            });
+                                                          },
+                                                    icon: const Icon(
+                                                      Icons.add_rounded,
+                                                      size: 18,
+                                                    ),
+                                                    label: const Text(
+                                                      'Exemplo',
+                                                    ),
                                                   ),
-                                                ),
 
-                                                const SizedBox(
-                                                  width: 8,
-                                                ),
+                                                if (!showWarning)
+                                                  OutlinedButton.icon(
+                                                    onPressed: saving
+                                                        ? null
+                                                        : () {
+                                                            setDialogState(() {
+                                                              showWarning =
+                                                                  true;
+                                                            });
+                                                          },
+                                                    icon: const Icon(
+                                                      Icons.add_rounded,
+                                                      size: 18,
+                                                    ),
+                                                    label: const Text(
+                                                      'Ponto de atenção',
+                                                    ),
+                                                  ),
 
-                                                FilledButton(
-                                                  onPressed:
-                                                      saving ||
-                                                          _controller.isSaving
-                                                      ? null
-                                                      : saveConcept,
-                                                  child:
-                                                      saving ||
-                                                          _controller.isSaving
-                                                      ? const SizedBox(
-                                                          width: 18,
-                                                          height: 18,
-                                                          child: CircularProgressIndicator(
-                                                            strokeWidth: 2,
-                                                          ),
-                                                        )
-                                                      : const Text(
-                                                          'Salvar',
-                                                        ),
-                                                ),
+                                                if (!showSources)
+                                                  OutlinedButton.icon(
+                                                    onPressed: saving
+                                                        ? null
+                                                        : () async {
+                                                            setDialogState(() {
+                                                              showSources =
+                                                                  true;
+                                                            });
+
+                                                            await addSource();
+                                                          },
+                                                    icon: const Icon(
+                                                      Icons.add_rounded,
+                                                      size: 18,
+                                                    ),
+                                                    label: const Text('Fonte'),
+                                                  ),
                                               ],
                                             ),
                                           ],
                                         ),
                                       ),
+
+                                      // ============================
+                                      // EXEMPLO
+                                      // ============================
+                                      if (showExample) ...[
+                                        const SizedBox(height: 14),
+
+                                        TextField(
+                                          controller: exampleController,
+                                          enabled:
+                                              !saving && !_controller.isSaving,
+                                          minLines: 2,
+                                          maxLines: 6,
+                                          decoration: InputDecoration(
+                                            labelText: 'Exemplo',
+                                            hintText:
+                                                'Adicione uma aplicação, situação prática ou código...',
+                                            alignLabelWithHint: true,
+                                            prefixIcon: Icon(
+                                              BrainConceptType.example.icon,
+                                              color: BrainConceptType
+                                                  .example
+                                                  .color,
+                                            ),
+                                            suffixIcon: IconButton(
+                                              tooltip: 'Remover exemplo',
+                                              onPressed: saving
+                                                  ? null
+                                                  : () {
+                                                      setDialogState(() {
+                                                        showExample = false;
+                                                        exampleController
+                                                            .clear();
+                                                      });
+                                                    },
+                                              icon: const Icon(
+                                                Icons.close_rounded,
+                                              ),
+                                            ),
+                                            border: const OutlineInputBorder(),
+                                          ),
+                                        ),
+                                      ],
+
+                                      // ============================
+                                      // PONTO DE ATENÇÃO
+                                      // ============================
+                                      if (showWarning) ...[
+                                        const SizedBox(height: 14),
+
+                                        TextField(
+                                          controller: warningController,
+                                          enabled:
+                                              !saving && !_controller.isSaving,
+                                          minLines: 2,
+                                          maxLines: 6,
+                                          decoration: InputDecoration(
+                                            labelText: 'Ponto de atenção',
+                                            hintText:
+                                                'Registre um cuidado, exceção ou erro importante...',
+                                            alignLabelWithHint: true,
+                                            prefixIcon: Icon(
+                                              BrainConceptType.warning.icon,
+                                              color: BrainConceptType
+                                                  .warning
+                                                  .color,
+                                            ),
+                                            suffixIcon: IconButton(
+                                              tooltip:
+                                                  'Remover ponto de atenção',
+                                              onPressed: saving
+                                                  ? null
+                                                  : () {
+                                                      setDialogState(() {
+                                                        showWarning = false;
+                                                        warningController
+                                                            .clear();
+                                                      });
+                                                    },
+                                              icon: const Icon(
+                                                Icons.close_rounded,
+                                              ),
+                                            ),
+                                            border: const OutlineInputBorder(),
+                                          ),
+                                        ),
+                                      ],
+
+                                      // ============================
+                                      // FONTES
+                                      // ============================
+                                      if (showSources) ...[
+                                        const SizedBox(height: 14),
+
+                                        _buildPendingSourcesEditor(
+                                          context: dialogContext,
+                                          sources: sources,
+                                          enabled:
+                                              !saving && !_controller.isSaving,
+                                          onAdd: addSource,
+                                          onEdit: editSource,
+                                          onRemove: removeSource,
+                                        ),
+                                      ],
+                                    ],
+
+                                    const SizedBox(height: 20),
+
+                                    // ==============================
+                                    // USAR PARA REVISÃO
+                                    // ==============================
+                                    Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.fromLTRB(
+                                        14,
+                                        10,
+                                        12,
+                                        10,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(dialogContext)
+                                            .colorScheme
+                                            .surfaceContainerLow
+                                            .withValues(alpha: 0.58),
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(
+                                          color: Theme.of(dialogContext)
+                                              .dividerColor
+                                              .withValues(alpha: 0.34),
+                                        ),
+                                      ),
+                                      child: CheckboxListTile(
+                                        value: useKnowledgeForReview,
+                                        onChanged:
+                                            saving || _controller.isSaving
+                                            ? null
+                                            : (value) {
+                                                setDialogState(() {
+                                                  useKnowledgeForReview =
+                                                      value ?? false;
+                                                });
+                                              },
+                                        controlAffinity:
+                                            ListTileControlAffinity.leading,
+                                        contentPadding: EdgeInsets.zero,
+                                        dense: true,
+                                        title: const Text(
+                                          'Usar este conhecimento para revisão',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        subtitle: const Padding(
+                                          padding: EdgeInsets.only(top: 4),
+                                          child: Text(
+                                            'Podemos criar perguntas a partir deste conteúdo para ajudar você a revisar o que aprendeu. Deixe desmarcado se não quer revisar',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              height: 1.4,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+
+                                    if (useKnowledgeForReview) ...[
+                                      const SizedBox(height: 8),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 4,
+                                        ),
+                                        child: Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                'Marcado para revisão. A geração automática das perguntas será conectada ao sistema de revisão na próxima etapa.',
+                                                style: Theme.of(
+                                                  dialogContext,
+                                                ).textTheme.bodySmall,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+
+                                    const SizedBox(height: 22),
+
+                                    // ==============================
+                                    // ACTIONS
+                                    // ==============================
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        TextButton(
+                                          onPressed:
+                                              saving || _controller.isSaving
+                                              ? null
+                                              : () {
+                                                  Navigator.of(
+                                                    dialogContext,
+                                                  ).pop();
+                                                },
+                                          child: const Text('Cancelar'),
+                                        ),
+
+                                        const SizedBox(width: 8),
+
+                                        FilledButton(
+                                          onPressed:
+                                              saving || _controller.isSaving
+                                              ? null
+                                              : saveConcept,
+                                          child: saving || _controller.isSaving
+                                              ? const SizedBox(
+                                                  width: 18,
+                                                  height: 18,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                      ),
+                                                )
+                                              : const Text('Salvar'),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
+                              ),
+                            ),
+                          ],
                         ),
-                      );
-                    },
+                ),
               );
             },
+          );
+        },
       );
 
       // Evita descartar controllers enquanto o Dialog ainda
       // termina sua animação de saída.
-      await Future<
-        void
-      >.delayed(
-        const Duration(
-          milliseconds: 300,
-        ),
-      );
+      await Future<void>.delayed(const Duration(milliseconds: 300));
     } finally {
       exampleController.dispose();
       warningController.dispose();
@@ -2051,22 +1670,10 @@ extension _BrainScreenCreation
     required String description,
     required VoidCallback onMinimize,
   }) {
-    final theme = Theme.of(
-      context,
-    );
-    final percent =
-        (progress.clamp(
-                  0.0,
-                  1.0,
-                ) *
-                100)
-            .round();
+    final theme = Theme.of(context);
+    final percent = (progress.clamp(0.0, 1.0) * 100).round();
 
-    final completed =
-        progress >=
-            1.0 &&
-        status ==
-            'Conhecimento protegido';
+    final completed = progress >= 1.0 && status == 'Conhecimento protegido';
 
     return ConstrainedBox(
       constraints: const BoxConstraints(
@@ -2079,22 +1686,11 @@ extension _BrainScreenCreation
         // Mantém a altura externa exatamente igual (190 px), mas libera
         // alguns pixels a mais para o conteúdo interno. Com 18 px em cima
         // e embaixo sobravam só 152 px, e o Column excedia em 2 px.
-        padding: const EdgeInsets.symmetric(
-          horizontal: 18,
-          vertical: 16,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerLow.withValues(
-            alpha: 0.58,
-          ),
-          borderRadius: BorderRadius.circular(
-            16,
-          ),
-          border: Border.all(
-            color: theme.dividerColor.withValues(
-              alpha: 0.34,
-            ),
-          ),
+          color: theme.colorScheme.surfaceContainerLow.withValues(alpha: 0.58),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: theme.dividerColor.withValues(alpha: 0.34)),
         ),
         child: completed
             ? Center(
@@ -2109,9 +1705,7 @@ extension _BrainScreenCreation
                           size: 24,
                           color: theme.colorScheme.primary,
                         ),
-                        const SizedBox(
-                          width: 10,
-                        ),
+                        const SizedBox(width: 10),
                         const Text(
                           'Conhecimento protegido',
                           style: TextStyle(
@@ -2121,9 +1715,7 @@ extension _BrainScreenCreation
                         ),
                       ],
                     ),
-                    const SizedBox(
-                      height: 10,
-                    ),
+                    const SizedBox(height: 10),
                     Text(
                       'Seu conhecimento foi criptografado e salvo com integridade.',
                       textAlign: TextAlign.center,
@@ -2138,14 +1730,9 @@ extension _BrainScreenCreation
                 children: [
                   const Text(
                     'Salvando conhecimento',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                   ),
-                  const SizedBox(
-                    height: 10,
-                  ),
+                  const SizedBox(height: 10),
                   Row(
                     children: [
                       Expanded(
@@ -2154,9 +1741,7 @@ extension _BrainScreenCreation
                           height: 7,
                         ),
                       ),
-                      const SizedBox(
-                        width: 12,
-                      ),
+                      const SizedBox(width: 12),
                       SizedBox(
                         width: 42,
                         child: Text(
@@ -2170,25 +1755,19 @@ extension _BrainScreenCreation
                       ),
                     ],
                   ),
-                  const SizedBox(
-                    height: 12,
-                  ),
+                  const SizedBox(height: 12),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Padding(
-                        padding: const EdgeInsets.only(
-                          top: 2,
-                        ),
+                        padding: const EdgeInsets.only(top: 2),
                         child: Icon(
                           Icons.radio_button_checked_rounded,
                           size: 16,
                           color: theme.colorScheme.primary,
                         ),
                       ),
-                      const SizedBox(
-                        width: 9,
-                      ),
+                      const SizedBox(width: 9),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2201,9 +1780,7 @@ extension _BrainScreenCreation
                               ),
                             ),
                             if (description.trim().isNotEmpty) ...[
-                              const SizedBox(
-                                height: 3,
-                              ),
+                              const SizedBox(height: 3),
                               Text(
                                 description,
                                 style: theme.textTheme.bodySmall,
@@ -2214,69 +1791,58 @@ extension _BrainScreenCreation
                       ),
                     ],
                   ),
-                  const SizedBox(
-                    height: 8,
-                  ),
+                  const SizedBox(height: 8),
                   Align(
                     alignment: Alignment.centerRight,
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: onMinimize,
-                        borderRadius: BorderRadius.circular(
-                          999,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: onMinimize,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 7,
                         ),
-                        child: Ink(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 7,
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primary.withValues(
+                            alpha: 0.07,
                           ),
-                          decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
                             color: theme.colorScheme.primary.withValues(
-                              alpha: 0.07,
-                            ),
-                            borderRadius: BorderRadius.circular(
-                              999,
-                            ),
-                            border: Border.all(
-                              color: theme.colorScheme.primary.withValues(
-                                alpha: 0.18,
-                              ),
+                              alpha: 0.18,
                             ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 22,
-                                height: 22,
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  color: theme.colorScheme.primary.withValues(
-                                    alpha: 0.10,
-                                  ),
-                                  shape: BoxShape.circle,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 22,
+                              height: 22,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primary.withValues(
+                                  alpha: 0.10,
                                 ),
-                                child: Icon(
-                                  Icons.keyboard_arrow_down_rounded,
-                                  size: 17,
-                                  color: theme.colorScheme.primary,
-                                ),
+                                shape: BoxShape.circle,
                               ),
-                              const SizedBox(
-                                width: 8,
+                              child: Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                size: 17,
+                                color: theme.colorScheme.primary,
                               ),
-                              Text(
-                                'Minimizar',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.1,
-                                  color: theme.colorScheme.primary,
-                                ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Minimizar',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.1,
+                                color: theme.colorScheme.primary,
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -2293,34 +1859,18 @@ extension _BrainScreenCreation
     required String status,
     required String description,
   }) {
-    final theme = Theme.of(
-      context,
-    );
-    final percent =
-        (progress.clamp(
-                  0.0,
-                  1.0,
-                ) *
-                100)
-            .round();
+    final theme = Theme.of(context);
+    final percent = (progress.clamp(0.0, 1.0) * 100).round();
 
-    final completed =
-        progress >=
-            1.0 &&
-        status ==
-            'Conhecimento protegido';
+    final completed = progress >= 1.0 && status == 'Conhecimento protegido';
 
     final primary = theme.colorScheme.primary;
 
     return Material(
       color: Colors.transparent,
       elevation: 12,
-      shadowColor: Colors.black.withValues(
-        alpha: 0.11,
-      ),
-      borderRadius: BorderRadius.circular(
-        18,
-      ),
+      shadowColor: Colors.black.withValues(alpha: 0.11),
+      borderRadius: BorderRadius.circular(18),
       clipBehavior: Clip.antiAlias,
       child: ConstrainedBox(
         constraints: const BoxConstraints(
@@ -2330,26 +1880,13 @@ extension _BrainScreenCreation
         ),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(
-            14,
-            12,
-            14,
-            12,
-          ),
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
           decoration: BoxDecoration(
             // Fundo translúcido: mantém o card legível, mas deixa o
             // conteúdo da tela aparecer suavemente por trás dele.
-            color: theme.colorScheme.surface.withValues(
-              alpha: 0.82,
-            ),
-            borderRadius: BorderRadius.circular(
-              18,
-            ),
-            border: Border.all(
-              color: primary.withValues(
-                alpha: 0.16,
-              ),
-            ),
+            color: theme.colorScheme.surface.withValues(alpha: 0.82),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: primary.withValues(alpha: 0.16)),
           ),
           child: completed
               ? Row(
@@ -2360,14 +1897,10 @@ extension _BrainScreenCreation
                       height: 42,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: primary.withValues(
-                          alpha: 0.10,
-                        ),
+                        color: primary.withValues(alpha: 0.10),
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: primary.withValues(
-                            alpha: 0.18,
-                          ),
+                          color: primary.withValues(alpha: 0.18),
                         ),
                       ),
                       child: Icon(
@@ -2376,9 +1909,7 @@ extension _BrainScreenCreation
                         color: primary,
                       ),
                     ),
-                    const SizedBox(
-                      width: 12,
-                    ),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -2394,9 +1925,7 @@ extension _BrainScreenCreation
                               letterSpacing: 0.1,
                             ),
                           ),
-                          const SizedBox(
-                            height: 4,
-                          ),
+                          const SizedBox(height: 4),
                           Text(
                             'Seu conhecimento foi criptografado e salvo com integridade.',
                             maxLines: 2,
@@ -2419,16 +1948,10 @@ extension _BrainScreenCreation
                           height: 28,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: primary.withValues(
-                              alpha: 0.07,
-                            ),
-                            borderRadius: BorderRadius.circular(
-                              9,
-                            ),
+                            color: primary.withValues(alpha: 0.07),
+                            borderRadius: BorderRadius.circular(9),
                             border: Border.all(
-                              color: primary.withValues(
-                                alpha: 0.14,
-                              ),
+                              color: primary.withValues(alpha: 0.14),
                             ),
                           ),
                           child: Icon(
@@ -2437,9 +1960,7 @@ extension _BrainScreenCreation
                             color: primary,
                           ),
                         ),
-                        const SizedBox(
-                          width: 9,
-                        ),
+                        const SizedBox(width: 9),
                         Expanded(
                           child: Text(
                             status,
@@ -2452,25 +1973,17 @@ extension _BrainScreenCreation
                             ),
                           ),
                         ),
-                        const SizedBox(
-                          width: 10,
-                        ),
+                        const SizedBox(width: 10),
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 9,
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: primary.withValues(
-                              alpha: 0.07,
-                            ),
-                            borderRadius: BorderRadius.circular(
-                              999,
-                            ),
+                            color: primary.withValues(alpha: 0.07),
+                            borderRadius: BorderRadius.circular(999),
                             border: Border.all(
-                              color: primary.withValues(
-                                alpha: 0.14,
-                              ),
+                              color: primary.withValues(alpha: 0.14),
                             ),
                           ),
                           child: Text(
@@ -2484,17 +1997,10 @@ extension _BrainScreenCreation
                         ),
                       ],
                     ),
-                    const SizedBox(
-                      height: 9,
-                    ),
-                    _BrainPulsingProgressBar(
-                      progress: progress,
-                      height: 6,
-                    ),
+                    const SizedBox(height: 9),
+                    _BrainPulsingProgressBar(progress: progress, height: 6),
                     if (description.trim().isNotEmpty) ...[
-                      const SizedBox(
-                        height: 6,
-                      ),
+                      const SizedBox(height: 6),
                       Text(
                         description,
                         maxLines: 1,
@@ -2520,84 +2026,44 @@ extension _BrainScreenCreation
 
   Widget _buildPendingSourcesEditor({
     required BuildContext context,
-    required List<
-      BrainSource
-    >
-    sources,
+    required List<BrainSource> sources,
     required bool enabled,
-    required Future<
-      void
-    >
-    Function()
-    onAdd,
-    required Future<
-      void
-    >
-    Function(
-      int index,
-    )
-    onEdit,
-    required void Function(
-      int index,
-    )
-    onRemove,
+    required Future<void> Function() onAdd,
+    required Future<void> Function(int index) onEdit,
+    required void Function(int index) onRemove,
   }) {
-    final theme = Theme.of(
-      context,
-    );
+    final theme = Theme.of(context);
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(
-        14,
-      ),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow.withValues(
-          alpha: 0.62,
-        ),
-        borderRadius: BorderRadius.circular(
-          14,
-        ),
-        border: Border.all(
-          color: theme.dividerColor.withValues(
-            alpha: 0.38,
-          ),
-        ),
+        color: theme.colorScheme.surfaceContainerLow.withValues(alpha: 0.62),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.38)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.link_rounded,
-                size: 18,
-              ),
+              const Icon(Icons.link_rounded, size: 18),
 
-              const SizedBox(
-                width: 8,
-              ),
+              const SizedBox(width: 8),
 
               const Expanded(
                 child: Text(
                   'Fontes',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
 
               if (sources.isNotEmpty)
-                Text(
-                  '${sources.length}',
-                  style: theme.textTheme.bodySmall,
-                ),
+                Text('${sources.length}', style: theme.textTheme.bodySmall),
             ],
           ),
 
-          const SizedBox(
-            height: 6,
-          ),
+          const SizedBox(height: 6),
 
           Text(
             'Opcional. Preserve de onde este conhecimento veio.',
@@ -2605,44 +2071,26 @@ extension _BrainScreenCreation
           ),
 
           if (sources.isNotEmpty) ...[
-            const SizedBox(
-              height: 10,
-            ),
+            const SizedBox(height: 10),
 
-            for (
-              var index = 0;
-              index <
-                  sources.length;
-              index++
-            ) ...[
+            for (var index = 0; index < sources.length; index++) ...[
               _buildPendingSourceTile(
                 context: context,
                 source: sources[index],
                 enabled: enabled,
                 onEdit: () {
-                  onEdit(
-                    index,
-                  );
+                  onEdit(index);
                 },
                 onRemove: () {
-                  onRemove(
-                    index,
-                  );
+                  onRemove(index);
                 },
               ),
 
-              if (index <
-                  sources.length -
-                      1)
-                const SizedBox(
-                  height: 7,
-                ),
+              if (index < sources.length - 1) const SizedBox(height: 7),
             ],
           ],
 
-          const SizedBox(
-            height: 10,
-          ),
+          const SizedBox(height: 10),
 
           Align(
             alignment: Alignment.centerLeft,
@@ -2652,13 +2100,8 @@ extension _BrainScreenCreation
                       onAdd();
                     }
                   : null,
-              icon: const Icon(
-                Icons.add_link_rounded,
-                size: 18,
-              ),
-              label: const Text(
-                'Adicionar fonte',
-              ),
+              icon: const Icon(Icons.add_link_rounded, size: 18),
+              label: const Text('Adicionar fonte'),
             ),
           ),
         ],
@@ -2674,26 +2117,12 @@ extension _BrainScreenCreation
     required VoidCallback onRemove,
   }) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(
-        11,
-        8,
-        6,
-        8,
-      ),
+      padding: const EdgeInsets.fromLTRB(11, 8, 6, 8),
       decoration: BoxDecoration(
-        color: Theme.of(
-          context,
-        ).colorScheme.surface,
-        borderRadius: BorderRadius.circular(
-          11,
-        ),
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(11),
         border: Border.all(
-          color:
-              Theme.of(
-                context,
-              ).dividerColor.withValues(
-                alpha: 0.30,
-              ),
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.30),
         ),
       ),
       child: Row(
@@ -2701,14 +2130,10 @@ extension _BrainScreenCreation
           Icon(
             Icons.link_outlined,
             size: 17,
-            color: Theme.of(
-              context,
-            ).colorScheme.primary,
+            color: Theme.of(context).colorScheme.primary,
           ),
 
-          const SizedBox(
-            width: 9,
-          ),
+          const SizedBox(width: 9),
 
           Expanded(
             child: Column(
@@ -2724,15 +2149,11 @@ extension _BrainScreenCreation
                   ),
                 ),
 
-                const SizedBox(
-                  height: 2,
-                ),
+                const SizedBox(height: 2),
 
                 Text(
                   source.type.label,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall,
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
             ),
@@ -2740,24 +2161,14 @@ extension _BrainScreenCreation
 
           IconButton(
             tooltip: 'Editar fonte',
-            onPressed: enabled
-                ? onEdit
-                : null,
-            icon: const Icon(
-              Icons.edit_outlined,
-              size: 18,
-            ),
+            onPressed: enabled ? onEdit : null,
+            icon: const Icon(Icons.edit_outlined, size: 18),
           ),
 
           IconButton(
             tooltip: 'Remover fonte',
-            onPressed: enabled
-                ? onRemove
-                : null,
-            icon: const Icon(
-              Icons.close_rounded,
-              size: 18,
-            ),
+            onPressed: enabled ? onRemove : null,
+            icon: const Icon(Icons.close_rounded, size: 18),
           ),
         ],
       ),
@@ -2791,10 +2202,7 @@ extension _BrainScreenCreation
   //
   // ============================================================
 
-  Future<
-    void
-  >
-  _showCreateQuestionDialog() async {
+  Future<void> _showCreateQuestionDialog() async {
     if (!mounted) {
       return;
     }
@@ -2812,12 +2220,7 @@ extension _BrainScreenCreation
     //
     // ==========================================================
 
-    final questions =
-        <
-          _QuestionDraft
-        >[
-          _QuestionDraft(),
-        ];
+    final questions = <_QuestionDraft>[_QuestionDraft()];
 
     var saving = false;
 
@@ -2826,644 +2229,502 @@ extension _BrainScreenCreation
     int? createdCount;
 
     try {
-      createdCount =
-          await showDialog<
-            int
-          >(
-            context: context,
-            barrierDismissible: false,
-            builder:
-                (
-                  dialogContext,
-                ) {
-                  return StatefulBuilder(
-                    builder:
-                        (
-                          dialogContext,
-                          setDialogState,
-                        ) {
-                          final colorScheme = Theme.of(
-                            dialogContext,
-                          ).colorScheme;
+      createdCount = await showDialog<int>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          return StatefulBuilder(
+            builder: (dialogContext, setDialogState) {
+              final colorScheme = Theme.of(dialogContext).colorScheme;
 
-                          // ==========================================
-                          // ADD QUESTION
-                          // ==========================================
+              // ==========================================
+              // ADD QUESTION
+              // ==========================================
 
-                          void addQuestion() {
-                            if (saving) {
-                              return;
-                            }
+              void addQuestion() {
+                if (saving) {
+                  return;
+                }
 
-                            setDialogState(
-                              () {
-                                questions.add(
-                                  _QuestionDraft(),
-                                );
-                              },
-                            );
-                          }
+                setDialogState(() {
+                  questions.add(_QuestionDraft());
+                });
+              }
 
-                          // ==========================================
-                          // REMOVE QUESTION
-                          // ==========================================
+              // ==========================================
+              // REMOVE QUESTION
+              // ==========================================
 
-                          void removeQuestion(
-                            int index,
-                          ) {
-                            if (saving ||
-                                questions.length <=
-                                    1) {
-                              return;
-                            }
+              void removeQuestion(int index) {
+                if (saving || questions.length <= 1) {
+                  return;
+                }
 
-                            late final _QuestionDraft removed;
+                late final _QuestionDraft removed;
 
-                            setDialogState(
-                              () {
-                                removed = questions.removeAt(
-                                  index,
-                                );
-                              },
-                            );
+                setDialogState(() {
+                  removed = questions.removeAt(index);
+                });
 
-                            // ========================================
-                            // DISPOSE APÓS O FRAME
-                            // ========================================
-                            //
-                            // O card removido ainda pode estar sendo
-                            // desmontado neste frame. Descartar os
-                            // TextEditingControllers antes disso pode
-                            // fazer um TextField tentar reutilizar um
-                            // controller já disposed.
-                            //
-                            // ========================================
+                // ========================================
+                // DISPOSE APÓS O FRAME
+                // ========================================
+                //
+                // O card removido ainda pode estar sendo
+                // desmontado neste frame. Descartar os
+                // TextEditingControllers antes disso pode
+                // fazer um TextField tentar reutilizar um
+                // controller já disposed.
+                //
+                // ========================================
 
-                            WidgetsBinding.instance.addPostFrameCallback(
-                              (
-                                _,
-                              ) {
-                                removed.dispose();
-                              },
-                            );
-                          }
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  removed.dispose();
+                });
+              }
 
-                          // ==========================================
-                          // VALIDATE
-                          // ==========================================
+              // ==========================================
+              // VALIDATE
+              // ==========================================
 
-                          bool validateQuestions() {
-                            for (
-                              var index = 0;
-                              index <
-                                  questions.length;
-                              index++
-                            ) {
-                              final draft = questions[index];
+              bool validateQuestions() {
+                for (var index = 0; index < questions.length; index++) {
+                  final draft = questions[index];
 
-                              final question = draft.questionController.text.trim();
+                  final question = draft.questionController.text.trim();
 
-                              final answer = draft.answerController.text.trim();
+                  final answer = draft.answerController.text.trim();
 
-                              if (question.isEmpty) {
-                                _showMessage(
-                                  'Digite a pergunta ${index + 1}.',
-                                );
+                  if (question.isEmpty) {
+                    _showMessage('Digite a pergunta ${index + 1}.');
 
-                                return false;
-                              }
+                    return false;
+                  }
 
-                              if (answer.isEmpty) {
-                                _showMessage(
-                                  'Digite a resposta da pergunta ${index + 1}.',
-                                );
+                  if (answer.isEmpty) {
+                    _showMessage('Digite a resposta da pergunta ${index + 1}.');
 
-                                return false;
-                              }
-                            }
+                    return false;
+                  }
+                }
 
-                            return true;
-                          }
+                return true;
+              }
 
-                          // ==========================================
-                          // SAVE ALL
-                          // ==========================================
+              // ==========================================
+              // SAVE ALL
+              // ==========================================
 
-                          Future<
-                            void
-                          >
-                          saveQuestions() async {
-                            if (saving ||
-                                _controller.isSaving) {
-                              return;
-                            }
+              Future<void> saveQuestions() async {
+                if (saving || _controller.isSaving) {
+                  return;
+                }
 
-                            if (!validateQuestions()) {
-                              return;
-                            }
+                if (!validateQuestions()) {
+                  return;
+                }
 
-                            setDialogState(
-                              () {
-                                saving = true;
+                setDialogState(() {
+                  saving = true;
 
-                                savedCount = 0;
-                              },
-                            );
+                  savedCount = 0;
+                });
 
-                            var allSaved = true;
+                var allSaved = true;
 
-                            try {
-                              for (
-                                var index = 0;
-                                index <
-                                    questions.length;
-                                index++
-                              ) {
-                                final draft = questions[index];
+                try {
+                  for (var index = 0; index < questions.length; index++) {
+                    final draft = questions[index];
 
-                                // ====================================
-                                // NOVA NOTA PARA CADA PERGUNTA
-                                // ====================================
-                                //
-                                // Isso garante que uma pergunta não
-                                // sobrescreva a anterior.
-                                //
-                                // ====================================
+                    // ====================================
+                    // NOVA NOTA PARA CADA PERGUNTA
+                    // ====================================
+                    //
+                    // Isso garante que uma pergunta não
+                    // sobrescreva a anterior.
+                    //
+                    // ====================================
 
-                                _controller.createNewNote();
+                    _controller.createNewNote();
 
-                                // FASE 09:
-                                // "Sem tema" é apenas compatibilidade interna
-                                // enquanto as camadas legadas são migradas.
-                                _controller.topicController.text = 'Sem tema';
+                    // FASE 09:
+                    // "Sem tema" é apenas compatibilidade interna
+                    // enquanto as camadas legadas são migradas.
+                    _controller.topicController.text = 'Sem tema';
 
-                                _controller.titleController.text = draft.questionController.text.trim();
+                    _controller.titleController.text = draft
+                        .questionController
+                        .text
+                        .trim();
 
-                                _controller.contentController.text = draft.answerController.text.trim();
+                    _controller.contentController.text = draft
+                        .answerController
+                        .text
+                        .trim();
 
-                                final firstReviewAt = DateTime.now().add(
-                                  draft.delay.duration,
-                                );
+                    final firstReviewAt = DateTime.now().add(
+                      draft.delay.duration,
+                    );
 
-                                final saved = await _saveKnowledge(
-                                  type: BrainConceptType.question,
-                                  firstReviewAt: firstReviewAt,
-                                  sources:
-                                      List<
-                                        BrainSource
-                                      >.unmodifiable(
-                                        draft.sources,
-                                      ),
-                                );
+                    final saved = await _saveKnowledge(
+                      type: BrainConceptType.question,
+                      firstReviewAt: firstReviewAt,
+                      sources: List<BrainSource>.unmodifiable(draft.sources),
+                    );
 
-                                if (!mounted ||
-                                    !dialogContext.mounted) {
-                                  return;
-                                }
+                    if (!mounted || !dialogContext.mounted) {
+                      return;
+                    }
 
-                                if (!saved) {
-                                  allSaved = false;
+                    if (!saved) {
+                      allSaved = false;
 
-                                  break;
-                                }
+                      break;
+                    }
 
-                                savedCount++;
+                    savedCount++;
 
-                                setDialogState(
-                                  () {},
-                                );
-                              }
+                    setDialogState(() {});
+                  }
 
-                              if (!allSaved) {
-                                _showMessage(
-                                  savedCount ==
-                                          0
-                                      ? 'Não foi possível criar as perguntas.'
-                                      : '$savedCount pergunta${savedCount == 1 ? '' : 's'} foram salvas antes de ocorrer um erro.',
-                                );
+                  if (!allSaved) {
+                    _showMessage(
+                      savedCount == 0
+                          ? 'Não foi possível criar as perguntas.'
+                          : '$savedCount pergunta${savedCount == 1 ? '' : 's'} foram salvas antes de ocorrer um erro.',
+                    );
 
-                                return;
-                              }
+                    return;
+                  }
 
-                              // ====================================
-                              // SUCESSO
-                              // ====================================
+                  // ====================================
+                  // SUCESSO
+                  // ====================================
 
-                              if (!dialogContext.mounted) {
-                                return;
-                              }
+                  if (!dialogContext.mounted) {
+                    return;
+                  }
 
-                              // ====================================
-                              // FECHAR O MODAL COM RESULTADO
-                              // ====================================
-                              //
-                              // Não navegamos para QuestionScreen daqui.
-                              //
-                              // Primeiro deixamos o Dialog terminar todo
-                              // o ciclo de remoção da árvore. Só depois,
-                              // fora do builder, descartamos os
-                              // controllers locais e abrimos a tela de
-                              // perguntas.
-                              //
-                              // Isso evita:
-                              //
-                              // TextEditingController was used after
-                              // being disposed.
-                              //
-                              // ====================================
+                  // ====================================
+                  // FECHAR O MODAL COM RESULTADO
+                  // ====================================
+                  //
+                  // Não navegamos para QuestionScreen daqui.
+                  //
+                  // Primeiro deixamos o Dialog terminar todo
+                  // o ciclo de remoção da árvore. Só depois,
+                  // fora do builder, descartamos os
+                  // controllers locais e abrimos a tela de
+                  // perguntas.
+                  //
+                  // Isso evita:
+                  //
+                  // TextEditingController was used after
+                  // being disposed.
+                  //
+                  // ====================================
 
-                              Navigator.of(
-                                dialogContext,
-                              ).pop(
-                                savedCount,
-                              );
+                  Navigator.of(dialogContext).pop(savedCount);
 
-                              return;
-                            } finally {
-                              if (dialogContext.mounted) {
-                                setDialogState(
-                                  () {
-                                    saving = false;
-                                  },
-                                );
-                              }
-                            }
-                          }
+                  return;
+                } finally {
+                  if (dialogContext.mounted) {
+                    setDialogState(() {
+                      saving = false;
+                    });
+                  }
+                }
+              }
 
-                          // ==========================================
-                          // BUILD DIALOG
-                          // ==========================================
+              // ==========================================
+              // BUILD DIALOG
+              // ==========================================
 
-                          return Dialog(
-                            clipBehavior: Clip.antiAlias,
-                            insetPadding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 24,
-                            ),
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(
-                                maxWidth: 780,
-                                maxHeight: 860,
+              return Dialog(
+                clipBehavior: Clip.antiAlias,
+                insetPadding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 24,
+                ),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: 780,
+                    maxHeight: 860,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // ==================================
+                      // HEADER
+                      // ==================================
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(22, 18, 12, 14),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 42,
+                              height: 42,
+                              decoration: BoxDecoration(
+                                color: BrainConceptType.question.color
+                                    .withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(12),
                               ),
+                              child: Icon(
+                                BrainConceptType.question.icon,
+                                color: BrainConceptType.question.color,
+                              ),
+                            ),
+
+                            const SizedBox(width: 12),
+
+                            Expanded(
                               child: Column(
-                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // ==================================
-                                  // HEADER
-                                  // ==================================
-                                  Padding(
-                                    padding: const EdgeInsets.fromLTRB(
-                                      22,
-                                      18,
-                                      12,
-                                      14,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          width: 42,
-                                          height: 42,
-                                          decoration: BoxDecoration(
-                                            color: BrainConceptType.question.color.withValues(
-                                              alpha: 0.12,
-                                            ),
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                          ),
-                                          child: Icon(
-                                            BrainConceptType.question.icon,
-                                            color: BrainConceptType.question.color,
-                                          ),
-                                        ),
-
-                                        const SizedBox(
-                                          width: 12,
-                                        ),
-
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                questions.length ==
-                                                        1
-                                                    ? 'Nova pergunta'
-                                                    : 'Novas perguntas',
-                                                style: const TextStyle(
-                                                  fontSize: 20,
-                                                  fontWeight: FontWeight.w800,
-                                                ),
-                                              ),
-
-                                              const SizedBox(
-                                                height: 3,
-                                              ),
-
-                                              Text(
-                                                questions.length ==
-                                                        1
-                                                    ? 'Crie uma revisão ativa. Você pode adicionar outras perguntas no mesmo fluxo.'
-                                                    : '${questions.length} perguntas serão salvas como revisões independentes.',
-                                                style: const TextStyle(
-                                                  fontSize: 11,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-
-                                        IconButton(
-                                          tooltip: 'Fechar',
-                                          onPressed:
-                                              saving ||
-                                                  _controller.isSaving
-                                              ? null
-                                              : () {
-                                                  Navigator.of(
-                                                    dialogContext,
-                                                  ).pop();
-                                                },
-                                          icon: const Icon(
-                                            Icons.close_rounded,
-                                          ),
-                                        ),
-                                      ],
+                                  Text(
+                                    questions.length == 1
+                                        ? 'Nova pergunta'
+                                        : 'Novas perguntas',
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w800,
                                     ),
                                   ),
 
-                                  Divider(
-                                    height: 1,
-                                    color:
-                                        Theme.of(
-                                          dialogContext,
-                                        ).dividerColor.withValues(
-                                          alpha: 0.45,
-                                        ),
-                                  ),
+                                  const SizedBox(height: 3),
 
-                                  // ==================================
-                                  // CONTENT
-                                  // ==================================
-                                  Flexible(
-                                    child: SingleChildScrollView(
-                                      padding: const EdgeInsets.all(
-                                        22,
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          // ==========================
-                                          // PERGUNTAS
-                                          // ==========================
-                                          for (
-                                            var index = 0;
-                                            index <
-                                                questions.length;
-                                            index++
-                                          ) ...[
-                                            _buildQuestionDraftCard(
-                                              context: dialogContext,
-                                              index: index,
-                                              draft: questions[index],
-                                              canRemove:
-                                                  questions.length >
-                                                  1,
-                                              saving: saving,
-                                              onRemove: () {
-                                                removeQuestion(
-                                                  index,
-                                                );
-                                              },
-                                              onDelayChanged:
-                                                  (
-                                                    value,
-                                                  ) {
-                                                    setDialogState(
-                                                      () {
-                                                        questions[index].delay = value;
-                                                      },
-                                                    );
-                                                  },
-                                              onAddSource: () async {
-                                                final source = await BrainSourceDialog.show(
-                                                  context: dialogContext,
-                                                );
-
-                                                if (source ==
-                                                        null ||
-                                                    !dialogContext.mounted) {
-                                                  return;
-                                                }
-
-                                                final duplicate = questions[index].sources.any(
-                                                  (
-                                                    item,
-                                                  ) =>
-                                                      item.id ==
-                                                          source.id ||
-                                                      item.contentKey ==
-                                                          source.contentKey,
-                                                );
-
-                                                if (duplicate) {
-                                                  _showMessage(
-                                                    'Essa fonte já foi adicionada à pergunta ${index + 1}.',
-                                                  );
-
-                                                  return;
-                                                }
-
-                                                setDialogState(
-                                                  () {
-                                                    questions[index].sources.add(
-                                                      source,
-                                                    );
-                                                  },
-                                                );
-                                              },
-                                              onEditSource:
-                                                  (
-                                                    sourceIndex,
-                                                  ) async {
-                                                    if (sourceIndex <
-                                                            0 ||
-                                                        sourceIndex >=
-                                                            questions[index].sources.length) {
-                                                      return;
-                                                    }
-
-                                                    final updated = await BrainSourceDialog.show(
-                                                      context: dialogContext,
-                                                      initialSource: questions[index].sources[sourceIndex],
-                                                    );
-
-                                                    if (updated ==
-                                                            null ||
-                                                        !dialogContext.mounted) {
-                                                      return;
-                                                    }
-
-                                                    setDialogState(
-                                                      () {
-                                                        questions[index].sources[sourceIndex] = updated;
-                                                      },
-                                                    );
-                                                  },
-                                              onRemoveSource:
-                                                  (
-                                                    sourceIndex,
-                                                  ) {
-                                                    if (sourceIndex <
-                                                            0 ||
-                                                        sourceIndex >=
-                                                            questions[index].sources.length) {
-                                                      return;
-                                                    }
-
-                                                    setDialogState(
-                                                      () {
-                                                        questions[index].sources.removeAt(
-                                                          sourceIndex,
-                                                        );
-                                                      },
-                                                    );
-                                                  },
-                                            ),
-
-                                            if (index <
-                                                questions.length -
-                                                    1)
-                                              const SizedBox(
-                                                height: 10,
-                                              ),
-                                          ],
-
-                                          const SizedBox(
-                                            height: 16,
-                                          ),
-
-                                          // ==========================
-                                          // ADD
-                                          // ==========================
-                                          SizedBox(
-                                            width: double.infinity,
-                                            child: OutlinedButton.icon(
-                                              onPressed: saving
-                                                  ? null
-                                                  : addQuestion,
-                                              icon: const Icon(
-                                                Icons.add_rounded,
-                                              ),
-                                              label: const Text(
-                                                'Adicionar outra pergunta',
-                                              ),
-                                            ),
-                                          ),
-
-                                          const SizedBox(
-                                            height: 20,
-                                          ),
-
-                                          // ==========================
-                                          // EXPLICAÇÃO
-                                          // ==========================
-                                          Container(
-                                            width: double.infinity,
-                                            padding: const EdgeInsets.all(
-                                              13,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: colorScheme.primaryContainer.withValues(
-                                                alpha: 0.25,
-                                              ),
-                                              borderRadius: BorderRadius.circular(
-                                                13,
-                                              ),
-                                              border: Border.all(
-                                                color: colorScheme.primary.withValues(
-                                                  alpha: 0.12,
-                                                ),
-                                              ),
-                                            ),
-                                            child: const Row(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Icon(
-                                                  Icons.psychology_alt_outlined,
-                                                  size: 18,
-                                                ),
-
-                                                SizedBox(
-                                                  width: 8,
-                                                ),
-
-                                                Expanded(
-                                                  child: Text(
-                                                    'Cada pergunta terá sua própria revisão. Depois da primeira revisão, o Cérebro ajustará os próximos intervalos conforme você marcar Errei, Difícil, Acertei ou Fácil.',
-                                                    style: TextStyle(
-                                                      fontSize: 10,
-                                                      height: 1.45,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-
-                                          const SizedBox(
-                                            height: 18,
-                                          ),
-
-                                          // ==========================
-                                          // SAVE ALL
-                                          // ==========================
-                                          SizedBox(
-                                            width: double.infinity,
-                                            child: FilledButton.icon(
-                                              onPressed:
-                                                  saving ||
-                                                      _controller.isSaving
-                                                  ? null
-                                                  : saveQuestions,
-                                              icon:
-                                                  saving ||
-                                                      _controller.isSaving
-                                                  ? const SizedBox(
-                                                      width: 17,
-                                                      height: 17,
-                                                      child: CircularProgressIndicator(
-                                                        strokeWidth: 2,
-                                                      ),
-                                                    )
-                                                  : const Icon(
-                                                      Icons.school_outlined,
-                                                    ),
-                                              label: Text(
-                                                saving
-                                                    ? savedCount >
-                                                              0
-                                                          ? 'Criando ${savedCount + 1} de ${questions.length}...'
-                                                          : 'Criando perguntas...'
-                                                    : questions.length ==
-                                                          1
-                                                    ? 'Criar pergunta'
-                                                    : 'Criar ${questions.length} perguntas',
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
+                                  Text(
+                                    questions.length == 1
+                                        ? 'Crie uma revisão ativa. Você pode adicionar outras perguntas no mesmo fluxo.'
+                                        : '${questions.length} perguntas serão salvas como revisões independentes.',
+                                    style: const TextStyle(fontSize: 11),
                                   ),
                                 ],
                               ),
                             ),
-                          );
-                        },
-                  );
-                },
+
+                            IconButton(
+                              tooltip: 'Fechar',
+                              onPressed: saving || _controller.isSaving
+                                  ? null
+                                  : () {
+                                      Navigator.of(dialogContext).pop();
+                                    },
+                              icon: const Icon(Icons.close_rounded),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      Divider(
+                        height: 1,
+                        color: Theme.of(
+                          dialogContext,
+                        ).dividerColor.withValues(alpha: 0.45),
+                      ),
+
+                      // ==================================
+                      // CONTENT
+                      // ==================================
+                      Flexible(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(22),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // ==========================
+                              // PERGUNTAS
+                              // ==========================
+                              for (
+                                var index = 0;
+                                index < questions.length;
+                                index++
+                              ) ...[
+                                _buildQuestionDraftCard(
+                                  context: dialogContext,
+                                  index: index,
+                                  draft: questions[index],
+                                  canRemove: questions.length > 1,
+                                  saving: saving,
+                                  onRemove: () {
+                                    removeQuestion(index);
+                                  },
+                                  onDelayChanged: (value) {
+                                    setDialogState(() {
+                                      questions[index].delay = value;
+                                    });
+                                  },
+                                  onAddSource: () async {
+                                    final source = await BrainSourceDialog.show(
+                                      context: dialogContext,
+                                    );
+
+                                    if (source == null ||
+                                        !dialogContext.mounted) {
+                                      return;
+                                    }
+
+                                    final duplicate = questions[index].sources
+                                        .any(
+                                          (item) =>
+                                              item.id == source.id ||
+                                              item.contentKey ==
+                                                  source.contentKey,
+                                        );
+
+                                    if (duplicate) {
+                                      _showMessage(
+                                        'Essa fonte já foi adicionada à pergunta ${index + 1}.',
+                                      );
+
+                                      return;
+                                    }
+
+                                    setDialogState(() {
+                                      questions[index].sources.add(source);
+                                    });
+                                  },
+                                  onEditSource: (sourceIndex) async {
+                                    if (sourceIndex < 0 ||
+                                        sourceIndex >=
+                                            questions[index].sources.length) {
+                                      return;
+                                    }
+
+                                    final updated =
+                                        await BrainSourceDialog.show(
+                                          context: dialogContext,
+                                          initialSource: questions[index]
+                                              .sources[sourceIndex],
+                                        );
+
+                                    if (updated == null ||
+                                        !dialogContext.mounted) {
+                                      return;
+                                    }
+
+                                    setDialogState(() {
+                                      questions[index].sources[sourceIndex] =
+                                          updated;
+                                    });
+                                  },
+                                  onRemoveSource: (sourceIndex) {
+                                    if (sourceIndex < 0 ||
+                                        sourceIndex >=
+                                            questions[index].sources.length) {
+                                      return;
+                                    }
+
+                                    setDialogState(() {
+                                      questions[index].sources.removeAt(
+                                        sourceIndex,
+                                      );
+                                    });
+                                  },
+                                ),
+
+                                if (index < questions.length - 1)
+                                  const SizedBox(height: 10),
+                              ],
+
+                              const SizedBox(height: 16),
+
+                              // ==========================
+                              // ADD
+                              // ==========================
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: saving ? null : addQuestion,
+                                  icon: const Icon(Icons.add_rounded),
+                                  label: const Text('Adicionar outra pergunta'),
+                                ),
+                              ),
+
+                              const SizedBox(height: 20),
+
+                              // ==========================
+                              // EXPLICAÇÃO
+                              // ==========================
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(13),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.primaryContainer
+                                      .withValues(alpha: 0.25),
+                                  borderRadius: BorderRadius.circular(13),
+                                  border: Border.all(
+                                    color: colorScheme.primary.withValues(
+                                      alpha: 0.12,
+                                    ),
+                                  ),
+                                ),
+                                child: const Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Icon(
+                                      Icons.psychology_alt_outlined,
+                                      size: 18,
+                                    ),
+
+                                    SizedBox(width: 8),
+
+                                    Expanded(
+                                      child: Text(
+                                        'Cada pergunta terá sua própria revisão. Depois da primeira revisão, o Cérebro ajustará os próximos intervalos conforme você marcar Errei, Difícil, Acertei ou Fácil.',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          height: 1.45,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              const SizedBox(height: 18),
+
+                              // ==========================
+                              // SAVE ALL
+                              // ==========================
+                              SizedBox(
+                                width: double.infinity,
+                                child: FilledButton.icon(
+                                  onPressed: saving || _controller.isSaving
+                                      ? null
+                                      : saveQuestions,
+                                  icon: saving || _controller.isSaving
+                                      ? const SizedBox(
+                                          width: 17,
+                                          height: 17,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Icon(Icons.school_outlined),
+                                  label: Text(
+                                    saving
+                                        ? savedCount > 0
+                                              ? 'Criando ${savedCount + 1} de ${questions.length}...'
+                                              : 'Criando perguntas...'
+                                        : questions.length == 1
+                                        ? 'Criar pergunta'
+                                        : 'Criar ${questions.length} perguntas',
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
           );
+        },
+      );
 
       // ========================================================
       // AGUARDAR O DIÁLOGO SAIR DA ÁRVORE
@@ -3478,13 +2739,7 @@ extension _BrainScreenCreation
       //
       // ========================================================
 
-      await Future<
-        void
-      >.delayed(
-        const Duration(
-          milliseconds: 300,
-        ),
-      );
+      await Future<void>.delayed(const Duration(milliseconds: 300));
     } finally {
       // ========================================================
       // DISPOSE DOS CONTROLLERS LOCAIS
@@ -3503,11 +2758,7 @@ extension _BrainScreenCreation
     // CANCELADO / FECHADO SEM SALVAR
     // ==========================================================
 
-    if (!mounted ||
-        createdCount ==
-            null ||
-        createdCount <=
-            0) {
+    if (!mounted || createdCount == null || createdCount <= 0) {
       return;
     }
 
@@ -3516,8 +2767,7 @@ extension _BrainScreenCreation
     // ==========================================================
 
     _showMessage(
-      createdCount ==
-              1
+      createdCount == 1
           ? 'Pergunta criada e adicionada às revisões.'
           : '$createdCount perguntas criadas e adicionadas às revisões.',
     );
@@ -3532,11 +2782,7 @@ extension _BrainScreenCreation
     );
 
     if (grew) {
-      await Future<
-        void
-      >.delayed(
-        _BrainScreenState._brainGrowthPreviewDuration,
-      );
+      await Future<void>.delayed(_BrainScreenState._brainGrowthPreviewDuration);
     }
 
     if (!mounted) {
@@ -3555,9 +2801,7 @@ extension _BrainScreenCreation
 
     _controller.createNewNote();
 
-    _mutateState(
-      () {},
-    );
+    _mutateState(() {});
   }
 
   // ============================================================
@@ -3571,50 +2815,22 @@ extension _BrainScreenCreation
     required bool canRemove,
     required bool saving,
     required VoidCallback onRemove,
-    required ValueChanged<
-      _QuestionReviewDelay
-    >
-    onDelayChanged,
-    required Future<
-      void
-    >
-    Function()
-    onAddSource,
-    required Future<
-      void
-    >
-    Function(
-      int index,
-    )
-    onEditSource,
-    required void Function(
-      int index,
-    )
-    onRemoveSource,
+    required ValueChanged<_QuestionReviewDelay> onDelayChanged,
+    required Future<void> Function() onAddSource,
+    required Future<void> Function(int index) onEditSource,
+    required void Function(int index) onRemoveSource,
   }) {
-    final colorScheme = Theme.of(
-      context,
-    ).colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
-      key: ObjectKey(
-        draft,
-      ),
+      key: ObjectKey(draft),
       width: double.infinity,
-      padding: const EdgeInsets.all(
-        16,
-      ),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLow.withValues(
-          alpha: 0.72,
-        ),
-        borderRadius: BorderRadius.circular(
-          16,
-        ),
+        color: colorScheme.surfaceContainerLow.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: colorScheme.outlineVariant.withValues(
-            alpha: 0.75,
-          ),
+          color: colorScheme.outlineVariant.withValues(alpha: 0.75),
         ),
       ),
       child: Column(
@@ -3633,9 +2849,7 @@ extension _BrainScreenCreation
                   color: BrainConceptType.question.color.withValues(
                     alpha: 0.12,
                   ),
-                  borderRadius: BorderRadius.circular(
-                    9,
-                  ),
+                  borderRadius: BorderRadius.circular(9),
                 ),
                 child: Text(
                   '${index + 1}',
@@ -3647,9 +2861,7 @@ extension _BrainScreenCreation
                 ),
               ),
 
-              const SizedBox(
-                width: 9,
-              ),
+              const SizedBox(width: 9),
 
               Expanded(
                 child: Text(
@@ -3665,22 +2877,13 @@ extension _BrainScreenCreation
                 tooltip: canRemove
                     ? 'Remover pergunta'
                     : 'Mantenha pelo menos uma pergunta',
-                onPressed:
-                    !saving &&
-                        canRemove
-                    ? onRemove
-                    : null,
-                icon: const Icon(
-                  Icons.delete_outline_rounded,
-                  size: 19,
-                ),
+                onPressed: !saving && canRemove ? onRemove : null,
+                icon: const Icon(Icons.delete_outline_rounded, size: 19),
               ),
             ],
           ),
 
-          const SizedBox(
-            height: 12,
-          ),
+          const SizedBox(height: 12),
 
           // ====================================================
           // QUESTION
@@ -3694,16 +2897,12 @@ extension _BrainScreenCreation
             decoration: const InputDecoration(
               labelText: 'Pergunta',
               hintText: 'Ex.: Qual é a ideia principal deste conteúdo?',
-              prefixIcon: Icon(
-                Icons.help_outline_rounded,
-              ),
+              prefixIcon: Icon(Icons.help_outline_rounded),
               border: OutlineInputBorder(),
             ),
           ),
 
-          const SizedBox(
-            height: 12,
-          ),
+          const SizedBox(height: 12),
 
           // ====================================================
           // ANSWER
@@ -3721,61 +2920,38 @@ extension _BrainScreenCreation
             ),
           ),
 
-          const SizedBox(
-            height: 14,
-          ),
+          const SizedBox(height: 14),
 
           // ====================================================
           // FIRST REVIEW
           // ====================================================
-          DropdownButtonFormField<
-            _QuestionReviewDelay
-          >(
+          DropdownButtonFormField<_QuestionReviewDelay>(
             initialValue: draft.delay,
             decoration: const InputDecoration(
               labelText: 'Primeira revisão',
-              prefixIcon: Icon(
-                Icons.schedule_rounded,
-              ),
+              prefixIcon: Icon(Icons.schedule_rounded),
               border: OutlineInputBorder(),
             ),
             items: _QuestionReviewDelay.values
-                .map(
-                  (
-                    delay,
-                  ) {
-                    return DropdownMenuItem<
-                      _QuestionReviewDelay
-                    >(
-                      value: delay,
-                      child: Text(
-                        delay.label,
-                      ),
-                    );
-                  },
-                )
-                .toList(
-                  growable: false,
-                ),
+                .map((delay) {
+                  return DropdownMenuItem<_QuestionReviewDelay>(
+                    value: delay,
+                    child: Text(delay.label),
+                  );
+                })
+                .toList(growable: false),
             onChanged: saving
                 ? null
-                : (
-                    value,
-                  ) {
-                    if (value ==
-                        null) {
+                : (value) {
+                    if (value == null) {
                       return;
                     }
 
-                    onDelayChanged(
-                      value,
-                    );
+                    onDelayChanged(value);
                   },
           ),
 
-          const SizedBox(
-            height: 14,
-          ),
+          const SizedBox(height: 14),
 
           _buildPendingSourcesEditor(
             context: context,
