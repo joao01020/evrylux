@@ -1,11 +1,14 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
-import 'package:desktop_multi_window/desktop_multi_window.dart';
+import '../runtime/routine_window_api_native.dart'
+    if (dart.library.html) '../runtime/routine_window_api_web.dart';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../app/dependencies/app_dependencies.dart';
+import '../../app/dependencies/app_dependencies.dart'
+    if (dart.library.html) '../runtime/routine_web_dependencies.dart';
 import '../../reminders/widgets/reminder_day_dialog.dart';
 import '../../reminders/widgets/reminder_dialog.dart';
 
@@ -41,20 +44,13 @@ import '../widgets/dialogs/routine_text_editor.dart';
 // MIND MAP WINDOW CHANNEL
 // ============================================================
 
-const WindowMethodChannel
-_mindMapWindowChannel = WindowMethodChannel(
+const WindowMethodChannel _mindMapWindowChannel = WindowMethodChannel(
   'routine_mind_map_window',
   mode: ChannelMode.bidirectional,
 );
 
-class RoutineScreen
-    extends
-        StatefulWidget {
-  const RoutineScreen({
-    super.key,
-    this.controller,
-    this.userId,
-  });
+class RoutineScreen extends StatefulWidget {
+  const RoutineScreen({super.key, this.controller, this.userId});
 
   /// Permite injetar um controller já configurado.
   ///
@@ -74,17 +70,10 @@ class RoutineScreen
   final String? userId;
 
   @override
-  State<
-    RoutineScreen
-  >
-  createState() => _RoutineScreenState();
+  State<RoutineScreen> createState() => _RoutineScreenState();
 }
 
-class _RoutineScreenState
-    extends
-        State<
-          RoutineScreen
-        > {
+class _RoutineScreenState extends State<RoutineScreen> {
   // ============================================================
   // TEMA CLARO — BRANCO + VERDE
   // ============================================================
@@ -95,15 +84,9 @@ class _RoutineScreenState
   //
   // ============================================================
 
-  static const Color _background = Color(
-    0xFFF7FAF7,
-  );
-  static const Color _surface = Color(
-    0xFFFFFFFF,
-  );
-  static const Color _surfaceLight = Color(
-    0xFFF1F7F2,
-  );
+  static const Color _background = Color(0xFFF7FAF7);
+  static const Color _surface = Color(0xFFFFFFFF);
+  static const Color _surfaceLight = Color(0xFFF1F7F2);
 
   // ============================================================
   // CARDS DA LOUSA
@@ -116,26 +99,14 @@ class _RoutineScreenState
   //
   // ============================================================
 
-  static const Color _cardBackground = Color(
-    0xFFE5E7EB,
-  );
+  static const Color _cardBackground = Color(0xFFE5E7EB);
 
-  static const Color _cardBorder = Color(
-    0xFFC7CBD1,
-  );
+  static const Color _cardBorder = Color(0xFFC7CBD1);
 
-  static const Color _border = Color(
-    0xFFD7E3D9,
-  );
-  static const Color _primary = Color(
-    0xFF198754,
-  );
-  static const Color _text = Color(
-    0xFF172019,
-  );
-  static const Color _muted = Color(
-    0xFF68746B,
-  );
+  static const Color _border = Color(0xFFD7E3D9);
+  static const Color _primary = Color(0xFF198754);
+  static const Color _text = Color(0xFF172019);
+  static const Color _muted = Color(0xFF68746B);
 
   late final RoutineController _routineController;
   late final BoardController _boardController;
@@ -213,11 +184,7 @@ class _RoutineScreenState
   //
   // ============================================================
 
-  final Map<
-    String,
-    ReminderDayStatus
-  >
-  _reminderDayStatus = {};
+  final Map<String, ReminderDayStatus> _reminderDayStatus = {};
 
   String? _loadedReminderWeekKey;
 
@@ -249,29 +216,17 @@ class _RoutineScreenState
   // MIND MAP WINDOWS
   // ============================================================
 
-  final Set<
-    String
-  >
-  _detachedMindMapBlockIds =
-      <
-        String
-      >{};
+  final Set<String> _detachedMindMapBlockIds = <String>{};
 
   @override
   void initState() {
     super.initState();
 
-    _ownsRoutineController =
-        widget.controller ==
-        null;
+    _ownsRoutineController = widget.controller == null;
 
-    _boardController = BoardController(
-      onChanged: _refreshBoard,
-    );
+    _boardController = BoardController(onChanged: _refreshBoard);
 
-    _mindMapController = MindMapController(
-      onChanged: _onMindMapChanged,
-    );
+    _mindMapController = MindMapController(onChanged: _onMindMapChanged);
 
     // Controller global criado no composition root.
     //
@@ -279,38 +234,26 @@ class _RoutineScreenState
     // ou repository próprios para comentários.
     _commentController = boardCommentController;
 
-    _commentController.addListener(
-      _onCommentsChanged,
-    );
+    _commentController.addListener(_onCommentsChanged);
 
-    boardAttachmentController.addListener(
-      _onBoardAttachmentsChanged,
-    );
+    boardAttachmentController.addListener(_onBoardAttachmentsChanged);
 
     _initializeRoutine();
 
-    _mindMapWindowChannel.setMethodCallHandler(
-      _handleMindMapWindowCall,
-    );
+    _mindMapWindowChannel.setMethodCallHandler(_handleMindMapWindowCall);
   }
 
-  Future<
-    void
-  >
-  _initializeRoutine() async {
+  Future<void> _initializeRoutine() async {
     try {
       final injectedController = widget.controller;
 
-      if (injectedController !=
-          null) {
+      if (injectedController != null) {
         _routineController = injectedController;
       } else {
         _routineController = _createRoutineController();
       }
 
-      _routineController.addListener(
-        _onRoutineChanged,
-      );
+      _routineController.addListener(_onRoutineChanged);
 
       _routineControllerReady = true;
 
@@ -318,13 +261,9 @@ class _RoutineScreenState
 
       await boardAttachmentController.initialize();
 
-      await _loadBoardAttachmentsForSelectedDay(
-        force: true,
-      );
+      await _loadBoardAttachmentsForSelectedDay(force: true);
 
-      await _loadCommentsForSelectedDay(
-        force: true,
-      );
+      await _loadCommentsForSelectedDay(force: true);
 
       await _loadReminderDaysForWeek(
         _routineController.state.weekStart,
@@ -335,50 +274,31 @@ class _RoutineScreenState
         return;
       }
 
-      setState(
-        () {
-          _initializingRoutine = false;
-          _initializationError = null;
-        },
-      );
-    } catch (
-      error,
-      stackTrace
-    ) {
-      debugPrint(
-        '',
-      );
+      setState(() {
+        _initializingRoutine = false;
+        _initializationError = null;
+      });
+    } catch (error, stackTrace) {
+      debugPrint('');
       debugPrint(
         '============================================================',
       );
-      debugPrint(
-        '[ROUTINE][INITIALIZE] ERRO',
-      );
-      debugPrint(
-        '$error',
-      );
-      debugPrint(
-        '$stackTrace',
-      );
+      debugPrint('[ROUTINE][INITIALIZE] ERRO');
+      debugPrint('$error');
+      debugPrint('$stackTrace');
       debugPrint(
         '============================================================',
       );
-      debugPrint(
-        '',
-      );
+      debugPrint('');
 
       if (!mounted) {
         return;
       }
 
-      setState(
-        () {
-          _initializingRoutine = false;
-          _initializationError = _friendlyInitializationError(
-            error,
-          );
-        },
-      );
+      setState(() {
+        _initializingRoutine = false;
+        _initializationError = _friendlyInitializationError(error);
+      });
     }
   }
 
@@ -407,14 +327,10 @@ class _RoutineScreenState
     //
     // ==========================================================
 
-    return createRoutineControllerForCurrentUser(
-      userId: widget.userId,
-    );
+    return createRoutineControllerForCurrentUser(userId: widget.userId);
   }
 
-  String _friendlyInitializationError(
-    Object error,
-  ) {
+  String _friendlyInitializationError(Object error) {
     final message = error.toString().trim();
 
     if (message.isEmpty) {
@@ -424,10 +340,7 @@ class _RoutineScreenState
     return message;
   }
 
-  Future<
-    void
-  >
-  _retryInitialization() async {
+  Future<void> _retryInitialization() async {
     if (_initializingRoutine) {
       return;
     }
@@ -436,12 +349,10 @@ class _RoutineScreenState
       return;
     }
 
-    setState(
-      () {
-        _initializingRoutine = true;
-        _initializationError = null;
-      },
-    );
+    setState(() {
+      _initializingRoutine = true;
+      _initializationError = null;
+    });
 
     await _initializeRoutine();
   }
@@ -449,9 +360,7 @@ class _RoutineScreenState
   @override
   void dispose() {
     if (_routineControllerReady) {
-      _routineController.removeListener(
-        _onRoutineChanged,
-      );
+      _routineController.removeListener(_onRoutineChanged);
 
       if (_ownsRoutineController) {
         _routineController.dispose();
@@ -461,20 +370,14 @@ class _RoutineScreenState
     _boardController.dispose();
     _mindMapController.dispose();
 
-    _commentController.removeListener(
-      _onCommentsChanged,
-    );
+    _commentController.removeListener(_onCommentsChanged);
 
     // _commentController é global e pertence ao app_dependencies.
     // A tela remove apenas o listener que registrou.
 
-    boardAttachmentController.removeListener(
-      _onBoardAttachmentsChanged,
-    );
+    boardAttachmentController.removeListener(_onBoardAttachmentsChanged);
 
-    _mindMapWindowChannel.setMethodCallHandler(
-      null,
-    );
+    _mindMapWindowChannel.setMethodCallHandler(null);
 
     super.dispose();
   }
@@ -484,9 +387,7 @@ class _RoutineScreenState
       return;
     }
 
-    setState(
-      () {},
-    );
+    setState(() {});
 
     // O RoutineController também muda selectedDay ao navegar
     // entre semanas ou ao restaurar estado.
@@ -500,9 +401,7 @@ class _RoutineScreenState
 
   void _refreshBoard() {
     if (mounted) {
-      setState(
-        () {},
-      );
+      setState(() {});
     }
   }
 
@@ -519,40 +418,20 @@ class _RoutineScreenState
   // LEMBRETES DO CALENDÁRIO
   // ============================================================
 
-  String _dateKey(
-    DateTime value,
-  ) {
-    final normalized = DateTime(
-      value.year,
-      value.month,
-      value.day,
-    );
+  String _dateKey(DateTime value) {
+    final normalized = DateTime(value.year, value.month, value.day);
 
-    final year = normalized.year.toString().padLeft(
-      4,
-      '0',
-    );
+    final year = normalized.year.toString().padLeft(4, '0');
 
-    final month = normalized.month.toString().padLeft(
-      2,
-      '0',
-    );
+    final month = normalized.month.toString().padLeft(2, '0');
 
-    final day = normalized.day.toString().padLeft(
-      2,
-      '0',
-    );
+    final day = normalized.day.toString().padLeft(2, '0');
 
     return '$year-$month-$day';
   }
 
-  ReminderDayStatus _reminderStatusForDate(
-    DateTime date,
-  ) {
-    return _reminderDayStatus[_dateKey(
-          date,
-        )] ??
-        ReminderDayStatus.none;
+  ReminderDayStatus _reminderStatusForDate(DateTime date) {
+    return _reminderDayStatus[_dateKey(date)] ?? ReminderDayStatus.none;
   }
 
   // ============================================================
@@ -567,51 +446,29 @@ class _RoutineScreenState
   //
   // ============================================================
 
-  bool _hasReminderForDate(
-    DateTime date,
-  ) {
-    return _reminderStatusForDate(
-      date,
-    ).hasReminder;
+  bool _hasReminderForDate(DateTime date) {
+    return _reminderStatusForDate(date).hasReminder;
   }
 
-  DateTime _utcToBrasilia(
-    DateTime value,
-  ) {
+  DateTime _utcToBrasilia(DateTime value) {
     final utc = value.toUtc();
 
-    return utc.subtract(
-      const Duration(
-        hours: 3,
-      ),
-    );
+    return utc.subtract(const Duration(hours: 3));
   }
 
-  Future<
-    void
-  >
-  _loadReminderDaysForWeek(
+  Future<void> _loadReminderDaysForWeek(
     DateTime weekStart, {
     bool force = false,
   }) async {
-    final start = DateTime(
-      weekStart.year,
-      weekStart.month,
-      weekStart.day,
-    );
+    final start = DateTime(weekStart.year, weekStart.month, weekStart.day);
 
-    final weekKey = _dateKey(
-      start,
-    );
+    final weekKey = _dateKey(start);
 
-    if (_loadingReminderWeekKey ==
-        weekKey) {
+    if (_loadingReminderWeekKey == weekKey) {
       return;
     }
 
-    if (!force &&
-        _loadedReminderWeekKey ==
-            weekKey) {
+    if (!force && _loadedReminderWeekKey == weekKey) {
       return;
     }
 
@@ -629,64 +486,39 @@ class _RoutineScreenState
       //
       // ========================================================
 
-      if (force ||
-          reminderController.reminders.isEmpty) {
+      if (force || reminderController.reminders.isEmpty) {
         await reminderController.load();
       }
 
-      final end = start.add(
-        const Duration(
-          days: 7,
-        ),
-      );
+      final end = start.add(const Duration(days: 7));
 
       final nowUtc = DateTime.now().toUtc();
 
-      final nextStatus =
-          <
-            String,
-            ReminderDayStatus
-          >{};
+      final nextStatus = <String, ReminderDayStatus>{};
 
       for (final reminder in reminderController.reminders) {
         if (reminder.completed) {
           continue;
         }
 
-        final brasilia = _utcToBrasilia(
-          reminder.remindAt,
-        );
+        final brasilia = _utcToBrasilia(reminder.remindAt);
 
-        if (brasilia.isBefore(
-              start,
-            ) ||
-            !brasilia.isBefore(
-              end,
-            )) {
+        if (brasilia.isBefore(start) || !brasilia.isBefore(end)) {
           continue;
         }
 
-        final key = _dateKey(
-          brasilia,
-        );
+        final key = _dateKey(brasilia);
 
         final remindAtUtc = reminder.remindAt.toUtc();
 
-        final incomingStatus =
-            remindAtUtc.isAfter(
-              nowUtc,
-            )
+        final incomingStatus = remindAtUtc.isAfter(nowUtc)
             ? ReminderDayStatus.active
             : ReminderDayStatus.expired;
 
-        final currentStatus =
-            nextStatus[key] ??
-            ReminderDayStatus.none;
+        final currentStatus = nextStatus[key] ?? ReminderDayStatus.none;
 
-        if (currentStatus ==
-                ReminderDayStatus.none ||
-            currentStatus ==
-                incomingStatus) {
+        if (currentStatus == ReminderDayStatus.none ||
+            currentStatus == incomingStatus) {
           nextStatus[key] = incomingStatus;
         } else {
           nextStatus[key] = ReminderDayStatus.mixed;
@@ -697,32 +529,22 @@ class _RoutineScreenState
         return;
       }
 
-      setState(
-        () {
-          _reminderDayStatus
-            ..clear()
-            ..addAll(
-              nextStatus,
-            );
+      setState(() {
+        _reminderDayStatus
+          ..clear()
+          ..addAll(nextStatus);
 
-          _loadedReminderWeekKey = weekKey;
-        },
-      );
-    } catch (
-      error,
-      stackTrace
-    ) {
+        _loadedReminderWeekKey = weekKey;
+      });
+    } catch (error, stackTrace) {
       debugPrint(
         '[ROUTINE][REMINDERS] '
         'Falha ao carregar lembretes pelo controller: $error',
       );
 
-      debugPrint(
-        '$stackTrace',
-      );
+      debugPrint('$stackTrace');
     } finally {
-      if (_loadingReminderWeekKey ==
-          weekKey) {
+      if (_loadingReminderWeekKey == weekKey) {
         _loadingReminderWeekKey = null;
       }
     }
@@ -732,51 +554,26 @@ class _RoutineScreenState
   // LEMBRETES COMPLETOS DE UM DIA
   // ============================================================
 
-  Future<
-    List<
-      ReminderDayItem
-    >
-  >
-  _loadRemindersForDate(
-    DateTime date,
-  ) async {
+  Future<List<ReminderDayItem>> _loadRemindersForDate(DateTime date) async {
     // Atualiza pelo repository, que já conhece SQLite/Supabase.
     //
     // A tela continua completamente alheia à origem do dado.
     await reminderController.refresh();
 
-    final start = DateTime(
-      date.year,
-      date.month,
-      date.day,
-    );
+    final start = DateTime(date.year, date.month, date.day);
 
-    final end = start.add(
-      const Duration(
-        days: 1,
-      ),
-    );
+    final end = start.add(const Duration(days: 1));
 
-    final reminders =
-        <
-          ReminderDayItem
-        >[];
+    final reminders = <ReminderDayItem>[];
 
     for (final reminder in reminderController.reminders) {
       if (reminder.completed) {
         continue;
       }
 
-      final brasilia = _utcToBrasilia(
-        reminder.remindAt,
-      );
+      final brasilia = _utcToBrasilia(reminder.remindAt);
 
-      if (brasilia.isBefore(
-            start,
-          ) ||
-          !brasilia.isBefore(
-            end,
-          )) {
+      if (brasilia.isBefore(start) || !brasilia.isBefore(end)) {
         continue;
       }
 
@@ -793,12 +590,7 @@ class _RoutineScreenState
     }
 
     reminders.sort(
-      (
-        first,
-        second,
-      ) => first.remindAt.compareTo(
-        second.remindAt,
-      ),
+      (first, second) => first.remindAt.compareTo(second.remindAt),
     );
 
     return reminders;
@@ -808,16 +600,9 @@ class _RoutineScreenState
   // EXCLUIR UM LEMBRETE
   // ============================================================
 
-  Future<
-    bool
-  >
-  _deleteReminder(
-    ReminderDayItem reminder,
-  ) async {
+  Future<bool> _deleteReminder(ReminderDayItem reminder) async {
     try {
-      final deleted = await reminderController.delete(
-        reminder.id,
-      );
+      final deleted = await reminderController.delete(reminder.id);
 
       if (!deleted) {
         throw StateError(
@@ -837,16 +622,12 @@ class _RoutineScreenState
         return true;
       }
 
-      ScaffoldMessenger.of(
-          context,
-        )
+      ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
           const SnackBar(
             behavior: SnackBarBehavior.floating,
-            backgroundColor: Color(
-              0xFF3B6939,
-            ),
+            backgroundColor: Color(0xFF3B6939),
             content: Row(
               children: [
                 Icon(
@@ -854,9 +635,7 @@ class _RoutineScreenState
                   color: Colors.white,
                   size: 18,
                 ),
-                SizedBox(
-                  width: 9,
-                ),
+                SizedBox(width: 9),
                 Expanded(
                   child: Text(
                     'Lembrete excluído.',
@@ -872,29 +651,18 @@ class _RoutineScreenState
         );
 
       return true;
-    } catch (
-      error,
-      stackTrace
-    ) {
-      debugPrint(
-        '[ROUTINE][REMINDERS][DELETE] $error',
-      );
+    } catch (error, stackTrace) {
+      debugPrint('[ROUTINE][REMINDERS][DELETE] $error');
 
-      debugPrint(
-        '$stackTrace',
-      );
+      debugPrint('$stackTrace');
 
       if (mounted) {
-        ScaffoldMessenger.of(
-            context,
-          )
+        ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(
             const SnackBar(
               behavior: SnackBarBehavior.floating,
-              content: Text(
-                'Não foi possível excluir o lembrete.',
-              ),
+              content: Text('Não foi possível excluir o lembrete.'),
             ),
           );
       }
@@ -907,33 +675,15 @@ class _RoutineScreenState
   // EXCLUIR TODOS OS EXPIRADOS DO DIA
   // ============================================================
 
-  Future<
-    bool
-  >
-  _deleteExpiredReminders(
-    List<
-      ReminderDayItem
-    >
-    reminders,
-  ) async {
+  Future<bool> _deleteExpiredReminders(List<ReminderDayItem> reminders) async {
     if (reminders.isEmpty) {
       return false;
     }
 
     final ids = reminders
-        .map(
-          (
-            reminder,
-          ) => reminder.id.trim(),
-        )
-        .where(
-          (
-            id,
-          ) => id.isNotEmpty,
-        )
-        .toList(
-          growable: false,
-        );
+        .map((reminder) => reminder.id.trim())
+        .where((id) => id.isNotEmpty)
+        .toList(growable: false);
 
     if (ids.isEmpty) {
       return false;
@@ -943,17 +693,14 @@ class _RoutineScreenState
       var deletedCount = 0;
 
       for (final id in ids) {
-        final deleted = await reminderController.delete(
-          id,
-        );
+        final deleted = await reminderController.delete(id);
 
         if (deleted) {
           deletedCount++;
         }
       }
 
-      if (deletedCount !=
-          ids.length) {
+      if (deletedCount != ids.length) {
         throw StateError(
           reminderController.errorMessage ??
               'Alguns lembretes não puderam ser excluídos.',
@@ -971,16 +718,12 @@ class _RoutineScreenState
         return true;
       }
 
-      ScaffoldMessenger.of(
-          context,
-        )
+      ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
           SnackBar(
             behavior: SnackBarBehavior.floating,
-            backgroundColor: const Color(
-              0xFF3B6939,
-            ),
+            backgroundColor: const Color(0xFF3B6939),
             content: Row(
               children: [
                 const Icon(
@@ -988,13 +731,10 @@ class _RoutineScreenState
                   color: Colors.white,
                   size: 18,
                 ),
-                const SizedBox(
-                  width: 9,
-                ),
+                const SizedBox(width: 9),
                 Expanded(
                   child: Text(
-                    deletedCount ==
-                            1
+                    deletedCount == 1
                         ? '1 lembrete expirado excluído.'
                         : '$deletedCount lembretes expirados excluídos.',
                     style: const TextStyle(
@@ -1009,29 +749,18 @@ class _RoutineScreenState
         );
 
       return true;
-    } catch (
-      error,
-      stackTrace
-    ) {
-      debugPrint(
-        '[ROUTINE][REMINDERS][DELETE_EXPIRED] $error',
-      );
+    } catch (error, stackTrace) {
+      debugPrint('[ROUTINE][REMINDERS][DELETE_EXPIRED] $error');
 
-      debugPrint(
-        '$stackTrace',
-      );
+      debugPrint('$stackTrace');
 
       if (mounted) {
-        ScaffoldMessenger.of(
-            context,
-          )
+        ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(
             const SnackBar(
               behavior: SnackBarBehavior.floating,
-              content: Text(
-                'Não foi possível excluir os lembretes expirados.',
-              ),
+              content: Text('Não foi possível excluir os lembretes expirados.'),
             ),
           );
       }
@@ -1044,16 +773,9 @@ class _RoutineScreenState
   // ABRIR LEMBRETES DO DIA
   // ============================================================
 
-  Future<
-    void
-  >
-  _showRemindersForDay(
-    DateTime date,
-  ) async {
+  Future<void> _showRemindersForDay(DateTime date) async {
     try {
-      final reminders = await _loadRemindersForDate(
-        date,
-      );
+      final reminders = await _loadRemindersForDate(date);
 
       if (!mounted) {
         return;
@@ -1063,58 +785,34 @@ class _RoutineScreenState
         context,
         date: date,
         reminders: reminders,
-        onDelete:
-            (
-              reminder,
-            ) {
-              return _deleteReminder(
-                reminder,
-              );
-            },
-        onDeleteExpired:
-            (
-              expired,
-            ) {
-              return _deleteExpiredReminders(
-                expired,
-              );
-            },
+        onDelete: (reminder) {
+          return _deleteReminder(reminder);
+        },
+        onDeleteExpired: (expired) {
+          return _deleteExpiredReminders(expired);
+        },
       );
-    } catch (
-      error,
-      stackTrace
-    ) {
-      debugPrint(
-        '[ROUTINE][REMINDERS][DAY] $error',
-      );
+    } catch (error, stackTrace) {
+      debugPrint('[ROUTINE][REMINDERS][DAY] $error');
 
-      debugPrint(
-        '$stackTrace',
-      );
+      debugPrint('$stackTrace');
 
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(
-          context,
-        )
+      ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
           const SnackBar(
             behavior: SnackBarBehavior.floating,
-            content: Text(
-              'Não foi possível carregar os lembretes deste dia.',
-            ),
+            content: Text('Não foi possível carregar os lembretes deste dia.'),
           ),
         );
     }
   }
 
-  Future<
-    void
-  >
-  _goToPreviousWeek() async {
+  Future<void> _goToPreviousWeek() async {
     _loadedReminderWeekKey = null;
 
     await _routineController.previousWeek();
@@ -1129,10 +827,7 @@ class _RoutineScreenState
     );
   }
 
-  Future<
-    void
-  >
-  _goToNextWeek() async {
+  Future<void> _goToNextWeek() async {
     _loadedReminderWeekKey = null;
 
     await _routineController.nextWeek();
@@ -1170,64 +865,42 @@ class _RoutineScreenState
 
     final error = boardAttachmentController.errorMessage;
 
-    if (error !=
-            null &&
-        error.trim().isNotEmpty) {
-      debugPrint(
-        '[BOARD ATTACHMENT][CONTROLLER] $error',
-      );
+    if (error != null && error.trim().isNotEmpty) {
+      debugPrint('[BOARD ATTACHMENT][CONTROLLER] $error');
     }
 
-    setState(
-      () {},
-    );
+    setState(() {});
   }
 
-  String _boardAttachmentBoardId(
-    RoutineDay day,
-  ) {
-    return _commentDayId(
-      day,
-    );
+  String _boardAttachmentBoardId(RoutineDay day) {
+    return _commentDayId(day);
   }
 
-  Future<
-    void
-  >
-  _loadBoardAttachmentsForSelectedDay({
-    bool force = false,
-  }) async {
+  Future<void> _loadBoardAttachmentsForSelectedDay({bool force = false}) async {
     if (!_routineControllerReady) {
       return;
     }
 
     final day = _routineController.selectedDay;
 
-    final boardId = _boardAttachmentBoardId(
-      day,
-    );
+    final boardId = _boardAttachmentBoardId(day);
 
     if (boardId.isEmpty) {
       return;
     }
 
-    if (_loadingAttachmentBoardId ==
-        boardId) {
+    if (_loadingAttachmentBoardId == boardId) {
       return;
     }
 
-    if (!force &&
-        _loadedAttachmentBoardId ==
-            boardId) {
+    if (!force && _loadedAttachmentBoardId == boardId) {
       return;
     }
 
     _loadingAttachmentBoardId = boardId;
 
     try {
-      await boardAttachmentController.loadBoard(
-        boardId,
-      );
+      await boardAttachmentController.loadBoard(boardId);
 
       if (!mounted) {
         return;
@@ -1237,55 +910,34 @@ class _RoutineScreenState
         _routineController.selectedDay,
       );
 
-      if (currentBoardId ==
-          boardId) {
+      if (currentBoardId == boardId) {
         _loadedAttachmentBoardId = boardId;
       }
-    } catch (
-      error,
-      stackTrace
-    ) {
-      debugPrint(
-        '[BOARD ATTACHMENT][LOAD] $error',
-      );
+    } catch (error, stackTrace) {
+      debugPrint('[BOARD ATTACHMENT][LOAD] $error');
 
-      debugPrint(
-        '$stackTrace',
-      );
+      debugPrint('$stackTrace');
 
-      if (_loadedAttachmentBoardId ==
-          boardId) {
+      if (_loadedAttachmentBoardId == boardId) {
         _loadedAttachmentBoardId = null;
       }
     } finally {
-      if (_loadingAttachmentBoardId ==
-          boardId) {
+      if (_loadingAttachmentBoardId == boardId) {
         _loadingAttachmentBoardId = null;
       }
     }
   }
 
-  Future<
-    void
-  >
-  _openDocument(
-    BoardBlock block,
-  ) async {
+  Future<void> _openDocument(BoardBlock block) async {
     final attachmentId = block.attachmentId?.trim();
 
-    if (attachmentId ==
-            null ||
-        attachmentId.isEmpty) {
-      _showDocumentMessage(
-        'Este bloco não possui um documento vinculado.',
-      );
+    if (attachmentId == null || attachmentId.isEmpty) {
+      _showDocumentMessage('Este bloco não possui um documento vinculado.');
 
       return;
     }
 
-    var attachment = boardAttachmentController.getById(
-      attachmentId,
-    );
+    var attachment = boardAttachmentController.getById(attachmentId);
 
     attachment ??= await boardAttachmentController.getByIdFromStorage(
       attachmentId,
@@ -1295,8 +947,7 @@ class _RoutineScreenState
       return;
     }
 
-    if (attachment ==
-        null) {
+    if (attachment == null) {
       _showDocumentMessage(
         'O documento deste bloco não foi encontrado no armazenamento local.',
       );
@@ -1314,11 +965,8 @@ class _RoutineScreenState
       return;
     }
 
-    if (updated !=
-        null) {
-      setState(
-        () {},
-      );
+    if (updated != null) {
+      setState(() {});
     }
   }
 
@@ -1331,35 +979,26 @@ class _RoutineScreenState
   }) {
     final attachmentId = block.attachmentId?.trim();
 
-    if (attachmentId ==
-            null ||
-        attachmentId.isEmpty) {
+    if (attachmentId == null || attachmentId.isEmpty) {
       return _MissingDocumentBlock(
         title: block.title,
         message: 'Documento sem vínculo local.',
         onTap: () {
-          _openDocument(
-            block,
-          );
+          _openDocument(block);
         },
       );
     }
 
-    final attachment = boardAttachmentController.getById(
-      attachmentId,
-    );
+    final attachment = boardAttachmentController.getById(attachmentId);
 
-    if (attachment ==
-        null) {
+    if (attachment == null) {
       return _MissingDocumentBlock(
         title: block.title,
         message: boardAttachmentController.isLoading
             ? 'Carregando documento...'
             : 'Documento não carregado.',
         onTap: () {
-          _openDocument(
-            block,
-          );
+          _openDocument(block);
         },
       );
     }
@@ -1371,9 +1010,7 @@ class _RoutineScreenState
       // ABRIR
       // ========================================================
       onOpen: () {
-        _openDocument(
-          block,
-        );
+        _openDocument(block);
       },
 
       // ========================================================
@@ -1386,19 +1023,16 @@ class _RoutineScreenState
       // real do BoardBlock dentro da lousa.
       //
       // ========================================================
-      onDrag:
-          (
-            delta,
-          ) {
-            _boardController.moveBlock(
-              day: day,
-              block: block,
-              delta: delta,
-              boardWidth: boardWidth,
-              boardHeight: boardHeight,
-              blockWidth: blockWidth,
-            );
-          },
+      onDrag: (delta) {
+        _boardController.moveBlock(
+          day: day,
+          block: block,
+          delta: delta,
+          boardWidth: boardWidth,
+          boardHeight: boardHeight,
+          blockWidth: blockWidth,
+        );
+      },
 
       // ========================================================
       // PERSISTIR AO SOLTAR
@@ -1416,27 +1050,18 @@ class _RoutineScreenState
     );
   }
 
-  void _showDocumentMessage(
-    String message,
-  ) {
+  void _showDocumentMessage(String message) {
     if (!mounted) {
       return;
     }
 
-    ScaffoldMessenger.of(
-        context,
-      )
+    ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
           behavior: SnackBarBehavior.floating,
           backgroundColor: _surfaceLight,
-          content: Text(
-            message,
-            style: const TextStyle(
-              color: _text,
-            ),
-          ),
+          content: Text(message, style: const TextStyle(color: _text)),
         ),
       );
   }
@@ -1452,38 +1077,21 @@ class _RoutineScreenState
 
     final error = _commentController.errorMessage;
 
-    if (error !=
-            null &&
-        error.trim().isNotEmpty) {
-      debugPrint(
-        '[COMMENT][CONTROLLER] $error',
-      );
+    if (error != null && error.trim().isNotEmpty) {
+      debugPrint('[COMMENT][CONTROLLER] $error');
     }
 
-    setState(
-      () {},
-    );
+    setState(() {});
   }
 
-  String _commentDayId(
-    RoutineDay day,
-  ) {
+  String _commentDayId(RoutineDay day) {
     final date = day.normalizedDate;
 
-    final year = date.year.toString().padLeft(
-      4,
-      '0',
-    );
+    final year = date.year.toString().padLeft(4, '0');
 
-    final month = date.month.toString().padLeft(
-      2,
-      '0',
-    );
+    final month = date.month.toString().padLeft(2, '0');
 
-    final dayNumber = date.day.toString().padLeft(
-      2,
-      '0',
-    );
+    final dayNumber = date.day.toString().padLeft(2, '0');
 
     return '$year-$month-$dayNumber';
   }
@@ -1492,62 +1100,42 @@ class _RoutineScreenState
   // CARREGAR COMENTÁRIOS DO DIA SELECIONADO
   // ============================================================
 
-  Future<
-    void
-  >
-  _loadCommentsForSelectedDay({
-    bool force = false,
-  }) async {
+  Future<void> _loadCommentsForSelectedDay({bool force = false}) async {
     if (!_routineControllerReady) {
       return;
     }
 
     final selectedDay = _routineController.selectedDay;
 
-    final dayId = _commentDayId(
-      selectedDay,
-    );
+    final dayId = _commentDayId(selectedDay);
 
     if (dayId.isEmpty) {
       return;
     }
 
     // Já existe uma chamada para esse mesmo dia em andamento.
-    if (_loadingCommentDayId ==
-        dayId) {
+    if (_loadingCommentDayId == dayId) {
       return;
     }
 
     // O dia já foi carregado e não houve pedido explícito
     // para atualizar novamente.
-    if (!force &&
-        _loadedCommentDayId ==
-            dayId) {
+    if (!force && _loadedCommentDayId == dayId) {
       return;
     }
 
     _loadingCommentDayId = dayId;
 
-    debugPrint(
-      '',
-    );
+    debugPrint('');
 
-    debugPrint(
-      '============================================================',
-    );
+    debugPrint('============================================================');
 
-    debugPrint(
-      '[COMMENT][LOAD] Buscando comentários',
-    );
+    debugPrint('[COMMENT][LOAD] Buscando comentários');
 
-    debugPrint(
-      '[COMMENT][LOAD] dayId: $dayId',
-    );
+    debugPrint('[COMMENT][LOAD] dayId: $dayId');
 
     try {
-      await _commentController.loadByDay(
-        dayId,
-      );
+      await _commentController.loadByDay(dayId);
 
       if (!mounted) {
         return;
@@ -1555,12 +1143,9 @@ class _RoutineScreenState
 
       // Só confirmamos como carregado se o usuário ainda estiver
       // no mesmo dia quando a requisição terminar.
-      final currentDayId = _commentDayId(
-        _routineController.selectedDay,
-      );
+      final currentDayId = _commentDayId(_routineController.selectedDay);
 
-      if (currentDayId ==
-          dayId) {
+      if (currentDayId == dayId) {
         _loadedCommentDayId = dayId;
       }
 
@@ -1568,26 +1153,17 @@ class _RoutineScreenState
         '[COMMENT][LOAD] '
         '${_commentController.countForDay(dayId)} comentário(s) carregado(s).',
       );
-    } catch (
-      error,
-      stackTrace
-    ) {
-      debugPrint(
-        '[COMMENT][LOAD] ERRO: $error',
-      );
+    } catch (error, stackTrace) {
+      debugPrint('[COMMENT][LOAD] ERRO: $error');
 
-      debugPrint(
-        '$stackTrace',
-      );
+      debugPrint('$stackTrace');
 
       // Permite tentar novamente na próxima mudança/rebuild.
-      if (_loadedCommentDayId ==
-          dayId) {
+      if (_loadedCommentDayId == dayId) {
         _loadedCommentDayId = null;
       }
     } finally {
-      if (_loadingCommentDayId ==
-          dayId) {
+      if (_loadingCommentDayId == dayId) {
         _loadingCommentDayId = null;
       }
 
@@ -1595,9 +1171,7 @@ class _RoutineScreenState
         '============================================================',
       );
 
-      debugPrint(
-        '',
-      );
+      debugPrint('');
     }
   }
 
@@ -1605,13 +1179,8 @@ class _RoutineScreenState
   // RECARREGAR COMENTÁRIOS
   // ============================================================
 
-  Future<
-    void
-  >
-  _reloadCommentsForSelectedDay() {
-    return _loadCommentsForSelectedDay(
-      force: true,
-    );
+  Future<void> _reloadCommentsForSelectedDay() {
+    return _loadCommentsForSelectedDay(force: true);
   }
 
   void _enableCommentMode() {
@@ -1637,164 +1206,94 @@ class _RoutineScreenState
 
     final raw = details.localPosition;
 
-    final maxX = math.max(
-      margin,
-      boardWidth -
-          editorWidth -
-          margin,
-    );
+    final maxX = math.max(margin, boardWidth - editorWidth - margin);
 
-    final maxY = math.max(
-      margin,
-      boardHeight -
-          editorEstimatedHeight -
-          margin,
-    );
+    final maxY = math.max(margin, boardHeight - editorEstimatedHeight - margin);
 
     final position = Offset(
-      raw.dx
-          .clamp(
-            margin,
-            maxX,
-          )
-          .toDouble(),
-      raw.dy
-          .clamp(
-            margin,
-            maxY,
-          )
-          .toDouble(),
+      raw.dx.clamp(margin, maxX).toDouble(),
+      raw.dy.clamp(margin, maxY).toDouble(),
     );
 
-    setState(
-      () {
-        _openedComment = null;
-        _pendingCommentPosition = position;
-      },
-    );
+    setState(() {
+      _openedComment = null;
+      _pendingCommentPosition = position;
+    });
   }
 
   void _cancelPendingComment() {
-    setState(
-      () {
-        _pendingCommentPosition = null;
-      },
-    );
+    setState(() {
+      _pendingCommentPosition = null;
+    });
   }
 
-  Future<
-    void
-  >
-  _submitPendingComment(
-    RoutineDay day,
-    String message,
-  ) async {
+  Future<void> _submitPendingComment(RoutineDay day, String message) async {
     final position = _pendingCommentPosition;
 
-    if (position ==
-        null) {
+    if (position == null) {
       return;
     }
 
     final created = await _commentController.create(
-      dayId: _commentDayId(
-        day,
-      ),
+      dayId: _commentDayId(day),
       message: message,
       position: position,
     );
 
-    if (!mounted ||
-        created ==
-            null) {
+    if (!mounted || created == null) {
       return;
     }
 
     _loadedCommentDayId = created.dayId;
 
-    debugPrint(
-      '[COMMENT][CREATE] Salvo com sucesso: ${created.id}',
-    );
+    debugPrint('[COMMENT][CREATE] Salvo com sucesso: ${created.id}');
 
-    debugPrint(
-      '[COMMENT][CREATE] dayId: ${created.dayId}',
-    );
+    debugPrint('[COMMENT][CREATE] dayId: ${created.dayId}');
 
-    setState(
-      () {
-        _pendingCommentPosition = null;
-        _openedComment = null;
-      },
-    );
+    setState(() {
+      _pendingCommentPosition = null;
+      _openedComment = null;
+    });
   }
 
-  void _openComment(
-    BoardComment comment,
-  ) {
-    setState(
-      () {
-        _pendingCommentPosition = null;
+  void _openComment(BoardComment comment) {
+    setState(() {
+      _pendingCommentPosition = null;
 
-        _openedComment =
-            _openedComment?.id ==
-                comment.id
-            ? null
-            : comment;
-      },
-    );
+      _openedComment = _openedComment?.id == comment.id ? null : comment;
+    });
   }
 
   void _closeComment() {
-    setState(
-      () {
-        _openedComment = null;
-      },
-    );
+    setState(() {
+      _openedComment = null;
+    });
   }
 
-  Future<
-    void
-  >
-  _toggleResolvedComment(
-    BoardComment comment,
-  ) async {
-    await _commentController.toggleResolved(
-      comment,
-    );
+  Future<void> _toggleResolvedComment(BoardComment comment) async {
+    await _commentController.toggleResolved(comment);
 
     if (!mounted) {
       return;
     }
 
-    setState(
-      () {
-        _openedComment = null;
-      },
-    );
+    setState(() {
+      _openedComment = null;
+    });
   }
 
-  Future<
-    void
-  >
-  _deleteComment(
-    BoardComment comment,
-  ) async {
-    await _commentController.remove(
-      comment,
-    );
+  Future<void> _deleteComment(BoardComment comment) async {
+    await _commentController.remove(comment);
 
     if (!mounted) {
       return;
     }
 
-    setState(
-      () {
-        if (_openedComment?.id ==
-            comment.id) {
-          _openedComment = null;
-        }
-      },
-    );
+    setState(() {
+      if (_openedComment?.id == comment.id) {
+        _openedComment = null;
+      }
+    });
   }
 
   // ============================================================
@@ -1817,67 +1316,30 @@ class _RoutineScreenState
 
     final current = comment.position;
 
-    final nextX =
-        (current.dx +
-                delta.dx)
-            .clamp(
-              0.0,
-              math.max(
-                0.0,
-                boardWidth -
-                    pinWidth,
-              ),
-            )
-            .toDouble();
+    final nextX = (current.dx + delta.dx)
+        .clamp(0.0, math.max(0.0, boardWidth - pinWidth))
+        .toDouble();
 
-    final nextY =
-        (current.dy +
-                delta.dy)
-            .clamp(
-              0.0,
-              math.max(
-                0.0,
-                boardHeight -
-                    pinHeight,
-              ),
-            )
-            .toDouble();
+    final nextY = (current.dy + delta.dy)
+        .clamp(0.0, math.max(0.0, boardHeight - pinHeight))
+        .toDouble();
 
-    _commentController.moveLocal(
-      comment,
-      Offset(
-        nextX,
-        nextY,
-      ),
-    );
+    _commentController.moveLocal(comment, Offset(nextX, nextY));
 
-    if (_openedComment?.id ==
-        comment.id) {
+    if (_openedComment?.id == comment.id) {
       _openedComment = comment;
     }
   }
 
-  Future<
-    void
-  >
-  _persistCommentPosition(
-    BoardComment comment,
-  ) async {
-    await _commentController.persistPosition(
-      comment,
-    );
+  Future<void> _persistCommentPosition(BoardComment comment) async {
+    await _commentController.persistPosition(comment);
   }
 
   // ============================================================
   // TROCAR DIA
   // ============================================================
 
-  Future<
-    void
-  >
-  _selectRoutineDay(
-    DateTime date,
-  ) async {
+  Future<void> _selectRoutineDay(DateTime date) async {
     _pendingCommentPosition = null;
     _openedComment = null;
 
@@ -1885,47 +1347,26 @@ class _RoutineScreenState
 
     _loadedAttachmentBoardId = null;
 
-    _routineController.selectDay(
-      date,
-    );
+    _routineController.selectDay(date);
 
-    await _loadBoardAttachmentsForSelectedDay(
-      force: true,
-    );
+    await _loadBoardAttachmentsForSelectedDay(force: true);
 
     // Recarrega os comentários ao trocar manualmente o dia.
     await _reloadCommentsForSelectedDay();
   }
 
-  List<
-    BoardComment
-  >
-  _commentsForDay(
-    RoutineDay day,
-  ) {
-    return _commentController.commentsForDay(
-      _commentDayId(
-        day,
-      ),
-    );
+  List<BoardComment> _commentsForDay(RoutineDay day) {
+    return _commentController.commentsForDay(_commentDayId(day));
   }
 
-  List<
-    Widget
-  >
-  _buildCommentLayer({
+  List<Widget> _buildCommentLayer({
     required RoutineDay day,
     required double boardWidth,
     required double boardHeight,
   }) {
-    final comments = _commentsForDay(
-      day,
-    );
+    final comments = _commentsForDay(day);
 
-    final widgets =
-        <
-          Widget
-        >[];
+    final widgets = <Widget>[];
 
     // Detector fica acima dos blocos SOMENTE quando o modo
     // comentário está ativo. Assim um clique escolhe a posição.
@@ -1936,17 +1377,14 @@ class _RoutineScreenState
             cursor: SystemMouseCursors.precise,
             child: GestureDetector(
               behavior: HitTestBehavior.translucent,
-              onTapDown:
-                  (
-                    details,
-                  ) {
-                    _startCommentAt(
-                      day,
-                      details,
-                      boardWidth: boardWidth,
-                      boardHeight: boardHeight,
-                    );
-                  },
+              onTapDown: (details) {
+                _startCommentAt(
+                  day,
+                  details,
+                  boardWidth: boardWidth,
+                  boardHeight: boardHeight,
+                );
+              },
             ),
           ),
         ),
@@ -1956,25 +1394,11 @@ class _RoutineScreenState
     // Pins salvos em memória.
     for (final comment in comments) {
       final pinX = comment.position.dx
-          .clamp(
-            0.0,
-            math.max(
-              0.0,
-              boardWidth -
-                  38,
-            ),
-          )
+          .clamp(0.0, math.max(0.0, boardWidth - 38))
           .toDouble();
 
       final pinY = comment.position.dy
-          .clamp(
-            0.0,
-            math.max(
-              0.0,
-              boardHeight -
-                  38,
-            ),
-          )
+          .clamp(0.0, math.max(0.0, boardHeight - 38))
           .toDouble();
 
       widgets.add(
@@ -1982,30 +1406,21 @@ class _RoutineScreenState
           left: pinX,
           top: pinY,
           child: BoardCommentPin(
-            key: ValueKey(
-              'comment-pin-${comment.id}',
-            ),
+            key: ValueKey('comment-pin-${comment.id}'),
             comment: comment,
             onTap: () {
-              _openComment(
+              _openComment(comment);
+            },
+            onDragUpdate: (delta) {
+              _moveCommentLocal(
                 comment,
+                delta,
+                boardWidth: boardWidth,
+                boardHeight: boardHeight,
               );
             },
-            onDragUpdate:
-                (
-                  delta,
-                ) {
-                  _moveCommentLocal(
-                    comment,
-                    delta,
-                    boardWidth: boardWidth,
-                    boardHeight: boardHeight,
-                  );
-                },
             onDragEnd: () {
-              _persistCommentPosition(
-                comment,
-              );
+              _persistCommentPosition(comment);
             },
           ),
         ),
@@ -2015,26 +1430,16 @@ class _RoutineScreenState
     // Editor do novo comentário.
     final pending = _pendingCommentPosition;
 
-    if (pending !=
-            null &&
-        _commentController.commentMode) {
+    if (pending != null && _commentController.commentMode) {
       widgets.add(
         Positioned(
           left: pending.dx,
           top: pending.dy,
           child: BoardCommentEditor(
-            key: ValueKey(
-              'comment-editor-${_commentDayId(day)}',
-            ),
-            onSubmit:
-                (
-                  message,
-                ) {
-                  _submitPendingComment(
-                    day,
-                    message,
-                  );
-                },
+            key: ValueKey('comment-editor-${_commentDayId(day)}'),
+            onSubmit: (message) {
+              _submitPendingComment(day, message);
+            },
             onCancel: _cancelPendingComment,
           ),
         ),
@@ -2044,51 +1449,25 @@ class _RoutineScreenState
     // Card completo ao clicar no pin.
     final opened = _openedComment;
 
-    if (opened !=
-            null &&
-        opened.dayId ==
-            _commentDayId(
-              day,
-            )) {
+    if (opened != null && opened.dayId == _commentDayId(day)) {
       const cardWidth = 340.0;
       const cardEstimatedHeight = 220.0;
       const margin = 12.0;
 
-      var cardX =
-          opened.position.dx +
-          46;
+      var cardX = opened.position.dx + 46;
 
-      if (cardX +
-              cardWidth +
-              margin >
-          boardWidth) {
-        cardX =
-            opened.position.dx -
-            cardWidth -
-            12;
+      if (cardX + cardWidth + margin > boardWidth) {
+        cardX = opened.position.dx - cardWidth - 12;
       }
 
       cardX = cardX
-          .clamp(
-            margin,
-            math.max(
-              margin,
-              boardWidth -
-                  cardWidth -
-                  margin,
-            ),
-          )
+          .clamp(margin, math.max(margin, boardWidth - cardWidth - margin))
           .toDouble();
 
       final cardY = opened.position.dy
           .clamp(
             margin,
-            math.max(
-              margin,
-              boardHeight -
-                  cardEstimatedHeight -
-                  margin,
-            ),
+            math.max(margin, boardHeight - cardEstimatedHeight - margin),
           )
           .toDouble();
 
@@ -2097,20 +1476,14 @@ class _RoutineScreenState
           left: cardX,
           top: cardY,
           child: BoardCommentCard(
-            key: ValueKey(
-              'comment-card-${opened.id}',
-            ),
+            key: ValueKey('comment-card-${opened.id}'),
             comment: opened,
             onClose: _closeComment,
             onResolve: () {
-              _toggleResolvedComment(
-                opened,
-              );
+              _toggleResolvedComment(opened);
             },
             onDelete: () {
-              _deleteComment(
-                opened,
-              );
+              _deleteComment(opened);
             },
           ),
         ),
@@ -2124,72 +1497,33 @@ class _RoutineScreenState
   // MIND MAP WINDOW - CHANNEL HANDLER
   // ============================================================
 
-  Future<
-    dynamic
-  >
-  _handleMindMapWindowCall(
-    MethodCall call,
-  ) async {
+  Future<dynamic> _handleMindMapWindowCall(MethodCall call) async {
     switch (call.method) {
       case 'mind_map_changed':
-        final data = _channelMap(
-          call.arguments,
-        );
+        final data = _channelMap(call.arguments);
 
-        return _applyMindMapSnapshot(
-          data,
-          dock: false,
-        );
+        return _applyMindMapSnapshot(data, dock: false);
 
       case 'mind_map_dock':
-        final data = _channelMap(
-          call.arguments,
-        );
+        final data = _channelMap(call.arguments);
 
-        return _applyMindMapSnapshot(
-          data,
-          dock: true,
-        );
+        return _applyMindMapSnapshot(data, dock: true);
 
       default:
         return null;
     }
   }
 
-  Map<
-    String,
-    dynamic
-  >
-  _channelMap(
-    Object? value,
-  ) {
-    if (value
-        is Map) {
-      return Map<
-        String,
-        dynamic
-      >.from(
-        value,
-      );
+  Map<String, dynamic> _channelMap(Object? value) {
+    if (value is Map) {
+      return Map<String, dynamic>.from(value);
     }
 
-    return <
-      String,
-      dynamic
-    >{};
+    return <String, dynamic>{};
   }
 
-  bool _applyMindMapSnapshot(
-    Map<
-      String,
-      dynamic
-    >
-    data, {
-    required bool dock,
-  }) {
-    final blockId =
-        data['block_id']?.toString().trim() ??
-        '';
+  bool _applyMindMapSnapshot(Map<String, dynamic> data, {required bool dock}) {
+    final blockId = data['block_id']?.toString().trim() ?? '';
 
     if (blockId.isEmpty) {
       return false;
@@ -2197,28 +1531,15 @@ class _RoutineScreenState
 
     final rawBlock = data['block'];
 
-    if (rawBlock
-        is Map) {
+    if (rawBlock is Map) {
       try {
-        final dto = BoardBlockDto.fromMap(
-          Map<
-            String,
-            dynamic
-          >.from(
-            rawBlock,
-          ),
-        );
+        final dto = BoardBlockDto.fromMap(Map<String, dynamic>.from(rawBlock));
 
-        final updated = BoardBlockMapper.toModel(
-          dto,
-        );
+        final updated = BoardBlockMapper.toModel(dto);
 
-        final target = _findRoutineBlockById(
-          blockId,
-        );
+        final target = _findRoutineBlockById(blockId);
 
-        if (target !=
-            null) {
+        if (target != null) {
           target.title = updated.title;
           target.content = updated.content;
           target.status = updated.status;
@@ -2229,54 +1550,36 @@ class _RoutineScreenState
 
           target.mindNodes
             ..clear()
-            ..addAll(
-              updated.mindNodes,
-            );
+            ..addAll(updated.mindNodes);
 
           _routineController.notifyBlockChanged();
         }
-      } catch (
-        error,
-        stackTrace
-      ) {
-        debugPrint(
-          '[ROUTINE][MIND MAP WINDOW][APPLY] $error',
-        );
+      } catch (error, stackTrace) {
+        debugPrint('[ROUTINE][MIND MAP WINDOW][APPLY] $error');
 
-        debugPrint(
-          '$stackTrace',
-        );
+        debugPrint('$stackTrace');
 
         return false;
       }
     }
 
     if (dock) {
-      _detachedMindMapBlockIds.remove(
-        blockId,
-      );
+      _detachedMindMapBlockIds.remove(blockId);
     } else {
-      _detachedMindMapBlockIds.add(
-        blockId,
-      );
+      _detachedMindMapBlockIds.add(blockId);
     }
 
     if (mounted) {
-      setState(
-        () {},
-      );
+      setState(() {});
     }
 
     return true;
   }
 
-  BoardBlock? _findRoutineBlockById(
-    String blockId,
-  ) {
+  BoardBlock? _findRoutineBlockById(String blockId) {
     for (final day in _routineController.state.days) {
       for (final block in day.blocks) {
-        if (block.id ==
-            blockId) {
+        if (block.id == blockId) {
           return block;
         }
       }
@@ -2285,17 +1588,11 @@ class _RoutineScreenState
     return null;
   }
 
-  bool _isMindMapDetached(
-    BoardBlock block,
-  ) {
-    return _detachedMindMapBlockIds.contains(
-      block.id,
-    );
+  bool _isMindMapDetached(BoardBlock block) {
+    return _detachedMindMapBlockIds.contains(block.id);
   }
 
-  String? _mindMapBlockIdFromArguments(
-    String rawArguments,
-  ) {
+  String? _mindMapBlockIdFromArguments(String rawArguments) {
     final raw = rawArguments.trim();
 
     if (raw.isEmpty) {
@@ -2303,59 +1600,37 @@ class _RoutineScreenState
     }
 
     try {
-      final decoded = jsonDecode(
-        raw,
-      );
+      final decoded = jsonDecode(raw);
 
-      if (decoded
-          is! Map) {
+      if (decoded is! Map) {
         return null;
       }
 
-      final map =
-          Map<
-            String,
-            dynamic
-          >.from(
-            decoded,
-          );
+      final map = Map<String, dynamic>.from(decoded);
 
-      if (map['window']?.toString().trim() !=
-          'mind_map') {
+      if (map['window']?.toString().trim() != 'mind_map') {
         return null;
       }
 
       final blockId = map['block_id']?.toString().trim();
 
-      if (blockId ==
-              null ||
-          blockId.isEmpty) {
+      if (blockId == null || blockId.isEmpty) {
         return null;
       }
 
       return blockId;
-    } catch (
-      _
-    ) {
+    } catch (_) {
       return null;
     }
   }
 
-  Future<
-    WindowController?
-  >
-  _findMindMapWindow(
-    String blockId,
-  ) async {
+  Future<WindowController?> _findMindMapWindow(String blockId) async {
     final windows = await WindowController.getAll();
 
     for (final window in windows) {
-      final currentBlockId = _mindMapBlockIdFromArguments(
-        window.arguments,
-      );
+      final currentBlockId = _mindMapBlockIdFromArguments(window.arguments);
 
-      if (currentBlockId ==
-          blockId) {
+      if (currentBlockId == blockId) {
         return window;
       }
     }
@@ -2363,123 +1638,89 @@ class _RoutineScreenState
     return null;
   }
 
-  Map<
-    String,
-    dynamic
-  >
-  _mindMapBlockMap(
-    BoardBlock block,
-  ) {
-    return BoardBlockMapper.toDto(
-      model: block,
-    ).toMap();
+  Map<String, dynamic> _mindMapBlockMap(BoardBlock block) {
+    return BoardBlockMapper.toDto(model: block).toMap();
   }
 
-  Future<
-    void
-  >
-  _openMindMapWindow(
-    BoardBlock block,
-  ) async {
-    if (block.type !=
-        BlockType.mindMap) {
+  Future<void> _openMindMapWindow(BoardBlock block) async {
+    if (block.type != BlockType.mindMap) {
+      return;
+    }
+
+    if (kIsWeb) {
+      // O navegador não possui janela desktop_multi_window.
+      //
+      // Mantemos exatamente o mesmo mapa mental interativo dentro da lousa e
+      // usamos o modo expandido da própria tela como equivalente Web.
+      _mindMapController.ensureRoot(block);
+
+      if (!_boardExpanded && mounted) {
+        setState(() {
+          _boardExpanded = true;
+        });
+      }
+
       return;
     }
 
     try {
-      _mindMapController.ensureRoot(
-        block,
-      );
+      _mindMapController.ensureRoot(block);
 
       // Persiste localmente antes de destacar.
       //
       // Nenhuma leitura remota é necessária para abrir a janela.
       await _routineController.saveSelectedDay();
 
-      final blockMap = _mindMapBlockMap(
-        block,
-      );
+      final blockMap = _mindMapBlockMap(block);
 
-      final existingWindow = await _findMindMapWindow(
-        block.id,
-      );
+      final existingWindow = await _findMindMapWindow(block.id);
 
-      if (existingWindow !=
-          null) {
-        _detachedMindMapBlockIds.add(
-          block.id,
-        );
+      if (existingWindow != null) {
+        _detachedMindMapBlockIds.add(block.id);
 
         if (mounted) {
-          setState(
-            () {},
-          );
+          setState(() {});
         }
 
         await existingWindow.show();
 
         // Atualiza a engine escondida com o snapshot mais recente.
-        await _mindMapWindowChannel.invokeMethod(
-          'mind_map_replace',
-          {
-            'block_id': block.id,
-            'block': blockMap,
-          },
-        );
+        await _mindMapWindowChannel.invokeMethod('mind_map_replace', {
+          'block_id': block.id,
+          'block': blockMap,
+        });
 
         return;
       }
 
-      final arguments = jsonEncode(
-        {
-          'window': 'mind_map',
-          'block_id': block.id,
-          'title': block.title.trim().isEmpty
-              ? 'Nova ideia'
-              : block.title.trim(),
-          'block': blockMap,
-        },
-      );
+      final arguments = jsonEncode({
+        'window': 'mind_map',
+        'block_id': block.id,
+        'title': block.title.trim().isEmpty ? 'Nova ideia' : block.title.trim(),
+        'block': blockMap,
+      });
 
       final window = await WindowController.create(
-        WindowConfiguration(
-          hiddenAtLaunch: true,
-          arguments: arguments,
-        ),
+        WindowConfiguration(hiddenAtLaunch: true, arguments: arguments),
       );
 
-      _detachedMindMapBlockIds.add(
-        block.id,
-      );
+      _detachedMindMapBlockIds.add(block.id);
 
       if (mounted) {
-        setState(
-          () {},
-        );
+        setState(() {});
       }
 
       await window.show();
-    } catch (
-      error,
-      stackTrace
-    ) {
-      _detachedMindMapBlockIds.remove(
-        block.id,
-      );
+    } catch (error, stackTrace) {
+      _detachedMindMapBlockIds.remove(block.id);
 
       if (mounted) {
-        setState(
-          () {},
-        );
+        setState(() {});
       }
 
-      debugPrint(
-        '[ROUTINE][MIND MAP WINDOW][OPEN] $error',
-      );
+      debugPrint('[ROUTINE][MIND MAP WINDOW][OPEN] $error');
 
-      debugPrint(
-        '$stackTrace',
-      );
+      debugPrint('$stackTrace');
     }
   }
 
@@ -2517,30 +1758,15 @@ class _RoutineScreenState
     var requiredWidth = minimumWidth;
 
     for (final block in day.blocks) {
-      final position =
-          block.position ??
-          Offset.zero;
+      final position = block.position ?? Offset.zero;
 
-      final blockWidth =
-          block.type ==
-              BlockType.mindMap
-          ? math
-                .max(
-                  420.0,
-                  block.width ??
-                      620.0,
-                )
-                .toDouble()
-          : _boardController.blockWidth(
-              block: block,
-              boardWidth: minimumWidth,
-            );
+      final blockWidth = block.type == BlockType.mindMap
+          ? math.max(420.0, block.width ?? 620.0).toDouble()
+          : _boardController.blockWidth(block: block, boardWidth: minimumWidth);
 
       requiredWidth = math.max(
         requiredWidth,
-        position.dx +
-            blockWidth +
-            rightPadding,
+        position.dx + blockWidth + rightPadding,
       );
     }
 
@@ -2555,27 +1781,15 @@ class _RoutineScreenState
     var requiredHeight = minimumHeight;
 
     for (final block in day.blocks) {
-      final position =
-          block.position ??
-          Offset.zero;
+      final position = block.position ?? Offset.zero;
 
-      final blockHeight =
-          block.type ==
-              BlockType.mindMap
-          ? math
-                .max(
-                  320.0,
-                  block.height ??
-                      430.0,
-                )
-                .toDouble()
+      final blockHeight = block.type == BlockType.mindMap
+          ? math.max(320.0, block.height ?? 430.0).toDouble()
           : 430.0;
 
       requiredHeight = math.max(
         requiredHeight,
-        position.dy +
-            blockHeight +
-            bottomPadding,
+        position.dy + blockHeight + bottomPadding,
       );
     }
 
@@ -2583,26 +1797,19 @@ class _RoutineScreenState
   }
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     if (_initializingRoutine) {
       return const Scaffold(
         backgroundColor: _background,
         body: SafeArea(
-          child: Center(
-            child: CircularProgressIndicator(
-              color: _primary,
-            ),
-          ),
+          child: Center(child: CircularProgressIndicator(color: _primary)),
         ),
       );
     }
 
     final initializationError = _initializationError;
 
-    if (initializationError !=
-        null) {
+    if (initializationError != null) {
       return _RoutineInitializationError(
         message: initializationError,
         onRetry: _retryInitialization,
@@ -2625,9 +1832,7 @@ class _RoutineScreenState
             ? _buildExpandedBoard()
             : Column(
                 children: [
-                  _buildHeader(
-                    state,
-                  ),
+                  _buildHeader(state),
                   RoutineCalendarPanel(
                     state: state,
                     onPreviousWeek: () {
@@ -2640,31 +1845,19 @@ class _RoutineScreenState
 
                       _goToNextWeek();
                     },
-                    onSelectDay:
-                        (
-                          date,
-                        ) {
-                          _selectRoutineDay(
-                            date,
-                          );
-                        },
+                    onSelectDay: (date) {
+                      _selectRoutineDay(date);
+                    },
                     onToggleExpanded: _toggleCalendarExpanded,
                     reminderStatusForDate: _reminderStatusForDate,
                   ),
-                  if (state.hasError)
-                    _buildError(
-                      state.errorMessage!,
-                    ),
+                  if (state.hasError) _buildError(state.errorMessage!),
                   Expanded(
                     child: state.loading
                         ? const Center(
-                            child: CircularProgressIndicator(
-                              color: _primary,
-                            ),
+                            child: CircularProgressIndicator(color: _primary),
                           )
-                        : _buildSelectedDay(
-                            _routineController.selectedDay,
-                          ),
+                        : _buildSelectedDay(_routineController.selectedDay),
                   ),
                 ],
               ),
@@ -2672,28 +1865,17 @@ class _RoutineScreenState
     );
   }
 
-  Widget _buildHeader(
-    RoutineState state,
-  ) {
+  Widget _buildHeader(RoutineState state) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        18,
-        12,
-        18,
-        8,
-      ),
+      padding: const EdgeInsets.fromLTRB(18, 12, 18, 8),
       child: Row(
         children: [
           _RoundIconButton(
             icon: Icons.arrow_back_rounded,
             tooltip: 'Voltar',
-            onTap: () => Navigator.maybePop(
-              context,
-            ),
+            onTap: () => Navigator.maybePop(context),
           ),
-          const SizedBox(
-            width: 12,
-          ),
+          const SizedBox(width: 12),
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2707,37 +1889,23 @@ class _RoutineScreenState
                     letterSpacing: 2.1,
                   ),
                 ),
-                SizedBox(
-                  height: 2,
-                ),
+                SizedBox(height: 2),
                 Text(
                   'Planeje a semana. Construa sua evolução.',
-                  style: TextStyle(
-                    color: _muted,
-                    fontSize: 11,
-                  ),
+                  style: TextStyle(color: _muted, fontSize: 11),
                 ),
               ],
             ),
           ),
           TextButton.icon(
-            onPressed: state.saving
-                ? null
-                : _routineController.saveSelectedDay,
+            onPressed: state.saving ? null : _routineController.saveSelectedDay,
             style: TextButton.styleFrom(
               foregroundColor: _text,
               backgroundColor: _surfaceLight,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 12,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(
-                  12,
-                ),
-                side: const BorderSide(
-                  color: _border,
-                ),
+                borderRadius: BorderRadius.circular(12),
+                side: const BorderSide(color: _border),
               ),
             ),
             icon: state.saving
@@ -2749,283 +1917,196 @@ class _RoutineScreenState
                       color: _text,
                     ),
                   )
-                : const Icon(
-                    Icons.cloud_done_outlined,
-                    size: 18,
-                  ),
-            label: Text(
-              state.saving
-                  ? 'Salvando'
-                  : 'Salvar',
-            ),
+                : const Icon(Icons.cloud_done_outlined, size: 18),
+            label: Text(state.saving ? 'Salvando' : 'Salvar'),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildError(
-    String message,
-  ) {
+  Widget _buildError(String message) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(
-        18,
-        14,
-        18,
-        0,
-      ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: 14,
-        vertical: 10,
-      ),
+      margin: const EdgeInsets.fromLTRB(18, 14, 18, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(
-          0xFFFFF1F3,
-        ),
-        borderRadius: BorderRadius.circular(
-          12,
-        ),
-        border: Border.all(
-          color: const Color(
-            0xFFF0B7C0,
-          ),
-        ),
+        color: const Color(0xFFFFF1F3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFF0B7C0)),
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.error_outline_rounded,
-            color: Color(
-              0xFFC43A52,
-            ),
-          ),
-          const SizedBox(
-            width: 10,
-          ),
+          const Icon(Icons.error_outline_rounded, color: Color(0xFFC43A52)),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(
-                color: _text,
-                fontSize: 12,
-              ),
+              style: const TextStyle(color: _text, fontSize: 12),
             ),
           ),
           IconButton(
             tooltip: 'Fechar',
             onPressed: _routineController.clearError,
-            icon: const Icon(
-              Icons.close_rounded,
-              color: _muted,
-              size: 18,
-            ),
+            icon: const Icon(Icons.close_rounded, color: _muted, size: 18),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSelectedDay(
-    RoutineDay day,
-  ) {
+  Widget _buildSelectedDay(RoutineDay day) {
     return LayoutBuilder(
-      builder:
-          (
-            context,
-            viewport,
-          ) {
-            final horizontalPadding =
-                viewport.maxWidth <
-                    700
-                ? 12.0
-                : 20.0;
+      builder: (context, viewport) {
+        final horizontalPadding = viewport.maxWidth < 700 ? 12.0 : 20.0;
 
-            final minimumBoardWidth = math
-                .max(
-                  1.0,
-                  viewport.maxWidth -
-                      (horizontalPadding *
-                          2),
-                )
-                .toDouble();
+        final minimumBoardWidth = math
+            .max(1.0, viewport.maxWidth - (horizontalPadding * 2))
+            .toDouble();
 
-            final minimumHeight = math
-                .max(
-                  480.0,
-                  viewport.maxHeight -
-                      100,
-                )
-                .toDouble();
+        final minimumHeight = math
+            .max(480.0, viewport.maxHeight - 100)
+            .toDouble();
 
-            _boardController.initializePositions(
-              day: day,
-              boardWidth: minimumBoardWidth,
-            );
+        _boardController.initializePositions(
+          day: day,
+          boardWidth: minimumBoardWidth,
+        );
 
-            final controllerHeight = _boardController.canvasHeight(
-              day: day,
-              minimumHeight: minimumHeight,
-              estimatedBlockHeight: 430,
-              bottomPadding: 80,
-            );
+        final controllerHeight = _boardController.canvasHeight(
+          day: day,
+          minimumHeight: minimumHeight,
+          estimatedBlockHeight: 430,
+          bottomPadding: 80,
+        );
 
-            final boardWidth = _adaptiveBoardWidth(
-              day: day,
-              minimumWidth: minimumBoardWidth,
-              rightPadding: 80,
-            );
+        final boardWidth = _adaptiveBoardWidth(
+          day: day,
+          minimumWidth: minimumBoardWidth,
+          rightPadding: 80,
+        );
 
-            // Mantém a largura atual disponível para posicionar
-            // novos blocos em uma área livre antes de salvá-los.
-            _activeBoardWidth = boardWidth;
+        // Mantém a largura atual disponível para posicionar
+        // novos blocos em uma área livre antes de salvá-los.
+        _activeBoardWidth = boardWidth;
 
-            final boardHeight = math
-                .max(
-                  controllerHeight,
-                  _adaptiveBoardHeight(
-                    day: day,
-                    minimumHeight: minimumHeight,
-                    bottomPadding: 80,
-                  ),
-                )
-                .toDouble();
-
-            return SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(
-                horizontalPadding,
-                18,
-                horizontalPadding,
-                24,
+        final boardHeight = math
+            .max(
+              controllerHeight,
+              _adaptiveBoardHeight(
+                day: day,
+                minimumHeight: minimumHeight,
+                bottomPadding: 80,
               ),
-              child: Column(
-                children: [
-                  _DayHeader(
-                    day: day,
-                    onEditFocus: _editFocus,
-                    onAddBlock: _addBlock,
-                    hasReminder: _hasReminderForDate(
-                      day.date,
-                    ),
-                    onOpenReminders: () {
-                      _showRemindersForDay(
-                        day.date,
-                      );
-                    },
+            )
+            .toDouble();
+
+        return SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            horizontalPadding,
+            18,
+            horizontalPadding,
+            24,
+          ),
+          child: Column(
+            children: [
+              _DayHeader(
+                day: day,
+                onEditFocus: _editFocus,
+                onAddBlock: _addBlock,
+                hasReminder: _hasReminderForDate(day.date),
+                onOpenReminders: () {
+                  _showRemindersForDay(day.date);
+                },
+              ),
+
+              const SizedBox(height: 12),
+
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Container(
+                  width: boardWidth,
+                  height: boardHeight,
+                  decoration: BoxDecoration(
+                    color: _surface,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: _border),
                   ),
-
-                  const SizedBox(
-                    height: 12,
-                  ),
-
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Container(
-                      width: boardWidth,
-                      height: boardHeight,
-                      decoration: BoxDecoration(
-                        color: _surface,
-                        borderRadius: BorderRadius.circular(
-                          18,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        const Positioned.fill(
+                          child: CustomPaint(painter: _GridPainter()),
                         ),
-                        border: Border.all(
-                          color: _border,
+
+                        if (day.blocks.isEmpty)
+                          Positioned.fill(
+                            child: _EmptyBoard(onAddBlock: _addBlock),
+                          ),
+
+                        for (final block in day.blocks)
+                          _positionedBlock(
+                            day: day,
+                            block: block,
+                            boardWidth: boardWidth,
+                            boardHeight: boardHeight,
+                          ),
+
+                        ..._buildCommentLayer(
+                          day: day,
+                          boardWidth: boardWidth,
+                          boardHeight: boardHeight,
                         ),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(
-                          18,
-                        ),
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            const Positioned.fill(
-                              child: CustomPaint(
-                                painter: _GridPainter(),
-                              ),
-                            ),
 
-                            if (day.blocks.isEmpty)
-                              Positioned.fill(
-                                child: _EmptyBoard(
-                                  onAddBlock: _addBlock,
-                                ),
-                              ),
-
-                            for (final block in day.blocks)
-                              _positionedBlock(
-                                day: day,
-                                block: block,
-                                boardWidth: boardWidth,
-                                boardHeight: boardHeight,
-                              ),
-
-                            ..._buildCommentLayer(
-                              day: day,
-                              boardWidth: boardWidth,
-                              boardHeight: boardHeight,
-                            ),
-
-                            // Botão exatamente no canto superior direito da lousa.
-                            Positioned(
-                              top: 12,
-                              right: 12,
-                              child: Tooltip(
-                                message: 'Expandir lousa',
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onTap: _expandBoard,
-                                    borderRadius: BorderRadius.circular(
-                                      12,
+                        // Botão exatamente no canto superior direito da lousa.
+                        Positioned(
+                          top: 12,
+                          right: 12,
+                          child: Tooltip(
+                            message: 'Expandir lousa',
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: _expandBoard,
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF1F7F2),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: const Color(0xFFC7DFC9),
                                     ),
-                                    child: Container(
-                                      width: 40,
-                                      height: 40,
-                                      decoration: BoxDecoration(
-                                        color: const Color(
-                                          0xFFF1F7F2,
-                                        ),
-                                        borderRadius: BorderRadius.circular(
-                                          12,
-                                        ),
-                                        border: Border.all(
-                                          color: const Color(
-                                            0xFFC7DFC9,
-                                          ),
-                                        ),
-                                        boxShadow: const [
-                                          BoxShadow(
-                                            color: Color(
-                                              0x14000000,
-                                            ),
-                                            blurRadius: 8,
-                                            offset: Offset(
-                                              0,
-                                              3,
-                                            ),
-                                          ),
-                                        ],
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: Color(0x14000000),
+                                        blurRadius: 8,
+                                        offset: Offset(0, 3),
                                       ),
-                                      child: const Icon(
-                                        Icons.open_in_full_rounded,
-                                        color: _primary,
-                                        size: 19,
-                                      ),
-                                    ),
+                                    ],
+                                  ),
+                                  child: const Icon(
+                                    Icons.open_in_full_rounded,
+                                    color: _primary,
+                                    size: 19,
                                   ),
                                 ),
                               ),
                             ),
-                          ],
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
-            );
-          },
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -3038,11 +2119,9 @@ class _RoutineScreenState
       return;
     }
 
-    setState(
-      () {
-        _boardExpanded = true;
-      },
-    );
+    setState(() {
+      _boardExpanded = true;
+    });
   }
 
   void _collapseBoard() {
@@ -3050,11 +2129,9 @@ class _RoutineScreenState
       return;
     }
 
-    setState(
-      () {
-        _boardExpanded = false;
-      },
-    );
+    setState(() {
+      _boardExpanded = false;
+    });
   }
 
   // ============================================================
@@ -3067,17 +2144,10 @@ class _RoutineScreenState
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 10,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: const BoxDecoration(
             color: _surface,
-            border: Border(
-              bottom: BorderSide(
-                color: _border,
-              ),
-            ),
+            border: Border(bottom: BorderSide(color: _border)),
           ),
           child: Row(
             children: [
@@ -3085,12 +2155,8 @@ class _RoutineScreenState
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: const Color(
-                    0xFFE8F5EC,
-                  ),
-                  borderRadius: BorderRadius.circular(
-                    11,
-                  ),
+                  color: const Color(0xFFE8F5EC),
+                  borderRadius: BorderRadius.circular(11),
                 ),
                 child: const Icon(
                   Icons.dashboard_customize_outlined,
@@ -3098,9 +2164,7 @@ class _RoutineScreenState
                   size: 20,
                 ),
               ),
-              const SizedBox(
-                width: 11,
-              ),
+              const SizedBox(width: 11),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -3114,17 +2178,10 @@ class _RoutineScreenState
                         letterSpacing: 1.3,
                       ),
                     ),
-                    const SizedBox(
-                      height: 2,
-                    ),
+                    const SizedBox(height: 2),
                     Text(
-                      _expandedBoardDate(
-                        day.date,
-                      ),
-                      style: const TextStyle(
-                        color: _muted,
-                        fontSize: 11,
-                      ),
+                      _expandedBoardDate(day.date),
+                      style: const TextStyle(color: _muted, fontSize: 11),
                     ),
                   ],
                 ),
@@ -3135,9 +2192,7 @@ class _RoutineScreenState
                     : _routineController.saveSelectedDay,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: _text,
-                  side: const BorderSide(
-                    color: _border,
-                  ),
+                  side: const BorderSide(color: _border),
                 ),
                 icon: _routineController.state.saving
                     ? const SizedBox(
@@ -3148,72 +2203,41 @@ class _RoutineScreenState
                           color: _primary,
                         ),
                       )
-                    : const Icon(
-                        Icons.cloud_done_outlined,
-                        size: 18,
-                      ),
+                    : const Icon(Icons.cloud_done_outlined, size: 18),
                 label: Text(
-                  _routineController.state.saving
-                      ? 'Salvando'
-                      : 'Salvar',
+                  _routineController.state.saving ? 'Salvando' : 'Salvar',
                 ),
               ),
-              const SizedBox(
-                width: 8,
-              ),
+              const SizedBox(width: 8),
               IconButton(
-                tooltip:
-                    _hasReminderForDate(
-                      day.date,
-                    )
+                tooltip: _hasReminderForDate(day.date)
                     ? 'Ver lembretes deste dia'
                     : 'Nenhum lembrete programado',
                 onPressed: () {
-                  _showRemindersForDay(
-                    day.date,
-                  );
+                  _showRemindersForDay(day.date);
                 },
                 style: IconButton.styleFrom(
-                  foregroundColor:
-                      _hasReminderForDate(
-                        day.date,
-                      )
+                  foregroundColor: _hasReminderForDate(day.date)
                       ? _primary
                       : _muted,
-                  backgroundColor:
-                      _hasReminderForDate(
-                        day.date,
-                      )
-                      ? const Color(
-                          0xFFE8F5EC,
-                        )
-                      : const Color(
-                          0xFFF6F8F6,
-                        ),
+                  backgroundColor: _hasReminderForDate(day.date)
+                      ? const Color(0xFFE8F5EC)
+                      : const Color(0xFFF6F8F6),
                   side: BorderSide(
-                    color:
-                        _hasReminderForDate(
-                          day.date,
-                        )
-                        ? const Color(
-                            0xFFA9DEA5,
-                          )
+                    color: _hasReminderForDate(day.date)
+                        ? const Color(0xFFA9DEA5)
                         : _border,
                   ),
                 ),
                 icon: Icon(
-                  _hasReminderForDate(
-                        day.date,
-                      )
+                  _hasReminderForDate(day.date)
                       ? Icons.notifications_active_rounded
                       : Icons.notifications_none_rounded,
                   size: 19,
                 ),
               ),
 
-              const SizedBox(
-                width: 8,
-              ),
+              const SizedBox(width: 8),
 
               FilledButton.icon(
                 onPressed: _addBlock,
@@ -3221,35 +2245,19 @@ class _RoutineScreenState
                   backgroundColor: _primary,
                   foregroundColor: Colors.white,
                 ),
-                icon: const Icon(
-                  Icons.add_rounded,
-                  size: 18,
-                ),
-                label: const Text(
-                  'Bloco',
-                ),
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: const Text('Bloco'),
               ),
-              const SizedBox(
-                width: 8,
-              ),
+              const SizedBox(width: 8),
               IconButton(
                 tooltip: 'Recolher lousa',
                 onPressed: _collapseBoard,
                 style: IconButton.styleFrom(
                   foregroundColor: _primary,
-                  backgroundColor: const Color(
-                    0xFFE8F5EC,
-                  ),
-                  side: const BorderSide(
-                    color: Color(
-                      0xFFC7DFC9,
-                    ),
-                  ),
+                  backgroundColor: const Color(0xFFE8F5EC),
+                  side: const BorderSide(color: Color(0xFFC7DFC9)),
                 ),
-                icon: const Icon(
-                  Icons.close_fullscreen_rounded,
-                  size: 19,
-                ),
+                icon: const Icon(Icons.close_fullscreen_rounded, size: 19),
               ),
             ],
           ),
@@ -3257,136 +2265,102 @@ class _RoutineScreenState
 
         Expanded(
           child: LayoutBuilder(
-            builder:
-                (
-                  context,
-                  viewport,
-                ) {
-                  const horizontalPadding = 12.0;
-                  const verticalPadding = 12.0;
+            builder: (context, viewport) {
+              const horizontalPadding = 12.0;
+              const verticalPadding = 12.0;
 
-                  final minimumBoardWidth = math
-                      .max(
-                        1.0,
-                        viewport.maxWidth -
-                            (horizontalPadding *
-                                2),
-                      )
-                      .toDouble();
+              final minimumBoardWidth = math
+                  .max(1.0, viewport.maxWidth - (horizontalPadding * 2))
+                  .toDouble();
 
-                  final minimumHeight = math
-                      .max(
-                        620.0,
-                        viewport.maxHeight -
-                            (verticalPadding *
-                                2),
-                      )
-                      .toDouble();
+              final minimumHeight = math
+                  .max(620.0, viewport.maxHeight - (verticalPadding * 2))
+                  .toDouble();
 
-                  _boardController.initializePositions(
-                    day: day,
-                    boardWidth: minimumBoardWidth,
-                  );
+              _boardController.initializePositions(
+                day: day,
+                boardWidth: minimumBoardWidth,
+              );
 
-                  final controllerHeight = _boardController.canvasHeight(
-                    day: day,
-                    minimumHeight: minimumHeight,
-                    estimatedBlockHeight: 430,
-                    bottomPadding: 140,
-                  );
+              final controllerHeight = _boardController.canvasHeight(
+                day: day,
+                minimumHeight: minimumHeight,
+                estimatedBlockHeight: 430,
+                bottomPadding: 140,
+              );
 
-                  final boardWidth = _adaptiveBoardWidth(
-                    day: day,
-                    minimumWidth: minimumBoardWidth,
-                    rightPadding: 140,
-                  );
+              final boardWidth = _adaptiveBoardWidth(
+                day: day,
+                minimumWidth: minimumBoardWidth,
+                rightPadding: 140,
+              );
 
-                  // A mesma regra também vale com a lousa expandida.
-                  _activeBoardWidth = boardWidth;
+              // A mesma regra também vale com a lousa expandida.
+              _activeBoardWidth = boardWidth;
 
-                  final boardHeight = math
-                      .max(
-                        controllerHeight,
-                        _adaptiveBoardHeight(
-                          day: day,
-                          minimumHeight: minimumHeight,
-                          bottomPadding: 140,
-                        ),
-                      )
-                      .toDouble();
-
-                  return SingleChildScrollView(
-                    padding: const EdgeInsets.all(
-                      12,
+              final boardHeight = math
+                  .max(
+                    controllerHeight,
+                    _adaptiveBoardHeight(
+                      day: day,
+                      minimumHeight: minimumHeight,
+                      bottomPadding: 140,
                     ),
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Container(
-                        width: boardWidth,
-                        height: boardHeight,
-                        decoration: BoxDecoration(
-                          color: _surface,
-                          borderRadius: BorderRadius.circular(
-                            18,
-                          ),
-                          border: Border.all(
-                            color: _border,
-                          ),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(
-                            18,
-                          ),
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              const Positioned.fill(
-                                child: CustomPaint(
-                                  painter: _GridPainter(),
-                                ),
-                              ),
-                              if (day.blocks.isEmpty)
-                                Positioned.fill(
-                                  child: _EmptyBoard(
-                                    onAddBlock: _addBlock,
-                                  ),
-                                ),
-                              for (final block in day.blocks)
-                                _positionedBlock(
-                                  day: day,
-                                  block: block,
-                                  boardWidth: boardWidth,
-                                  boardHeight: boardHeight,
-                                ),
+                  )
+                  .toDouble();
 
-                              ..._buildCommentLayer(
-                                day: day,
-                                boardWidth: boardWidth,
-                                boardHeight: boardHeight,
-                              ),
-                            ],
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(12),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Container(
+                    width: boardWidth,
+                    height: boardHeight,
+                    decoration: BoxDecoration(
+                      color: _surface,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: _border),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          const Positioned.fill(
+                            child: CustomPaint(painter: _GridPainter()),
                           ),
-                        ),
+                          if (day.blocks.isEmpty)
+                            Positioned.fill(
+                              child: _EmptyBoard(onAddBlock: _addBlock),
+                            ),
+                          for (final block in day.blocks)
+                            _positionedBlock(
+                              day: day,
+                              block: block,
+                              boardWidth: boardWidth,
+                              boardHeight: boardHeight,
+                            ),
+
+                          ..._buildCommentLayer(
+                            day: day,
+                            boardWidth: boardWidth,
+                            boardHeight: boardHeight,
+                          ),
+                        ],
                       ),
                     ),
-                  );
-                },
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ],
     );
   }
 
-  String _expandedBoardDate(
-    DateTime date,
-  ) {
-    String
-    two(
-      int value,
-    ) => value.toString().padLeft(
-      2,
-      '0',
-    );
+  String _expandedBoardDate(DateTime date) {
+    String two(int value) => value.toString().padLeft(2, '0');
 
     return '${two(date.day)}/${two(date.month)}/${date.year}';
   }
@@ -3409,8 +2383,7 @@ class _RoutineScreenState
     required double boardWidth,
     required double boardHeight,
   }) {
-    if (block.type !=
-        BlockType.mindMap) {
+    if (block.type != BlockType.mindMap) {
       return;
     }
 
@@ -3418,97 +2391,54 @@ class _RoutineScreenState
     const minHeight = 320.0;
     const margin = 8.0;
 
-    var position =
-        block.position ??
-        Offset.zero;
+    var position = block.position ?? Offset.zero;
 
     var width =
         block.width ??
         math
-            .min(
-              620.0,
-              math.max(
-                minWidth,
-                boardWidth -
-                    position.dx -
-                    margin,
-              ),
-            )
+            .min(620.0, math.max(minWidth, boardWidth - position.dx - margin))
             .toDouble();
 
-    var height =
-        block.height ??
-        430.0;
+    var height = block.height ?? 430.0;
 
-    final originalRight =
-        position.dx +
-        width;
+    final originalRight = position.dx + width;
 
-    final originalBottom =
-        position.dy +
-        height;
+    final originalBottom = position.dy + height;
 
     final resizeLeft =
-        handle ==
-            _ResizeHandle.left ||
-        handle ==
-            _ResizeHandle.topLeft ||
-        handle ==
-            _ResizeHandle.bottomLeft;
+        handle == _ResizeHandle.left ||
+        handle == _ResizeHandle.topLeft ||
+        handle == _ResizeHandle.bottomLeft;
 
     final resizeRight =
-        handle ==
-            _ResizeHandle.right ||
-        handle ==
-            _ResizeHandle.topRight ||
-        handle ==
-            _ResizeHandle.bottomRight;
+        handle == _ResizeHandle.right ||
+        handle == _ResizeHandle.topRight ||
+        handle == _ResizeHandle.bottomRight;
 
     final resizeTop =
-        handle ==
-            _ResizeHandle.top ||
-        handle ==
-            _ResizeHandle.topLeft ||
-        handle ==
-            _ResizeHandle.topRight;
+        handle == _ResizeHandle.top ||
+        handle == _ResizeHandle.topLeft ||
+        handle == _ResizeHandle.topRight;
 
     final resizeBottom =
-        handle ==
-            _ResizeHandle.bottom ||
-        handle ==
-            _ResizeHandle.bottomLeft ||
-        handle ==
-            _ResizeHandle.bottomRight;
+        handle == _ResizeHandle.bottom ||
+        handle == _ResizeHandle.bottomLeft ||
+        handle == _ResizeHandle.bottomRight;
 
     // ==========================================================
     // ESQUERDA
     // ==========================================================
 
     if (resizeLeft) {
-      final maxLeft =
-          originalRight -
-          minWidth;
+      final maxLeft = originalRight - minWidth;
 
-      final nextLeft =
-          (position.dx +
-                  delta.dx)
-              .clamp(
-                margin,
-                math.max(
-                  margin,
-                  maxLeft,
-                ),
-              )
-              .toDouble();
+      final nextLeft = (position.dx + delta.dx)
+          .clamp(margin, math.max(margin, maxLeft))
+          .toDouble();
 
-      width =
-          originalRight -
-          nextLeft;
+      width = originalRight - nextLeft;
 
-      position = Offset(
-        nextLeft,
-        position.dy,
-      );
+      position = Offset(nextLeft, position.dy);
     }
 
     // ==========================================================
@@ -3516,13 +2446,7 @@ class _RoutineScreenState
     // ==========================================================
 
     if (resizeRight) {
-      width = math
-          .max(
-            minWidth,
-            width +
-                delta.dx,
-          )
-          .toDouble();
+      width = math.max(minWidth, width + delta.dx).toDouble();
     }
 
     // ==========================================================
@@ -3530,30 +2454,15 @@ class _RoutineScreenState
     // ==========================================================
 
     if (resizeTop) {
-      final maxTop =
-          originalBottom -
-          minHeight;
+      final maxTop = originalBottom - minHeight;
 
-      final nextTop =
-          (position.dy +
-                  delta.dy)
-              .clamp(
-                margin,
-                math.max(
-                  margin,
-                  maxTop,
-                ),
-              )
-              .toDouble();
+      final nextTop = (position.dy + delta.dy)
+          .clamp(margin, math.max(margin, maxTop))
+          .toDouble();
 
-      height =
-          originalBottom -
-          nextTop;
+      height = originalBottom - nextTop;
 
-      position = Offset(
-        position.dx,
-        nextTop,
-      );
+      position = Offset(position.dx, nextTop);
     }
 
     // ==========================================================
@@ -3561,13 +2470,7 @@ class _RoutineScreenState
     // ==========================================================
 
     if (resizeBottom) {
-      height = math
-          .max(
-            minHeight,
-            height +
-                delta.dy,
-          )
-          .toDouble();
+      height = math.max(minHeight, height + delta.dy).toDouble();
     }
 
     // ==========================================================
@@ -3639,13 +2542,9 @@ class _RoutineScreenState
     required double boardWidth,
     required double boardHeight,
   }) {
-    final position =
-        block.position ??
-        Offset.zero;
+    final position = block.position ?? Offset.zero;
 
-    final isMindMap =
-        block.type ==
-        BlockType.mindMap;
+    final isMindMap = block.type == BlockType.mindMap;
 
     final defaultWidth = _boardController.blockWidth(
       block: block,
@@ -3668,58 +2567,36 @@ class _RoutineScreenState
     // ==========================================================
 
     final width = isMindMap
-        ? math
-              .max(
-                420.0,
-                block.width ??
-                    620.0,
-              )
-              .toDouble()
+        ? math.max(420.0, block.width ?? 620.0).toDouble()
         : defaultWidth;
 
     final double? height = isMindMap
-        ? math
-              .max(
-                320.0,
-                block.height ??
-                    430.0,
-              )
-              .toDouble()
+        ? math.max(320.0, block.height ?? 430.0).toDouble()
         : null;
 
     return Positioned(
-      key: ValueKey(
-        block.id,
-      ),
+      key: ValueKey(block.id),
       left: position.dx,
       top: position.dy,
       width: width,
       height: height,
       child: _BoardCard(
         block: block,
-        onDrag:
-            (
-              delta,
-            ) {
-              _boardController.moveBlock(
-                day: day,
-                block: block,
-                delta: delta,
-                boardWidth: boardWidth,
-                boardHeight: boardHeight,
-                blockWidth: width,
-                blockHeight:
-                    height ??
-                    210,
-              );
+        onDrag: (delta) {
+          _boardController.moveBlock(
+            day: day,
+            block: block,
+            delta: delta,
+            boardWidth: boardWidth,
+            boardHeight: boardHeight,
+            blockWidth: width,
+            blockHeight: height ?? 210,
+          );
 
-              _notifyRoutineMutation();
-            },
+          _notifyRoutineMutation();
+        },
         onResize: isMindMap
-            ? (
-                handle,
-                delta,
-              ) {
+            ? (handle, delta) {
                 _resizeMindMapBlock(
                   block,
                   handle,
@@ -3729,33 +2606,17 @@ class _RoutineScreenState
                 );
               }
             : null,
-        onResizeEnd: isMindMap
-            ? _finishMindMapResize
-            : null,
-        onEdit: () => _editBlock(
-          block,
-        ),
+        onResizeEnd: isMindMap ? _finishMindMapResize : null,
+        onEdit: () => _editBlock(block),
         onDuplicate: () {
-          _boardController.duplicateBlock(
-            day,
-            block,
-          );
+          _boardController.duplicateBlock(day, block);
 
           _notifyRoutineMutation();
         },
-        onReminder: () => _createReminderForBlock(
-          block,
-        ),
-        onDelete: () => _deleteBlock(
-          day,
-          block,
-        ),
-        onOpenMindMap:
-            block.type ==
-                BlockType.mindMap
-            ? () => _openMindMapWindow(
-                block,
-              )
+        onReminder: () => _createReminderForBlock(block),
+        onDelete: () => _deleteBlock(day, block),
+        onOpenMindMap: block.type == BlockType.mindMap
+            ? () => _openMindMapWindow(block)
             : null,
         child: _blockContent(
           block,
@@ -3779,57 +2640,38 @@ class _RoutineScreenState
       case BlockType.tasks:
         return TaskBlock(
           block: block,
-          onToggle:
-              (
-                item,
-              ) {
-                item.done = !item.done;
-                _notifyRoutineMutation();
-              },
-          onAddTask: () => _addTask(
-            block,
-          ),
+          onToggle: (item) {
+            item.done = !item.done;
+            _notifyRoutineMutation();
+          },
+          onAddTask: () => _addTask(block),
         );
       case BlockType.note:
-        return NoteBlock(
-          block: block,
-        );
+        return NoteBlock(block: block);
       case BlockType.content:
         return ContentBlock(
           block: block,
-          onStatusChanged:
-              (
-                status,
-              ) {
-                block.status = status;
-                _notifyRoutineMutation();
-              },
+          onStatusChanged: (status) {
+            block.status = status;
+            _notifyRoutineMutation();
+          },
         );
       case BlockType.photo:
         return PhotoBlock(
           block: block,
-          onOpen: () => _showPhotoReference(
-            block,
-          ),
+          onOpen: () => _showPhotoReference(block),
         );
       case BlockType.mindMap:
-        if (_isMindMapDetached(
-          block,
-        )) {
+        if (_isMindMapDetached(block)) {
           return _MindMapDetachedPlaceholder(
             block: block,
             onOpen: () {
-              _openMindMapWindow(
-                block,
-              );
+              _openMindMapWindow(block);
             },
           );
         }
 
-        return MindMapBlock(
-          block: block,
-          controller: _mindMapController,
-        );
+        return MindMapBlock(block: block, controller: _mindMapController);
 
       case BlockType.document:
         return _documentBlockContent(
@@ -3842,10 +2684,7 @@ class _RoutineScreenState
     }
   }
 
-  Future<
-    void
-  >
-  _editFocus() async {
+  Future<void> _editFocus() async {
     final day = _routineController.selectedDay;
     final value = await RoutineTextEditor.show(
       context,
@@ -3855,15 +2694,11 @@ class _RoutineScreenState
       maxLines: 2,
     );
 
-    if (!mounted ||
-        value ==
-            null) {
+    if (!mounted || value == null) {
       return;
     }
 
-    _routineController.updateFocus(
-      value,
-    );
+    _routineController.updateFocus(value);
   }
 
   // ============================================================
@@ -3885,16 +2720,10 @@ class _RoutineScreenState
   //
   // ============================================================
 
-  void _positionNewBlockInFreeArea(
-    BoardBlock block,
-  ) {
+  void _positionNewBlockInFreeArea(BoardBlock block) {
     final day = _routineController.selectedDay;
 
-    final boardWidth =
-        _activeBoardWidth >
-            0
-        ? _activeBoardWidth
-        : 390.0;
+    final boardWidth = _activeBoardWidth > 0 ? _activeBoardWidth : 390.0;
 
     final width = _boardController.blockWidth(
       block: block,
@@ -3909,10 +2738,7 @@ class _RoutineScreenState
     );
   }
 
-  Future<
-    void
-  >
-  _addBlock() async {
+  Future<void> _addBlock() async {
     final type = await AddBlockSheet.show(
       context,
       onComment: () {
@@ -3920,19 +2746,14 @@ class _RoutineScreenState
       },
     );
 
-    if (!mounted ||
-        type ==
-            null) {
+    if (!mounted || type == null) {
       return;
     }
 
-    if (type ==
-        BlockType.document) {
+    if (type == BlockType.document) {
       final day = _routineController.selectedDay;
 
-      final boardId = _boardAttachmentBoardId(
-        day,
-      );
+      final boardId = _boardAttachmentBoardId(day);
 
       final blockId = BoardBlock.createId();
 
@@ -3943,9 +2764,7 @@ class _RoutineScreenState
         blockId: blockId,
       );
 
-      if (!mounted ||
-          attachment ==
-              null) {
+      if (!mounted || attachment == null) {
         return;
       }
 
@@ -3956,21 +2775,16 @@ class _RoutineScreenState
         attachmentId: attachment.id,
       );
 
-      _positionNewBlockInFreeArea(
-        block,
-      );
+      _positionNewBlockInFreeArea(block);
 
-      _routineController.addBlock(
-        block,
-      );
+      _routineController.addBlock(block);
 
       _loadedAttachmentBoardId = boardId;
 
       return;
     }
 
-    if (type ==
-        BlockType.mindMap) {
+    if (type == BlockType.mindMap) {
       final block = BoardBlock(
         id: BoardBlock.createId(),
         type: type,
@@ -3978,20 +2792,12 @@ class _RoutineScreenState
         width: 620,
         height: 430,
       );
-      final root = _mindMapController.ensureRoot(
-        block,
-      );
-      _mindMapController.startEditing(
-        root,
-      );
+      final root = _mindMapController.ensureRoot(block);
+      _mindMapController.startEditing(root);
 
-      _positionNewBlockInFreeArea(
-        block,
-      );
+      _positionNewBlockInFreeArea(block);
 
-      _routineController.addBlock(
-        block,
-      );
+      _routineController.addBlock(block);
       return;
     }
 
@@ -3999,17 +2805,10 @@ class _RoutineScreenState
       context,
       title: type.dialogTitle,
       hint: type.hint,
-      maxLines:
-          type ==
-              BlockType.tasks
-          ? 1
-          : 5,
+      maxLines: type == BlockType.tasks ? 1 : 5,
     );
 
-    if (!mounted ||
-        value ==
-            null ||
-        value.trim().isEmpty) {
+    if (!mounted || value == null || value.trim().isEmpty) {
       return;
     }
 
@@ -4017,86 +2816,45 @@ class _RoutineScreenState
       id: BoardBlock.createId(),
       type: type,
       title: type.defaultTitle,
-      content:
-          type ==
-              BlockType.tasks
-          ? ''
-          : value,
-      items:
-          type ==
-              BlockType.tasks
-          ? [
-              CheckItem(
-                value,
-                id: BoardBlock.createId(),
-              ),
-            ]
+      content: type == BlockType.tasks ? '' : value,
+      items: type == BlockType.tasks
+          ? [CheckItem(value, id: BoardBlock.createId())]
           : null,
     );
 
-    _positionNewBlockInFreeArea(
-      block,
-    );
+    _positionNewBlockInFreeArea(block);
 
-    _routineController.addBlock(
-      block,
-    );
+    _routineController.addBlock(block);
   }
 
-  Future<
-    void
-  >
-  _editBlock(
-    BoardBlock block,
-  ) async {
-    if (block.type ==
-        BlockType.document) {
-      await _openDocument(
-        block,
-      );
+  Future<void> _editBlock(BoardBlock block) async {
+    if (block.type == BlockType.document) {
+      await _openDocument(block);
 
       return;
     }
 
     final editsTitle =
-        block.type ==
-            BlockType.tasks ||
-        block.type ==
-            BlockType.mindMap;
-    final initialValue = editsTitle
-        ? block.title
-        : block.content;
+        block.type == BlockType.tasks || block.type == BlockType.mindMap;
+    final initialValue = editsTitle ? block.title : block.content;
 
     final value = await RoutineTextEditor.show(
       context,
-      title: editsTitle
-          ? 'Editar título'
-          : block.type.dialogTitle,
-      hint: editsTitle
-          ? 'Digite o título do bloco...'
-          : block.type.hint,
+      title: editsTitle ? 'Editar título' : block.type.dialogTitle,
+      hint: editsTitle ? 'Digite o título do bloco...' : block.type.hint,
       initialValue: initialValue,
-      maxLines: editsTitle
-          ? 1
-          : 5,
+      maxLines: editsTitle ? 1 : 5,
     );
 
-    if (!mounted ||
-        value ==
-            null) {
+    if (!mounted || value == null) {
       return;
     }
 
     if (editsTitle) {
-      block.title = value.trim().isEmpty
-          ? block.type.defaultTitle
-          : value;
+      block.title = value.trim().isEmpty ? block.type.defaultTitle : value;
 
-      if (block.type ==
-          BlockType.mindMap) {
-        final root = _mindMapController.ensureRoot(
-          block,
-        );
+      if (block.type == BlockType.mindMap) {
+        final root = _mindMapController.ensureRoot(block);
         root.label = block.title;
       }
     } else {
@@ -4106,12 +2864,7 @@ class _RoutineScreenState
     _notifyRoutineMutation();
   }
 
-  Future<
-    void
-  >
-  _addTask(
-    BoardBlock block,
-  ) async {
+  Future<void> _addTask(BoardBlock block) async {
     final value = await RoutineTextEditor.show(
       context,
       title: 'Nova tarefa',
@@ -4119,19 +2872,11 @@ class _RoutineScreenState
       maxLines: 1,
     );
 
-    if (!mounted ||
-        value ==
-            null ||
-        value.trim().isEmpty) {
+    if (!mounted || value == null || value.trim().isEmpty) {
       return;
     }
 
-    block.items.add(
-      CheckItem(
-        value,
-        id: BoardBlock.createId(),
-      ),
-    );
+    block.items.add(CheckItem(value, id: BoardBlock.createId()));
     _notifyRoutineMutation();
   }
 
@@ -4149,19 +2894,12 @@ class _RoutineScreenState
   //
   // ============================================================
 
-  Future<
-    void
-  >
-  _createReminderForBlock(
-    BoardBlock block,
-  ) async {
+  Future<void> _createReminderForBlock(BoardBlock block) async {
     final initialTitle = block.title.trim().isEmpty
         ? 'Lembrete da lousa'
         : block.title.trim();
 
-    final initialMessage = _reminderMessageForBlock(
-      block,
-    );
+    final initialMessage = _reminderMessageForBlock(block);
 
     final created = await ReminderDialog.show(
       context,
@@ -4172,9 +2910,7 @@ class _RoutineScreenState
       sourceId: block.id,
     );
 
-    if (!mounted ||
-        created !=
-            true) {
+    if (!mounted || created != true) {
       return;
     }
 
@@ -4189,16 +2925,12 @@ class _RoutineScreenState
       return;
     }
 
-    ScaffoldMessenger.of(
-        context,
-      )
+    ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         const SnackBar(
           behavior: SnackBarBehavior.floating,
-          backgroundColor: Color(
-            0xFF3B6939,
-          ),
+          backgroundColor: Color(0xFF3B6939),
           content: Row(
             children: [
               Icon(
@@ -4206,9 +2938,7 @@ class _RoutineScreenState
                 color: Colors.white,
                 size: 18,
               ),
-              SizedBox(
-                width: 9,
-              ),
+              SizedBox(width: 9),
               Expanded(
                 child: Text(
                   'Lembrete criado com sucesso.',
@@ -4228,9 +2958,7 @@ class _RoutineScreenState
   // TEXTO DO LEMBRETE
   // ============================================================
 
-  String _reminderMessageForBlock(
-    BoardBlock block,
-  ) {
+  String _reminderMessageForBlock(BoardBlock block) {
     switch (block.type) {
       case BlockType.tasks:
         final items = block.items;
@@ -4242,20 +2970,12 @@ class _RoutineScreenState
         }
 
         return items
-            .map(
-              (
-                item,
-              ) {
-                final marker = item.done
-                    ? '✓'
-                    : '•';
+            .map((item) {
+              final marker = item.done ? '✓' : '•';
 
-                return '$marker ${item.text}';
-              },
-            )
-            .join(
-              '\n',
-            );
+              return '$marker ${item.text}';
+            })
+            .join('\n');
 
       case BlockType.note:
       case BlockType.content:
@@ -4286,83 +3006,44 @@ class _RoutineScreenState
   // EXCLUIR BLOCO
   // ============================================================
 
-  Future<
-    void
-  >
-  _deleteBlock(
-    RoutineDay day,
-    BoardBlock block,
-  ) async {
-    final confirmed =
-        await showDialog<
-          bool
-        >(
-          context: context,
-          builder:
-              (
-                dialogContext,
-              ) {
-                return AlertDialog(
-                  backgroundColor: _surfaceLight,
-                  title: const Text(
-                    'Excluir bloco?',
-                    style: TextStyle(
-                      color: _text,
-                    ),
-                  ),
-                  content: Text(
-                    '“${block.title}” será removido da lousa.',
-                    style: const TextStyle(
-                      color: _muted,
-                    ),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(
-                        dialogContext,
-                        false,
-                      ),
-                      child: const Text(
-                        'Cancelar',
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(
-                        dialogContext,
-                        true,
-                      ),
-                      child: const Text(
-                        'Excluir',
-                        style: TextStyle(
-                          color: Color(
-                            0xFFC43A52,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
+  Future<void> _deleteBlock(RoutineDay day, BoardBlock block) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: _surfaceLight,
+          title: const Text('Excluir bloco?', style: TextStyle(color: _text)),
+          content: Text(
+            '“${block.title}” será removido da lousa.',
+            style: const TextStyle(color: _muted),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text(
+                'Excluir',
+                style: TextStyle(color: Color(0xFFC43A52)),
+              ),
+            ),
+          ],
         );
+      },
+    );
 
-    if (confirmed ==
-        true) {
-      if (block.type ==
-              BlockType.document &&
-          block.attachmentId?.trim().isNotEmpty ==
-              true) {
+    if (confirmed == true) {
+      if (block.type == BlockType.document &&
+          block.attachmentId?.trim().isNotEmpty == true) {
         final attachmentId = block.attachmentId!.trim();
 
         final attachment =
-            boardAttachmentController.getById(
-              attachmentId,
-            ) ??
-            await boardAttachmentController.getByIdFromStorage(
-              attachmentId,
-            );
+            boardAttachmentController.getById(attachmentId) ??
+            await boardAttachmentController.getByIdFromStorage(attachmentId);
 
-        if (attachment !=
-            null) {
+        if (attachment != null) {
           final removed = await boardAttachmentController.deleteAttachment(
             attachment,
           );
@@ -4380,27 +3061,20 @@ class _RoutineScreenState
         }
       }
 
-      _boardController.removeBlock(
-        day,
-        block.id,
-      );
+      _boardController.removeBlock(day, block.id);
 
       _notifyRoutineMutation();
     }
   }
 
-  void _showPhotoReference(
-    BoardBlock block,
-  ) {
+  void _showPhotoReference(BoardBlock block) {
     final reference = block.content.trim();
 
     if (reference.isEmpty) {
       return;
     }
 
-    ScaffoldMessenger.of(
-        context,
-      )
+    ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
@@ -4409,18 +3083,12 @@ class _RoutineScreenState
             reference,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: _text,
-            ),
+            style: const TextStyle(color: _text),
           ),
           action: SnackBarAction(
             label: 'Editar',
-            textColor: const Color(
-              0xFF198754,
-            ),
-            onPressed: () => _editBlock(
-              block,
-            ),
+            textColor: const Color(0xFF198754),
+            onPressed: () => _editBlock(block),
           ),
         ),
       );
@@ -4431,9 +3099,7 @@ class _RoutineScreenState
 // DOCUMENTO AUSENTE / AINDA NÃO CARREGADO
 // ============================================================
 
-class _MissingDocumentBlock
-    extends
-        StatelessWidget {
+class _MissingDocumentBlock extends StatelessWidget {
   const _MissingDocumentBlock({
     required this.title,
     required this.message,
@@ -4447,33 +3113,19 @@ class _MissingDocumentBlock
   final VoidCallback onTap;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(
-          14,
-        ),
+        borderRadius: BorderRadius.circular(14),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(
-            12,
-          ),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(
-              0xFFFFFFFF,
-            ),
-            borderRadius: BorderRadius.circular(
-              14,
-            ),
-            border: Border.all(
-              color: const Color(
-                0xFFC7DFC9,
-              ),
-            ),
+            color: const Color(0xFFFFFFFF),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFC7DFC9)),
           ),
           child: Row(
             children: [
@@ -4481,58 +3133,38 @@ class _MissingDocumentBlock
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: const Color(
-                    0xFFF3F8EE,
-                  ),
-                  borderRadius: BorderRadius.circular(
-                    11,
-                  ),
-                  border: Border.all(
-                    color: const Color(
-                      0xFFC7DFC9,
-                    ),
-                  ),
+                  color: const Color(0xFFF3F8EE),
+                  borderRadius: BorderRadius.circular(11),
+                  border: Border.all(color: const Color(0xFFC7DFC9)),
                 ),
                 child: const Icon(
                   Icons.description_outlined,
-                  color: Color(
-                    0xFF3B6939,
-                  ),
+                  color: Color(0xFF3B6939),
                   size: 21,
                 ),
               ),
-              const SizedBox(
-                width: 11,
-              ),
+              const SizedBox(width: 11),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      title.trim().isEmpty
-                          ? 'Documento'
-                          : title,
+                      title.trim().isEmpty ? 'Documento' : title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: Color(
-                          0xFF172019,
-                        ),
+                        color: Color(0xFF172019),
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(
-                      height: 4,
-                    ),
+                    const SizedBox(height: 4),
                     Text(
                       message,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: Color(
-                          0xFF68746B,
-                        ),
+                        color: Color(0xFF68746B),
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                       ),
@@ -4540,15 +3172,11 @@ class _MissingDocumentBlock
                   ],
                 ),
               ),
-              const SizedBox(
-                width: 8,
-              ),
+              const SizedBox(width: 8),
               const Icon(
                 Icons.open_in_new_rounded,
                 size: 19,
-                color: Color(
-                  0xFF3B6939,
-                ),
+                color: Color(0xFF3B6939),
               ),
             ],
           ),
@@ -4558,9 +3186,7 @@ class _MissingDocumentBlock
   }
 }
 
-class _RoutineInitializationError
-    extends
-        StatelessWidget {
+class _RoutineInitializationError extends StatelessWidget {
   const _RoutineInitializationError({
     required this.message,
     required this.onRetry,
@@ -4570,48 +3196,30 @@ class _RoutineInitializationError
   final VoidCallback onRetry;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _RoutineScreenState._background,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: 620,
-            ),
+            constraints: const BoxConstraints(maxWidth: 620),
             child: Container(
-              margin: const EdgeInsets.all(
-                24,
-              ),
-              padding: const EdgeInsets.all(
-                22,
-              ),
+              margin: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(22),
               decoration: BoxDecoration(
                 color: _RoutineScreenState._surface,
-                borderRadius: BorderRadius.circular(
-                  18,
-                ),
-                border: Border.all(
-                  color: const Color(
-                    0xFFF0B7C0,
-                  ),
-                ),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFF0B7C0)),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(
                     Icons.cloud_off_rounded,
-                    color: Color(
-                      0xFFC43A52,
-                    ),
+                    color: Color(0xFFC43A52),
                     size: 34,
                   ),
-                  const SizedBox(
-                    height: 14,
-                  ),
+                  const SizedBox(height: 14),
                   const Text(
                     'Não foi possível conectar a rotina',
                     textAlign: TextAlign.center,
@@ -4621,9 +3229,7 @@ class _RoutineInitializationError
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const SizedBox(
-                    height: 9,
-                  ),
+                  const SizedBox(height: 9),
                   Text(
                     message,
                     textAlign: TextAlign.center,
@@ -4633,9 +3239,7 @@ class _RoutineInitializationError
                       height: 1.45,
                     ),
                   ),
-                  const SizedBox(
-                    height: 18,
-                  ),
+                  const SizedBox(height: 18),
                   ElevatedButton.icon(
                     onPressed: onRetry,
                     style: ElevatedButton.styleFrom(
@@ -4647,18 +3251,11 @@ class _RoutineInitializationError
                         vertical: 13,
                       ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          12,
-                        ),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    icon: const Icon(
-                      Icons.refresh_rounded,
-                      size: 18,
-                    ),
-                    label: const Text(
-                      'Tentar novamente',
-                    ),
+                    icon: const Icon(Icons.refresh_rounded, size: 18),
+                    label: const Text('Tentar novamente'),
                   ),
                 ],
               ),
@@ -4670,9 +3267,7 @@ class _RoutineInitializationError
   }
 }
 
-class _DayHeader
-    extends
-        StatelessWidget {
+class _DayHeader extends StatelessWidget {
   const _DayHeader({
     required this.day,
     required this.onEditFocus,
@@ -4692,24 +3287,13 @@ class _DayHeader
   final VoidCallback onOpenReminders;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(
-        16,
-        14,
-        12,
-        14,
-      ),
+      padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
       decoration: BoxDecoration(
         color: _RoutineScreenState._surface,
-        borderRadius: BorderRadius.circular(
-          16,
-        ),
-        border: Border.all(
-          color: _RoutineScreenState._border,
-        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _RoutineScreenState._border),
       ),
       child: Row(
         children: [
@@ -4718,27 +3302,19 @@ class _DayHeader
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _completeDate(
-                    day.date,
-                  ),
+                  _completeDate(day.date),
                   style: const TextStyle(
                     color: _RoutineScreenState._text,
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(
-                  height: 5,
-                ),
+                const SizedBox(height: 5),
                 InkWell(
                   onTap: onEditFocus,
-                  borderRadius: BorderRadius.circular(
-                    7,
-                  ),
+                  borderRadius: BorderRadius.circular(7),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 3,
-                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 3),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -4747,9 +3323,7 @@ class _DayHeader
                           size: 15,
                           color: _RoutineScreenState._muted,
                         ),
-                        const SizedBox(
-                          width: 6,
-                        ),
+                        const SizedBox(width: 6),
                         Flexible(
                           child: Text(
                             day.hasFocus
@@ -4770,9 +3344,7 @@ class _DayHeader
               ],
             ),
           ),
-          const SizedBox(
-            width: 10,
-          ),
+          const SizedBox(width: 10),
 
           // ====================================================
           // LEMBRETES DO DIA
@@ -4785,31 +3357,19 @@ class _DayHeader
               color: Colors.transparent,
               child: InkWell(
                 onTap: onOpenReminders,
-                borderRadius: BorderRadius.circular(
-                  12,
-                ),
+                borderRadius: BorderRadius.circular(12),
                 child: AnimatedContainer(
-                  duration: const Duration(
-                    milliseconds: 180,
-                  ),
+                  duration: const Duration(milliseconds: 180),
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
                     color: hasReminder
-                        ? const Color(
-                            0xFFE8F5EC,
-                          )
-                        : const Color(
-                            0xFFF6F8F6,
-                          ),
-                    borderRadius: BorderRadius.circular(
-                      12,
-                    ),
+                        ? const Color(0xFFE8F5EC)
+                        : const Color(0xFFF6F8F6),
+                    borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: hasReminder
-                          ? const Color(
-                              0xFFA9DEA5,
-                            )
+                          ? const Color(0xFFA9DEA5)
                           : _RoutineScreenState._border,
                     ),
                   ),
@@ -4827,9 +3387,7 @@ class _DayHeader
             ),
           ),
 
-          const SizedBox(
-            width: 8,
-          ),
+          const SizedBox(width: 8),
 
           ElevatedButton.icon(
             onPressed: onAddBlock,
@@ -4837,32 +3395,20 @@ class _DayHeader
               elevation: 0,
               backgroundColor: _RoutineScreenState._primary,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 15,
-                vertical: 12,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(
-                  12,
-                ),
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
-            icon: const Icon(
-              Icons.add_rounded,
-              size: 18,
-            ),
-            label: const Text(
-              'Bloco',
-            ),
+            icon: const Icon(Icons.add_rounded, size: 18),
+            label: const Text('Bloco'),
           ),
         ],
       ),
     );
   }
 
-  String _completeDate(
-    DateTime date,
-  ) {
+  String _completeDate(DateTime date) {
     const weekdays = [
       'Segunda-feira',
       'Terça-feira',
@@ -4902,9 +3448,7 @@ enum _ResizeHandle {
   left,
 }
 
-class _BoardCard
-    extends
-        StatelessWidget {
+class _BoardCard extends StatelessWidget {
   const _BoardCard({
     required this.block,
     required this.onDrag,
@@ -4920,16 +3464,9 @@ class _BoardCard
 
   final BoardBlock block;
 
-  final ValueChanged<
-    Offset
-  >
-  onDrag;
+  final ValueChanged<Offset> onDrag;
 
-  final void Function(
-    _ResizeHandle handle,
-    Offset delta,
-  )?
-  onResize;
+  final void Function(_ResizeHandle handle, Offset delta)? onResize;
 
   final VoidCallback? onResizeEnd;
 
@@ -4940,35 +3477,22 @@ class _BoardCard
   final VoidCallback? onOpenMindMap;
   final Widget child;
 
-  bool get _resizable =>
-      onResize !=
-      null;
+  bool get _resizable => onResize != null;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     final card = Material(
       color: Colors.transparent,
       child: Container(
         decoration: BoxDecoration(
           color: _RoutineScreenState._cardBackground,
-          borderRadius: BorderRadius.circular(
-            16,
-          ),
-          border: Border.all(
-            color: _RoutineScreenState._cardBorder,
-          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _RoutineScreenState._cardBorder),
           boxShadow: const [
             BoxShadow(
-              color: Color(
-                0x14000000,
-              ),
+              color: Color(0x14000000),
               blurRadius: 18,
-              offset: Offset(
-                0,
-                8,
-              ),
+              offset: Offset(0, 8),
             ),
           ],
         ),
@@ -4984,9 +3508,7 @@ class _BoardCard
 
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 13,
-                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
                       child: child,
                     ),
                   ),
@@ -5003,9 +3525,7 @@ class _BoardCard
                   ),
 
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 13,
-                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 13),
                     child: child,
                   ),
                 ],
@@ -5020,9 +3540,7 @@ class _BoardCard
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        Positioned.fill(
-          child: card,
-        ),
+        Positioned.fill(child: card),
 
         // ======================================================
         // CANTOS
@@ -5094,44 +3612,24 @@ class _BoardCard
       cursor: SystemMouseCursors.move,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onPanUpdate:
-            (
-              details,
-            ) {
-              onDrag(
-                details.delta,
-              );
-            },
+        onPanUpdate: (details) {
+          onDrag(details.delta);
+        },
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            13,
-            10,
-            7,
-            8,
-          ),
+          padding: const EdgeInsets.fromLTRB(13, 10, 7, 8),
           child: Row(
             children: [
               Container(
                 width: 34,
                 height: 34,
                 decoration: BoxDecoration(
-                  color: block.color.withValues(
-                    alpha: .13,
-                  ),
-                  borderRadius: BorderRadius.circular(
-                    10,
-                  ),
+                  color: block.color.withValues(alpha: .13),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(
-                  block.icon,
-                  color: block.color,
-                  size: 18,
-                ),
+                child: Icon(block.icon, color: block.color, size: 18),
               ),
 
-              const SizedBox(
-                width: 10,
-              ),
+              const SizedBox(width: 10),
 
               Expanded(
                 child: Text(
@@ -5146,8 +3644,7 @@ class _BoardCard
                 ),
               ),
 
-              if (onOpenMindMap !=
-                  null)
+              if (onOpenMindMap != null)
                 IconButton(
                   tooltip: 'Abrir lousa em janela',
                   onPressed: onOpenMindMap,
@@ -5164,33 +3661,21 @@ class _BoardCard
                   color: Colors.transparent,
                   child: InkWell(
                     onTap: onReminder,
-                    borderRadius: BorderRadius.circular(
-                      10,
-                    ),
+                    borderRadius: BorderRadius.circular(10),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(
-                          0xFFBCF0B4,
-                        ),
-                        borderRadius: BorderRadius.circular(
-                          10,
-                        ),
-                        border: Border.all(
-                          color: const Color(
-                            0xFFC7DFC9,
-                          ),
-                        ),
+                        color: const Color(0xFFBCF0B4),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFC7DFC9)),
                       ),
                       child: const Text(
                         '🔔 Criar lembrete',
                         style: TextStyle(
-                          color: Color(
-                            0xFF3B6939,
-                          ),
+                          color: Color(0xFF3B6939),
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
                         ),
@@ -5200,9 +3685,7 @@ class _BoardCard
                 ),
               ),
 
-              const SizedBox(
-                width: 4,
-              ),
+              const SizedBox(width: 4),
 
               IconButton(
                 tooltip: 'Editar',
@@ -5214,53 +3697,41 @@ class _BoardCard
                 ),
               ),
 
-              PopupMenuButton<
-                _BlockAction
-              >(
+              PopupMenuButton<_BlockAction>(
                 tooltip: 'Opções do bloco',
-                color: const Color(
-                  0xFFFFFFFF,
-                ),
+                color: const Color(0xFFFFFFFF),
                 icon: const Icon(
                   Icons.more_vert_rounded,
                   color: _RoutineScreenState._muted,
                 ),
-                onSelected:
-                    (
-                      action,
-                    ) {
-                      switch (action) {
-                        case _BlockAction.duplicate:
-                          onDuplicate();
-                          break;
+                onSelected: (action) {
+                  switch (action) {
+                    case _BlockAction.duplicate:
+                      onDuplicate();
+                      break;
 
-                        case _BlockAction.delete:
-                          onDelete();
-                          break;
-                      }
-                    },
-                itemBuilder:
-                    (
-                      _,
-                    ) => const [
-                      PopupMenuItem(
-                        value: _BlockAction.duplicate,
-                        child: _MenuLabel(
-                          icon: Icons.copy_rounded,
-                          text: 'Duplicar',
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: _BlockAction.delete,
-                        child: _MenuLabel(
-                          icon: Icons.delete_outline_rounded,
-                          text: 'Excluir',
-                          color: Color(
-                            0xFFC43A52,
-                          ),
-                        ),
-                      ),
-                    ],
+                    case _BlockAction.delete:
+                      onDelete();
+                      break;
+                  }
+                },
+                itemBuilder: (_) => const [
+                  PopupMenuItem(
+                    value: _BlockAction.duplicate,
+                    child: _MenuLabel(
+                      icon: Icons.copy_rounded,
+                      text: 'Duplicar',
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: _BlockAction.delete,
+                    child: _MenuLabel(
+                      icon: Icons.delete_outline_rounded,
+                      text: 'Excluir',
+                      color: Color(0xFFC43A52),
+                    ),
+                  ),
+                ],
               ),
 
               // ==================================================
@@ -5288,18 +3759,11 @@ class _BoardCard
                 cursor: SystemMouseCursors.grab,
                 child: Listener(
                   behavior: HitTestBehavior.opaque,
-                  onPointerMove:
-                      (
-                        event,
-                      ) {
-                        onDrag(
-                          event.delta,
-                        );
-                      },
+                  onPointerMove: (event) {
+                    onDrag(event.delta);
+                  },
                   child: const Padding(
-                    padding: EdgeInsets.all(
-                      8,
-                    ),
+                    padding: EdgeInsets.all(8),
                     child: Icon(
                       Icons.drag_indicator_rounded,
                       color: _RoutineScreenState._muted,
@@ -5328,8 +3792,7 @@ class _BoardCard
   }) {
     final callback = onResize;
 
-    if (callback ==
-        null) {
+    if (callback == null) {
       return const SizedBox.shrink();
     }
 
@@ -5352,21 +3815,12 @@ class _BoardCard
           cursor: cursor,
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onPanUpdate:
-                (
-                  details,
-                ) {
-                  callback(
-                    handle,
-                    details.delta,
-                  );
-                },
-            onPanEnd:
-                (
-                  _,
-                ) {
-                  onResizeEnd?.call();
-                },
+            onPanUpdate: (details) {
+              callback(handle, details.delta);
+            },
+            onPanEnd: (_) {
+              onResizeEnd?.call();
+            },
             onPanCancel: () {
               onResizeEnd?.call();
             },
@@ -5374,29 +3828,15 @@ class _BoardCard
               width: width,
               height: height,
               decoration: BoxDecoration(
-                color:
-                    handle ==
-                        _ResizeHandle.bottomRight
-                    ? const Color(
-                        0xFFF5F7F5,
-                      )
+                color: handle == _ResizeHandle.bottomRight
+                    ? const Color(0xFFF5F7F5)
                     : Colors.transparent,
-                borderRadius: BorderRadius.circular(
-                  6,
-                ),
-                border:
-                    handle ==
-                        _ResizeHandle.bottomRight
-                    ? Border.all(
-                        color: const Color(
-                          0xFF9AA59C,
-                        ),
-                      )
+                borderRadius: BorderRadius.circular(6),
+                border: handle == _ResizeHandle.bottomRight
+                    ? Border.all(color: const Color(0xFF9AA59C))
                     : null,
               ),
-              child:
-                  handle ==
-                      _ResizeHandle.bottomRight
+              child: handle == _ResizeHandle.bottomRight
                   ? const Icon(
                       Icons.open_in_full_rounded,
                       size: 11,
@@ -5411,14 +3851,9 @@ class _BoardCard
   }
 }
 
-enum _BlockAction {
-  duplicate,
-  delete,
-}
+enum _BlockAction { duplicate, delete }
 
-class _MenuLabel
-    extends
-        StatelessWidget {
+class _MenuLabel extends StatelessWidget {
   const _MenuLabel({
     required this.icon,
     required this.text,
@@ -5430,49 +3865,27 @@ class _MenuLabel
   final Color color;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(
-          icon,
-          color: color,
-          size: 18,
-        ),
-        const SizedBox(
-          width: 10,
-        ),
-        Text(
-          text,
-          style: TextStyle(
-            color: color,
-            fontSize: 13,
-          ),
-        ),
+        Icon(icon, color: color, size: 18),
+        const SizedBox(width: 10),
+        Text(text, style: TextStyle(color: color, fontSize: 13)),
       ],
     );
   }
 }
 
-class _EmptyBoard
-    extends
-        StatelessWidget {
-  const _EmptyBoard({
-    required this.onAddBlock,
-  });
+class _EmptyBoard extends StatelessWidget {
+  const _EmptyBoard({required this.onAddBlock});
 
   final VoidCallback onAddBlock;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(
-          24,
-        ),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -5480,24 +3893,16 @@ class _EmptyBoard
               width: 56,
               height: 56,
               decoration: BoxDecoration(
-                color: _RoutineScreenState._primary.withValues(
-                  alpha: .12,
-                ),
-                borderRadius: BorderRadius.circular(
-                  17,
-                ),
+                color: _RoutineScreenState._primary.withValues(alpha: .12),
+                borderRadius: BorderRadius.circular(17),
               ),
               child: const Icon(
                 Icons.dashboard_customize_outlined,
-                color: Color(
-                  0xFF198754,
-                ),
+                color: Color(0xFF198754),
                 size: 27,
               ),
             ),
-            const SizedBox(
-              height: 15,
-            ),
+            const SizedBox(height: 15),
             const Text(
               'Sua lousa está vazia',
               style: TextStyle(
@@ -5506,9 +3911,7 @@ class _EmptyBoard
                 fontSize: 16,
               ),
             ),
-            const SizedBox(
-              height: 6,
-            ),
+            const SizedBox(height: 6),
             const Text(
               'Adicione tarefas, notas, conteúdo, fotos ou um mapa mental.',
               textAlign: TextAlign.center,
@@ -5518,33 +3921,18 @@ class _EmptyBoard
                 height: 1.45,
               ),
             ),
-            const SizedBox(
-              height: 15,
-            ),
+            const SizedBox(height: 15),
             OutlinedButton.icon(
               onPressed: onAddBlock,
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(
-                  0xFF198754,
-                ),
-                side: const BorderSide(
-                  color: Color(
-                    0xFF86B996,
-                  ),
-                ),
+                foregroundColor: const Color(0xFF198754),
+                side: const BorderSide(color: Color(0xFF86B996)),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(
-                    11,
-                  ),
+                  borderRadius: BorderRadius.circular(11),
                 ),
               ),
-              icon: const Icon(
-                Icons.add_rounded,
-                size: 18,
-              ),
-              label: const Text(
-                'Criar primeiro bloco',
-              ),
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: const Text('Criar primeiro bloco'),
             ),
           ],
         ),
@@ -5563,9 +3951,7 @@ class _EmptyBoard
 // A janela principal continua sendo a fonte da verdade.
 // ============================================================
 
-class _MindMapDetachedPlaceholder
-    extends
-        StatelessWidget {
+class _MindMapDetachedPlaceholder extends StatelessWidget {
   const _MindMapDetachedPlaceholder({
     required this.block,
     required this.onOpen,
@@ -5576,34 +3962,21 @@ class _MindMapDetachedPlaceholder
   final VoidCallback onOpen;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 14,
-        vertical: 12,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onOpen,
-          borderRadius: BorderRadius.circular(
-            13,
-          ),
+          borderRadius: BorderRadius.circular(13),
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(
-              16,
-            ),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: _RoutineScreenState._surfaceLight,
-              borderRadius: BorderRadius.circular(
-                13,
-              ),
-              border: Border.all(
-                color: _RoutineScreenState._border,
-              ),
+              borderRadius: BorderRadius.circular(13),
+              border: Border.all(color: _RoutineScreenState._border),
             ),
             child: Row(
               children: [
@@ -5612,9 +3985,7 @@ class _MindMapDetachedPlaceholder
                   color: _RoutineScreenState._primary,
                 ),
 
-                const SizedBox(
-                  width: 10,
-                ),
+                const SizedBox(width: 10),
 
                 Expanded(
                   child: Column(
@@ -5628,9 +3999,7 @@ class _MindMapDetachedPlaceholder
                         ),
                       ),
 
-                      const SizedBox(
-                        height: 3,
-                      ),
+                      const SizedBox(height: 3),
 
                       Text(
                         '${block.mindNodes.length} nó(s) • clique para trazer a janela',
@@ -5643,9 +4012,7 @@ class _MindMapDetachedPlaceholder
                   ),
                 ),
 
-                const SizedBox(
-                  width: 8,
-                ),
+                const SizedBox(width: 8),
 
                 const Icon(
                   Icons.open_in_new_rounded,
@@ -5661,9 +4028,7 @@ class _MindMapDetachedPlaceholder
   }
 }
 
-class _RoundIconButton
-    extends
-        StatelessWidget {
+class _RoundIconButton extends StatelessWidget {
   const _RoundIconButton({
     required this.icon,
     required this.tooltip,
@@ -5675,85 +4040,44 @@ class _RoundIconButton
   final VoidCallback onTap;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Tooltip(
       message: tooltip,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(
-          12,
-        ),
+        borderRadius: BorderRadius.circular(12),
         child: Container(
           width: 40,
           height: 40,
           decoration: BoxDecoration(
             color: _RoutineScreenState._surface,
-            borderRadius: BorderRadius.circular(
-              12,
-            ),
-            border: Border.all(
-              color: _RoutineScreenState._border,
-            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _RoutineScreenState._border),
           ),
-          child: Icon(
-            icon,
-            color: _RoutineScreenState._text,
-            size: 20,
-          ),
+          child: Icon(icon, color: _RoutineScreenState._text, size: 20),
         ),
       ),
     );
   }
 }
 
-class _GridPainter
-    extends
-        CustomPainter {
+class _GridPainter extends CustomPainter {
   const _GridPainter();
 
   @override
-  void paint(
-    Canvas canvas,
-    Size size,
-  ) {
+  void paint(Canvas canvas, Size size) {
     const spacing = 24.0;
     final paint = Paint()
-      ..color =
-          const Color(
-            0xFFD7E3D9,
-          ).withValues(
-            alpha: .42,
-          )
+      ..color = const Color(0xFFD7E3D9).withValues(alpha: .42)
       ..strokeWidth = 1;
 
-    for (
-      double x = spacing;
-      x <
-          size.width;
-      x += spacing
-    ) {
-      for (
-        double y = spacing;
-        y <
-            size.height;
-        y += spacing
-      ) {
-        canvas.drawCircle(
-          Offset(
-            x,
-            y,
-          ),
-          1,
-          paint,
-        );
+    for (double x = spacing; x < size.width; x += spacing) {
+      for (double y = spacing; y < size.height; y += spacing) {
+        canvas.drawCircle(Offset(x, y), 1, paint);
       }
     }
   }
 
   @override
-  bool shouldRepaint(
-    covariant _GridPainter oldDelegate,
-  ) => false;
+  bool shouldRepaint(covariant _GridPainter oldDelegate) => false;
 }

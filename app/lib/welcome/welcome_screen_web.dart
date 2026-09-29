@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../profile/data/profile_repository.dart';
 import '../profile/models/user_profile.dart';
 import '../finance/screen/finance_screen.dart';
+import '../routine/screen/routine_screen.dart';
 import '../study/study_screen.dart';
 
 class WebWelcomeScreen extends StatefulWidget {
@@ -84,6 +85,14 @@ class _WebWelcomeScreenState extends State<WebWelcomeScreen> {
       icon: Icons.account_balance_wallet_outlined,
       accent: Color(0xFFFFEDBD),
       accentDark: Color(0xFF8A6B22),
+    ),
+    _WelcomeObjective(
+      name: 'Rotina',
+      description:
+          'Organize seus dias, tarefas, lembretes e sua lousa de rotina.',
+      icon: Icons.calendar_month_outlined,
+      accent: Color(0xFFD9EFFF),
+      accentDark: Color(0xFF315D78),
     ),
   ];
 
@@ -224,6 +233,7 @@ class _WebWelcomeScreenState extends State<WebWelcomeScreen> {
     final Widget? page = switch (name) {
       'Estudar' => const StudyScreen(),
       'Financeiro' => const FinanceScreen(),
+      'Rotina' => const RoutineScreen(),
       _ => null,
     };
 

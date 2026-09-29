@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 
-import '../../app/dependencies/app_dependencies.dart' as dependencies;
-import '../../telegram/widgets/telegram_connect_dialog.dart';
+import '../../app/dependencies/app_dependencies.dart'
+    if (dart.library.html) '../../routine/runtime/routine_web_dependencies.dart'
+    as dependencies;
+import '../../telegram/widgets/telegram_connect_dialog.dart'
+    if (dart.library.html) '../../telegram/widgets/telegram_connect_dialog_web.dart';
 
 import '../controllers/reminder_controller.dart';
 
-class ReminderDialog
-    extends
-        StatefulWidget {
+class ReminderDialog extends StatefulWidget {
   const ReminderDialog({
     super.key,
     required this.controller,
@@ -39,10 +40,7 @@ class ReminderDialog
   // SHOW
   // ============================================================
 
-  static Future<
-    bool?
-  >
-  show(
+  static Future<bool?> show(
     BuildContext context, {
     required ReminderController controller,
     String initialTitle = '',
@@ -50,23 +48,18 @@ class ReminderDialog
     String? sourceType,
     String? sourceId,
   }) {
-    return showDialog<
-      bool
-    >(
+    return showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder:
-          (
-            context,
-          ) {
-            return ReminderDialog(
-              controller: controller,
-              initialTitle: initialTitle,
-              initialMessage: initialMessage,
-              sourceType: sourceType,
-              sourceId: sourceId,
-            );
-          },
+      builder: (context) {
+        return ReminderDialog(
+          controller: controller,
+          initialTitle: initialTitle,
+          initialMessage: initialMessage,
+          sourceType: sourceType,
+          sourceId: sourceId,
+        );
+      },
     );
   }
 
@@ -75,58 +68,33 @@ class ReminderDialog
   // ============================================================
 
   @override
-  State<
-    ReminderDialog
-  >
-  createState() {
+  State<ReminderDialog> createState() {
     return _ReminderDialogState();
   }
 }
 
-class _ReminderDialogState
-    extends
-        State<
-          ReminderDialog
-        > {
+class _ReminderDialogState extends State<ReminderDialog> {
   // ============================================================
   // CORES
   // ============================================================
 
-  static const Color _background = Color(
-    0xFFFFFFFF,
-  );
+  static const Color _background = Color(0xFFFFFFFF);
 
-  static const Color _surface = Color(
-    0xFFF7FBF1,
-  );
+  static const Color _surface = Color(0xFFF7FBF1);
 
-  static const Color _surfaceSoft = Color(
-    0xFFF3F8EE,
-  );
+  static const Color _surfaceSoft = Color(0xFFF3F8EE);
 
-  static const Color _border = Color(
-    0xFFC7DFC9,
-  );
+  static const Color _border = Color(0xFFC7DFC9);
 
-  static const Color _primary = Color(
-    0xFFBCF0B4,
-  );
+  static const Color _primary = Color(0xFFBCF0B4);
 
-  static const Color _primaryDark = Color(
-    0xFF3B6939,
-  );
+  static const Color _primaryDark = Color(0xFF3B6939);
 
-  static const Color _text = Color(
-    0xFF172019,
-  );
+  static const Color _text = Color(0xFF172019);
 
-  static const Color _muted = Color(
-    0xFF68746B,
-  );
+  static const Color _muted = Color(0xFF68746B);
 
-  static const Color _error = Color(
-    0xFFB3261E,
-  );
+  static const Color _error = Color(0xFFB3261E);
 
   // ============================================================
   // CONTROLLERS
@@ -160,30 +128,15 @@ class _ReminderDialogState
   void initState() {
     super.initState();
 
-    _titleController = TextEditingController(
-      text: widget.initialTitle,
-    );
+    _titleController = TextEditingController(text: widget.initialTitle);
 
-    _messageController = TextEditingController(
-      text: widget.initialMessage,
-    );
+    _messageController = TextEditingController(text: widget.initialMessage);
 
-    final initial = _brasiliaNow.add(
-      const Duration(
-        hours: 1,
-      ),
-    );
+    final initial = _brasiliaNow.add(const Duration(hours: 1));
 
-    _selectedDate = DateTime(
-      initial.year,
-      initial.month,
-      initial.day,
-    );
+    _selectedDate = DateTime(initial.year, initial.month, initial.day);
 
-    _selectedTime = TimeOfDay(
-      hour: initial.hour,
-      minute: initial.minute,
-    );
+    _selectedTime = TimeOfDay(hour: initial.hour, minute: initial.minute);
   }
 
   // ============================================================
@@ -203,10 +156,7 @@ class _ReminderDialogState
   // DATE
   // ============================================================
 
-  Future<
-    void
-  >
-  _pickDate() async {
+  Future<void> _pickDate() async {
     final result = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
@@ -215,37 +165,26 @@ class _ReminderDialogState
         _brasiliaNow.month,
         _brasiliaNow.day,
       ),
-      lastDate: DateTime(
-        _brasiliaNow.year +
-            10,
-      ),
-      builder:
-          (
-            context,
-            child,
-          ) {
-            return Theme(
-              data:
-                  Theme.of(
-                    context,
-                  ).copyWith(
-                    colorScheme: const ColorScheme.light(
-                      primary: _primaryDark,
-                      onPrimary: Colors.white,
-                      surface: _background,
-                      onSurface: _text,
-                    ),
-                    datePickerTheme: const DatePickerThemeData(
-                      backgroundColor: _background,
-                    ),
-                  ),
-              child: child!,
-            );
-          },
+      lastDate: DateTime(_brasiliaNow.year + 10),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: _primaryDark,
+              onPrimary: Colors.white,
+              surface: _background,
+              onSurface: _text,
+            ),
+            datePickerTheme: const DatePickerThemeData(
+              backgroundColor: _background,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
-    if (result ==
-        null) {
+    if (result == null) {
       return;
     }
 
@@ -253,57 +192,40 @@ class _ReminderDialogState
       return;
     }
 
-    setState(
-      () {
-        _selectedDate = DateTime(
-          result.year,
-          result.month,
-          result.day,
-        );
+    setState(() {
+      _selectedDate = DateTime(result.year, result.month, result.day);
 
-        _errorMessage = null;
-      },
-    );
+      _errorMessage = null;
+    });
   }
 
   // ============================================================
   // TIME
   // ============================================================
 
-  Future<
-    void
-  >
-  _pickTime() async {
+  Future<void> _pickTime() async {
     final result = await showTimePicker(
       context: context,
       initialTime: _selectedTime,
-      builder:
-          (
-            context,
-            child,
-          ) {
-            return Theme(
-              data:
-                  Theme.of(
-                    context,
-                  ).copyWith(
-                    colorScheme: const ColorScheme.light(
-                      primary: _primaryDark,
-                      onPrimary: Colors.white,
-                      surface: _background,
-                      onSurface: _text,
-                    ),
-                    timePickerTheme: const TimePickerThemeData(
-                      backgroundColor: _background,
-                    ),
-                  ),
-              child: child!,
-            );
-          },
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: _primaryDark,
+              onPrimary: Colors.white,
+              surface: _background,
+              onSurface: _text,
+            ),
+            timePickerTheme: const TimePickerThemeData(
+              backgroundColor: _background,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
-    if (result ==
-        null) {
+    if (result == null) {
       return;
     }
 
@@ -311,13 +233,11 @@ class _ReminderDialogState
       return;
     }
 
-    setState(
-      () {
-        _selectedTime = result;
+    setState(() {
+      _selectedTime = result;
 
-        _errorMessage = null;
-      },
-    );
+      _errorMessage = null;
+    });
   }
 
   // ============================================================
@@ -334,11 +254,7 @@ class _ReminderDialogState
   DateTime get _brasiliaNow {
     final utcNow = DateTime.now().toUtc();
 
-    final brasilia = utcNow.subtract(
-      const Duration(
-        hours: 3,
-      ),
-    );
+    final brasilia = utcNow.subtract(const Duration(hours: 3));
 
     return DateTime(
       brasilia.year,
@@ -369,46 +285,26 @@ class _ReminderDialogState
   // ============================================================
 
   DateTime get _remindAt {
-    final year = _selectedDate.year.toString().padLeft(
-      4,
-      '0',
-    );
+    final year = _selectedDate.year.toString().padLeft(4, '0');
 
-    final month = _selectedDate.month.toString().padLeft(
-      2,
-      '0',
-    );
+    final month = _selectedDate.month.toString().padLeft(2, '0');
 
-    final day = _selectedDate.day.toString().padLeft(
-      2,
-      '0',
-    );
+    final day = _selectedDate.day.toString().padLeft(2, '0');
 
-    final hour = _selectedTime.hour.toString().padLeft(
-      2,
-      '0',
-    );
+    final hour = _selectedTime.hour.toString().padLeft(2, '0');
 
-    final minute = _selectedTime.minute.toString().padLeft(
-      2,
-      '0',
-    );
+    final minute = _selectedTime.minute.toString().padLeft(2, '0');
 
     final iso = '$year-$month-${day}T$hour:$minute:00-03:00';
 
-    return DateTime.parse(
-      iso,
-    ).toUtc();
+    return DateTime.parse(iso).toUtc();
   }
 
   // ============================================================
   // SAVE
   // ============================================================
 
-  Future<
-    void
-  >
-  _save() async {
+  Future<void> _save() async {
     if (_saving) {
       return;
     }
@@ -418,57 +314,44 @@ class _ReminderDialogState
     final message = _messageController.text.trim();
 
     if (title.isEmpty) {
-      setState(
-        () {
-          _errorMessage = 'Digite um título para o lembrete.';
-        },
-      );
+      setState(() {
+        _errorMessage = 'Digite um título para o lembrete.';
+      });
 
       return;
     }
 
     if (message.isEmpty) {
-      setState(
-        () {
-          _errorMessage = 'Digite uma mensagem para o lembrete.';
-        },
-      );
+      setState(() {
+        _errorMessage = 'Digite uma mensagem para o lembrete.';
+      });
 
       return;
     }
 
     final remindAt = _remindAt;
 
-    if (!remindAt.isAfter(
-      DateTime.now().toUtc(),
-    )) {
-      setState(
-        () {
-          _errorMessage = 'Escolha uma data e hora no futuro.';
-        },
-      );
+    if (!remindAt.isAfter(DateTime.now().toUtc())) {
+      setState(() {
+        _errorMessage = 'Escolha uma data e hora no futuro.';
+      });
 
       return;
     }
 
-    if (!_notifyInApp &&
-        !_notifyTelegram) {
-      setState(
-        () {
-          _errorMessage = 'Selecione pelo menos uma forma de notificação.';
-        },
-      );
+    if (!_notifyInApp && !_notifyTelegram) {
+      setState(() {
+        _errorMessage = 'Selecione pelo menos uma forma de notificação.';
+      });
 
       return;
     }
 
-    setState(
-      () {
-        _saving = true;
+    setState(() {
+      _saving = true;
 
-        _errorMessage = null;
-      },
-    );
+      _errorMessage = null;
+    });
 
     final result = await widget.controller.create(
       title: title,
@@ -484,46 +367,35 @@ class _ReminderDialogState
       return;
     }
 
-    if (result ==
-        null) {
-      setState(
-        () {
-          _saving = false;
+    if (result == null) {
+      setState(() {
+        _saving = false;
 
-          _errorMessage =
-              widget.controller.errorMessage ??
-              'Não foi possível criar o lembrete.';
-        },
-      );
+        _errorMessage =
+            widget.controller.errorMessage ??
+            'Não foi possível criar o lembrete.';
+      });
 
       return;
     }
 
-    Navigator.of(
-      context,
-    ).pop(
-      true,
-    );
+    Navigator.of(context).pop(true);
   }
 
   // ============================================================
   // TELEGRAM NOTIFICATION
   // ============================================================
 
-  Future<void> _changeTelegramNotification(
-    bool value,
-  ) async {
+  Future<void> _changeTelegramNotification(bool value) async {
     if (_saving) {
       return;
     }
 
     if (!value) {
-      setState(
-        () {
-          _notifyTelegram = false;
-          _errorMessage = null;
-        },
-      );
+      setState(() {
+        _notifyTelegram = false;
+        _errorMessage = null;
+      });
 
       return;
     }
@@ -547,22 +419,18 @@ class _ReminderDialogState
       }
 
       if (connected != true) {
-        setState(
-          () {
-            _notifyTelegram = false;
-          },
-        );
+        setState(() {
+          _notifyTelegram = false;
+        });
 
         return;
       }
     }
 
-    setState(
-      () {
-        _notifyTelegram = true;
-        _errorMessage = null;
-      },
-    );
+    setState(() {
+      _notifyTelegram = true;
+      _errorMessage = null;
+    });
   }
 
   // ============================================================
@@ -570,44 +438,27 @@ class _ReminderDialogState
   // ============================================================
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.all(
-        24,
-      ),
+      insetPadding: const EdgeInsets.all(24),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: 520,
-        ),
+        constraints: const BoxConstraints(maxWidth: 520),
         child: Container(
           decoration: BoxDecoration(
             color: _background,
-            borderRadius: BorderRadius.circular(
-              22,
-            ),
-            border: Border.all(
-              color: _border,
-            ),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: _border),
             boxShadow: const [
               BoxShadow(
-                color: Color(
-                  0x14000000,
-                ),
+                color: Color(0x14000000),
                 blurRadius: 26,
-                offset: Offset(
-                  0,
-                  10,
-                ),
+                offset: Offset(0, 10),
               ),
             ],
           ),
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(
-              22,
-            ),
+            padding: const EdgeInsets.all(22),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -617,20 +468,14 @@ class _ReminderDialogState
                 // =================================================
                 _buildHeader(),
 
-                const SizedBox(
-                  height: 22,
-                ),
+                const SizedBox(height: 22),
 
                 // =================================================
                 // TITLE
                 // =================================================
-                _buildLabel(
-                  'Título',
-                ),
+                _buildLabel('Título'),
 
-                const SizedBox(
-                  height: 7,
-                ),
+                const SizedBox(height: 7),
 
                 _buildTextField(
                   controller: _titleController,
@@ -638,20 +483,14 @@ class _ReminderDialogState
                   icon: Icons.title_rounded,
                 ),
 
-                const SizedBox(
-                  height: 16,
-                ),
+                const SizedBox(height: 16),
 
                 // =================================================
                 // MESSAGE
                 // =================================================
-                _buildLabel(
-                  'Mensagem',
-                ),
+                _buildLabel('Mensagem'),
 
-                const SizedBox(
-                  height: 7,
-                ),
+                const SizedBox(height: 7),
 
                 _buildTextField(
                   controller: _messageController,
@@ -661,44 +500,28 @@ class _ReminderDialogState
                   maxLines: 5,
                 ),
 
-                const SizedBox(
-                  height: 18,
-                ),
+                const SizedBox(height: 18),
 
                 // =================================================
                 // DATE AND TIME
                 // =================================================
                 Row(
                   children: [
-                    Expanded(
-                      child: _buildDateButton(),
-                    ),
+                    Expanded(child: _buildDateButton()),
 
-                    const SizedBox(
-                      width: 10,
-                    ),
+                    const SizedBox(width: 10),
 
-                    Expanded(
-                      child: _buildTimeButton(),
-                    ),
+                    Expanded(child: _buildTimeButton()),
                   ],
                 ),
 
-                const SizedBox(
-                  height: 8,
-                ),
+                const SizedBox(height: 8),
 
                 const Row(
                   children: [
-                    Icon(
-                      Icons.public_rounded,
-                      size: 14,
-                      color: _muted,
-                    ),
+                    Icon(Icons.public_rounded, size: 14, color: _muted),
 
-                    SizedBox(
-                      width: 6,
-                    ),
+                    SizedBox(width: 6),
 
                     Text(
                       'Horário de Brasília (UTC-3)',
@@ -711,43 +534,30 @@ class _ReminderDialogState
                   ],
                 ),
 
-                const SizedBox(
-                  height: 20,
-                ),
+                const SizedBox(height: 20),
 
                 // =================================================
                 // NOTIFICATIONS
                 // =================================================
-                _buildLabel(
-                  'Notificar em',
-                ),
+                _buildLabel('Notificar em'),
 
-                const SizedBox(
-                  height: 8,
-                ),
+                const SizedBox(height: 8),
 
                 _buildNotificationOption(
                   icon: Icons.notifications_none_rounded,
                   title: 'Aplicativo',
                   subtitle: 'Exibe o lembrete dentro do programa.',
                   value: _notifyInApp,
-                  onChanged:
-                      (
-                        value,
-                      ) {
-                        setState(
-                          () {
-                            _notifyInApp = value;
+                  onChanged: (value) {
+                    setState(() {
+                      _notifyInApp = value;
 
-                            _errorMessage = null;
-                          },
-                        );
-                      },
+                      _errorMessage = null;
+                    });
+                  },
                 ),
 
-                const SizedBox(
-                  height: 8,
-                ),
+                const SizedBox(height: 8),
 
                 _buildNotificationOption(
                   icon: Icons.send_outlined,
@@ -762,29 +572,16 @@ class _ReminderDialogState
                 // =================================================
                 // ERROR
                 // =================================================
-                if (_errorMessage !=
-                    null) ...[
-                  const SizedBox(
-                    height: 14,
-                  ),
+                if (_errorMessage != null) ...[
+                  const SizedBox(height: 14),
 
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(
-                      12,
-                    ),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: _error.withValues(
-                        alpha: 0.07,
-                      ),
-                      borderRadius: BorderRadius.circular(
-                        11,
-                      ),
-                      border: Border.all(
-                        color: _error.withValues(
-                          alpha: 0.20,
-                        ),
-                      ),
+                      color: _error.withValues(alpha: 0.07),
+                      borderRadius: BorderRadius.circular(11),
+                      border: Border.all(color: _error.withValues(alpha: 0.20)),
                     ),
                     child: Text(
                       _errorMessage!,
@@ -797,9 +594,7 @@ class _ReminderDialogState
                   ),
                 ],
 
-                const SizedBox(
-                  height: 22,
-                ),
+                const SizedBox(height: 22),
 
                 // =================================================
                 // ACTIONS
@@ -825,20 +620,12 @@ class _ReminderDialogState
           height: 46,
           decoration: BoxDecoration(
             color: _primary,
-            borderRadius: BorderRadius.circular(
-              13,
-            ),
+            borderRadius: BorderRadius.circular(13),
           ),
-          child: const Icon(
-            Icons.alarm_rounded,
-            color: _primaryDark,
-            size: 23,
-          ),
+          child: const Icon(Icons.alarm_rounded, color: _primaryDark, size: 23),
         ),
 
-        const SizedBox(
-          width: 13,
-        ),
+        const SizedBox(width: 13),
 
         const Expanded(
           child: Column(
@@ -853,16 +640,11 @@ class _ReminderDialogState
                 ),
               ),
 
-              SizedBox(
-                height: 3,
-              ),
+              SizedBox(height: 3),
 
               Text(
                 'Escolha quando você quer ser lembrado.',
-                style: TextStyle(
-                  color: _muted,
-                  fontSize: 11,
-                ),
+                style: TextStyle(color: _muted, fontSize: 11),
               ),
             ],
           ),
@@ -872,15 +654,9 @@ class _ReminderDialogState
           onPressed: _saving
               ? null
               : () {
-                  Navigator.of(
-                    context,
-                  ).pop(
-                    false,
-                  );
+                  Navigator.of(context).pop(false);
                 },
-          icon: const Icon(
-            Icons.close_rounded,
-          ),
+          icon: const Icon(Icons.close_rounded),
           color: _muted,
           tooltip: 'Fechar',
         ),
@@ -892,9 +668,7 @@ class _ReminderDialogState
   // LABEL
   // ============================================================
 
-  Widget _buildLabel(
-    String text,
-  ) {
+  Widget _buildLabel(String text) {
     return Text(
       text,
       style: const TextStyle(
@@ -933,11 +707,7 @@ class _ReminderDialogState
           fontSize: 12,
           fontWeight: FontWeight.w500,
         ),
-        prefixIcon: Icon(
-          icon,
-          color: _primaryDark,
-          size: 19,
-        ),
+        prefixIcon: Icon(icon, color: _primaryDark, size: 19),
         filled: true,
         fillColor: _surfaceSoft,
         contentPadding: const EdgeInsets.symmetric(
@@ -945,29 +715,16 @@ class _ReminderDialogState
           vertical: 14,
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(
-            12,
-          ),
-          borderSide: const BorderSide(
-            color: _border,
-          ),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: _border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(
-            12,
-          ),
-          borderSide: const BorderSide(
-            color: _border,
-          ),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: _border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(
-            12,
-          ),
-          borderSide: const BorderSide(
-            color: _primaryDark,
-            width: 1.3,
-          ),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: _primaryDark, width: 1.3),
         ),
       ),
     );
@@ -978,15 +735,9 @@ class _ReminderDialogState
   // ============================================================
 
   Widget _buildDateButton() {
-    final day = _selectedDate.day.toString().padLeft(
-      2,
-      '0',
-    );
+    final day = _selectedDate.day.toString().padLeft(2, '0');
 
-    final month = _selectedDate.month.toString().padLeft(
-      2,
-      '0',
-    );
+    final month = _selectedDate.month.toString().padLeft(2, '0');
 
     final year = _selectedDate.year;
 
@@ -1003,15 +754,9 @@ class _ReminderDialogState
   // ============================================================
 
   Widget _buildTimeButton() {
-    final hour = _selectedTime.hour.toString().padLeft(
-      2,
-      '0',
-    );
+    final hour = _selectedTime.hour.toString().padLeft(2, '0');
 
-    final minute = _selectedTime.minute.toString().padLeft(
-      2,
-      '0',
-    );
+    final minute = _selectedTime.minute.toString().padLeft(2, '0');
 
     return _buildPickerButton(
       icon: Icons.schedule_rounded,
@@ -1034,25 +779,14 @@ class _ReminderDialogState
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: _saving
-            ? null
-            : onTap,
-        borderRadius: BorderRadius.circular(
-          13,
-        ),
+        onTap: _saving ? null : onTap,
+        borderRadius: BorderRadius.circular(13),
         child: Ink(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 13,
-            vertical: 12,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
           decoration: BoxDecoration(
             color: _surface,
-            borderRadius: BorderRadius.circular(
-              13,
-            ),
-            border: Border.all(
-              color: _border,
-            ),
+            borderRadius: BorderRadius.circular(13),
+            border: Border.all(color: _border),
           ),
           child: Row(
             children: [
@@ -1061,20 +795,12 @@ class _ReminderDialogState
                 height: 36,
                 decoration: BoxDecoration(
                   color: _primary,
-                  borderRadius: BorderRadius.circular(
-                    10,
-                  ),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(
-                  icon,
-                  color: _primaryDark,
-                  size: 18,
-                ),
+                child: Icon(icon, color: _primaryDark, size: 18),
               ),
 
-              const SizedBox(
-                width: 10,
-              ),
+              const SizedBox(width: 10),
 
               Expanded(
                 child: Column(
@@ -1089,9 +815,7 @@ class _ReminderDialogState
                       ),
                     ),
 
-                    const SizedBox(
-                      height: 2,
-                    ),
+                    const SizedBox(height: 2),
 
                     Text(
                       value,
@@ -1120,31 +844,15 @@ class _ReminderDialogState
     required String title,
     required String subtitle,
     required bool value,
-    required ValueChanged<
-      bool
-    >
-    onChanged,
+    required ValueChanged<bool> onChanged,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 10,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: value
-            ? _primary.withValues(
-                alpha: 0.28,
-              )
-            : _surfaceSoft,
-        borderRadius: BorderRadius.circular(
-          13,
-        ),
+        color: value ? _primary.withValues(alpha: 0.28) : _surfaceSoft,
+        borderRadius: BorderRadius.circular(13),
         border: Border.all(
-          color: value
-              ? _primaryDark.withValues(
-                  alpha: 0.28,
-                )
-              : _border,
+          color: value ? _primaryDark.withValues(alpha: 0.28) : _border,
         ),
       ),
       child: Row(
@@ -1153,23 +861,13 @@ class _ReminderDialogState
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: value
-                  ? _primary
-                  : _background,
-              borderRadius: BorderRadius.circular(
-                10,
-              ),
+              color: value ? _primary : _background,
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(
-              icon,
-              color: _primaryDark,
-              size: 19,
-            ),
+            child: Icon(icon, color: _primaryDark, size: 19),
           ),
 
-          const SizedBox(
-            width: 11,
-          ),
+          const SizedBox(width: 11),
 
           Expanded(
             child: Column(
@@ -1184,9 +882,7 @@ class _ReminderDialogState
                   ),
                 ),
 
-                const SizedBox(
-                  height: 2,
-                ),
+                const SizedBox(height: 2),
 
                 Text(
                   subtitle,
@@ -1202,9 +898,7 @@ class _ReminderDialogState
 
           Switch(
             value: value,
-            onChanged: _saving
-                ? null
-                : onChanged,
+            onChanged: _saving ? null : onChanged,
             activeThumbColor: _primaryDark,
             activeTrackColor: _primary,
           ),
@@ -1225,41 +919,25 @@ class _ReminderDialogState
           onPressed: _saving
               ? null
               : () {
-                  Navigator.of(
-                    context,
-                  ).pop(
-                    false,
-                  );
+                  Navigator.of(context).pop(false);
                 },
           child: const Text(
             'Cancelar',
-            style: TextStyle(
-              color: _muted,
-              fontWeight: FontWeight.w700,
-            ),
+            style: TextStyle(color: _muted, fontWeight: FontWeight.w700),
           ),
         ),
 
-        const SizedBox(
-          width: 8,
-        ),
+        const SizedBox(width: 8),
 
         ElevatedButton.icon(
-          onPressed: _saving
-              ? null
-              : _save,
+          onPressed: _saving ? null : _save,
           style: ElevatedButton.styleFrom(
             elevation: 0,
             backgroundColor: _primary,
             foregroundColor: _primaryDark,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 18,
-              vertical: 14,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(
-                12,
-              ),
+              borderRadius: BorderRadius.circular(12),
             ),
           ),
           icon: _saving
@@ -1271,17 +949,10 @@ class _ReminderDialogState
                     color: _primaryDark,
                   ),
                 )
-              : const Icon(
-                  Icons.alarm_add_rounded,
-                  size: 18,
-                ),
+              : const Icon(Icons.alarm_add_rounded, size: 18),
           label: Text(
-            _saving
-                ? 'Salvando...'
-                : 'Criar lembrete',
-            style: const TextStyle(
-              fontWeight: FontWeight.w800,
-            ),
+            _saving ? 'Salvando...' : 'Criar lembrete',
+            style: const TextStyle(fontWeight: FontWeight.w800),
           ),
         ),
       ],
