@@ -32,9 +32,6 @@ class WebGlobalHeaderShell extends StatefulWidget {
 class _WebGlobalHeaderShellState extends State<WebGlobalHeaderShell> {
   static const Color _background = Color(0xFFF7FBF1);
   static const Color _border = Color(0xFFC7DFC9);
-  static const Color _primary = Color(0xFF3B6939);
-  static const Color _primarySoft = Color(0xFFBCF0B4);
-
   final ProfileRepository _profileRepository = ProfileRepository();
 
   late final WebSyncStatusController _syncStatus;
@@ -51,9 +48,7 @@ class _WebGlobalHeaderShellState extends State<WebGlobalHeaderShell> {
     super.initState();
 
     _syncStatus = WebSyncStatusController();
-    _notifications = WebUpdateNotificationController(
-      syncStatus: _syncStatus,
-    );
+    _notifications = WebUpdateNotificationController(syncStatus: _syncStatus);
 
     _syncStatus.initialize();
     _notifications.initialize();
@@ -116,16 +111,13 @@ class _WebGlobalHeaderShellState extends State<WebGlobalHeaderShell> {
     if (next) {
       await _notifications.markAsRead();
 
-      if (_notifications.notification == null &&
-          !_notifications.refreshing) {
+      if (_notifications.notification == null && !_notifications.refreshing) {
         await _notifications.refresh();
       }
     }
   }
 
-  Future<void> _openProfileSettings(
-    WebProfileSettingsSection section,
-  ) async {
+  Future<void> _openProfileSettings(WebProfileSettingsSection section) async {
     _closeFloatingPanels();
 
     final navigator = widget.navigatorKey.currentState;
@@ -135,9 +127,7 @@ class _WebGlobalHeaderShellState extends State<WebGlobalHeaderShell> {
 
     await navigator.push<void>(
       MaterialPageRoute<void>(
-        builder: (_) => WebProfileSettingsPage(
-          initialSection: section,
-        ),
+        builder: (_) => WebProfileSettingsPage(initialSection: section),
       ),
     );
   }
@@ -164,8 +154,7 @@ class _WebGlobalHeaderShellState extends State<WebGlobalHeaderShell> {
 
   @override
   Widget build(BuildContext context) {
-    final authenticated =
-        Supabase.instance.client.auth.currentSession != null;
+    final authenticated = Supabase.instance.client.auth.currentSession != null;
 
     return Material(
       color: _background,
@@ -179,12 +168,7 @@ class _WebGlobalHeaderShellState extends State<WebGlobalHeaderShell> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: const BoxDecoration(
                 color: _background,
-                border: Border(
-                  bottom: BorderSide(
-                    color: _border,
-                    width: 1,
-                  ),
-                ),
+                border: Border(bottom: BorderSide(color: _border, width: 1)),
               ),
               child: Align(
                 alignment: Alignment.centerRight,
@@ -197,9 +181,7 @@ class _WebGlobalHeaderShellState extends State<WebGlobalHeaderShell> {
                             onTap: _toggleNotifications,
                           ),
                           const SizedBox(width: 8),
-                          WebSyncStatusIndicator(
-                            controller: _syncStatus,
-                          ),
+                          WebSyncStatusIndicator(controller: _syncStatus),
                           const SizedBox(width: 8),
                           _HeaderIcon(
                             semanticsLabel: 'Meu perfil',
@@ -259,8 +241,8 @@ class _WebGlobalHeaderShellState extends State<WebGlobalHeaderShell> {
                       displayName: _displayName,
                       email:
                           Supabase.instance.client.auth.currentUser?.email ??
-                              _cachedEmail ??
-                              'E-mail não disponível',
+                          _cachedEmail ??
+                          'E-mail não disponível',
                       onClose: _closeFloatingPanels,
                       onPreferences: () => _openProfileSettings(
                         WebProfileSettingsSection.preferences,
@@ -280,10 +262,7 @@ class _WebGlobalHeaderShellState extends State<WebGlobalHeaderShell> {
 }
 
 class _WebNotificationBell extends StatelessWidget {
-  const _WebNotificationBell({
-    required this.controller,
-    required this.onTap,
-  });
+  const _WebNotificationBell({required this.controller, required this.onTap});
 
   final WebUpdateNotificationController controller;
   final VoidCallback onTap;
@@ -341,16 +320,12 @@ class _WebNotificationBell extends StatelessWidget {
 }
 
 class WebSyncStatusIndicator extends StatefulWidget {
-  const WebSyncStatusIndicator({
-    super.key,
-    required this.controller,
-  });
+  const WebSyncStatusIndicator({super.key, required this.controller});
 
   final WebSyncStatusController controller;
 
   @override
-  State<WebSyncStatusIndicator> createState() =>
-      _WebSyncStatusIndicatorState();
+  State<WebSyncStatusIndicator> createState() => _WebSyncStatusIndicatorState();
 }
 
 class _WebSyncStatusIndicatorState extends State<WebSyncStatusIndicator>
@@ -382,7 +357,8 @@ class _WebSyncStatusIndicatorState extends State<WebSyncStatusIndicator>
   }
 
   void _syncAnimation() {
-    final animate = widget.controller.state == WebSyncVisualState.syncing ||
+    final animate =
+        widget.controller.state == WebSyncVisualState.syncing ||
         widget.controller.state == WebSyncVisualState.checking;
 
     if (animate) {
@@ -411,10 +387,7 @@ class _WebSyncStatusIndicatorState extends State<WebSyncStatusIndicator>
         decoration: BoxDecoration(
           color: visual.background,
           shape: BoxShape.circle,
-          border: Border.all(
-            color: visual.border,
-            width: 1,
-          ),
+          border: Border.all(color: visual.border, width: 1),
           boxShadow: [
             BoxShadow(
               color: visual.foreground.withValues(alpha: .07),
@@ -540,9 +513,7 @@ class _WebNotificationPanel extends StatelessWidget {
     final width = MediaQuery.sizeOf(context).width;
 
     return ConstrainedBox(
-      constraints: BoxConstraints(
-        maxWidth: width < 460 ? width - 36 : 390,
-      ),
+      constraints: BoxConstraints(maxWidth: width < 460 ? width - 36 : 390),
       child: Material(
         elevation: 10,
         color: Colors.white,
@@ -553,9 +524,7 @@ class _WebNotificationPanel extends StatelessWidget {
           constraints: const BoxConstraints(maxHeight: 480),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: const Color(0xFFC7DFC9),
-            ),
+            border: Border.all(color: const Color(0xFFC7DFC9)),
           ),
           child: AnimatedBuilder(
             animation: controller,
@@ -599,18 +568,13 @@ class _WebNotificationPanel extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const Divider(
-                    height: 1,
-                    color: Color(0xFFC7DFC9),
-                  ),
+                  const Divider(height: 1, color: Color(0xFFC7DFC9)),
                   if (controller.error != null)
                     Padding(
                       padding: const EdgeInsets.all(18),
                       child: Text(
                         controller.error!,
-                        style: const TextStyle(
-                          color: Color(0xFFB3261E),
-                        ),
+                        style: const TextStyle(color: Color(0xFFB3261E)),
                       ),
                     )
                   else if (notification == null)
@@ -627,9 +591,7 @@ class _WebNotificationPanel extends StatelessWidget {
                           Text(
                             'Nenhuma notificação disponível.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Color(0xFF68746B),
-                            ),
+                            style: TextStyle(color: Color(0xFF68746B)),
                           ),
                         ],
                       ),
@@ -650,10 +612,7 @@ class _WebNotificationPanel extends StatelessWidget {
 }
 
 class _NotificationCard extends StatelessWidget {
-  const _NotificationCard({
-    required this.notification,
-    required this.date,
-  });
+  const _NotificationCard({required this.notification, required this.date});
 
   final AppUpdateNotification notification;
   final String date;
@@ -668,9 +627,7 @@ class _NotificationCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(0xFFF3F8EE),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: const Color(0xFFC7DFC9),
-          ),
+          border: Border.all(color: const Color(0xFFC7DFC9)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -685,9 +642,7 @@ class _NotificationCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     notification.title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w900,
-                    ),
+                    style: const TextStyle(fontWeight: FontWeight.w900),
                   ),
                 ),
                 Container(
@@ -715,10 +670,7 @@ class _NotificationCard extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               date,
-              style: const TextStyle(
-                color: Color(0xFF68746B),
-                fontSize: 11,
-              ),
+              style: const TextStyle(color: Color(0xFF68746B), fontSize: 11),
             ),
           ],
         ),
@@ -769,9 +721,7 @@ class _HeaderIcon extends StatelessWidget {
               color: useFilled ? _primarySoft : Colors.transparent,
               shape: BoxShape.circle,
               border: useFilled
-                  ? Border.all(
-                      color: _primary.withValues(alpha: .30),
-                    )
+                  ? Border.all(color: _primary.withValues(alpha: .30))
                   : null,
             ),
             child: loading
@@ -829,9 +779,7 @@ class _ProfilePanel extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: colorScheme.outlineVariant,
-            ),
+            border: Border.all(color: colorScheme.outlineVariant),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -884,9 +832,7 @@ class _ProfilePanel extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: colorScheme.surfaceContainerLow,
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: colorScheme.outlineVariant,
-                  ),
+                  border: Border.all(color: colorScheme.outlineVariant),
                 ),
                 child: Row(
                   children: [
@@ -982,15 +928,10 @@ class _ProfileActionTile extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 12,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: colorScheme.outlineVariant,
-            ),
+            border: Border.all(color: colorScheme.outlineVariant),
           ),
           child: Row(
             children: [
@@ -1002,11 +943,7 @@ class _ProfileActionTile extends StatelessWidget {
                   borderRadius: BorderRadius.circular(13),
                 ),
                 alignment: Alignment.center,
-                child: Icon(
-                  icon,
-                  size: 20,
-                  color: colorScheme.primary,
-                ),
+                child: Icon(icon, size: 20, color: colorScheme.primary),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1015,9 +952,7 @@ class _ProfileActionTile extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                      ),
+                      style: const TextStyle(fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 2),
                     Text(
