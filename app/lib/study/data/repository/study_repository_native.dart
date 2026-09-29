@@ -58,6 +58,7 @@ class StudyRepository implements StudyRepositoryContract {
   //
   // ============================================================
 
+  @override
   Future<Map<String, dynamic>> load() async {
     final data = await StorageService.getStudy();
 
@@ -86,6 +87,7 @@ class StudyRepository implements StudyRepositoryContract {
   //
   // ============================================================
 
+  @override
   Future<void> save(String day, int minutes) async {
     final user = _requireUser();
 
@@ -146,6 +148,7 @@ class StudyRepository implements StudyRepositoryContract {
   //
   // ============================================================
 
+  @override
   Future<void> saveMany(Map<String, dynamic> values) async {
     for (final entry in values.entries) {
       final minutes = _toInt(entry.value);
@@ -158,6 +161,7 @@ class StudyRepository implements StudyRepositoryContract {
   // TOTAL MINUTES
   // ============================================================
 
+  @override
   Future<int> getTotalMinutes() async {
     final data = await load();
 
@@ -174,6 +178,7 @@ class StudyRepository implements StudyRepositoryContract {
   // MINUTES FOR DAY
   // ============================================================
 
+  @override
   Future<int> getMinutes(String day) async {
     final normalizedDay = _normalizeDay(day);
 
@@ -186,6 +191,7 @@ class StudyRepository implements StudyRepositoryContract {
   // HAS LOCAL DATA
   // ============================================================
 
+  @override
   Future<bool> hasLocalData() async {
     final data = await load();
 
