@@ -2287,6 +2287,23 @@ Future<void> forceSyncNow() async {
 }
 
 // ======================================================
+// ROUTINE REALTIME PREPARE
+// ======================================================
+
+Future<void> prepareRoutineRealtimeRefresh() async {
+  if (!syncService.isStarted) return;
+
+  try {
+    await syncService.syncNow(checkConnection: true);
+  } catch (error) {
+    debugPrint(
+      '[ROUTINE REALTIME][NATIVE] '
+      'Sync pré-refresh indisponível: $error',
+    );
+  }
+}
+
+// ======================================================
 // ROUTINE REPOSITORY
 // ======================================================
 
