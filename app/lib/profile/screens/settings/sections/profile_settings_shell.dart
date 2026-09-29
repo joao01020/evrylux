@@ -130,8 +130,12 @@ extension _ProfileSettingsShell on _ProfileSettingsPageState {
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                 decoration: BoxDecoration(
                   color: limitReached
-                      ? _ProfileSettingsPageState._danger.withValues(alpha: 0.08)
-                      : _ProfileSettingsPageState._primaryDark.withValues(alpha: 0.08),
+                      ? _ProfileSettingsPageState._danger.withValues(
+                          alpha: 0.08,
+                        )
+                      : _ProfileSettingsPageState._primaryDark.withValues(
+                          alpha: 0.08,
+                        ),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
@@ -152,7 +156,9 @@ extension _ProfileSettingsShell on _ProfileSettingsPageState {
                 tooltip: limitReached
                     ? 'Limite de 3 dispositivos atingido'
                     : 'Adicionar dispositivo',
-                onPressed: _loadingBrainDevices ? null : _showAddBrainDeviceDialog,
+                onPressed: _loadingBrainDevices
+                    ? null
+                    : _showAddBrainDeviceDialog,
                 icon: Icon(
                   Icons.add_rounded,
                   color: limitReached
@@ -229,16 +235,21 @@ extension _ProfileSettingsShell on _ProfileSettingsPageState {
     final isCurrent = device.deviceId == _currentBrainDeviceId;
     final revoking = _revokingBrainDeviceId == device.deviceId;
     final approving = _approvingBrainDeviceId == device.deviceId;
+    final renaming = _renamingBrainDeviceId == device.deviceId;
     final statusColor = _brainDeviceStatusColor(device);
+    final fingerprintVisible = _visibleBrainFingerprints.contains(
+      device.deviceId,
+    );
 
     final noDeviceActionRunning =
-        _revokingBrainDeviceId == null && _approvingBrainDeviceId == null;
+        _revokingBrainDeviceId == null &&
+        _approvingBrainDeviceId == null &&
+        _renamingBrainDeviceId == null;
 
     final authorizedCount = _brainAuthorizedDeviceCount();
     final limitReached = authorizedCount >= _brainAuthorizedDeviceLimit;
     final canDeny = !isCurrent && device.isPending && noDeviceActionRunning;
-    final canApprove =
-        canDeny && !limitReached && !device.isRecoveryExpired;
+    final canApprove = canDeny && !limitReached && !device.isRecoveryExpired;
     final canRevoke =
         !isCurrent && device.isAuthorized && noDeviceActionRunning;
     final lastSeen = _formatBrainDeviceDate(device.lastSeenAt);
@@ -262,12 +273,12 @@ extension _ProfileSettingsShell on _ProfileSettingsPageState {
               style: OutlinedButton.styleFrom(
                 foregroundColor: _ProfileSettingsPageState._danger,
                 side: BorderSide(
-                  color: _ProfileSettingsPageState._danger.withValues(alpha: 0.35),
+                  color: _ProfileSettingsPageState._danger.withValues(
+                    alpha: 0.35,
+                  ),
                 ),
               ),
-              onPressed: canDeny
-                  ? () => _confirmDenyBrainDevice(device)
-                  : null,
+              onPressed: canDeny ? () => _confirmDenyBrainDevice(device) : null,
               icon: const Icon(Icons.close_rounded, size: 16),
               label: const Text('Negar'),
             ),
@@ -285,8 +296,8 @@ extension _ProfileSettingsShell on _ProfileSettingsPageState {
                 device.isRecoveryExpired
                     ? 'Expirado'
                     : limitReached
-                        ? 'Limite 3/3'
-                        : 'Aprovar',
+                    ? 'Limite 3/3'
+                    : 'Aprovar',
               ),
             ),
           ],
@@ -327,12 +338,39 @@ extension _ProfileSettingsShell on _ProfileSettingsPageState {
             runSpacing: 6,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Text(
-                device.deviceName,
-                style: const TextStyle(
-                  color: _ProfileSettingsPageState._text,
-                  fontWeight: FontWeight.w900,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      _brainDeviceDisplayName(device),
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: _ProfileSettingsPageState._text,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      tooltip: 'Renomear dispositivo',
+                      onPressed: noDeviceActionRunning
+                          ? () => _showRenameBrainDeviceDialog(device)
+                          : null,
+                      icon: renaming
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.edit_outlined, size: 15),
+                    ),
+                  ),
+                ],
               ),
               if (isCurrent)
                 Container(
@@ -374,13 +412,49 @@ extension _ProfileSettingsShell on _ProfileSettingsPageState {
             ],
           ),
           const SizedBox(height: 5),
-          SelectableText(
-            'Fingerprint: ${device.keyFingerprint}',
-            style: const TextStyle(
-              color: _ProfileSettingsPageState._muted,
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: SelectableText(
+                  fingerprintVisible
+                      ? 'Fingerprint: ${device.keyFingerprint}'
+                      : 'Fingerprint: ${_maskedBrainFingerprint(device.keyFingerprint)}',
+                  style: const TextStyle(
+                    color: _ProfileSettingsPageState._muted,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 2),
+              SizedBox(
+                width: 26,
+                height: 24,
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  tooltip: fingerprintVisible
+                      ? 'Ocultar fingerprint'
+                      : 'Mostrar fingerprint',
+                  onPressed: () {
+                    _updateProfileState(() {
+                      if (fingerprintVisible) {
+                        _visibleBrainFingerprints.remove(device.deviceId);
+                      } else {
+                        _visibleBrainFingerprints.add(device.deviceId);
+                      }
+                    });
+                  },
+                  icon: Icon(
+                    fingerprintVisible
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    size: 15,
+                    color: _ProfileSettingsPageState._muted,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 3),
           Text(

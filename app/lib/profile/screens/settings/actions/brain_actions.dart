@@ -402,6 +402,11 @@ extension _ProfileSettingsBrainActions on _ProfileSettingsPageState {
         vaultId: manifest.vaultId,
       );
 
+      final customNames = await _loadBrainDeviceCustomNames(
+        vaultId: manifest.vaultId,
+        local: local,
+      );
+
       if (!mounted) {
         return;
       }
@@ -410,6 +415,8 @@ extension _ProfileSettingsBrainActions on _ProfileSettingsPageState {
         _currentBrainDeviceId = local?.deviceId;
 
         _brainDevices = List<BrainDeviceRecord>.unmodifiable(devices);
+
+        _brainDeviceCustomNames = Map<String, String>.unmodifiable(customNames);
 
         _brainDevicesError = null;
       });
@@ -437,11 +444,303 @@ extension _ProfileSettingsBrainActions on _ProfileSettingsPageState {
   }
 
   // ============================================================
+  // BRAIN DEVICE FRIENDLY NAMES / FINGERPRINT PRIVACY
+  // ============================================================
+
+  String _brainDeviceDisplayName(BrainDeviceRecord device) {
+    final custom = _brainDeviceCustomNames[device.deviceId]?.trim();
+
+    if (custom != null && custom.isNotEmpty) {
+      return custom;
+    }
+
+    return device.deviceName;
+  }
+
+  String _maskedBrainFingerprint(String fingerprint) {
+    final clean = fingerprint.trim();
+
+    if (clean.isEmpty) {
+      return '••••••••••••';
+    }
+
+    final groups = clean.split(':');
+
+    if (groups.length > 1) {
+      return List<String>.filled(groups.length, '••').join(':');
+    }
+
+    return List<String>.filled(clean.length.clamp(8, 24), '•').join();
+  }
+
+  Future<Map<String, String>> _loadBrainDeviceCustomNames({
+    required String vaultId,
+    required dynamic local,
+  }) async {
+    if (local == null) {
+      return const <String, String>{};
+    }
+
+    try {
+      final result = await Supabase.instance.client.rpc(
+        'list_brain_device_custom_names',
+        params: <String, dynamic>{
+          'p_vault_id': vaultId,
+          'p_requester_device_id': local.deviceId,
+          'p_requester_secret': local.authorizationSecretBase64,
+        },
+      );
+
+      if (result is! List) {
+        return const <String, String>{};
+      }
+
+      final names = <String, String>{};
+
+      for (final raw in result) {
+        if (raw is! Map) {
+          continue;
+        }
+
+        final row = Map<String, dynamic>.from(raw);
+        final deviceId = row['device_id']?.toString().trim() ?? '';
+        final customName = row['custom_name']?.toString().trim() ?? '';
+
+        if (deviceId.isNotEmpty && customName.isNotEmpty) {
+          names[deviceId] = customName;
+        }
+      }
+
+      return names;
+    } on PostgrestException catch (error) {
+      // Mantém a tela funcional antes de a migration ser aplicada.
+      debugPrint(
+        '[PROFILE SETTINGS] '
+        'Nomes personalizados de dispositivos indisponíveis '
+        '(${error.code}): ${error.message}',
+      );
+
+      return const <String, String>{};
+    } catch (error) {
+      debugPrint(
+        '[PROFILE SETTINGS] '
+        'Falha carregando nomes personalizados de dispositivos: $error',
+      );
+
+      return const <String, String>{};
+    }
+  }
+
+  Future<void> _showRenameBrainDeviceDialog(BrainDeviceRecord device) async {
+    if (_renamingBrainDeviceId != null) {
+      return;
+    }
+
+    final currentName = _brainDeviceDisplayName(device);
+
+    final controller = TextEditingController(text: currentName);
+
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        String? validationError;
+
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            void submit() {
+              final clean = controller.text.trim();
+
+              if (clean.length < 2) {
+                setDialogState(() {
+                  validationError = 'Use pelo menos 2 caracteres.';
+                });
+                return;
+              }
+
+              if (clean.length > 80) {
+                setDialogState(() {
+                  validationError = 'Use no máximo 80 caracteres.';
+                });
+                return;
+              }
+
+              Navigator.of(dialogContext).pop(clean);
+            }
+
+            return AlertDialog(
+              backgroundColor: _ProfileSettingsPageState._surface,
+              surfaceTintColor: Colors.transparent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: const BorderSide(
+                  color: _ProfileSettingsPageState._border,
+                ),
+              ),
+              title: const Row(
+                children: [
+                  Icon(
+                    Icons.drive_file_rename_outline_rounded,
+                    color: _ProfileSettingsPageState._primaryDark,
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(child: Text('Renomear dispositivo')),
+                ],
+              ),
+              content: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 460),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Escolha um nome que ajude você a reconhecer este '
+                      'computador ou navegador.',
+                      style: TextStyle(
+                        color: _ProfileSettingsPageState._muted,
+                        fontSize: 12,
+                        height: 1.45,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: controller,
+                      autofocus: true,
+                      maxLength: 80,
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) => submit(),
+                      decoration: InputDecoration(
+                        labelText: 'Nome do dispositivo',
+                        hintText: 'Ex.: Chrome - PC principal',
+                        errorText: validationError,
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.devices_other_rounded),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancelar'),
+                ),
+                FilledButton.icon(
+                  onPressed: submit,
+                  icon: const Icon(Icons.check_rounded, size: 18),
+                  label: const Text('Salvar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    controller.dispose();
+
+    if (newName == null || !mounted) {
+      return;
+    }
+
+    if (newName.trim() == currentName.trim()) {
+      return;
+    }
+
+    await _renameBrainDevice(device: device, newName: newName);
+  }
+
+  Future<void> _renameBrainDevice({
+    required BrainDeviceRecord device,
+    required String newName,
+  }) async {
+    final cleanName = newName.trim();
+
+    if (cleanName.length < 2 || cleanName.length > 80) {
+      return;
+    }
+
+    if (_renamingBrainDeviceId != null) {
+      return;
+    }
+
+    _updateProfileState(() {
+      _renamingBrainDeviceId = device.deviceId;
+      _message = null;
+    });
+
+    try {
+      final manifest = await brainVaultService.openVault();
+      final local = await brainDeviceIdentityService.loadLocalSecrets();
+
+      if (local == null) {
+        throw StateError('Identidade local do Cérebro não encontrada.');
+      }
+
+      final result = await Supabase.instance.client.rpc(
+        'rename_brain_device',
+        params: <String, dynamic>{
+          'p_vault_id': manifest.vaultId,
+          'p_requester_device_id': local.deviceId,
+          'p_requester_secret': local.authorizationSecretBase64,
+          'p_target_device_id': device.deviceId,
+          'p_device_name': cleanName,
+        },
+      );
+
+      final savedName = result?.toString().trim();
+
+      if (!mounted) {
+        return;
+      }
+
+      _updateProfileState(() {
+        _brainDeviceCustomNames = <String, String>{
+          ..._brainDeviceCustomNames,
+          device.deviceId: savedName == null || savedName.isEmpty
+              ? cleanName
+              : savedName,
+        };
+
+        _message =
+            'Dispositivo renomeado para '
+            '"${_brainDeviceCustomNames[device.deviceId]}".';
+        _messageIsError = false;
+      });
+
+      await _loadBrainDevices();
+    } catch (error) {
+      debugPrint(
+        '[PROFILE SETTINGS] '
+        'Erro renomeando dispositivo do Cérebro: $error',
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      _updateProfileState(() {
+        _message =
+            'Não foi possível renomear o dispositivo. '
+            'Confirme se a migration de nomes personalizados foi aplicada.';
+        _messageIsError = true;
+      });
+    } finally {
+      if (mounted) {
+        _updateProfileState(() {
+          _renamingBrainDeviceId = null;
+        });
+      }
+    }
+  }
+
+  // ============================================================
   // ADD / DENY BRAIN DEVICE
   // ============================================================
 
   Future<void> _showAddBrainDeviceDialog() async {
-    final authorizedCount = _brainDevices.where((device) => device.isAuthorized).length;
+    final authorizedCount = _brainDevices
+        .where((device) => device.isAuthorized)
+        .length;
     const maxDevices = 3;
     final limitReached = authorizedCount >= maxDevices;
 
@@ -486,10 +785,10 @@ extension _ProfileSettingsBrainActions on _ProfileSettingsPageState {
                 Text(
                   limitReached
                       ? 'O limite de 3 dispositivos autorizados foi atingido. '
-                          'Revogue um acesso antes de autorizar outro dispositivo.'
+                            'Revogue um acesso antes de autorizar outro dispositivo.'
                       : 'No novo dispositivo ou navegador, abra o Cérebro do EVRYLUX '
-                          'e solicite acesso. A solicitação aparecerá aqui como '
-                          'Pendente para você conferir o fingerprint e aprovar.',
+                            'e solicite acesso. A solicitação aparecerá aqui como '
+                            'Pendente para você conferir o fingerprint e aprovar.',
                   style: const TextStyle(
                     color: _ProfileSettingsPageState._muted,
                     fontSize: 12,
@@ -538,7 +837,7 @@ extension _ProfileSettingsBrainActions on _ProfileSettingsPageState {
           content: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 440),
             child: Text(
-              'Negar a solicitação de "${device.deviceName}"?\n\n'
+              'Negar a solicitação de "${_brainDeviceDisplayName(device)}"?\n\n'
               'Fingerprint: ${device.keyFingerprint}\n\n'
               'A solicitação pendente será encerrada e deixará de aparecer '
               'na lista. O dispositivo poderá criar uma nova solicitação no futuro.',
@@ -600,22 +899,22 @@ extension _ProfileSettingsBrainActions on _ProfileSettingsPageState {
       }
 
       _updateProfileState(() {
-        _message = 'Solicitação de "${device.deviceName}" negada.';
+        _message =
+            'Solicitação de "${_brainDeviceDisplayName(device)}" negada.';
         _messageIsError = false;
       });
 
       await _loadBrainDevices();
     } catch (error) {
-      debugPrint(
-        '[PROFILE SETTINGS] Erro negando dispositivo: $error',
-      );
+      debugPrint('[PROFILE SETTINGS] Erro negando dispositivo: $error');
 
       if (!mounted) {
         return;
       }
 
       _updateProfileState(() {
-        _message = 'Não foi possível negar a solicitação de "${device.deviceName}".';
+        _message =
+            'Não foi possível negar a solicitação de "${_brainDeviceDisplayName(device)}".';
         _messageIsError = true;
       });
     } finally {
@@ -674,7 +973,7 @@ extension _ProfileSettingsBrainActions on _ProfileSettingsPageState {
           content: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 440),
             child: Text(
-              'Revogar o acesso de "${device.deviceName}"?\n\n'
+              'Revogar o acesso de "${_brainDeviceDisplayName(device)}"?\n\n'
               'Este dispositivo não poderá mais sincronizar '
               'novos dados do Cérebro pela nuvem.\n\n'
               'Dados e chaves que já existam localmente nesse '
@@ -743,7 +1042,8 @@ extension _ProfileSettingsBrainActions on _ProfileSettingsPageState {
       }
 
       _updateProfileState(() {
-        _message = 'Acesso de "${device.deviceName}" revogado com sucesso.';
+        _message =
+            'Acesso de "${_brainDeviceDisplayName(device)}" revogado com sucesso.';
         _messageIsError = false;
       });
 
@@ -761,7 +1061,7 @@ extension _ProfileSettingsBrainActions on _ProfileSettingsPageState {
       _updateProfileState(() {
         _message =
             'Não foi possível revogar o acesso de '
-            '"${device.deviceName}".';
+            '"${_brainDeviceDisplayName(device)}".';
         _messageIsError = true;
       });
     } finally {
@@ -791,7 +1091,9 @@ extension _ProfileSettingsBrainActions on _ProfileSettingsPageState {
       return;
     }
 
-    final authorizedCount = _brainDevices.where((item) => item.isAuthorized).length;
+    final authorizedCount = _brainDevices
+        .where((item) => item.isAuthorized)
+        .length;
 
     if (authorizedCount >= 3) {
       _updateProfileState(() {
@@ -841,7 +1143,7 @@ extension _ProfileSettingsBrainActions on _ProfileSettingsPageState {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  device.deviceName,
+                  _brainDeviceDisplayName(device),
                   style: const TextStyle(
                     color: _ProfileSettingsPageState._text,
                     fontWeight: FontWeight.w900,
@@ -943,7 +1245,7 @@ extension _ProfileSettingsBrainActions on _ProfileSettingsPageState {
 
       _updateProfileState(() {
         _message =
-            'Dispositivo "${device.deviceName}" aprovado. '
+            'Dispositivo "${_brainDeviceDisplayName(device)}" aprovado. '
             'O novo computador já pode concluir a recuperação.';
         _messageIsError = false;
       });

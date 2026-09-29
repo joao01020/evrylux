@@ -160,6 +160,12 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
 
   String? _approvingBrainDeviceId;
 
+  String? _renamingBrainDeviceId;
+
+  Map<String, String> _brainDeviceCustomNames = const <String, String>{};
+
+  final Set<String> _visibleBrainFingerprints = <String>{};
+
   bool _requestingBrainRecovery = false;
 
   bool _completingBrainRecovery = false;

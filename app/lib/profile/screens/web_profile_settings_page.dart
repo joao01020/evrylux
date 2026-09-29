@@ -4,13 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../study/brain/screen/brain_screen.dart';
 import '../models/profile_preferences.dart';
 
-enum WebProfileSettingsSection {
-  preferences,
-  telegram,
-  security,
-  brain,
-  about,
-}
+enum WebProfileSettingsSection { preferences, telegram, security, brain, about }
 
 /// Versão Web-safe de Perfil e configurações.
 ///
@@ -26,8 +20,7 @@ class WebProfileSettingsPage extends StatefulWidget {
   final WebProfileSettingsSection initialSection;
 
   @override
-  State<WebProfileSettingsPage> createState() =>
-      _WebProfileSettingsPageState();
+  State<WebProfileSettingsPage> createState() => _WebProfileSettingsPageState();
 }
 
 class _WebProfileSettingsPageState extends State<WebProfileSettingsPage> {
@@ -39,8 +32,6 @@ class _WebProfileSettingsPageState extends State<WebProfileSettingsPage> {
   static const Color _primaryDark = Color(0xFF3B6939);
   static const Color _text = Color(0xFF172019);
   static const Color _muted = Color(0xFF68746B);
-  static const Color _danger = Color(0xFFB3261E);
-
   late WebProfileSettingsSection _section;
 
   bool _compactMode = false;
@@ -150,9 +141,9 @@ class _WebProfileSettingsPageState extends State<WebProfileSettingsPage> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Senha atualizada.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Senha atualizada.')));
     } catch (error) {
       if (!mounted) return;
 
@@ -165,11 +156,9 @@ class _WebProfileSettingsPageState extends State<WebProfileSettingsPage> {
   }
 
   void _openBrain() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => const BrainScreen(),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const BrainScreen()));
   }
 
   @override
@@ -207,10 +196,7 @@ class _WebProfileSettingsPageState extends State<WebProfileSettingsPage> {
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            SizedBox(
-                              width: 220,
-                              child: _buildSidebar(),
-                            ),
+                            SizedBox(width: 220, child: _buildSidebar()),
                             const SizedBox(width: 20),
                             Expanded(
                               child: SingleChildScrollView(
@@ -345,11 +331,7 @@ class _WebProfileSettingsPageState extends State<WebProfileSettingsPage> {
             padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
             child: Row(
               children: [
-                Icon(
-                  icon,
-                  size: 19,
-                  color: selected ? _primaryDark : _muted,
-                ),
+                Icon(icon, size: 19, color: selected ? _primaryDark : _muted),
                 const SizedBox(width: 12),
                 Text(
                   label,
@@ -419,10 +401,7 @@ class _WebProfileSettingsPageState extends State<WebProfileSettingsPage> {
                     const SizedBox(height: 3),
                     Text(
                       subtitle,
-                      style: const TextStyle(
-                        color: _muted,
-                        fontSize: 11,
-                      ),
+                      style: const TextStyle(color: _muted, fontSize: 11),
                     ),
                   ],
                 ),
@@ -597,9 +576,7 @@ class _WebProfileSettingsPageState extends State<WebProfileSettingsPage> {
         children: [
           Icon(icon, color: _primaryDark),
           const SizedBox(width: 12),
-          Expanded(
-            child: _rowText(title, subtitle),
-          ),
+          Expanded(child: _rowText(title, subtitle)),
           Switch(value: value, onChanged: onChanged),
         ],
       ),
@@ -640,10 +617,7 @@ class _WebProfileSettingsPageState extends State<WebProfileSettingsPage> {
           const SizedBox(width: 12),
           Expanded(child: _rowText(title, subtitle)),
           const SizedBox(width: 12),
-          OutlinedButton(
-            onPressed: onTap,
-            child: Text(actionLabel),
-          ),
+          OutlinedButton(onPressed: onTap, child: Text(actionLabel)),
         ],
       ),
     );
@@ -655,19 +629,10 @@ class _WebProfileSettingsPageState extends State<WebProfileSettingsPage> {
       children: [
         Text(
           title,
-          style: const TextStyle(
-            color: _text,
-            fontWeight: FontWeight.w800,
-          ),
+          style: const TextStyle(color: _text, fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 3),
-        Text(
-          subtitle,
-          style: const TextStyle(
-            color: _muted,
-            fontSize: 11,
-          ),
-        ),
+        Text(subtitle, style: const TextStyle(color: _muted, fontSize: 11)),
       ],
     );
   }
