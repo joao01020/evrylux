@@ -1,63 +1,42 @@
 part of '../../profile_settings_page.dart';
 
-class _AboutHero
-    extends
-        StatelessWidget {
+class _AboutHero extends StatelessWidget {
   const _AboutHero();
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(
-        20,
-      ),
+      padding: const EdgeInsets.all(20),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
             width: 76,
             height: 76,
-            padding: const EdgeInsets.all(
-              8,
-            ),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: _ProfileSettingsPageState._primary,
-              borderRadius: BorderRadius.circular(
-                22,
-              ),
-              border: Border.all(
-                color: _ProfileSettingsPageState._border,
-              ),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: _ProfileSettingsPageState._border),
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(
-                16,
-              ),
+              borderRadius: BorderRadius.circular(16),
               child: Image.asset(
                 'assets/images/branding/evrylux_logo.png',
                 fit: BoxFit.contain,
                 filterQuality: FilterQuality.high,
-                errorBuilder:
-                    (
-                      context,
-                      error,
-                      stackTrace,
-                    ) {
-                      return const Icon(
-                        Icons.auto_awesome_rounded,
-                        size: 34,
-                        color: _ProfileSettingsPageState._primaryDark,
-                      );
-                    },
+                errorBuilder: (context, error, stackTrace) {
+                  return const Icon(
+                    Icons.auto_awesome_rounded,
+                    size: 34,
+                    color: _ProfileSettingsPageState._primaryDark,
+                  );
+                },
               ),
             ),
           ),
 
-          const SizedBox(
-            width: 18,
-          ),
+          const SizedBox(width: 18),
 
           const Expanded(
             child: Column(
@@ -73,9 +52,7 @@ class _AboutHero
                   ),
                 ),
 
-                SizedBox(
-                  height: 4,
-                ),
+                SizedBox(height: 4),
 
                 Text(
                   AppInfo.versionLabel,
@@ -86,9 +63,7 @@ class _AboutHero
                   ),
                 ),
 
-                SizedBox(
-                  height: 12,
-                ),
+                SizedBox(height: 12),
 
                 Text(
                   'Sua plataforma de evolução pessoal.',
@@ -99,9 +74,7 @@ class _AboutHero
                   ),
                 ),
 
-                SizedBox(
-                  height: 5,
-                ),
+                SizedBox(height: 5),
 
                 Text(
                   'Desenvolvido por João Vitor',
@@ -124,9 +97,7 @@ class _AboutHero
 // ABOUT ACTION ROW
 // ============================================================
 
-class _AboutActionRow
-    extends
-        StatelessWidget {
+class _AboutActionRow extends StatelessWidget {
   const _AboutActionRow({
     required this.icon,
     required this.title,
@@ -143,17 +114,13 @@ class _AboutActionRow
   final VoidCallback onTap;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(
-            14,
-          ),
+          padding: const EdgeInsets.all(14),
           child: Row(
             children: [
               Container(
@@ -161,9 +128,7 @@ class _AboutActionRow
                 height: 40,
                 decoration: BoxDecoration(
                   color: _ProfileSettingsPageState._primary,
-                  borderRadius: BorderRadius.circular(
-                    12,
-                  ),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   icon,
@@ -172,9 +137,7 @@ class _AboutActionRow
                 ),
               ),
 
-              const SizedBox(
-                width: 12,
-              ),
+              const SizedBox(width: 12),
 
               Expanded(
                 child: Column(
@@ -188,9 +151,7 @@ class _AboutActionRow
                       ),
                     ),
 
-                    const SizedBox(
-                      height: 2,
-                    ),
+                    const SizedBox(height: 2),
 
                     Text(
                       subtitle,
@@ -203,9 +164,7 @@ class _AboutActionRow
                 ),
               ),
 
-              const SizedBox(
-                width: 10,
-              ),
+              const SizedBox(width: 10),
 
               const Icon(
                 Icons.arrow_forward_ios_rounded,
@@ -224,9 +183,7 @@ class _AboutActionRow
 // BACKUP INFO STEP
 // ============================================================
 
-class _BackupInfoStep
-    extends
-        StatelessWidget {
+class _BackupInfoStep extends StatelessWidget {
   const _BackupInfoStep({
     required this.number,
     required this.title,
@@ -238,9 +195,7 @@ class _BackupInfoStep
   final String text;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -250,12 +205,8 @@ class _BackupInfoStep
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: _ProfileSettingsPageState._primary,
-            borderRadius: BorderRadius.circular(
-              8,
-            ),
-            border: Border.all(
-              color: _ProfileSettingsPageState._border,
-            ),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: _ProfileSettingsPageState._border),
           ),
           child: Text(
             number,
@@ -267,9 +218,7 @@ class _BackupInfoStep
           ),
         ),
 
-        const SizedBox(
-          width: 10,
-        ),
+        const SizedBox(width: 10),
 
         Expanded(
           child: Column(
@@ -283,9 +232,7 @@ class _BackupInfoStep
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              const SizedBox(
-                height: 2,
-              ),
+              const SizedBox(height: 2),
               Text(
                 text,
                 style: const TextStyle(
@@ -306,55 +253,31 @@ class _BackupInfoStep
 // BACKUP SECURITY WARNING
 // ============================================================
 
-class _BackupSecurityWarning
-    extends
-        StatelessWidget {
+class _BackupSecurityWarning extends StatelessWidget {
   const _BackupSecurityWarning();
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(
-        12,
-      ),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(
-          0xFFFFF7E6,
-        ),
-        borderRadius: BorderRadius.circular(
-          12,
-        ),
-        border: Border.all(
-          color: const Color(
-            0xFFE6C56A,
-          ),
-        ),
+        color: const Color(0xFFFFF7E6),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE6C56A)),
       ),
       child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.warning_amber_rounded,
-            size: 18,
-            color: Color(
-              0xFF9A6700,
-            ),
-          ),
-          SizedBox(
-            width: 8,
-          ),
+          Icon(Icons.warning_amber_rounded, size: 18, color: Color(0xFF9A6700)),
+          SizedBox(width: 8),
           Expanded(
             child: Text(
               'Guarde o arquivo .evbrain em um local confiável. '
               'Ele é um backup dos seus dados e não deve ser tratado '
               'como um arquivo público.',
               style: TextStyle(
-                color: Color(
-                  0xFF6F5200,
-                ),
+                color: Color(0xFF6F5200),
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
                 height: 1.45,
@@ -371,9 +294,7 @@ class _BackupSecurityWarning
 // RECOVERY INFO STEP
 // ============================================================
 
-class _RecoveryInfoStep
-    extends
-        StatelessWidget {
+class _RecoveryInfoStep extends StatelessWidget {
   const _RecoveryInfoStep({
     required this.number,
     required this.title,
@@ -387,9 +308,7 @@ class _RecoveryInfoStep
   final String text;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -399,12 +318,8 @@ class _RecoveryInfoStep
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: _ProfileSettingsPageState._primary,
-            borderRadius: BorderRadius.circular(
-              8,
-            ),
-            border: Border.all(
-              color: _ProfileSettingsPageState._border,
-            ),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: _ProfileSettingsPageState._border),
           ),
           child: Text(
             number,
@@ -416,9 +331,7 @@ class _RecoveryInfoStep
           ),
         ),
 
-        const SizedBox(
-          width: 10,
-        ),
+        const SizedBox(width: 10),
 
         Expanded(
           child: Column(
@@ -433,9 +346,7 @@ class _RecoveryInfoStep
                 ),
               ),
 
-              const SizedBox(
-                height: 2,
-              ),
+              const SizedBox(height: 2),
 
               Text(
                 text,
@@ -457,56 +368,32 @@ class _RecoveryInfoStep
 // RECOVERY SECURITY WARNING
 // ============================================================
 
-class _RecoverySecurityWarning
-    extends
-        StatelessWidget {
+class _RecoverySecurityWarning extends StatelessWidget {
   const _RecoverySecurityWarning();
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(
-        12,
-      ),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(
-          0xFFFFF7E6,
-        ),
-        borderRadius: BorderRadius.circular(
-          12,
-        ),
-        border: Border.all(
-          color: const Color(
-            0xFFE6C56A,
-          ),
-        ),
+        color: const Color(0xFFFFF7E6),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE6C56A)),
       ),
       child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.warning_amber_rounded,
-            size: 18,
-            color: Color(
-              0xFF9A6700,
-            ),
-          ),
+          Icon(Icons.warning_amber_rounded, size: 18, color: Color(0xFF9A6700)),
 
-          SizedBox(
-            width: 8,
-          ),
+          SizedBox(width: 8),
 
           Expanded(
             child: Text(
               'Se você não reconhecer o dispositivo ou se o '
               'fingerprint não coincidir, não aprove a recuperação.',
               style: TextStyle(
-                color: Color(
-                  0xFF6F5200,
-                ),
+                color: Color(0xFF6F5200),
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
                 height: 1.45,
@@ -523,9 +410,7 @@ class _RecoverySecurityWarning
 // SETTINGS NAV ITEM
 // ============================================================
 
-class _SettingsNavItem
-    extends
-        StatelessWidget {
+class _SettingsNavItem extends StatelessWidget {
   const _SettingsNavItem({
     required this.icon,
     required this.label,
@@ -542,28 +427,19 @@ class _SettingsNavItem
   final VoidCallback onTap;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(
-          12,
-        ),
+        borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 11,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
           decoration: BoxDecoration(
             color: selected
                 ? _ProfileSettingsPageState._primary
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(
-              12,
-            ),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
             children: [
@@ -575,9 +451,7 @@ class _SettingsNavItem
                     : _ProfileSettingsPageState._muted,
               ),
 
-              const SizedBox(
-                width: 9,
-              ),
+              const SizedBox(width: 9),
 
               Expanded(
                 child: Text(
@@ -586,9 +460,7 @@ class _SettingsNavItem
                     color: selected
                         ? _ProfileSettingsPageState._text
                         : _ProfileSettingsPageState._muted,
-                    fontWeight: selected
-                        ? FontWeight.w800
-                        : FontWeight.w600,
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
                   ),
                 ),
               ),
@@ -604,9 +476,7 @@ class _SettingsNavItem
 // SETTINGS PANEL
 // ============================================================
 
-class _SettingsPanel
-    extends
-        StatelessWidget {
+class _SettingsPanel extends StatelessWidget {
   const _SettingsPanel({
     required this.icon,
     required this.title,
@@ -620,28 +490,17 @@ class _SettingsPanel
 
   final String subtitle;
 
-  final List<
-    Widget
-  >
-  children;
+  final List<Widget> children;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(
-        20,
-      ),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: _ProfileSettingsPageState._surface,
-        borderRadius: BorderRadius.circular(
-          20,
-        ),
-        border: Border.all(
-          color: _ProfileSettingsPageState._border,
-        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _ProfileSettingsPageState._border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -653,9 +512,7 @@ class _SettingsPanel
                 height: 44,
                 decoration: BoxDecoration(
                   color: _ProfileSettingsPageState._primary,
-                  borderRadius: BorderRadius.circular(
-                    13,
-                  ),
+                  borderRadius: BorderRadius.circular(13),
                 ),
                 child: Icon(
                   icon,
@@ -663,9 +520,7 @@ class _SettingsPanel
                 ),
               ),
 
-              const SizedBox(
-                width: 12,
-              ),
+              const SizedBox(width: 12),
 
               Expanded(
                 child: Column(
@@ -680,9 +535,7 @@ class _SettingsPanel
                       ),
                     ),
 
-                    const SizedBox(
-                      height: 2,
-                    ),
+                    const SizedBox(height: 2),
 
                     Text(
                       subtitle,
@@ -697,24 +550,16 @@ class _SettingsPanel
             ],
           ),
 
-          const SizedBox(
-            height: 18,
-          ),
+          const SizedBox(height: 18),
 
           Container(
             width: double.infinity,
             decoration: BoxDecoration(
               color: _ProfileSettingsPageState._surfaceSoft,
-              borderRadius: BorderRadius.circular(
-                15,
-              ),
-              border: Border.all(
-                color: _ProfileSettingsPageState._border,
-              ),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: _ProfileSettingsPageState._border),
             ),
-            child: Column(
-              children: children,
-            ),
+            child: Column(children: children),
           ),
         ],
       ),
@@ -726,9 +571,7 @@ class _SettingsPanel
 // PREFERENCE SWITCH
 // ============================================================
 
-class _PreferenceSwitch
-    extends
-        StatelessWidget {
+class _PreferenceSwitch extends StatelessWidget {
   const _PreferenceSwitch({
     required this.icon,
     required this.title,
@@ -745,24 +588,16 @@ class _PreferenceSwitch
 
   final bool value;
 
-  final ValueChanged<
-    bool
-  >
-  onChanged;
+  final ValueChanged<bool> onChanged;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return SwitchListTile(
       value: value,
       onChanged: onChanged,
       activeThumbColor: _ProfileSettingsPageState._primaryDark,
       activeTrackColor: _ProfileSettingsPageState._primary,
-      secondary: Icon(
-        icon,
-        color: _ProfileSettingsPageState._primaryDark,
-      ),
+      secondary: Icon(icon, color: _ProfileSettingsPageState._primaryDark),
       title: Text(
         title,
         style: const TextStyle(
@@ -785,9 +620,7 @@ class _PreferenceSwitch
 // BRAIN MODE OPTION
 // ============================================================
 
-class _BrainModeOption
-    extends
-        StatelessWidget {
+class _BrainModeOption extends StatelessWidget {
   const _BrainModeOption({
     required this.icon,
     required this.title,
@@ -810,32 +643,20 @@ class _BrainModeOption
   final VoidCallback onTap;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: enabled
-            ? onTap
-            : null,
-        borderRadius: BorderRadius.circular(
-          14,
-        ),
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(14),
         child: AnimatedContainer(
-          duration: const Duration(
-            milliseconds: 160,
-          ),
-          padding: const EdgeInsets.all(
-            13,
-          ),
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.all(13),
           decoration: BoxDecoration(
             color: selected
                 ? _ProfileSettingsPageState._primary
                 : _ProfileSettingsPageState._surface,
-            borderRadius: BorderRadius.circular(
-              14,
-            ),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: selected
                   ? _ProfileSettingsPageState._primaryDark.withValues(
@@ -855,9 +676,7 @@ class _BrainModeOption
                 size: 21,
               ),
 
-              const SizedBox(
-                width: 9,
-              ),
+              const SizedBox(width: 9),
 
               Expanded(
                 child: Column(
@@ -887,9 +706,7 @@ class _BrainModeOption
                       ],
                     ),
 
-                    const SizedBox(
-                      height: 4,
-                    ),
+                    const SizedBox(height: 4),
 
                     Text(
                       subtitle,
@@ -914,9 +731,7 @@ class _BrainModeOption
 // BRAIN INFO ROW
 // ============================================================
 
-class _BrainInfoRow
-    extends
-        StatelessWidget {
+class _BrainInfoRow extends StatelessWidget {
   const _BrainInfoRow({
     required this.label,
     required this.value,
@@ -930,9 +745,7 @@ class _BrainInfoRow
   final bool good;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -971,32 +784,19 @@ class _BrainInfoRow
 // PHASE BADGE
 // ============================================================
 
-class _PhaseBadge
-    extends
-        StatelessWidget {
-  const _PhaseBadge({
-    required this.text,
-  });
+class _PhaseBadge extends StatelessWidget {
+  const _PhaseBadge({required this.text});
 
   final String text;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 4,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
         color: _ProfileSettingsPageState._surface,
-        borderRadius: BorderRadius.circular(
-          999,
-        ),
-        border: Border.all(
-          color: _ProfileSettingsPageState._border,
-        ),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: _ProfileSettingsPageState._border),
       ),
       child: Text(
         text,
@@ -1014,29 +814,18 @@ class _PhaseBadge
 // CURRENT SESSION BADGE
 // ============================================================
 
-class _CurrentSessionBadge
-    extends
-        StatelessWidget {
+class _CurrentSessionBadge extends StatelessWidget {
   const _CurrentSessionBadge();
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 4,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: _ProfileSettingsPageState._primary,
-        borderRadius: BorderRadius.circular(
-          999,
-        ),
+        borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: _ProfileSettingsPageState._primaryDark.withValues(
-            alpha: 0.20,
-          ),
+          color: _ProfileSettingsPageState._primaryDark.withValues(alpha: 0.20),
         ),
       ),
       child: const Row(
@@ -1048,9 +837,7 @@ class _CurrentSessionBadge
             color: _ProfileSettingsPageState._primaryDark,
           ),
 
-          SizedBox(
-            width: 5,
-          ),
+          SizedBox(width: 5),
 
           Text(
             'Ativo agora',
@@ -1070,27 +857,17 @@ class _CurrentSessionBadge
 // SESSIONS AND DEVICES DIALOG
 // ============================================================
 
-class _SessionsAndDevicesDialog
-    extends
-        StatefulWidget {
-  const _SessionsAndDevicesDialog({
-    required this.onDevicesChanged,
-  });
+class _SessionsAndDevicesDialog extends StatefulWidget {
+  const _SessionsAndDevicesDialog({required this.onDevicesChanged});
 
   final VoidCallback onDevicesChanged;
 
   @override
-  State<
-    _SessionsAndDevicesDialog
-  >
-  createState() => _SessionsAndDevicesDialogState();
+  State<_SessionsAndDevicesDialog> createState() =>
+      _SessionsAndDevicesDialogState();
 }
 
-class _SessionsAndDevicesDialogState
-    extends
-        State<
-          _SessionsAndDevicesDialog
-        > {
+class _SessionsAndDevicesDialogState extends State<_SessionsAndDevicesDialog> {
   bool _loading = true;
 
   String? _error;
@@ -1099,38 +876,26 @@ class _SessionsAndDevicesDialogState
 
   String? _revokingDeviceId;
 
-  List<
-    AccountDevice
-  >
-  _devices =
-      const <
-        AccountDevice
-      >[];
+  List<AccountDevice> _devices = const <AccountDevice>[];
 
   @override
   void initState() {
     super.initState();
 
-    unawaited(
-      _load(),
-    );
+    unawaited(_load());
   }
 
-  Future<
-    void
-  >
-  _load() async {
+  Future<void> _load() async {
     if (mounted) {
-      setState(
-        () {
-          _loading = true;
-          _error = null;
-        },
-      );
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
     }
 
     try {
-      final currentDeviceId = await accountDeviceIdentityService.getOrCreateDeviceId();
+      final currentDeviceId = await accountDeviceIdentityService
+          .getOrCreateDeviceId();
 
       final currentSessionId = accountDeviceRepository.getCurrentSessionId();
 
@@ -1147,264 +912,174 @@ class _SessionsAndDevicesDialogState
         return;
       }
 
-      setState(
-        () {
-          _currentSessionId = currentSessionId;
-          _devices = devices;
-          _loading = false;
-          _error = null;
-        },
-      );
+      setState(() {
+        _currentSessionId = currentSessionId;
+        _devices = devices;
+        _loading = false;
+        _error = null;
+      });
 
       widget.onDevicesChanged();
-    } catch (
-      error
-    ) {
-      debugPrint(
-        '[ACCOUNT DEVICES DIALOG] Erro: $error',
-      );
+    } catch (error) {
+      debugPrint('[ACCOUNT DEVICES DIALOG] Erro: $error');
 
       if (!mounted) {
         return;
       }
 
-      setState(
-        () {
-          _loading = false;
-          _error = 'Não foi possível carregar os dispositivos. Verifique sua conexão e tente novamente.';
-        },
-      );
+      setState(() {
+        _loading = false;
+        _error =
+            'Não foi possível carregar os dispositivos. Verifique sua conexão e tente novamente.';
+      });
     }
   }
 
-  Future<
-    void
-  >
-  _confirmRevoke(
-    AccountDevice device,
-  ) async {
-    if (device.sessionId ==
-        _currentSessionId) {
+  Future<void> _confirmRevoke(AccountDevice device) async {
+    if (device.sessionId == _currentSessionId) {
       return;
     }
 
-    final confirmed =
-        await showDialog<
-          bool
-        >(
-          context: context,
-          builder:
-              (
-                dialogContext,
-              ) {
-                return AlertDialog(
-                  backgroundColor: _ProfileSettingsPageState._surface,
-                  surfaceTintColor: Colors.transparent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      18,
-                    ),
-                    side: const BorderSide(
-                      color: _ProfileSettingsPageState._border,
-                    ),
-                  ),
-                  title: const Row(
-                    children: [
-                      Icon(
-                        Icons.logout_rounded,
-                        color: _ProfileSettingsPageState._danger,
-                      ),
-                      SizedBox(
-                        width: 10,
-                      ),
-                      Expanded(
-                        child: Text(
-                          'Encerrar sessão',
-                        ),
-                      ),
-                    ],
-                  ),
-                  content: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: 420,
-                    ),
-                    child: Text(
-                      'Deseja desconectar "${device.deviceName}" da sua conta? '
-                      'Quando esse dispositivo se comunicar novamente com o EVRYLUX, '
-                      'a sessão local será encerrada.',
-                      style: const TextStyle(
-                        color: _ProfileSettingsPageState._muted,
-                        height: 1.45,
-                      ),
-                    ),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(
-                          dialogContext,
-                        ).pop(
-                          false,
-                        );
-                      },
-                      child: const Text(
-                        'Cancelar',
-                      ),
-                    ),
-                    FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: _ProfileSettingsPageState._danger,
-                        foregroundColor: Colors.white,
-                      ),
-                      onPressed: () {
-                        Navigator.of(
-                          dialogContext,
-                        ).pop(
-                          true,
-                        );
-                      },
-                      icon: const Icon(
-                        Icons.logout_rounded,
-                        size: 17,
-                      ),
-                      label: const Text(
-                        'Encerrar',
-                      ),
-                    ),
-                  ],
-                );
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: _ProfileSettingsPageState._surface,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+            side: const BorderSide(color: _ProfileSettingsPageState._border),
+          ),
+          title: const Row(
+            children: [
+              Icon(
+                Icons.logout_rounded,
+                color: _ProfileSettingsPageState._danger,
+              ),
+              SizedBox(width: 10),
+              Expanded(child: Text('Encerrar sessão')),
+            ],
+          ),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Text(
+              'Deseja desconectar "${device.deviceName}" da sua conta? '
+              'Quando esse dispositivo se comunicar novamente com o EVRYLUX, '
+              'a sessão local será encerrada.',
+              style: const TextStyle(
+                color: _ProfileSettingsPageState._muted,
+                height: 1.45,
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(false);
               },
+              child: const Text('Cancelar'),
+            ),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: _ProfileSettingsPageState._danger,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                Navigator.of(dialogContext).pop(true);
+              },
+              icon: const Icon(Icons.logout_rounded, size: 17),
+              label: const Text('Encerrar'),
+            ),
+          ],
         );
-
-    if (confirmed !=
-            true ||
-        !mounted) {
-      return;
-    }
-
-    setState(
-      () {
-        _revokingDeviceId = device.sessionId;
       },
     );
 
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _revokingDeviceId = device.sessionId;
+    });
+
     try {
-      await accountDeviceRepository.revokeSession(
-        device.sessionId,
-      );
+      await accountDeviceRepository.revokeSession(device.sessionId);
 
       if (!mounted) {
         return;
       }
 
       await _load();
-    } catch (
-      error
-    ) {
-      debugPrint(
-        '[ACCOUNT DEVICES DIALOG] Erro revogando dispositivo: $error',
-      );
+    } catch (error) {
+      debugPrint('[ACCOUNT DEVICES DIALOG] Erro revogando dispositivo: $error');
 
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Não foi possível encerrar essa sessão.',
-          ),
-        ),
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Não foi possível encerrar essa sessão.')),
       );
     } finally {
       if (mounted) {
-        setState(
-          () {
-            _revokingDeviceId = null;
-          },
-        );
+        setState(() {
+          _revokingDeviceId = null;
+        });
       }
     }
   }
 
-  String _lastSeenLabel(
-    AccountDevice device,
-  ) {
-    if (device.sessionId ==
-        _currentSessionId) {
+  String _lastSeenLabel(AccountDevice device) {
+    if (device.sessionId == _currentSessionId) {
       return 'Última atividade: agora';
     }
 
     final now = DateTime.now();
 
-    var difference = now.difference(
-      device.lastSeenAt,
-    );
+    var difference = now.difference(device.lastSeenAt);
 
     if (difference.isNegative) {
       difference = Duration.zero;
     }
 
-    if (difference.inMinutes <
-        1) {
+    if (difference.inMinutes < 1) {
       return 'Última atividade: agora';
     }
 
-    if (difference.inMinutes <
-        60) {
+    if (difference.inMinutes < 60) {
       final minutes = difference.inMinutes;
 
       return 'Última atividade: há $minutes ${minutes == 1 ? 'minuto' : 'minutos'}';
     }
 
-    if (difference.inHours <
-        24) {
+    if (difference.inHours < 24) {
       final hours = difference.inHours;
 
       return 'Última atividade: há $hours ${hours == 1 ? 'hora' : 'horas'}';
     }
 
-    final day = device.lastSeenAt.day.toString().padLeft(
-      2,
-      '0',
-    );
+    final day = device.lastSeenAt.day.toString().padLeft(2, '0');
 
-    final month = device.lastSeenAt.month.toString().padLeft(
-      2,
-      '0',
-    );
+    final month = device.lastSeenAt.month.toString().padLeft(2, '0');
 
     final year = device.lastSeenAt.year;
 
-    final hour = device.lastSeenAt.hour.toString().padLeft(
-      2,
-      '0',
-    );
+    final hour = device.lastSeenAt.hour.toString().padLeft(2, '0');
 
-    final minute = device.lastSeenAt.minute.toString().padLeft(
-      2,
-      '0',
-    );
+    final minute = device.lastSeenAt.minute.toString().padLeft(2, '0');
 
     return 'Última atividade: $day/$month/$year às $hour:$minute';
   }
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: _ProfileSettingsPageState._surface,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(
-          20,
-        ),
-        side: const BorderSide(
-          color: _ProfileSettingsPageState._border,
-        ),
+        borderRadius: BorderRadius.circular(20),
+        side: const BorderSide(color: _ProfileSettingsPageState._border),
       ),
       title: Row(
         children: [
@@ -1413,50 +1088,34 @@ class _SessionsAndDevicesDialogState
             color: _ProfileSettingsPageState._primaryDark,
           ),
 
-          const SizedBox(
-            width: 10,
-          ),
+          const SizedBox(width: 10),
 
-          const Expanded(
-            child: Text(
-              'Sessões e dispositivos',
-            ),
-          ),
+          const Expanded(child: Text('Sessões e dispositivos')),
 
           IconButton(
             tooltip: 'Atualizar',
             onPressed: _loading
                 ? null
                 : () {
-                    unawaited(
-                      _load(),
-                    );
+                    unawaited(_load());
                   },
-            icon: const Icon(
-              Icons.refresh_rounded,
-            ),
+            icon: const Icon(Icons.refresh_rounded),
           ),
         ],
       ),
       content: SizedBox(
         width: 560,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxHeight: 520,
-          ),
+          constraints: const BoxConstraints(maxHeight: 520),
           child: _buildContent(),
         ),
       ),
       actions: [
         TextButton(
           onPressed: () {
-            Navigator.of(
-              context,
-            ).pop();
+            Navigator.of(context).pop();
           },
-          child: const Text(
-            'Fechar',
-          ),
+          child: const Text('Fechar'),
         ),
       ],
     );
@@ -1466,21 +1125,16 @@ class _SessionsAndDevicesDialogState
     if (_loading) {
       return const Center(
         child: Padding(
-          padding: EdgeInsets.all(
-            32,
-          ),
+          padding: EdgeInsets.all(32),
           child: CircularProgressIndicator(),
         ),
       );
     }
 
-    if (_error !=
-        null) {
+    if (_error != null) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(
-            24,
-          ),
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1490,9 +1144,7 @@ class _SessionsAndDevicesDialogState
                 color: _ProfileSettingsPageState._muted,
               ),
 
-              const SizedBox(
-                height: 10,
-              ),
+              const SizedBox(height: 10),
 
               Text(
                 _error!,
@@ -1503,22 +1155,14 @@ class _SessionsAndDevicesDialogState
                 ),
               ),
 
-              const SizedBox(
-                height: 12,
-              ),
+              const SizedBox(height: 12),
 
               FilledButton.tonalIcon(
                 onPressed: () {
-                  unawaited(
-                    _load(),
-                  );
+                  unawaited(_load());
                 },
-                icon: const Icon(
-                  Icons.refresh_rounded,
-                ),
-                label: const Text(
-                  'Tentar novamente',
-                ),
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Tentar novamente'),
               ),
             ],
           ),
@@ -1529,14 +1173,10 @@ class _SessionsAndDevicesDialogState
     if (_devices.isEmpty) {
       return const Center(
         child: Padding(
-          padding: EdgeInsets.all(
-            28,
-          ),
+          padding: EdgeInsets.all(28),
           child: Text(
             'Nenhum dispositivo ativo encontrado.',
-            style: TextStyle(
-              color: _ProfileSettingsPageState._muted,
-            ),
+            style: TextStyle(color: _ProfileSettingsPageState._muted),
           ),
         ),
       );
@@ -1546,8 +1186,7 @@ class _SessionsAndDevicesDialogState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          _devices.length ==
-                  1
+          _devices.length == 1
               ? '1 dispositivo conectado à sua conta EVRYLUX.'
               : '${_devices.length} dispositivos conectados à sua conta EVRYLUX.',
           style: const TextStyle(
@@ -1556,40 +1195,24 @@ class _SessionsAndDevicesDialogState
           ),
         ),
 
-        const SizedBox(
-          height: 14,
-        ),
+        const SizedBox(height: 14),
 
         Flexible(
           child: ListView.separated(
             shrinkWrap: true,
             itemCount: _devices.length,
-            separatorBuilder:
-                (
-                  _,
-                  _,
-                ) {
-                  return const SizedBox(
-                    height: 10,
-                  );
-                },
-            itemBuilder:
-                (
-                  _,
-                  index,
-                ) {
-                  final device = _devices[index];
+            separatorBuilder: (_, _) {
+              return const SizedBox(height: 10);
+            },
+            itemBuilder: (_, index) {
+              final device = _devices[index];
 
-                  return _buildDeviceCard(
-                    device,
-                  );
-                },
+              return _buildDeviceCard(device);
+            },
           ),
         ),
 
-        const SizedBox(
-          height: 12,
-        ),
+        const SizedBox(height: 12),
 
         const Text(
           'A atividade é atualizada enquanto o EVRYLUX está aberto. '
@@ -1605,32 +1228,20 @@ class _SessionsAndDevicesDialogState
     );
   }
 
-  Widget _buildDeviceCard(
-    AccountDevice device,
-  ) {
-    final isCurrent =
-        device.sessionId ==
-        _currentSessionId;
+  Widget _buildDeviceCard(AccountDevice device) {
+    final isCurrent = device.sessionId == _currentSessionId;
 
-    final isRevoking =
-        _revokingDeviceId ==
-        device.sessionId;
+    final isRevoking = _revokingDeviceId == device.sessionId;
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(
-        14,
-      ),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: _ProfileSettingsPageState._surfaceSoft,
-        borderRadius: BorderRadius.circular(
-          14,
-        ),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isCurrent
-              ? _ProfileSettingsPageState._primaryDark.withValues(
-                  alpha: 0.28,
-                )
+              ? _ProfileSettingsPageState._primaryDark.withValues(alpha: 0.28)
               : _ProfileSettingsPageState._border,
         ),
       ),
@@ -1642,26 +1253,18 @@ class _SessionsAndDevicesDialogState
             height: 44,
             decoration: BoxDecoration(
               color: _ProfileSettingsPageState._primary,
-              borderRadius: BorderRadius.circular(
-                12,
-              ),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
-              device.platform.toLowerCase().contains(
-                        'android',
-                      ) ||
-                      device.platform.toLowerCase().contains(
-                        'ios',
-                      )
+              device.platform.toLowerCase().contains('android') ||
+                      device.platform.toLowerCase().contains('ios')
                   ? Icons.phone_android_rounded
                   : Icons.computer_rounded,
               color: _ProfileSettingsPageState._primaryDark,
             ),
           ),
 
-          const SizedBox(
-            width: 12,
-          ),
+          const SizedBox(width: 12),
 
           Expanded(
             child: Column(
@@ -1671,9 +1274,7 @@ class _SessionsAndDevicesDialogState
                   children: [
                     Expanded(
                       child: Text(
-                        isCurrent
-                            ? 'Este dispositivo'
-                            : device.deviceName,
+                        isCurrent ? 'Este dispositivo' : device.deviceName,
                         style: const TextStyle(
                           color: _ProfileSettingsPageState._text,
                           fontWeight: FontWeight.w900,
@@ -1685,9 +1286,7 @@ class _SessionsAndDevicesDialogState
                   ],
                 ),
 
-                const SizedBox(
-                  height: 5,
-                ),
+                const SizedBox(height: 5),
 
                 if (isCurrent) ...[
                   Text(
@@ -1699,9 +1298,7 @@ class _SessionsAndDevicesDialogState
                     ),
                   ),
 
-                  const SizedBox(
-                    height: 3,
-                  ),
+                  const SizedBox(height: 3),
                 ],
 
                 Text(
@@ -1713,11 +1310,8 @@ class _SessionsAndDevicesDialogState
                   ),
                 ),
 
-                if (device.appVersion !=
-                    null) ...[
-                  const SizedBox(
-                    height: 3,
-                  ),
+                if (device.appVersion != null) ...[
+                  const SizedBox(height: 3),
 
                   Text(
                     'EVRYLUX ${device.appVersion}',
@@ -1728,14 +1322,10 @@ class _SessionsAndDevicesDialogState
                   ),
                 ],
 
-                const SizedBox(
-                  height: 3,
-                ),
+                const SizedBox(height: 3),
 
                 Text(
-                  _lastSeenLabel(
-                    device,
-                  ),
+                  _lastSeenLabel(device),
                   style: const TextStyle(
                     color: _ProfileSettingsPageState._muted,
                     fontSize: 10,
@@ -1746,9 +1336,7 @@ class _SessionsAndDevicesDialogState
           ),
 
           if (!isCurrent) ...[
-            const SizedBox(
-              width: 12,
-            ),
+            const SizedBox(width: 12),
 
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
@@ -1762,27 +1350,16 @@ class _SessionsAndDevicesDialogState
               onPressed: isRevoking
                   ? null
                   : () {
-                      unawaited(
-                        _confirmRevoke(
-                          device,
-                        ),
-                      );
+                      unawaited(_confirmRevoke(device));
                     },
               icon: isRevoking
                   ? const SizedBox(
                       width: 15,
                       height: 15,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                      ),
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(
-                      Icons.logout_rounded,
-                      size: 16,
-                    ),
-              label: const Text(
-                'Encerrar',
-              ),
+                  : const Icon(Icons.logout_rounded, size: 16),
+              label: const Text('Encerrar'),
             ),
           ],
         ],
@@ -1795,9 +1372,7 @@ class _SessionsAndDevicesDialogState
 // DANGER ZONE ROW
 // ============================================================
 
-class _DangerZoneRow
-    extends
-        StatelessWidget {
+class _DangerZoneRow extends StatelessWidget {
   const _DangerZoneRow({
     required this.icon,
     required this.title,
@@ -1820,29 +1395,19 @@ class _DangerZoneRow
   final bool strongest;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      color: const Color(
-        0xFFFFFBFA,
-      ),
-      padding: const EdgeInsets.all(
-        14,
-      ),
+      color: const Color(0xFFFFFBFA),
+      padding: const EdgeInsets.all(14),
       child: Row(
         children: [
           Container(
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: const Color(
-                0xFFFFECE9,
-              ),
-              borderRadius: BorderRadius.circular(
-                12,
-              ),
+              color: const Color(0xFFFFECE9),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: _ProfileSettingsPageState._danger.withValues(
                   alpha: 0.18,
@@ -1856,9 +1421,7 @@ class _DangerZoneRow
             ),
           ),
 
-          const SizedBox(
-            width: 12,
-          ),
+          const SizedBox(width: 12),
 
           Expanded(
             child: Column(
@@ -1872,9 +1435,7 @@ class _DangerZoneRow
                   ),
                 ),
 
-                const SizedBox(
-                  height: 3,
-                ),
+                const SizedBox(height: 3),
 
                 Text(
                   subtitle,
@@ -1888,9 +1449,7 @@ class _DangerZoneRow
             ),
           ),
 
-          const SizedBox(
-            width: 12,
-          ),
+          const SizedBox(width: 12),
 
           strongest
               ? FilledButton.icon(
@@ -1899,13 +1458,8 @@ class _DangerZoneRow
                     foregroundColor: Colors.white,
                   ),
                   onPressed: onPressed,
-                  icon: const Icon(
-                    Icons.delete_forever_outlined,
-                    size: 17,
-                  ),
-                  label: Text(
-                    buttonLabel,
-                  ),
+                  icon: const Icon(Icons.delete_forever_outlined, size: 17),
+                  label: Text(buttonLabel),
                 )
               : OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
@@ -1917,13 +1471,8 @@ class _DangerZoneRow
                     ),
                   ),
                   onPressed: onPressed,
-                  icon: const Icon(
-                    Icons.delete_outline_rounded,
-                    size: 17,
-                  ),
-                  label: Text(
-                    buttonLabel,
-                  ),
+                  icon: const Icon(Icons.delete_outline_rounded, size: 17),
+                  label: Text(buttonLabel),
                 ),
         ],
       ),
@@ -1935,9 +1484,7 @@ class _DangerZoneRow
 // SECURITY ROW
 // ============================================================
 
-class _SecurityRow
-    extends
-        StatelessWidget {
+class _SecurityRow extends StatelessWidget {
   const _SecurityRow({
     required this.icon,
     required this.title,
@@ -1954,13 +1501,9 @@ class _SecurityRow
   final Widget? trailing;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(
-        14,
-      ),
+      padding: const EdgeInsets.all(14),
       child: Row(
         children: [
           Container(
@@ -1968,9 +1511,7 @@ class _SecurityRow
             height: 40,
             decoration: BoxDecoration(
               color: _ProfileSettingsPageState._primary,
-              borderRadius: BorderRadius.circular(
-                12,
-              ),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               icon,
@@ -1979,9 +1520,7 @@ class _SecurityRow
             ),
           ),
 
-          const SizedBox(
-            width: 12,
-          ),
+          const SizedBox(width: 12),
 
           Expanded(
             child: Column(
@@ -1995,9 +1534,7 @@ class _SecurityRow
                   ),
                 ),
 
-                const SizedBox(
-                  height: 2,
-                ),
+                const SizedBox(height: 2),
 
                 Text(
                   subtitle,
@@ -2010,13 +1547,7 @@ class _SecurityRow
             ),
           ),
 
-          if (trailing !=
-              null) ...[
-            const SizedBox(
-              width: 10,
-            ),
-            trailing!,
-          ],
+          if (trailing != null) ...[const SizedBox(width: 10), trailing!],
         ],
       ),
     );
