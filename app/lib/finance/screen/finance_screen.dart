@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../app/dependencies/app_dependencies.dart';
+import '../runtime/finance_runtime.dart';
 
 import '../actions/finance_screen_actions.dart';
 import '../controllers/finance_screen_controller.dart';

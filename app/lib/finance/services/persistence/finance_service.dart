@@ -1,8 +1,8 @@
-import '../../data/repository/finance_repository.dart';
+import '../../data/repository/finance_repository_contract.dart';
 import '../../models/finance_model.dart';
 
 class FinanceService {
-  final FinanceRepository repository;
+  final FinanceRepositoryContract repository;
 
   FinanceService({
     required this.repository,

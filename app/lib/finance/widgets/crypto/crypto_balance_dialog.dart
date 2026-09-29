@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../app/dependencies/app_dependencies.dart';
+import '../../runtime/finance_runtime.dart';
 
 class CryptoBalanceDialog
     extends

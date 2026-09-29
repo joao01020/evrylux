@@ -1,3 +1,6 @@
+import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../projections/finance_projection.dart';
 
 import '../services/history/investment_history.dart';
@@ -58,7 +61,8 @@ class FinanceScreenController {
   // SERVICES
   // ==========================================================
 
-  final FinanceContributionService _contributionService = const FinanceContributionService();
+  final FinanceContributionService _contributionService =
+      const FinanceContributionService();
 
   late final CryptoBalanceService _cryptoBalanceService;
 
@@ -72,10 +76,7 @@ class FinanceScreenController {
   // HISTORY
   // ==========================================================
 
-  final List<
-    InvestmentHistory
-  >
-  history = [];
+  final List<InvestmentHistory> history = [];
 
   // ==========================================================
   // CRYPTO
@@ -87,11 +88,7 @@ class FinanceScreenController {
   // CRYPTO PRICES
   // ==========================================================
 
-  Map<
-    String,
-    double
-  >
-  cryptoPricesBrl = {
+  Map<String, double> cryptoPricesBrl = {
     'BTC': 0,
     'ETH': 0,
     'SOL': 0,
@@ -147,9 +144,7 @@ class FinanceScreenController {
     // OBJECTIVE
     // ========================================================
 
-    _objectiveService =
-        objectiveService ??
-        FinanceObjectiveService();
+    _objectiveService = objectiveService ?? FinanceObjectiveService();
   }
 
   // ==========================================================
@@ -165,10 +160,7 @@ class FinanceScreenController {
   // ==========================================================
 
   FinanceProjection get projection {
-    return FinanceProjection(
-      model: model,
-      history: history,
-    );
+    return FinanceProjection(model: model, history: history);
   }
 
   // ==========================================================
@@ -178,8 +170,7 @@ class FinanceScreenController {
   double get objectiveValue {
     final value = model.investmentGoal;
 
-    if (value
-        is num) {
+    if (value is num) {
       return value.toDouble();
     }
 
@@ -191,8 +182,7 @@ class FinanceScreenController {
   // ==========================================================
 
   bool get hasObjective {
-    return objectiveValue >
-        0;
+    return objectiveValue > 0;
   }
 
   // ==========================================================
@@ -200,15 +190,29 @@ class FinanceScreenController {
   // ==========================================================
 
   double get cryptoPatrimony {
+    if (kIsWeb) {
+      double quantity(dynamic value) {
+        final parsed = value is num ? value.toDouble() : 0.0;
+        return parsed.isFinite && parsed > 0 ? parsed : 0.0;
+      }
+
+      double price(String symbol) {
+        final parsed = cryptoPricesBrl[symbol] ?? 0.0;
+        return parsed.isFinite && parsed > 0 ? parsed : 0.0;
+      }
+
+      return quantity(model.bitcoin) * price('BTC') +
+          quantity(model.ethereum) * price('ETH') +
+          quantity(model.solana) * price('SOL') +
+          quantity(model.usdt) * price('USDT');
+    }
+
     final value = cryptoController.cryptoPatrimonyBrl;
 
-    if (value
-        is num) {
+    if (value is num) {
       final result = value.toDouble();
 
-      if (!result.isFinite ||
-          result <
-              0) {
+      if (!result.isFinite || result < 0) {
         return 0;
       }
 
@@ -216,6 +220,121 @@ class FinanceScreenController {
     }
 
     return 0;
+  }
+
+  CryptoBalances _webBalancesFromFinanceModel() {
+    double safe(dynamic value) {
+      final parsed = value is num ? value.toDouble() : 0.0;
+      if (!parsed.isFinite || parsed < 0) return 0.0;
+      return parsed;
+    }
+
+    return CryptoBalances(
+      bitcoin: safe(model.bitcoin),
+      ethereum: safe(model.ethereum),
+      solana: safe(model.solana),
+      usdt: safe(model.usdt),
+    );
+  }
+
+  void _applyWebCryptoPortfolioFromFinanceModel() {
+    if (!kIsWeb) return;
+
+    balances = _webBalancesFromFinanceModel();
+
+    final quantities = <String, double>{
+      'BTC': balances.bitcoin,
+      'ETH': balances.ethereum,
+      'SOL': balances.solana,
+      'USDT': balances.usdt,
+    };
+
+    final values = <String, double>{};
+    var total = 0.0;
+
+    for (final entry in quantities.entries) {
+      final rawPrice = cryptoPricesBrl[entry.key] ?? 0.0;
+      final price = rawPrice.isFinite && rawPrice > 0 ? rawPrice : 0.0;
+      final quantity = entry.value.isFinite && entry.value > 0
+          ? entry.value
+          : 0.0;
+      final currentValue = quantity * price;
+
+      values[entry.key] = currentValue;
+      total += currentValue;
+    }
+
+    cryptoController.quantities = quantities;
+    cryptoController.currentValuesBrl = values;
+    cryptoController.cryptoPatrimonyBrl = total;
+  }
+
+  Future<void> _syncNativeCryptoBalancesToFinanceData() async {
+    if (kIsWeb) return;
+
+    double safe(dynamic value) {
+      final parsed = value is num ? value.toDouble() : 0.0;
+      if (!parsed.isFinite || parsed < 0) return 0.0;
+      return parsed;
+    }
+
+    final quantities = cryptoController.quantities;
+
+    final bitcoin = safe(quantities['BTC']);
+    final ethereum = safe(quantities['ETH']);
+    final solana = safe(quantities['SOL']);
+    final usdt = safe(quantities['USDT']);
+
+    model.bitcoin = bitcoin;
+    model.ethereum = ethereum;
+    model.solana = solana;
+    model.usdt = usdt;
+
+    // Primeiro preserva o fluxo offline-first normal do aplicativo.
+    await financeController.saveData();
+
+    // Em seguida faz um backfill remoto explícito das quantidades
+    // consolidadas. Isso evita depender do tempo da SyncQueue para que um
+    // navegador novo consiga reconstruir a carteira.
+    //
+    // Importante: enviamos SOMENTE os campos de cripto. Assim não sobrescreve
+    // planejamento, patrimônio, objetivo ou demais dados financeiros.
+    final user = Supabase.instance.client.auth.currentUser;
+
+    if (user == null) {
+      return;
+    }
+
+    try {
+      await Supabase.instance.client
+          .from('finance_data')
+          .upsert(<String, dynamic>{
+            'user_id': user.id,
+            'bitcoin': bitcoin,
+            'ethereum': ethereum,
+            'solana': solana,
+            'usdt': usdt,
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          }, onConflict: 'user_id');
+
+      debugPrint(
+        '[FINANCE][CRYPTO BACKFILL] '
+        'Quantidades publicadas diretamente em finance_data: '
+        'BTC=$bitcoin ETH=$ethereum SOL=$solana USDT=$usdt',
+      );
+    } on PostgrestException catch (error) {
+      // O save offline-first acima já deixou a alteração na fila.
+      // Portanto uma falha remota aqui não perde dados.
+      debugPrint(
+        '[FINANCE][CRYPTO BACKFILL] '
+        'Backfill remoto pendente (${error.code}): ${error.message}',
+      );
+    } catch (error) {
+      debugPrint(
+        '[FINANCE][CRYPTO BACKFILL] '
+        'Backfill remoto pendente: $error',
+      );
+    }
   }
 
   // ==========================================================
@@ -231,21 +350,11 @@ class FinanceScreenController {
   double get totalPatrimony {
     final baseValue = model.patrimony;
 
-    final base =
-        baseValue
-            is num
-        ? baseValue.toDouble()
-        : 0.0;
+    final base = baseValue is num ? baseValue.toDouble() : 0.0;
 
-    final safeBase =
-        !base.isFinite ||
-            base <
-                0
-        ? 0.0
-        : base;
+    final safeBase = !base.isFinite || base < 0 ? 0.0 : base;
 
-    return safeBase +
-        cryptoPatrimony;
+    return safeBase + cryptoPatrimony;
   }
 
   // ==========================================================
@@ -266,21 +375,11 @@ class FinanceScreenController {
   double get investedPlusCrypto {
     final investedValue = model.invested;
 
-    final invested =
-        investedValue
-            is num
-        ? investedValue.toDouble()
-        : 0.0;
+    final invested = investedValue is num ? investedValue.toDouble() : 0.0;
 
-    final safeInvested =
-        !invested.isFinite ||
-            invested <
-                0
-        ? 0.0
-        : invested;
+    final safeInvested = !invested.isFinite || invested < 0 ? 0.0 : invested;
 
-    return safeInvested +
-        cryptoPatrimony;
+    return safeInvested + cryptoPatrimony;
   }
 
   // ==========================================================
@@ -316,40 +415,48 @@ class FinanceScreenController {
     isLoading = true;
 
     try {
-      await financeController.loadLocalData();
+      if (kIsWeb) {
+        // No Web, carregue a fonte remota já no primeiro carregamento.
+        // Isso impede cache antigo/zerado do navegador de virar fonte de verdade.
+        await financeController.refreshRemoteData();
+      } else {
+        await financeController.loadLocalData();
+      }
 
-      final results = await Future.wait<dynamic>(
-        <Future<dynamic>>[
-          _cryptoBalanceService.loadBalances(),
-          _persistenceService.loadCachedHistory(),
-          _objectiveService.loadLocal(),
-          cryptoPriceService.getCachedPricesBrl(),
-        ],
-      );
+      final results = await Future.wait<dynamic>(<Future<dynamic>>[
+        if (!kIsWeb) _cryptoBalanceService.loadBalances(),
+        _persistenceService.loadCachedHistory(),
+        _objectiveService.loadLocal(),
+        cryptoPriceService.getCachedPricesBrl(),
+      ]);
 
-      balances = results[0] as CryptoBalances;
+      var resultIndex = 0;
 
-      _applyHistory(
-        results[1] as List<InvestmentHistory>,
-      );
+      if (kIsWeb) {
+        balances = _webBalancesFromFinanceModel();
+      } else {
+        balances = results[resultIndex++] as CryptoBalances;
+      }
 
-      _applyObjective(
-        results[2] as FinanceObjective?,
-      );
+      _applyHistory(results[resultIndex++] as List<InvestmentHistory>);
+
+      _applyObjective(results[resultIndex++] as FinanceObjective?);
 
       final cachedPrices = Map<String, double>.from(
-        results[3] as Map<String, double>,
+        results[resultIndex] as Map<String, double>,
       );
 
       if (cachedPrices.isNotEmpty) {
         cryptoPricesBrl = cachedPrices;
 
-        cryptoController.setPrices(
-          cryptoPricesBrl,
-          notify: false,
-        );
+        cryptoController.setPrices(cryptoPricesBrl, notify: false);
 
-        await cryptoController.loadPortfolio();
+        if (kIsWeb) {
+          _applyWebCryptoPortfolioFromFinanceModel();
+        } else {
+          await cryptoController.loadPortfolio();
+          await _syncNativeCryptoBalancesToFinanceData();
+        }
 
         cryptoPricesLoaded = true;
         cryptoPriceError = null;
@@ -377,20 +484,18 @@ class FinanceScreenController {
     try {
       await financeController.refreshRemoteData();
 
-      final results = await Future.wait<dynamic>(
-        <Future<dynamic>>[
-          _persistenceService.refreshHistory(),
-          _objectiveService.refreshFromRemote(),
-        ],
-      );
+      if (kIsWeb) {
+        balances = _webBalancesFromFinanceModel();
+      }
 
-      _applyHistory(
-        results[0] as List<InvestmentHistory>,
-      );
+      final results = await Future.wait<dynamic>(<Future<dynamic>>[
+        _persistenceService.refreshHistory(),
+        _objectiveService.refreshFromRemote(),
+      ]);
 
-      _applyObjective(
-        results[1] as FinanceObjective?,
-      );
+      _applyHistory(results[0] as List<InvestmentHistory>);
+
+      _applyObjective(results[1] as FinanceObjective?);
 
       await _refreshCryptoPricesFromRemote();
     } finally {
@@ -402,32 +507,21 @@ class FinanceScreenController {
   // APPLY HISTORY
   // ==========================================================
 
-  void _applyHistory(
-    List<InvestmentHistory> storedHistory,
-  ) {
+  void _applyHistory(List<InvestmentHistory> storedHistory) {
     history
       ..clear()
       ..addAll(storedHistory);
 
-    history.sort(
-      (
-        first,
-        second,
-      ) {
-        return first.date.compareTo(
-          second.date,
-        );
-      },
-    );
+    history.sort((first, second) {
+      return first.date.compareTo(second.date);
+    });
   }
 
   // ==========================================================
   // APPLY OBJECTIVE
   // ==========================================================
 
-  void _applyObjective(
-    FinanceObjective? objective,
-  ) {
+  void _applyObjective(FinanceObjective? objective) {
     if (objective == null) {
       return;
     }
@@ -440,35 +534,27 @@ class FinanceScreenController {
   // LOAD CRYPTO PRICES
   // ==========================================================
 
-  Future<
-    void
-  >
-  _loadCryptoPrices() async {
+  Future<void> _loadCryptoPrices() async {
     cryptoPriceError = null;
 
     try {
       final prices = await cryptoPriceService.refreshPricesBrl();
 
-      cryptoPricesBrl =
-          Map<
-            String,
-            double
-          >.from(
-            prices,
-          );
+      cryptoPricesBrl = Map<String, double>.from(prices);
 
-      cryptoController.setPrices(
-        cryptoPricesBrl,
-        notify: false,
-      );
+      cryptoController.setPrices(cryptoPricesBrl, notify: false);
 
-      await cryptoController.loadPortfolio();
+      if (kIsWeb) {
+        // No navegador, a fonte persistente das quantidades é finance_data.
+        // Nunca reconstruir a carteira a partir do LocalStorage vazio.
+        _applyWebCryptoPortfolioFromFinanceModel();
+      } else {
+        await cryptoController.loadPortfolio();
+        await _syncNativeCryptoBalancesToFinanceData();
+      }
 
       cryptoPricesLoaded = true;
-    } catch (
-      error,
-      stackTrace
-    ) {
+    } catch (error, stackTrace) {
       cryptoPricesLoaded = false;
 
       cryptoPriceError = error.toString();
@@ -486,9 +572,7 @@ class FinanceScreenController {
       );
 
       // ignore: avoid_print
-      print(
-        stackTrace,
-      );
+      print(stackTrace);
     }
   }
 
@@ -500,10 +584,7 @@ class FinanceScreenController {
   // REFRESH CRYPTO PRICES
   // ==========================================================
 
-  Future<
-    void
-  >
-  refreshCryptoPrices() async {
+  Future<void> refreshCryptoPrices() async {
     await _loadCryptoPrices();
   }
 
@@ -511,14 +592,10 @@ class FinanceScreenController {
   // LOAD OBJECTIVE
   // ==========================================================
 
-  Future<
-    void
-  >
-  loadObjective() async {
+  Future<void> loadObjective() async {
     final objective = await _objectiveService.load();
 
-    if (objective ==
-        null) {
+    if (objective == null) {
       objectiveName = 'Objetivo financeiro';
 
       return;
@@ -533,38 +610,32 @@ class FinanceScreenController {
   // REFRESH CRYPTO
   // ==========================================================
 
-  Future<
-    void
-  >
-  refreshCryptoBalances() async {
+  Future<void> refreshCryptoBalances() async {
+    if (kIsWeb) {
+      balances = _webBalancesFromFinanceModel();
+      _applyWebCryptoPortfolioFromFinanceModel();
+      return;
+    }
+
     balances = await _cryptoBalanceService.loadBalances();
 
     await cryptoController.loadPortfolio();
+    await _syncNativeCryptoBalancesToFinanceData();
   }
 
   // ==========================================================
   // REFRESH ALL CRYPTO
   // ==========================================================
 
-  Future<
-    void
-  >
-  refreshCrypto() async {
-    await Future.wait(
-      [
-        refreshCryptoBalances(),
-        refreshCryptoPrices(),
-      ],
-    );
+  Future<void> refreshCrypto() async {
+    await Future.wait([refreshCryptoBalances(), refreshCryptoPrices()]);
   }
 
   // ==========================================================
   // APPLY PLANNING
   // ==========================================================
 
-  void applyPlanning(
-    dynamic planning,
-  ) {
+  void applyPlanning(dynamic planning) {
     model.invested = planning.invested;
 
     model.minimumGoal = planning.minimumGoal;
@@ -582,27 +653,14 @@ class FinanceScreenController {
   // ADD CONTRIBUTION
   // ==========================================================
 
-  InvestmentHistory addContribution(
-    double contribution,
-  ) {
-    final entry = projection.createHistoryEntry(
-      contribution: contribution,
-    );
+  InvestmentHistory addContribution(double contribution) {
+    final entry = projection.createHistoryEntry(contribution: contribution);
 
-    history.add(
-      entry,
-    );
+    history.add(entry);
 
-    history.sort(
-      (
-        a,
-        b,
-      ) {
-        return a.date.compareTo(
-          b.date,
-        );
-      },
-    );
+    history.sort((a, b) {
+      return a.date.compareTo(b.date);
+    });
 
     _contributionService.addContribution(
       model: model,
@@ -616,12 +674,8 @@ class FinanceScreenController {
   // REMOVE CONTRIBUTION
   // ==========================================================
 
-  bool removeContribution(
-    InvestmentHistory contribution,
-  ) {
-    final removed = history.remove(
-      contribution,
-    );
+  bool removeContribution(InvestmentHistory contribution) {
+    final removed = history.remove(contribution);
 
     if (!removed) {
       return false;
@@ -639,12 +693,8 @@ class FinanceScreenController {
   // UPDATE PATRIMONY
   // ==========================================================
 
-  void updatePatrimony(
-    double value,
-  ) {
-    if (!value.isFinite ||
-        value <
-            0) {
+  void updatePatrimony(double value) {
+    if (!value.isFinite || value < 0) {
       return;
     }
 
@@ -665,12 +715,8 @@ class FinanceScreenController {
   //
   // ==========================================================
 
-  void updateInvestmentGoal(
-    double value,
-  ) {
-    if (!value.isFinite ||
-        value <
-            0) {
+  void updateInvestmentGoal(double value) {
+    if (!value.isFinite || value < 0) {
       return;
     }
 
@@ -681,22 +727,14 @@ class FinanceScreenController {
   // UPDATE OBJECTIVE NAME
   // ==========================================================
 
-  Future<
-    FinanceObjective
-  >
-  updateObjectiveName(
-    String name,
-  ) async {
+  Future<FinanceObjective> updateObjectiveName(String name) async {
     final normalized = name.trim();
 
     if (normalized.isEmpty) {
-      throw ArgumentError(
-        'O nome do objetivo não pode ficar vazio.',
-      );
+      throw ArgumentError('O nome do objetivo não pode ficar vazio.');
     }
 
-    if (normalized.length >
-        60) {
+    if (normalized.length > 60) {
       throw ArgumentError(
         'O nome do objetivo pode ter no máximo 60 caracteres.',
       );
@@ -718,24 +756,13 @@ class FinanceScreenController {
   // UPDATE OBJECTIVE VALUE
   // ==========================================================
 
-  Future<
-    FinanceObjective
-  >
-  updateObjectiveValue(
-    double value,
-  ) async {
-    if (value.isNaN ||
-        value.isInfinite) {
-      throw ArgumentError(
-        'O valor do objetivo é inválido.',
-      );
+  Future<FinanceObjective> updateObjectiveValue(double value) async {
+    if (value.isNaN || value.isInfinite) {
+      throw ArgumentError('O valor do objetivo é inválido.');
     }
 
-    if (value <=
-        0) {
-      throw ArgumentError(
-        'O valor do objetivo precisa ser maior que zero.',
-      );
+    if (value <= 0) {
+      throw ArgumentError('O valor do objetivo precisa ser maior que zero.');
     }
 
     final objective = await _objectiveService.save(
@@ -756,35 +783,24 @@ class FinanceScreenController {
   // UPDATE COMPLETE OBJECTIVE
   // ==========================================================
 
-  Future<
-    FinanceObjective
-  >
-  updateObjective({
+  Future<FinanceObjective> updateObjective({
     required String name,
     required double value,
   }) async {
     final normalizedName = name.trim();
 
     if (normalizedName.isEmpty) {
-      throw ArgumentError(
-        'O nome do objetivo não pode ficar vazio.',
-      );
+      throw ArgumentError('O nome do objetivo não pode ficar vazio.');
     }
 
-    if (normalizedName.length >
-        60) {
+    if (normalizedName.length > 60) {
       throw ArgumentError(
         'O nome do objetivo pode ter no máximo 60 caracteres.',
       );
     }
 
-    if (value.isNaN ||
-        value.isInfinite ||
-        value <=
-            0) {
-      throw ArgumentError(
-        'O valor do objetivo é inválido.',
-      );
+    if (value.isNaN || value.isInfinite || value <= 0) {
+      throw ArgumentError('O valor do objetivo é inválido.');
     }
 
     final objective = await _objectiveService.save(
@@ -805,10 +821,7 @@ class FinanceScreenController {
   // DELETE OBJECTIVE
   // ==========================================================
 
-  Future<
-    void
-  >
-  deleteObjective() async {
+  Future<void> deleteObjective() async {
     await _objectiveService.delete();
 
     objectiveName = 'Objetivo financeiro';
@@ -822,10 +835,7 @@ class FinanceScreenController {
   // OBJECTIVE EXISTS
   // ==========================================================
 
-  Future<
-    bool
-  >
-  objectiveExists() {
+  Future<bool> objectiveExists() {
     return _objectiveService.exists();
   }
 
@@ -833,10 +843,7 @@ class FinanceScreenController {
   // SAVE MODEL
   // ==========================================================
 
-  Future<
-    void
-  >
-  saveModel() async {
+  Future<void> saveModel() async {
     await financeController.saveData();
   }
 
@@ -844,12 +851,7 @@ class FinanceScreenController {
   // SAVE ALL
   // ==========================================================
 
-  Future<
-    void
-  >
-  saveAll() async {
-    await _persistenceService.save(
-      history: history,
-    );
+  Future<void> saveAll() async {
+    await _persistenceService.save(history: history);
   }
 }

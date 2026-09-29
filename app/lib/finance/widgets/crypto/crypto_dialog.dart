@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../app/dependencies/app_dependencies.dart';
+import '../../runtime/finance_runtime.dart';
 
 import '../../models/crypto/crypto_transaction_model.dart';
 
