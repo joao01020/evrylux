@@ -3,12 +3,9 @@ import 'package:flutter/foundation.dart';
 import '../../data/attachments/board_attachment_repository.dart';
 import '../../models/attachments/board_attachment.dart';
 
-class BoardAttachmentController
-    extends
-        ChangeNotifier {
-  BoardAttachmentController({
-    required BoardAttachmentRepository repository,
-  }) : _repository = repository;
+class BoardAttachmentController extends ChangeNotifier {
+  BoardAttachmentController({required BoardAttachmentRepository repository})
+    : _repository = repository;
 
   // ============================================================
   // REPOSITORY
@@ -20,13 +17,7 @@ class BoardAttachmentController
   // STATE
   // ============================================================
 
-  final List<
-    BoardAttachment
-  >
-  _attachments =
-      <
-        BoardAttachment
-      >[];
+  final List<BoardAttachment> _attachments = <BoardAttachment>[];
 
   bool _isLoading = false;
 
@@ -44,13 +35,8 @@ class BoardAttachmentController
   // GETTERS
   // ============================================================
 
-  List<
-    BoardAttachment
-  >
-  get attachments {
-    return List.unmodifiable(
-      _attachments,
-    );
+  List<BoardAttachment> get attachments {
+    return List.unmodifiable(_attachments);
   }
 
   bool get isLoading => _isLoading;
@@ -61,11 +47,7 @@ class BoardAttachmentController
 
   bool get isDeleting => _isDeleting;
 
-  bool get isBusy =>
-      _isLoading ||
-      _isImporting ||
-      _isSaving ||
-      _isDeleting;
+  bool get isBusy => _isLoading || _isImporting || _isSaving || _isDeleting;
 
   String? get currentBoardId => _currentBoardId;
 
@@ -75,18 +57,12 @@ class BoardAttachmentController
   // INITIALIZE
   // ============================================================
 
-  Future<
-    void
-  >
-  initialize() async {
+  Future<void> initialize() async {
     _errorMessage = null;
 
     try {
       await _repository.initialize();
-    } catch (
-      error,
-      stackTrace
-    ) {
+    } catch (error, stackTrace) {
       _setError(
         message: 'Erro ao inicializar anexos da lousa.',
         error: error,
@@ -99,18 +75,11 @@ class BoardAttachmentController
   // LOAD BOARD
   // ============================================================
 
-  Future<
-    void
-  >
-  loadBoard(
-    String boardId,
-  ) async {
+  Future<void> loadBoard(String boardId) async {
     final normalizedBoardId = boardId.trim();
 
     if (normalizedBoardId.isEmpty) {
-      _setErrorMessage(
-        'boardId não pode estar vazio.',
-      );
+      _setErrorMessage('boardId não pode estar vazio.');
 
       return;
     }
@@ -122,27 +91,16 @@ class BoardAttachmentController
     notifyListeners();
 
     try {
-      final loaded = await _repository.loadByBoardId(
-        normalizedBoardId,
-      );
+      final loaded = await _repository.loadByBoardId(normalizedBoardId);
 
       _currentBoardId = normalizedBoardId;
 
       _attachments
         ..clear()
-        ..addAll(
-          loaded.where(
-            (
-              attachment,
-            ) => !attachment.isDeleted,
-          ),
-        );
+        ..addAll(loaded.where((attachment) => !attachment.isDeleted));
 
       _sort();
-    } catch (
-      error,
-      stackTrace
-    ) {
+    } catch (error, stackTrace) {
       _setError(
         message: 'Erro ao carregar documentos da lousa.',
         error: error,
@@ -157,13 +115,42 @@ class BoardAttachmentController
   }
 
   // ============================================================
+  // REALTIME / REMOTE REFRESH
+  // ============================================================
+
+  Future<void> refreshBoard(String boardId) async {
+    final normalizedBoardId = boardId.trim();
+
+    if (normalizedBoardId.isEmpty) return;
+
+    try {
+      final loaded = await _repository.refreshByBoardId(normalizedBoardId);
+
+      _currentBoardId = normalizedBoardId;
+
+      _attachments
+        ..clear()
+        ..addAll(loaded.where((attachment) => !attachment.isDeleted));
+
+      _sort();
+      _errorMessage = null;
+    } catch (error, stackTrace) {
+      _setError(
+        message: 'Erro ao atualizar documentos da lousa.',
+        error: error,
+        stackTrace: stackTrace,
+        notify: false,
+      );
+    }
+
+    notifyListeners();
+  }
+
+  // ============================================================
   // LOAD ALL
   // ============================================================
 
-  Future<
-    void
-  >
-  loadAll() async {
+  Future<void> loadAll() async {
     _isLoading = true;
 
     _errorMessage = null;
@@ -177,19 +164,10 @@ class BoardAttachmentController
 
       _attachments
         ..clear()
-        ..addAll(
-          loaded.where(
-            (
-              attachment,
-            ) => !attachment.isDeleted,
-          ),
-        );
+        ..addAll(loaded.where((attachment) => !attachment.isDeleted));
 
       _sort();
-    } catch (
-      error,
-      stackTrace
-    ) {
+    } catch (error, stackTrace) {
       _setError(
         message: 'Erro ao carregar documentos.',
         error: error,
@@ -207,21 +185,10 @@ class BoardAttachmentController
   // SET ATTACHMENTS
   // ============================================================
 
-  void setAttachments(
-    Iterable<
-      BoardAttachment
-    >
-    attachments,
-  ) {
+  void setAttachments(Iterable<BoardAttachment> attachments) {
     _attachments
       ..clear()
-      ..addAll(
-        attachments.where(
-          (
-            attachment,
-          ) => !attachment.isDeleted,
-        ),
-      );
+      ..addAll(attachments.where((attachment) => !attachment.isDeleted));
 
     _sort();
 
@@ -232,10 +199,7 @@ class BoardAttachmentController
   // IMPORT
   // ============================================================
 
-  Future<
-    BoardAttachment?
-  >
-  importAttachment({
+  Future<BoardAttachment?> importAttachment({
     required String boardId,
     required String blockId,
     required String sourcePath,
@@ -251,25 +215,19 @@ class BoardAttachmentController
     final normalizedSourcePath = sourcePath.trim();
 
     if (normalizedBoardId.isEmpty) {
-      _setErrorMessage(
-        'boardId não pode estar vazio.',
-      );
+      _setErrorMessage('boardId não pode estar vazio.');
 
       return null;
     }
 
     if (normalizedBlockId.isEmpty) {
-      _setErrorMessage(
-        'blockId não pode estar vazio.',
-      );
+      _setErrorMessage('blockId não pode estar vazio.');
 
       return null;
     }
 
     if (normalizedSourcePath.isEmpty) {
-      _setErrorMessage(
-        'sourcePath não pode estar vazio.',
-      );
+      _setErrorMessage('sourcePath não pode estar vazio.');
 
       return null;
     }
@@ -289,16 +247,10 @@ class BoardAttachmentController
 
       _currentBoardId = normalizedBoardId;
 
-      _replace(
-        attachment,
-        notify: false,
-      );
+      _replace(attachment, notify: false);
 
       return attachment;
-    } catch (
-      error,
-      stackTrace
-    ) {
+    } catch (error, stackTrace) {
       _setError(
         message: 'Erro ao importar arquivo.',
         error: error,
@@ -339,10 +291,7 @@ class BoardAttachmentController
       );
 
       _currentBoardId = boardId.trim();
-      _replace(
-        attachment,
-        notify: false,
-      );
+      _replace(attachment, notify: false);
 
       return attachment;
     } catch (error, stackTrace) {
@@ -364,12 +313,7 @@ class BoardAttachmentController
   // READ TEXT
   // ============================================================
 
-  Future<
-    String?
-  >
-  readText(
-    BoardAttachment attachment,
-  ) async {
+  Future<String?> readText(BoardAttachment attachment) async {
     _isLoading = true;
 
     _errorMessage = null;
@@ -377,13 +321,8 @@ class BoardAttachmentController
     notifyListeners();
 
     try {
-      return await _repository.readText(
-        attachment,
-      );
-    } catch (
-      error,
-      stackTrace
-    ) {
+      return await _repository.readText(attachment);
+    } catch (error, stackTrace) {
       _setError(
         message: 'Erro ao abrir arquivo.',
         error: error,
@@ -403,10 +342,7 @@ class BoardAttachmentController
   // SAVE TEXT
   // ============================================================
 
-  Future<
-    BoardAttachment?
-  >
-  saveText({
+  Future<BoardAttachment?> saveText({
     required BoardAttachment attachment,
     required String content,
   }) async {
@@ -426,16 +362,10 @@ class BoardAttachmentController
         content: content,
       );
 
-      _replace(
-        updated,
-        notify: false,
-      );
+      _replace(updated, notify: false);
 
       return updated;
-    } catch (
-      error,
-      stackTrace
-    ) {
+    } catch (error, stackTrace) {
       _setError(
         message: 'Erro ao salvar arquivo.',
         error: error,
@@ -455,12 +385,7 @@ class BoardAttachmentController
   // SAVE METADATA
   // ============================================================
 
-  Future<
-    BoardAttachment?
-  >
-  saveMetadata(
-    BoardAttachment attachment,
-  ) async {
+  Future<BoardAttachment?> saveMetadata(BoardAttachment attachment) async {
     if (_isSaving) {
       return null;
     }
@@ -472,20 +397,12 @@ class BoardAttachmentController
     notifyListeners();
 
     try {
-      final updated = await _repository.saveMetadata(
-        attachment,
-      );
+      final updated = await _repository.saveMetadata(attachment);
 
-      _replace(
-        updated,
-        notify: false,
-      );
+      _replace(updated, notify: false);
 
       return updated;
-    } catch (
-      error,
-      stackTrace
-    ) {
+    } catch (error, stackTrace) {
       _setError(
         message: 'Erro ao salvar metadados do documento.',
         error: error,
@@ -505,12 +422,7 @@ class BoardAttachmentController
   // DELETE
   // ============================================================
 
-  Future<
-    bool
-  >
-  deleteAttachment(
-    BoardAttachment attachment,
-  ) async {
+  Future<bool> deleteAttachment(BoardAttachment attachment) async {
     if (_isDeleting) {
       return false;
     }
@@ -522,23 +434,12 @@ class BoardAttachmentController
     notifyListeners();
 
     try {
-      await _repository.delete(
-        attachment,
-      );
+      await _repository.delete(attachment);
 
-      _attachments.removeWhere(
-        (
-          item,
-        ) =>
-            item.id ==
-            attachment.id,
-      );
+      _attachments.removeWhere((item) => item.id == attachment.id);
 
       return true;
-    } catch (
-      error,
-      stackTrace
-    ) {
+    } catch (error, stackTrace) {
       _setError(
         message: 'Erro ao remover documento.',
         error: error,
@@ -558,28 +459,14 @@ class BoardAttachmentController
   // DELETE BY ID
   // ============================================================
 
-  Future<
-    bool
-  >
-  deleteById(
-    String id,
-  ) async {
-    final attachment =
-        getById(
-          id,
-        ) ??
-        await _repository.getById(
-          id,
-        );
+  Future<bool> deleteById(String id) async {
+    final attachment = getById(id) ?? await _repository.getById(id);
 
-    if (attachment ==
-        null) {
+    if (attachment == null) {
       return true;
     }
 
-    return deleteAttachment(
-      attachment,
-    );
+    return deleteAttachment(attachment);
   }
 
   // ============================================================
@@ -599,46 +486,26 @@ class BoardAttachmentController
   //
   // ============================================================
 
-  Future<
-    bool
-  >
-  removeLocal(
-    BoardAttachment attachment,
-  ) {
-    return deleteAttachment(
-      attachment,
-    );
+  Future<bool> removeLocal(BoardAttachment attachment) {
+    return deleteAttachment(attachment);
   }
 
   // ============================================================
   // RESTORE
   // ============================================================
 
-  Future<
-    BoardAttachment?
-  >
-  restore(
-    String id,
-  ) async {
+  Future<BoardAttachment?> restore(String id) async {
     _errorMessage = null;
 
     try {
-      final restored = await _repository.restore(
-        id,
-      );
+      final restored = await _repository.restore(id);
 
-      if (restored !=
-          null) {
-        _replace(
-          restored,
-        );
+      if (restored != null) {
+        _replace(restored);
       }
 
       return restored;
-    } catch (
-      error,
-      stackTrace
-    ) {
+    } catch (error, stackTrace) {
       _setError(
         message: 'Erro ao restaurar documento.',
         error: error,
@@ -653,22 +520,12 @@ class BoardAttachmentController
   // LOCAL FILE EXISTS
   // ============================================================
 
-  Future<
-    bool
-  >
-  localFileExists(
-    BoardAttachment attachment,
-  ) async {
+  Future<bool> localFileExists(BoardAttachment attachment) async {
     _errorMessage = null;
 
     try {
-      return await _repository.localFileExists(
-        attachment,
-      );
-    } catch (
-      error,
-      stackTrace
-    ) {
+      return await _repository.localFileExists(attachment);
+    } catch (error, stackTrace) {
       _setError(
         message: 'Erro ao verificar arquivo local.',
         error: error,
@@ -683,9 +540,7 @@ class BoardAttachmentController
   // GET BY ID - MEMORY
   // ============================================================
 
-  BoardAttachment? getById(
-    String id,
-  ) {
+  BoardAttachment? getById(String id) {
     final normalizedId = id.trim();
 
     if (normalizedId.isEmpty) {
@@ -693,8 +548,7 @@ class BoardAttachmentController
     }
 
     for (final attachment in _attachments) {
-      if (attachment.id ==
-          normalizedId) {
+      if (attachment.id == normalizedId) {
         return attachment;
       }
     }
@@ -706,56 +560,29 @@ class BoardAttachmentController
   // GET BY ID - LOCAL DATABASE
   // ============================================================
 
-  Future<
-    BoardAttachment?
-  >
-  getByIdFromStorage(
-    String id,
-  ) {
-    return _repository.getById(
-      id,
-    );
+  Future<BoardAttachment?> getByIdFromStorage(String id) {
+    return _repository.getById(id);
   }
 
   // ============================================================
   // GET BY BLOCK
   // ============================================================
 
-  List<
-    BoardAttachment
-  >
-  getByBlockId(
-    String blockId,
-  ) {
+  List<BoardAttachment> getByBlockId(String blockId) {
     final normalizedBlockId = blockId.trim();
 
     if (normalizedBlockId.isEmpty) {
-      return const <
-        BoardAttachment
-      >[];
+      return const <BoardAttachment>[];
     }
 
     final result = _attachments
         .where(
-          (
-            attachment,
-          ) =>
-              attachment.blockId ==
-                  normalizedBlockId &&
-              !attachment.isDeleted,
+          (attachment) =>
+              attachment.blockId == normalizedBlockId && !attachment.isDeleted,
         )
-        .toList(
-          growable: false,
-        );
+        .toList(growable: false);
 
-    result.sort(
-      (
-        first,
-        second,
-      ) => second.createdAt.compareTo(
-        first.createdAt,
-      ),
-    );
+    result.sort((first, second) => second.createdAt.compareTo(first.createdAt));
 
     return result;
   }
@@ -764,12 +591,7 @@ class BoardAttachmentController
   // LOAD BLOCK FROM DATABASE
   // ============================================================
 
-  Future<
-    List<
-      BoardAttachment
-    >
-  >
-  loadByBlockId({
+  Future<List<BoardAttachment>> loadByBlockId({
     required String boardId,
     required String blockId,
   }) async {
@@ -786,17 +608,11 @@ class BoardAttachmentController
       );
 
       for (final attachment in loaded) {
-        _replace(
-          attachment,
-          notify: false,
-        );
+        _replace(attachment, notify: false);
       }
 
       return loaded;
-    } catch (
-      error,
-      stackTrace
-    ) {
+    } catch (error, stackTrace) {
       _setError(
         message: 'Erro ao carregar documentos do bloco.',
         error: error,
@@ -804,9 +620,7 @@ class BoardAttachmentController
         notify: false,
       );
 
-      return const <
-        BoardAttachment
-      >[];
+      return const <BoardAttachment>[];
     } finally {
       _isLoading = false;
 
@@ -818,20 +632,10 @@ class BoardAttachmentController
   // COUNT BY BOARD
   // ============================================================
 
-  Future<
-    int
-  >
-  countByBoard(
-    String boardId,
-  ) async {
+  Future<int> countByBoard(String boardId) async {
     try {
-      return await _repository.countByBoard(
-        boardId,
-      );
-    } catch (
-      error,
-      stackTrace
-    ) {
+      return await _repository.countByBoard(boardId);
+    } catch (error, stackTrace) {
       _setError(
         message: 'Erro ao contar documentos da lousa.',
         error: error,
@@ -861,8 +665,7 @@ class BoardAttachmentController
   // ============================================================
 
   void clearError() {
-    if (_errorMessage ==
-        null) {
+    if (_errorMessage == null) {
       return;
     }
 
@@ -875,30 +678,15 @@ class BoardAttachmentController
   // REPLACE
   // ============================================================
 
-  void _replace(
-    BoardAttachment attachment, {
-    bool notify = true,
-  }) {
-    final index = _attachments.indexWhere(
-      (
-        item,
-      ) =>
-          item.id ==
-          attachment.id,
-    );
+  void _replace(BoardAttachment attachment, {bool notify = true}) {
+    final index = _attachments.indexWhere((item) => item.id == attachment.id);
 
     if (attachment.isDeleted) {
-      if (index >=
-          0) {
-        _attachments.removeAt(
-          index,
-        );
+      if (index >= 0) {
+        _attachments.removeAt(index);
       }
-    } else if (index <
-        0) {
-      _attachments.add(
-        attachment,
-      );
+    } else if (index < 0) {
+      _attachments.add(attachment);
     } else {
       _attachments[index] = attachment;
     }
@@ -916,12 +704,7 @@ class BoardAttachmentController
 
   void _sort() {
     _attachments.sort(
-      (
-        first,
-        second,
-      ) => second.createdAt.compareTo(
-        first.createdAt,
-      ),
+      (first, second) => second.createdAt.compareTo(first.createdAt),
     );
   }
 
@@ -929,9 +712,7 @@ class BoardAttachmentController
   // ERROR
   // ============================================================
 
-  void _setErrorMessage(
-    String message,
-  ) {
+  void _setErrorMessage(String message) {
     _errorMessage = message;
 
     debugPrint(
@@ -956,9 +737,7 @@ class BoardAttachmentController
       '$error',
     );
 
-    debugPrint(
-      stackTrace.toString(),
-    );
+    debugPrint(stackTrace.toString());
 
     if (notify) {
       notifyListeners();

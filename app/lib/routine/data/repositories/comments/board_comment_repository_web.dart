@@ -41,13 +41,16 @@ class BoardCommentRepository {
     );
   }
 
-  Future<List<BoardComment>> fetchAll({
+  Future<List<BoardComment>> refreshByDay({
+    required String dayId,
     bool includeResolved = false,
   }) {
+    return fetchByDay(dayId: dayId, includeResolved: includeResolved);
+  }
+
+  Future<List<BoardComment>> fetchAll({bool includeResolved = false}) {
     _requireUser();
-    return _remoteDataSource.fetchAll(
-      includeResolved: includeResolved,
-    );
+    return _remoteDataSource.fetchAll(includeResolved: includeResolved);
   }
 
   Future<BoardComment> create(BoardComment comment) {

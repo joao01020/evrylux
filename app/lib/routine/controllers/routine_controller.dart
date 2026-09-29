@@ -7,19 +7,14 @@ import '../models/board_block.dart';
 import '../models/routine_day.dart';
 import 'routine_state.dart';
 
-class RoutineController
-    extends
-        ChangeNotifier {
+class RoutineController extends ChangeNotifier {
   RoutineController({
     required RoutineRepository repository,
     required String userId,
     DateTime? initialDate,
-  }) : _repository =
-           repository,
+  }) : _repository = repository,
        _userId = userId,
-       _state = RoutineState.initial(
-         now: initialDate,
-       );
+       _state = RoutineState.initial(now: initialDate);
 
   // ============================================================
   // DEPENDÊNCIAS
@@ -51,9 +46,7 @@ class RoutineController
 
   int _lastCommittedVersion = 0;
 
-  static const Duration _autoSaveDelay = Duration(
-    milliseconds: 700,
-  );
+  static const Duration _autoSaveDelay = Duration(milliseconds: 700);
 
   // ============================================================
   // GETTERS
@@ -62,20 +55,14 @@ class RoutineController
   RoutineState get state => _state;
 
   RoutineDay get selectedDay {
-    return _state.selectedDay ??
-        RoutineDay(
-          date: _state.selectedDate,
-        );
+    return _state.selectedDay ?? RoutineDay(date: _state.selectedDate);
   }
 
   // ============================================================
   // INITIALIZE
   // ============================================================
 
-  Future<
-    void
-  >
-  initialize() async {
+  Future<void> initialize() async {
     if (_initialized) {
       return;
     }
@@ -89,10 +76,7 @@ class RoutineController
   // LOAD WEEK
   // ============================================================
 
-  Future<
-    void
-  >
-  loadWeek() async {
+  Future<void> loadWeek() async {
     _cancelAutoSave();
 
     // ==========================================================
@@ -109,12 +93,7 @@ class RoutineController
 
     final isInitialLoading = _state.days.isEmpty;
 
-    _setState(
-      _state.copyWith(
-        loading: isInitialLoading,
-        clearError: true,
-      ),
-    );
+    _setState(_state.copyWith(loading: isInitialLoading, clearError: true));
 
     try {
       final loadedDays = await _repository.loadWeek(
@@ -122,42 +101,48 @@ class RoutineController
         weekStart: _state.weekStart,
       );
 
-      final days =
-          List<
-            RoutineDay
-          >.from(
-            loadedDays,
-          );
+      final days = List<RoutineDay>.from(loadedDays);
 
-      _ensureDate(
-        days,
-        _state.selectedDate,
-      );
+      _ensureDate(days, _state.selectedDate);
 
-      _sortDays(
-        days,
-      );
+      _sortDays(days);
 
-      _setState(
-        _state.copyWith(
-          days: days,
-          loading: false,
-          clearError: true,
-        ),
-      );
+      _setState(_state.copyWith(days: days, loading: false, clearError: true));
 
       _mutationVersion++;
       _lastCommittedVersion = _mutationVersion;
-    } catch (
-      error
-    ) {
+    } catch (error) {
       _setState(
-        _state.copyWith(
-          loading: false,
-          errorMessage: _errorText(
-            error,
-          ),
-        ),
+        _state.copyWith(loading: false, errorMessage: _errorText(error)),
+      );
+    }
+  }
+
+  // ============================================================
+  // REALTIME / REMOTE REFRESH
+  // ============================================================
+
+  Future<void> refreshFromRemote() async {
+    _cancelAutoSave();
+
+    try {
+      final loadedDays = await _repository.refreshWeekFromRemote(
+        userId: _userId,
+        weekStart: _state.weekStart,
+      );
+
+      final days = List<RoutineDay>.from(loadedDays);
+
+      _ensureDate(days, _state.selectedDate);
+      _sortDays(days);
+
+      _setState(_state.copyWith(days: days, loading: false, clearError: true));
+
+      _mutationVersion++;
+      _lastCommittedVersion = _mutationVersion;
+    } catch (error) {
+      _setState(
+        _state.copyWith(loading: false, errorMessage: _errorText(error)),
       );
     }
   }
@@ -166,41 +151,21 @@ class RoutineController
   // NAVEGAÇÃO DE SEMANA
   // ============================================================
 
-  Future<
-    void
-  >
-  previousWeek() async {
-    await _changeWeek(
-      -7,
-    );
+  Future<void> previousWeek() async {
+    await _changeWeek(-7);
   }
 
-  Future<
-    void
-  >
-  nextWeek() async {
-    await _changeWeek(
-      7,
-    );
+  Future<void> nextWeek() async {
+    await _changeWeek(7);
   }
 
-  Future<
-    void
-  >
-  goToToday() async {
+  Future<void> goToToday() async {
     await flushPendingSave();
 
-    final today = _dateOnly(
-      DateTime.now(),
-    );
+    final today = _dateOnly(DateTime.now());
 
     _setState(
-      _state.copyWith(
-        selectedDate: today,
-        weekStart: _startOfWeek(
-          today,
-        ),
-      ),
+      _state.copyWith(selectedDate: today, weekStart: _startOfWeek(today)),
     );
 
     await loadWeek();
@@ -210,47 +175,22 @@ class RoutineController
   // SELECIONAR DIA
   // ============================================================
 
-  Future<
-    void
-  >
-  selectDay(
-    DateTime date,
-  ) async {
-    final normalized = _dateOnly(
-      date,
-    );
+  Future<void> selectDay(DateTime date) async {
+    final normalized = _dateOnly(date);
 
-    if (_sameDate(
-      normalized,
-      _state.selectedDate,
-    )) {
+    if (_sameDate(normalized, _state.selectedDate)) {
       return;
     }
 
     await flushPendingSave();
 
-    final days =
-        List<
-          RoutineDay
-        >.from(
-          _state.days,
-        );
+    final days = List<RoutineDay>.from(_state.days);
 
-    _ensureDate(
-      days,
-      normalized,
-    );
+    _ensureDate(days, normalized);
 
-    _sortDays(
-      days,
-    );
+    _sortDays(days);
 
-    _setState(
-      _state.copyWith(
-        selectedDate: normalized,
-        days: days,
-      ),
-    );
+    _setState(_state.copyWith(selectedDate: normalized, days: days));
   }
 
   // ============================================================
@@ -258,65 +198,41 @@ class RoutineController
   // ============================================================
 
   void toggleCalendarExpanded() {
-    _setState(
-      _state.copyWith(
-        calendarExpanded: !_state.calendarExpanded,
-      ),
-    );
+    _setState(_state.copyWith(calendarExpanded: !_state.calendarExpanded));
   }
 
   // ============================================================
   // FOCO
   // ============================================================
 
-  void updateFocus(
-    String value,
-  ) {
-    selectedDay.updateFocus(
-      value,
-    );
+  void updateFocus(String value) {
+    selectedDay.updateFocus(value);
 
-    _notifyMutation(
-      autoSave: true,
-    );
+    _notifyMutation(autoSave: true);
   }
 
   // ============================================================
   // BLOCKS
   // ============================================================
 
-  void addBlock(
-    BoardBlock block,
-  ) {
-    selectedDay.addBlock(
-      block,
-    );
+  void addBlock(BoardBlock block) {
+    selectedDay.addBlock(block);
 
-    _notifyMutation(
-      autoSave: true,
-    );
+    _notifyMutation(autoSave: true);
   }
 
-  bool removeBlock(
-    String blockId,
-  ) {
-    final removed = selectedDay.removeBlockById(
-      blockId,
-    );
+  bool removeBlock(String blockId) {
+    final removed = selectedDay.removeBlockById(blockId);
 
     if (removed) {
-      _notifyMutation(
-        autoSave: true,
-      );
+      _notifyMutation(autoSave: true);
     }
 
     return removed;
   }
 
   void notifyBlockChanged() {
-    _notifyMutation(
-      autoSave: true,
-    );
+    _notifyMutation(autoSave: true);
   }
 
   // ============================================================
@@ -337,10 +253,7 @@ class RoutineController
   //
   // ============================================================
 
-  Future<
-    void
-  >
-  saveSelectedDay() async {
+  Future<void> saveSelectedDay() async {
     _saveDebounce?.cancel();
     _saveDebounce = null;
 
@@ -355,15 +268,10 @@ class RoutineController
 
     _saveRunning = true;
 
-    _setSaving(
-      true,
-    );
+    _setSaving(true);
 
     try {
-      await _repository.saveDay(
-        userId: _userId,
-        day: dayAtStart,
-      );
+      await _repository.saveDay(userId: _userId, day: dayAtStart);
 
       // ========================================================
       // NÃO SOBRESCREVER O ESTADO LOCAL
@@ -381,31 +289,19 @@ class RoutineController
       //
       // ========================================================
 
-      if (versionAtStart >
-          _lastCommittedVersion) {
+      if (versionAtStart > _lastCommittedVersion) {
         _lastCommittedVersion = versionAtStart;
       }
 
-      _setSaving(
-        false,
-      );
-    } catch (
-      error
-    ) {
+      _setSaving(false);
+    } catch (error) {
       _setState(
-        _state.copyWith(
-          saving: false,
-          errorMessage: _errorText(
-            error,
-          ),
-        ),
+        _state.copyWith(saving: false, errorMessage: _errorText(error)),
       );
     } finally {
       _saveRunning = false;
 
-      if (_savePending ||
-          _mutationVersion >
-              versionAtStart) {
+      if (_savePending || _mutationVersion > versionAtStart) {
         _savePending = false;
 
         // Se houve nova alteração enquanto o save estava em voo,
@@ -419,73 +315,31 @@ class RoutineController
   // DELETE SELECTED DAY
   // ============================================================
 
-  Future<
-    void
-  >
-  deleteSelectedDay() async {
+  Future<void> deleteSelectedDay() async {
     _cancelAutoSave();
 
     final day = selectedDay;
 
-    _setState(
-      _state.copyWith(
-        saving: true,
-        clearError: true,
-      ),
-    );
+    _setState(_state.copyWith(saving: true, clearError: true));
 
     try {
-      if (day.id !=
-          null) {
-        await _repository.deleteDay(
-          userId: _userId,
-          dayId: day.id!,
-        );
+      if (day.id != null) {
+        await _repository.deleteDay(userId: _userId, dayId: day.id!);
       }
 
-      final days =
-          List<
-              RoutineDay
-            >.from(
-              _state.days,
-            )
-            ..removeWhere(
-              (
-                item,
-              ) =>
-                  item.normalizedDate ==
-                  day.normalizedDate,
-            )
-            ..add(
-              RoutineDay(
-                date: _state.selectedDate,
-              ),
-            );
+      final days = List<RoutineDay>.from(_state.days)
+        ..removeWhere((item) => item.normalizedDate == day.normalizedDate)
+        ..add(RoutineDay(date: _state.selectedDate));
 
-      _sortDays(
-        days,
-      );
+      _sortDays(days);
 
-      _setState(
-        _state.copyWith(
-          days: days,
-          saving: false,
-          clearError: true,
-        ),
-      );
+      _setState(_state.copyWith(days: days, saving: false, clearError: true));
 
       _mutationVersion++;
       _lastCommittedVersion = _mutationVersion;
-    } catch (
-      error
-    ) {
+    } catch (error) {
       _setState(
-        _state.copyWith(
-          saving: false,
-          errorMessage: _errorText(
-            error,
-          ),
-        ),
+        _state.copyWith(saving: false, errorMessage: _errorText(error)),
       );
     }
   }
@@ -495,37 +349,19 @@ class RoutineController
   // ============================================================
 
   void clearError() {
-    _setState(
-      _state.copyWith(
-        clearError: true,
-      ),
-    );
+    _setState(_state.copyWith(clearError: true));
   }
 
   // ============================================================
   // CHANGE WEEK
   // ============================================================
 
-  Future<
-    void
-  >
-  _changeWeek(
-    int numberOfDays,
-  ) async {
+  Future<void> _changeWeek(int numberOfDays) async {
     await flushPendingSave();
 
-    final weekStart = _state.weekStart.add(
-      Duration(
-        days: numberOfDays,
-      ),
-    );
+    final weekStart = _state.weekStart.add(Duration(days: numberOfDays));
 
-    _setState(
-      _state.copyWith(
-        weekStart: weekStart,
-        selectedDate: weekStart,
-      ),
-    );
+    _setState(_state.copyWith(weekStart: weekStart, selectedDate: weekStart));
 
     await loadWeek();
   }
@@ -534,19 +370,10 @@ class RoutineController
   // MUTATION
   // ============================================================
 
-  void _notifyMutation({
-    bool autoSave = false,
-  }) {
+  void _notifyMutation({bool autoSave = false}) {
     _mutationVersion++;
 
-    _state = _state.copyWith(
-      days:
-          List<
-            RoutineDay
-          >.from(
-            _state.days,
-          ),
-    );
+    _state = _state.copyWith(days: List<RoutineDay>.from(_state.days));
 
     notifyListeners();
 
@@ -562,12 +389,9 @@ class RoutineController
   void _scheduleAutoSave() {
     _saveDebounce?.cancel();
 
-    _saveDebounce = Timer(
-      _autoSaveDelay,
-      () {
-        saveSelectedDay();
-      },
-    );
+    _saveDebounce = Timer(_autoSaveDelay, () {
+      saveSelectedDay();
+    });
   }
 
   void _cancelAutoSave() {
@@ -580,21 +404,12 @@ class RoutineController
   // FLUSH
   // ============================================================
 
-  Future<
-    void
-  >
-  flushPendingSave() async {
-    final hasDebounce =
-        _saveDebounce !=
-        null;
+  Future<void> flushPendingSave() async {
+    final hasDebounce = _saveDebounce != null;
 
-    final hasUnsavedMutation =
-        _mutationVersion >
-        _lastCommittedVersion;
+    final hasUnsavedMutation = _mutationVersion > _lastCommittedVersion;
 
-    if (!hasDebounce &&
-        !_savePending &&
-        !hasUnsavedMutation) {
+    if (!hasDebounce && !_savePending && !hasUnsavedMutation) {
       return;
     }
 
@@ -606,18 +421,10 @@ class RoutineController
       _savePending = true;
 
       while (_saveRunning) {
-        await Future<
-          void
-        >.delayed(
-          const Duration(
-            milliseconds: 20,
-          ),
-        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
       }
 
-      if (_mutationVersion <=
-              _lastCommittedVersion &&
-          !_savePending) {
+      if (_mutationVersion <= _lastCommittedVersion && !_savePending) {
         return;
       }
     }
@@ -634,13 +441,8 @@ class RoutineController
   //
   // ============================================================
 
-  void _setSaving(
-    bool value,
-  ) {
-    _state = _state.copyWith(
-      saving: value,
-      clearError: value,
-    );
+  void _setSaving(bool value) {
+    _state = _state.copyWith(saving: value, clearError: value);
 
     notifyListeners();
   }
@@ -649,9 +451,7 @@ class RoutineController
   // SET STATE
   // ============================================================
 
-  void _setState(
-    RoutineState value,
-  ) {
+  void _setState(RoutineState value) {
     _state = value;
 
     notifyListeners();
@@ -661,25 +461,9 @@ class RoutineController
   // ENSURE DATE
   // ============================================================
 
-  void _ensureDate(
-    List<
-      RoutineDay
-    >
-    days,
-    DateTime date,
-  ) {
-    if (_indexOfDate(
-          days,
-          date,
-        ) <
-        0) {
-      days.add(
-        RoutineDay(
-          date: _dateOnly(
-            date,
-          ),
-        ),
-      );
+  void _ensureDate(List<RoutineDay> days, DateTime date) {
+    if (_indexOfDate(days, date) < 0) {
+      days.add(RoutineDay(date: _dateOnly(date)));
     }
   }
 
@@ -687,108 +471,56 @@ class RoutineController
   // INDEX DATE
   // ============================================================
 
-  int _indexOfDate(
-    List<
-      RoutineDay
-    >
-    days,
-    DateTime date,
-  ) {
-    final normalized = _dateOnly(
-      date,
-    );
+  int _indexOfDate(List<RoutineDay> days, DateTime date) {
+    final normalized = _dateOnly(date);
 
-    return days.indexWhere(
-      (
-        day,
-      ) =>
-          day.normalizedDate ==
-          normalized,
-    );
+    return days.indexWhere((day) => day.normalizedDate == normalized);
   }
 
   // ============================================================
   // SORT DAYS
   // ============================================================
 
-  void _sortDays(
-    List<
-      RoutineDay
-    >
-    days,
-  ) {
-    days.sort(
-      (
-        a,
-        b,
-      ) => a.normalizedDate.compareTo(
-        b.normalizedDate,
-      ),
-    );
+  void _sortDays(List<RoutineDay> days) {
+    days.sort((a, b) => a.normalizedDate.compareTo(b.normalizedDate));
   }
 
   // ============================================================
   // DATE ONLY
   // ============================================================
 
-  DateTime _dateOnly(
-    DateTime value,
-  ) {
-    return DateTime(
-      value.year,
-      value.month,
-      value.day,
-    );
+  DateTime _dateOnly(DateTime value) {
+    return DateTime(value.year, value.month, value.day);
   }
 
   // ============================================================
   // START OF WEEK
   // ============================================================
 
-  DateTime _startOfWeek(
-    DateTime value,
-  ) {
-    final normalized = _dateOnly(
-      value,
-    );
+  DateTime _startOfWeek(DateTime value) {
+    final normalized = _dateOnly(value);
 
-    return normalized.subtract(
-      Duration(
-        days:
-            normalized.weekday -
-            1,
-      ),
-    );
+    return normalized.subtract(Duration(days: normalized.weekday - 1));
   }
 
   // ============================================================
   // SAME DATE
   // ============================================================
 
-  bool _sameDate(
-    DateTime first,
-    DateTime second,
-  ) {
-    return first.year ==
-            second.year &&
-        first.month ==
-            second.month &&
-        first.day ==
-            second.day;
+  bool _sameDate(DateTime first, DateTime second) {
+    return first.year == second.year &&
+        first.month == second.month &&
+        first.day == second.day;
   }
 
   // ============================================================
   // ERROR TEXT
   // ============================================================
 
-  String _errorText(
-    Object error,
-  ) {
+  String _errorText(Object error) {
     final message = error.toString().trim();
 
-    return message.isEmpty
-        ? 'Não foi possível concluir a operação.'
-        : message;
+    return message.isEmpty ? 'Não foi possível concluir a operação.' : message;
   }
 
   // ============================================================

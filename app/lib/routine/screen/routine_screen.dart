@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
@@ -7,6 +8,7 @@ import '../runtime/routine_window_api_native.dart'
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../app/dependencies/app_dependencies.dart'
     if (dart.library.html) '../runtime/routine_web_dependencies.dart';
 import '../../reminders/widgets/reminder_day_dialog.dart';
@@ -191,6 +193,16 @@ class _RoutineScreenState extends State<RoutineScreen> {
   String? _loadingReminderWeekKey;
 
   // ============================================================
+  // REALTIME
+  // ============================================================
+
+  RealtimeChannel? _routineRealtimeChannel;
+  Timer? _routineRealtimeDebounce;
+
+  bool _routineRealtimeRefreshRunning = false;
+  bool _routineRealtimeRefreshQueued = false;
+
+  // ============================================================
   // LOUSA EXPANDIDA
   // ============================================================
 
@@ -239,6 +251,8 @@ class _RoutineScreenState extends State<RoutineScreen> {
     boardAttachmentController.addListener(_onBoardAttachmentsChanged);
 
     _initializeRoutine();
+
+    _startRoutineRealtime();
 
     _mindMapWindowChannel.setMethodCallHandler(_handleMindMapWindowCall);
   }
@@ -355,6 +369,119 @@ class _RoutineScreenState extends State<RoutineScreen> {
     });
 
     await _initializeRoutine();
+  }
+
+  // ============================================================
+  // ROUTINE REALTIME — WEB ↔ SUPABASE ↔ DESKTOP
+  // ============================================================
+
+  void _startRoutineRealtime() {
+    final client = Supabase.instance.client;
+    final user = client.auth.currentUser;
+
+    if (user == null || _routineRealtimeChannel != null) {
+      return;
+    }
+
+    final channel = client.channel('routine-${user.id}');
+
+    void listenTo(String table) {
+      channel.onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: table,
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'user_id',
+          value: user.id,
+        ),
+        callback: (_) {
+          _scheduleRoutineRealtimeRefresh();
+        },
+      );
+    }
+
+    listenTo('routine_days');
+    listenTo('routine_comments');
+    listenTo('board_attachments');
+    listenTo('reminders');
+
+    channel.subscribe((status, error) {
+      debugPrint(
+        '[ROUTINE REALTIME] status=$status'
+        '${error == null ? '' : ' error=$error'}',
+      );
+    });
+
+    _routineRealtimeChannel = channel;
+  }
+
+  void _scheduleRoutineRealtimeRefresh() {
+    if (!mounted) return;
+
+    _routineRealtimeDebounce?.cancel();
+
+    _routineRealtimeDebounce = Timer(const Duration(milliseconds: 550), () {
+      unawaited(_refreshRoutineFromRealtime());
+    });
+  }
+
+  Future<void> _refreshRoutineFromRealtime() async {
+    if (!mounted || !_routineControllerReady) {
+      return;
+    }
+
+    if (_routineRealtimeRefreshRunning) {
+      _routineRealtimeRefreshQueued = true;
+      return;
+    }
+
+    _routineRealtimeRefreshRunning = true;
+
+    try {
+      await prepareRoutineRealtimeRefresh();
+      await _routineController.refreshFromRemote();
+
+      if (!mounted) return;
+
+      final selectedDay = _routineController.selectedDay;
+      final dayId = _commentDayId(selectedDay);
+      final boardId = _boardAttachmentBoardId(selectedDay);
+
+      await Future.wait<void>([
+        _commentController.refreshByDay(dayId),
+        boardAttachmentController.refreshBoard(boardId),
+        reminderController.refresh(),
+      ]);
+
+      _loadedCommentDayId = dayId;
+      _loadedAttachmentBoardId = boardId;
+      _loadedReminderWeekKey = null;
+
+      await _loadReminderDaysForWeek(
+        _routineController.state.weekStart,
+        force: true,
+      );
+
+      if (mounted) {
+        setState(() {});
+      }
+
+      debugPrint(
+        '[ROUTINE REALTIME] atualização concluída '
+        'day=$dayId board=$boardId',
+      );
+    } catch (error, stackTrace) {
+      debugPrint('[ROUTINE REALTIME] falha no refresh: $error');
+      debugPrint('$stackTrace');
+    } finally {
+      _routineRealtimeRefreshRunning = false;
+
+      if (_routineRealtimeRefreshQueued && mounted) {
+        _routineRealtimeRefreshQueued = false;
+        _scheduleRoutineRealtimeRefresh();
+      }
+    }
   }
 
   @override

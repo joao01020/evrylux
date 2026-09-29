@@ -5,12 +5,9 @@ import 'package:flutter/material.dart';
 import '../../data/repositories/comments/board_comment_repository.dart';
 import '../../models/comments/board_comment.dart';
 
-class BoardCommentController
-    extends
-        ChangeNotifier {
-  BoardCommentController({
-    required BoardCommentRepository repository,
-  }) : _repository = repository;
+class BoardCommentController extends ChangeNotifier {
+  BoardCommentController({required BoardCommentRepository repository})
+    : _repository = repository;
 
   // ============================================================
   // REPOSITORY
@@ -22,10 +19,7 @@ class BoardCommentController
   // COMENTÁRIOS
   // ============================================================
 
-  final List<
-    BoardComment
-  >
-  _comments = [];
+  final List<BoardComment> _comments = [];
 
   // ============================================================
   // STATE
@@ -52,17 +46,10 @@ class BoardCommentController
   String? get errorMessage => _errorMessage;
 
   bool get hasError =>
-      _errorMessage !=
-          null &&
-      _errorMessage!.trim().isNotEmpty;
+      _errorMessage != null && _errorMessage!.trim().isNotEmpty;
 
-  List<
-    BoardComment
-  >
-  get comments {
-    return List.unmodifiable(
-      _comments,
-    );
+  List<BoardComment> get comments {
+    return List.unmodifiable(_comments);
   }
 
   int get totalComments {
@@ -70,13 +57,7 @@ class BoardCommentController
   }
 
   int get unresolvedComments {
-    return _comments
-        .where(
-          (
-            comment,
-          ) => !comment.resolved,
-        )
-        .length;
+    return _comments.where((comment) => !comment.resolved).length;
   }
 
   bool get hasComments {
@@ -88,8 +69,7 @@ class BoardCommentController
   // ============================================================
 
   void clearError() {
-    if (_errorMessage ==
-        null) {
+    if (_errorMessage == null) {
       return;
     }
 
@@ -98,9 +78,7 @@ class BoardCommentController
     notifyListeners();
   }
 
-  void _setError(
-    Object error,
-  ) {
+  void _setError(Object error) {
     _errorMessage = error.toString();
 
     notifyListeners();
@@ -140,13 +118,7 @@ class BoardCommentController
   // CARREGAR COMENTÁRIOS DO DIA
   // ============================================================
 
-  Future<
-    void
-  >
-  loadByDay(
-    String dayId, {
-    bool includeResolved = false,
-  }) async {
+  Future<void> loadByDay(String dayId, {bool includeResolved = false}) async {
     final normalizedDayId = dayId.trim();
 
     if (normalizedDayId.isEmpty) {
@@ -164,25 +136,13 @@ class BoardCommentController
         includeResolved: includeResolved,
       );
 
-      _comments.removeWhere(
-        (
-          comment,
-        ) =>
-            comment.dayId ==
-            normalizedDayId,
-      );
+      _comments.removeWhere((comment) => comment.dayId == normalizedDayId);
 
-      _comments.addAll(
-        loaded,
-      );
+      _comments.addAll(loaded);
 
       _sortComments();
-    } catch (
-      error
-    ) {
-      _setError(
-        error,
-      );
+    } catch (error) {
+      _setError(error);
     } finally {
       _loading = false;
 
@@ -191,15 +151,40 @@ class BoardCommentController
   }
 
   // ============================================================
+  // REALTIME / REMOTE REFRESH
+  // ============================================================
+
+  Future<void> refreshByDay(
+    String dayId, {
+    bool includeResolved = false,
+  }) async {
+    final normalizedDayId = dayId.trim();
+
+    if (normalizedDayId.isEmpty) return;
+
+    try {
+      final loaded = await _repository.refreshByDay(
+        dayId: normalizedDayId,
+        includeResolved: includeResolved,
+      );
+
+      _comments.removeWhere((comment) => comment.dayId == normalizedDayId);
+
+      _comments.addAll(loaded);
+      _sortComments();
+      _errorMessage = null;
+    } catch (error) {
+      _setError(error);
+    }
+
+    notifyListeners();
+  }
+
+  // ============================================================
   // CARREGAR TODOS
   // ============================================================
 
-  Future<
-    void
-  >
-  loadAll({
-    bool includeResolved = false,
-  }) async {
+  Future<void> loadAll({bool includeResolved = false}) async {
     _loading = true;
     _errorMessage = null;
 
@@ -212,17 +197,11 @@ class BoardCommentController
 
       _comments
         ..clear()
-        ..addAll(
-          loaded,
-        );
+        ..addAll(loaded);
 
       _sortComments();
-    } catch (
-      error
-    ) {
-      _setError(
-        error,
-      );
+    } catch (error) {
+      _setError(error);
     } finally {
       _loading = false;
 
@@ -234,10 +213,7 @@ class BoardCommentController
   // CRIAR COMENTÁRIO
   // ============================================================
 
-  Future<
-    BoardComment?
-  >
-  create({
+  Future<BoardComment?> create({
     required String dayId,
     required String message,
     required Offset position,
@@ -247,9 +223,7 @@ class BoardCommentController
 
     if (normalizedMessage.isEmpty) {
       _setError(
-        ArgumentError(
-          'A mensagem do comentário não pode estar vazia.',
-        ),
+        ArgumentError('A mensagem do comentário não pode estar vazia.'),
       );
 
       return null;
@@ -258,11 +232,7 @@ class BoardCommentController
     final normalizedDayId = dayId.trim();
 
     if (normalizedDayId.isEmpty) {
-      _setError(
-        ArgumentError(
-          'O ID do dia não pode estar vazio.',
-        ),
-      );
+      _setError(ArgumentError('O ID do dia não pode estar vazio.'));
 
       return null;
     }
@@ -277,9 +247,7 @@ class BoardCommentController
       message: normalizedMessage,
       position: position,
       createdAt: DateTime.now(),
-      authorName: normalizedAuthor.isEmpty
-          ? 'Você'
-          : normalizedAuthor,
+      authorName: normalizedAuthor.isEmpty ? 'Você' : normalizedAuthor,
       resolved: false,
     );
 
@@ -289,13 +257,9 @@ class BoardCommentController
     notifyListeners();
 
     try {
-      final saved = await _repository.create(
-        draft,
-      );
+      final saved = await _repository.create(draft);
 
-      _comments.add(
-        saved,
-      );
+      _comments.add(saved);
 
       _sortComments();
 
@@ -304,12 +268,8 @@ class BoardCommentController
       notifyListeners();
 
       return saved;
-    } catch (
-      error
-    ) {
-      _setError(
-        error,
-      );
+    } catch (error) {
+      _setError(error);
 
       return null;
     } finally {
@@ -323,24 +283,14 @@ class BoardCommentController
   // ADICIONAR COMENTÁRIO EXISTENTE
   // ============================================================
 
-  void addLocal(
-    BoardComment comment,
-  ) {
-    final exists = _comments.any(
-      (
-        item,
-      ) =>
-          item.id ==
-          comment.id,
-    );
+  void addLocal(BoardComment comment) {
+    final exists = _comments.any((item) => item.id == comment.id);
 
     if (exists) {
       return;
     }
 
-    _comments.add(
-      comment,
-    );
+    _comments.add(comment);
 
     _sortComments();
 
@@ -351,17 +301,10 @@ class BoardCommentController
   // SUBSTITUIR LISTA LOCAL
   // ============================================================
 
-  void setComments(
-    Iterable<
-      BoardComment
-    >
-    comments,
-  ) {
+  void setComments(Iterable<BoardComment> comments) {
     _comments
       ..clear()
-      ..addAll(
-        comments,
-      );
+      ..addAll(comments);
 
     _sortComments();
 
@@ -386,9 +329,7 @@ class BoardCommentController
   // BUSCAR POR ID
   // ============================================================
 
-  BoardComment? findById(
-    String id,
-  ) {
+  BoardComment? findById(String id) {
     final normalizedId = id.trim();
 
     if (normalizedId.isEmpty) {
@@ -396,8 +337,7 @@ class BoardCommentController
     }
 
     for (final comment in _comments) {
-      if (comment.id ==
-          normalizedId) {
+      if (comment.id == normalizedId) {
         return comment;
       }
     }
@@ -409,10 +349,7 @@ class BoardCommentController
   // COMENTÁRIOS DO DIA
   // ============================================================
 
-  List<
-    BoardComment
-  >
-  commentsForDay(
+  List<BoardComment> commentsForDay(
     String dayId, {
     bool includeResolved = false,
   }) {
@@ -422,34 +359,21 @@ class BoardCommentController
       return const [];
     }
 
-    final result = _comments.where(
-      (
-        comment,
-      ) {
-        if (comment.dayId !=
-            normalizedDayId) {
-          return false;
-        }
+    final result = _comments.where((comment) {
+      if (comment.dayId != normalizedDayId) {
+        return false;
+      }
 
-        if (!includeResolved &&
-            comment.resolved) {
-          return false;
-        }
+      if (!includeResolved && comment.resolved) {
+        return false;
+      }
 
-        return true;
-      },
-    ).toList();
+      return true;
+    }).toList();
 
-    result.sort(
-      (
-        a,
-        b,
-      ) {
-        return a.createdAt.compareTo(
-          b.createdAt,
-        );
-      },
-    );
+    result.sort((a, b) {
+      return a.createdAt.compareTo(b.createdAt);
+    });
 
     return result;
   }
@@ -458,39 +382,24 @@ class BoardCommentController
   // QUANTIDADE POR DIA
   // ============================================================
 
-  int countForDay(
-    String dayId, {
-    bool includeResolved = false,
-  }) {
-    return commentsForDay(
-      dayId,
-      includeResolved: includeResolved,
-    ).length;
+  int countForDay(String dayId, {bool includeResolved = false}) {
+    return commentsForDay(dayId, includeResolved: includeResolved).length;
   }
 
   // ============================================================
   // ATUALIZAR MENSAGEM
   // ============================================================
 
-  Future<
-    void
-  >
-  updateMessage(
-    BoardComment comment,
-    String message,
-  ) async {
+  Future<void> updateMessage(BoardComment comment, String message) async {
     final normalized = message.trim();
 
     if (normalized.isEmpty) {
       return;
     }
 
-    final stored = findById(
-      comment.id,
-    );
+    final stored = findById(comment.id);
 
-    if (stored ==
-        null) {
+    if (stored == null) {
       return;
     }
 
@@ -505,15 +414,9 @@ class BoardCommentController
         message: normalized,
       );
 
-      _replaceLocal(
-        updated,
-      );
-    } catch (
-      error
-    ) {
-      _setError(
-        error,
-      );
+      _replaceLocal(updated);
+    } catch (error) {
+      _setError(error);
     } finally {
       _saving = false;
 
@@ -539,19 +442,10 @@ class BoardCommentController
   //
   // ============================================================
 
-  Future<
-    void
-  >
-  move(
-    BoardComment comment,
-    Offset position,
-  ) async {
-    final stored = findById(
-      comment.id,
-    );
+  Future<void> move(BoardComment comment, Offset position) async {
+    final stored = findById(comment.id);
 
-    if (stored ==
-        null) {
+    if (stored == null) {
       return;
     }
 
@@ -567,17 +461,11 @@ class BoardCommentController
         position: position,
       );
 
-      _replaceLocal(
-        updated,
-      );
-    } catch (
-      error
-    ) {
+      _replaceLocal(updated);
+    } catch (error) {
       stored.position = oldPosition;
 
-      _setError(
-        error,
-      );
+      _setError(error);
 
       notifyListeners();
     }
@@ -593,16 +481,10 @@ class BoardCommentController
   //
   // ============================================================
 
-  void moveLocal(
-    BoardComment comment,
-    Offset position,
-  ) {
-    final stored = findById(
-      comment.id,
-    );
+  void moveLocal(BoardComment comment, Offset position) {
+    final stored = findById(comment.id);
 
-    if (stored ==
-        null) {
+    if (stored == null) {
       return;
     }
 
@@ -626,22 +508,14 @@ class BoardCommentController
   //
   // ============================================================
 
-  void moveLocalBy(
-    BoardComment comment,
-    Offset delta,
-  ) {
-    final stored = findById(
-      comment.id,
-    );
+  void moveLocalBy(BoardComment comment, Offset delta) {
+    final stored = findById(comment.id);
 
-    if (stored ==
-        null) {
+    if (stored == null) {
       return;
     }
 
-    stored.position =
-        stored.position +
-        delta;
+    stored.position = stored.position + delta;
 
     notifyListeners();
   }
@@ -656,18 +530,10 @@ class BoardCommentController
   //
   // ============================================================
 
-  Future<
-    void
-  >
-  persistPosition(
-    BoardComment comment,
-  ) async {
-    final stored = findById(
-      comment.id,
-    );
+  Future<void> persistPosition(BoardComment comment) async {
+    final stored = findById(comment.id);
 
-    if (stored ==
-        null) {
+    if (stored == null) {
       return;
     }
 
@@ -682,15 +548,9 @@ class BoardCommentController
         position: stored.position,
       );
 
-      _replaceLocal(
-        updated,
-      );
-    } catch (
-      error
-    ) {
-      _setError(
-        error,
-      );
+      _replaceLocal(updated);
+    } catch (error) {
+      _setError(error);
     } finally {
       _saving = false;
 
@@ -708,46 +568,24 @@ class BoardCommentController
   //
   // ============================================================
 
-  Future<
-    void
-  >
-  moveBy(
-    BoardComment comment,
-    Offset delta,
-  ) {
-    final stored = findById(
-      comment.id,
-    );
+  Future<void> moveBy(BoardComment comment, Offset delta) {
+    final stored = findById(comment.id);
 
-    if (stored ==
-        null) {
+    if (stored == null) {
       return Future.value();
     }
 
-    return move(
-      stored,
-      stored.position +
-          delta,
-    );
+    return move(stored, stored.position + delta);
   }
 
   // ============================================================
   // RESOLVER
   // ============================================================
 
-  Future<
-    void
-  >
-  resolve(
-    BoardComment comment,
-  ) async {
-    final stored = findById(
-      comment.id,
-    );
+  Future<void> resolve(BoardComment comment) async {
+    final stored = findById(comment.id);
 
-    if (stored ==
-            null ||
-        stored.resolved) {
+    if (stored == null || stored.resolved) {
       return;
     }
 
@@ -758,21 +596,13 @@ class BoardCommentController
     notifyListeners();
 
     try {
-      final updated = await _repository.resolve(
-        stored,
-      );
+      final updated = await _repository.resolve(stored);
 
-      _replaceLocal(
-        updated,
-      );
-    } catch (
-      error
-    ) {
+      _replaceLocal(updated);
+    } catch (error) {
       stored.resolved = oldResolved;
 
-      _setError(
-        error,
-      );
+      _setError(error);
 
       notifyListeners();
     }
@@ -782,19 +612,10 @@ class BoardCommentController
   // REABRIR
   // ============================================================
 
-  Future<
-    void
-  >
-  reopen(
-    BoardComment comment,
-  ) async {
-    final stored = findById(
-      comment.id,
-    );
+  Future<void> reopen(BoardComment comment) async {
+    final stored = findById(comment.id);
 
-    if (stored ==
-            null ||
-        !stored.resolved) {
+    if (stored == null || !stored.resolved) {
       return;
     }
 
@@ -805,21 +626,13 @@ class BoardCommentController
     notifyListeners();
 
     try {
-      final updated = await _repository.reopen(
-        stored,
-      );
+      final updated = await _repository.reopen(stored);
 
-      _replaceLocal(
-        updated,
-      );
-    } catch (
-      error
-    ) {
+      _replaceLocal(updated);
+    } catch (error) {
       stored.resolved = oldResolved;
 
-      _setError(
-        error,
-      );
+      _setError(error);
 
       notifyListeners();
     }
@@ -829,87 +642,48 @@ class BoardCommentController
   // ALTERNAR RESOLVIDO
   // ============================================================
 
-  Future<
-    void
-  >
-  toggleResolved(
-    BoardComment comment,
-  ) {
+  Future<void> toggleResolved(BoardComment comment) {
     if (comment.resolved) {
-      return reopen(
-        comment,
-      );
+      return reopen(comment);
     }
 
-    return resolve(
-      comment,
-    );
+    return resolve(comment);
   }
 
   // ============================================================
   // EXCLUIR
   // ============================================================
 
-  Future<
-    void
-  >
-  remove(
-    BoardComment comment,
-  ) {
-    return removeById(
-      comment.id,
-    );
+  Future<void> remove(BoardComment comment) {
+    return removeById(comment.id);
   }
 
-  Future<
-    void
-  >
-  removeById(
-    String id,
-  ) async {
+  Future<void> removeById(String id) async {
     final normalizedId = id.trim();
 
     if (normalizedId.isEmpty) {
       return;
     }
 
-    final index = _comments.indexWhere(
-      (
-        comment,
-      ) =>
-          comment.id ==
-          normalizedId,
-    );
+    final index = _comments.indexWhere((comment) => comment.id == normalizedId);
 
-    if (index <
-        0) {
+    if (index < 0) {
       return;
     }
 
     final removed = _comments[index];
 
     // Remoção otimista.
-    _comments.removeAt(
-      index,
-    );
+    _comments.removeAt(index);
 
     notifyListeners();
 
     try {
-      await _repository.deleteById(
-        normalizedId,
-      );
-    } catch (
-      error
-    ) {
-      _comments.insert(
-        index,
-        removed,
-      );
+      await _repository.deleteById(normalizedId);
+    } catch (error) {
+      _comments.insert(index, removed);
 
-      _setError(
-        error,
-      );
+      _setError(error);
 
       notifyListeners();
     }
@@ -919,12 +693,7 @@ class BoardCommentController
   // REMOVER COMENTÁRIOS DO DIA
   // ============================================================
 
-  Future<
-    void
-  >
-  removeAllForDay(
-    String dayId,
-  ) async {
+  Future<void> removeAllForDay(String dayId) async {
     final normalizedDayId = dayId.trim();
 
     if (normalizedDayId.isEmpty) {
@@ -932,45 +701,25 @@ class BoardCommentController
     }
 
     final removed = _comments
-        .where(
-          (
-            comment,
-          ) =>
-              comment.dayId ==
-              normalizedDayId,
-        )
+        .where((comment) => comment.dayId == normalizedDayId)
         .toList();
 
     if (removed.isEmpty) {
       return;
     }
 
-    _comments.removeWhere(
-      (
-        comment,
-      ) =>
-          comment.dayId ==
-          normalizedDayId,
-    );
+    _comments.removeWhere((comment) => comment.dayId == normalizedDayId);
 
     notifyListeners();
 
     try {
-      await _repository.deleteByDay(
-        normalizedDayId,
-      );
-    } catch (
-      error
-    ) {
-      _comments.addAll(
-        removed,
-      );
+      await _repository.deleteByDay(normalizedDayId);
+    } catch (error) {
+      _comments.addAll(removed);
 
       _sortComments();
 
-      _setError(
-        error,
-      );
+      _setError(error);
 
       notifyListeners();
     }
@@ -980,31 +729,18 @@ class BoardCommentController
   // ATUALIZAR COMENTÁRIO COMPLETO
   // ============================================================
 
-  Future<
-    void
-  >
-  update(
-    BoardComment comment,
-  ) async {
+  Future<void> update(BoardComment comment) async {
     _saving = true;
     _errorMessage = null;
 
     notifyListeners();
 
     try {
-      final updated = await _repository.update(
-        comment,
-      );
+      final updated = await _repository.update(comment);
 
-      _replaceLocal(
-        updated,
-      );
-    } catch (
-      error
-    ) {
-      _setError(
-        error,
-      );
+      _replaceLocal(updated);
+    } catch (error) {
+      _setError(error);
     } finally {
       _saving = false;
 
@@ -1016,22 +752,11 @@ class BoardCommentController
   // HELPERS
   // ============================================================
 
-  void _replaceLocal(
-    BoardComment comment,
-  ) {
-    final index = _comments.indexWhere(
-      (
-        item,
-      ) =>
-          item.id ==
-          comment.id,
-    );
+  void _replaceLocal(BoardComment comment) {
+    final index = _comments.indexWhere((item) => item.id == comment.id);
 
-    if (index <
-        0) {
-      _comments.add(
-        comment,
-      );
+    if (index < 0) {
+      _comments.add(comment);
     } else {
       _comments[index] = comment;
     }
@@ -1042,25 +767,15 @@ class BoardCommentController
   }
 
   void _sortComments() {
-    _comments.sort(
-      (
-        a,
-        b,
-      ) {
-        return a.createdAt.compareTo(
-          b.createdAt,
-        );
-      },
-    );
+    _comments.sort((a, b) {
+      return a.createdAt.compareTo(b.createdAt);
+    });
   }
 
   String _createStableId() {
     final random = Random.secure();
 
-    final bytes = List<int>.generate(
-      16,
-      (_) => random.nextInt(256),
-    );
+    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
 
     bytes[6] = (bytes[6] & 0x0F) | 0x40;
     bytes[8] = (bytes[8] & 0x3F) | 0x80;

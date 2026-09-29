@@ -146,3 +146,11 @@ RoutineController createRoutineControllerForCurrentUser({String? userId}) {
 
 final RoutineWebTelegramConnectionController telegramConnectionController =
     RoutineWebTelegramConnectionController();
+
+// ============================================================
+// ROUTINE REALTIME PREPARE - WEB
+// ============================================================
+
+Future<void> prepareRoutineRealtimeRefresh() async {
+  // Web grava diretamente no Supabase.
+}

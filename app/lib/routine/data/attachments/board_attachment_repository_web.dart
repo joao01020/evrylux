@@ -8,9 +8,8 @@ import '../../models/attachments/board_attachment.dart';
 import '../../models/attachments/board_attachment_type.dart';
 
 class BoardAttachmentRepository {
-  BoardAttachmentRepository({
-    SupabaseClient? client,
-  }) : _client = client ?? Supabase.instance.client;
+  BoardAttachmentRepository({SupabaseClient? client})
+    : _client = client ?? Supabase.instance.client;
 
   static const String remoteTable = 'board_attachments';
   static const String storageBucket = 'board-files';
@@ -38,9 +37,7 @@ class BoardAttachmentRepository {
 
     return rows
         .map<BoardAttachment>(
-          (row) => BoardAttachment.fromMap(
-            Map<String, dynamic>.from(row),
-          ),
+          (row) => BoardAttachment.fromMap(Map<String, dynamic>.from(row)),
         )
         .toList(growable: false);
   }
@@ -59,11 +56,13 @@ class BoardAttachmentRepository {
 
     return rows
         .map<BoardAttachment>(
-          (row) => BoardAttachment.fromMap(
-            Map<String, dynamic>.from(row),
-          ),
+          (row) => BoardAttachment.fromMap(Map<String, dynamic>.from(row)),
         )
         .toList(growable: false);
+  }
+
+  Future<List<BoardAttachment>> refreshByBoardId(String boardId) {
+    return loadByBoardId(boardId);
   }
 
   Future<List<BoardAttachment>> loadByBlockId({
@@ -85,9 +84,7 @@ class BoardAttachmentRepository {
 
     return rows
         .map<BoardAttachment>(
-          (row) => BoardAttachment.fromMap(
-            Map<String, dynamic>.from(row),
-          ),
+          (row) => BoardAttachment.fromMap(Map<String, dynamic>.from(row)),
         )
         .toList(growable: false);
   }
@@ -110,9 +107,7 @@ class BoardAttachmentRepository {
     final row = await query.maybeSingle();
     if (row == null) return null;
 
-    return BoardAttachment.fromMap(
-      Map<String, dynamic>.from(row),
-    );
+    return BoardAttachment.fromMap(Map<String, dynamic>.from(row));
   }
 
   Future<BoardAttachment> importAttachment({
@@ -143,14 +138,16 @@ class BoardAttachmentRepository {
     final type = BoardAttachmentTypeX.fromFileName(normalizedName);
     final path = '${user.id}/$normalizedBoard/$id/$normalizedName';
 
-    await _client.storage.from(storageBucket).uploadBinary(
-      path,
-      Uint8List.fromList(bytes),
-      fileOptions: FileOptions(
-        upsert: false,
-        contentType: mimeType ?? type.mimeType,
-      ),
-    );
+    await _client.storage
+        .from(storageBucket)
+        .uploadBinary(
+          path,
+          Uint8List.fromList(bytes),
+          fileOptions: FileOptions(
+            upsert: false,
+            contentType: mimeType ?? type.mimeType,
+          ),
+        );
 
     final payload = <String, dynamic>{
       'id': id,
@@ -174,9 +171,7 @@ class BoardAttachmentRepository {
           .select()
           .single();
 
-      return BoardAttachment.fromMap(
-        Map<String, dynamic>.from(row),
-      );
+      return BoardAttachment.fromMap(Map<String, dynamic>.from(row));
     } catch (_) {
       try {
         await _client.storage.from(storageBucket).remove(<String>[path]);
@@ -200,14 +195,16 @@ class BoardAttachmentRepository {
     final path = _remotePath(attachment);
     final bytes = Uint8List.fromList(utf8.encode(content));
 
-    await _client.storage.from(storageBucket).updateBinary(
-      path,
-      bytes,
-      fileOptions: FileOptions(
-        upsert: true,
-        contentType: attachment.mimeType ?? attachment.type.mimeType,
-      ),
-    );
+    await _client.storage
+        .from(storageBucket)
+        .updateBinary(
+          path,
+          bytes,
+          fileOptions: FileOptions(
+            upsert: true,
+            contentType: attachment.mimeType ?? attachment.type.mimeType,
+          ),
+        );
 
     return saveMetadata(
       attachment.copyWith(
@@ -226,19 +223,14 @@ class BoardAttachmentRepository {
 
     final row = await _client
         .from(remoteTable)
-        .upsert(
-          <String, dynamic>{
-            ...updated.toRemoteMap(),
-            'is_deleted': false,
-          },
-          onConflict: 'id',
-        )
+        .upsert(<String, dynamic>{
+          ...updated.toRemoteMap(),
+          'is_deleted': false,
+        }, onConflict: 'id')
         .select()
         .single();
 
-    return BoardAttachment.fromMap(
-      Map<String, dynamic>.from(row),
-    );
+    return BoardAttachment.fromMap(Map<String, dynamic>.from(row));
   }
 
   Future<bool> localFileExists(BoardAttachment attachment) async {
@@ -279,10 +271,7 @@ class BoardAttachmentRepository {
     return getById(id, includeDeleted: true);
   }
 
-  Future<void> markSynced({
-    required String id,
-    String? remotePath,
-  }) async {}
+  Future<void> markSynced({required String id, String? remotePath}) async {}
 
   Future<void> deletePermanently(String id) => deleteById(id);
 

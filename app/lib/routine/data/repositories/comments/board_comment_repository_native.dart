@@ -89,9 +89,68 @@ class BoardCommentRepository {
     }
   }
 
-  Future<List<BoardComment>> fetchAll({
+  Future<List<BoardComment>> refreshByDay({
+    required String dayId,
     bool includeResolved = false,
   }) async {
+    final user = _requireUser();
+    final normalizedDayId = _required(dayId, 'dayId');
+
+    try {
+      await _syncService?.syncNow(checkConnection: true);
+    } catch (_) {}
+
+    final remote = await _remoteDataSource.fetchByDay(
+      dayId: normalizedDayId,
+      includeResolved: true,
+    );
+
+    final local = await _localDao.getByDay(
+      userId: user.id,
+      dayId: normalizedDayId,
+      includeResolved: true,
+    );
+
+    final remoteIds = remote.map((item) => item.id).toSet();
+
+    for (final comment in remote) {
+      final pending = await _syncQueue.findByEntity(
+        entityType: entityType,
+        entityId: comment.id,
+      );
+
+      if (pending != null) continue;
+
+      await _localDao.upsert(
+        comment,
+        userId: user.id,
+        syncStatus: SyncStatus.synced,
+      );
+    }
+
+    for (final comment in local) {
+      if (remoteIds.contains(comment.id)) continue;
+
+      final pending = await _syncQueue.findByEntity(
+        entityType: entityType,
+        entityId: comment.id,
+      );
+
+      if (pending == null) {
+        await _localDao.deletePermanently(comment.id);
+      }
+    }
+
+    await _localDao.markDayInitialized(userId: user.id, dayId: normalizedDayId);
+
+    return _localDao.getByDay(
+      userId: user.id,
+      dayId: normalizedDayId,
+      includeResolved: includeResolved,
+    );
+  }
+
+  Future<List<BoardComment>> fetchAll({bool includeResolved = false}) async {
     final user = _requireUser();
 
     final local = await _localDao.getAll(
@@ -104,9 +163,7 @@ class BoardCommentRepository {
     }
 
     try {
-      final remote = await _remoteDataSource.fetchAll(
-        includeResolved: true,
-      );
+      final remote = await _remoteDataSource.fetchAll(includeResolved: true);
 
       for (final comment in remote) {
         await _localDao.upsert(
@@ -140,10 +197,7 @@ class BoardCommentRepository {
       syncStatus: SyncStatus.pendingCreate,
     );
 
-    await _localDao.markDayInitialized(
-      userId: user.id,
-      dayId: comment.dayId,
-    );
+    await _localDao.markDayInitialized(userId: user.id, dayId: comment.dayId);
     await _localDao.markAllInitialized(userId: user.id);
 
     await _queueComment(
@@ -161,10 +215,7 @@ class BoardCommentRepository {
     await _localDao.upsert(
       comment,
       userId: user.id,
-      syncStatus: await _saveStatus(
-        userId: user.id,
-        id: comment.id,
-      ),
+      syncStatus: await _saveStatus(userId: user.id, id: comment.id),
     );
 
     await _queueComment(
@@ -181,11 +232,7 @@ class BoardCommentRepository {
     required String message,
   }) async {
     final current = await _requireLocalComment(commentId);
-    return update(
-      current.copyWith(
-        message: _required(message, 'message'),
-      ),
-    );
+    return update(current.copyWith(message: _required(message, 'message')));
   }
 
   Future<BoardComment> updatePosition({
@@ -229,10 +276,7 @@ class BoardCommentRepository {
     );
 
     if (previousStatus != SyncStatus.pendingCreate) {
-      await _localDao.markDeleted(
-        userId: user.id,
-        id: id,
-      );
+      await _localDao.markDeleted(userId: user.id, id: id);
     }
 
     await _syncQueue.enqueue(
@@ -257,10 +301,7 @@ class BoardCommentRepository {
     final user = _requireUser();
     final normalizedDayId = _required(dayId, 'dayId');
 
-    await _localDao.markDayInitialized(
-      userId: user.id,
-      dayId: normalizedDayId,
-    );
+    await _localDao.markDayInitialized(userId: user.id, dayId: normalizedDayId);
 
     final comments = await _localDao.getByDay(
       userId: user.id,
@@ -297,10 +338,7 @@ class BoardCommentRepository {
     required String userId,
     required String id,
   }) async {
-    final current = await _localDao.getSyncStatus(
-      userId: userId,
-      id: id,
-    );
+    final current = await _localDao.getSyncStatus(userId: userId, id: id);
     return current == SyncStatus.pendingCreate
         ? SyncStatus.pendingCreate
         : SyncStatus.pendingUpdate;

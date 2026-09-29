@@ -4,9 +4,7 @@ import '../dtos/routine_day_dto.dart';
 import '../mappers/routine_day_mapper.dart';
 import 'routine_repository.dart';
 
-class SupabaseRoutineRepository
-    implements
-        RoutineRepository {
+class SupabaseRoutineRepository implements RoutineRepository {
   const SupabaseRoutineRepository({
     required RoutineRemoteDataSource remoteDataSource,
   }) : _remoteDataSource = remoteDataSource;
@@ -18,53 +16,42 @@ class SupabaseRoutineRepository
   // ============================================================
 
   @override
-  Future<
-    List<
-      RoutineDay
-    >
-  >
-  loadWeek({
+  Future<List<RoutineDay>> loadWeek({
     required String userId,
     required DateTime weekStart,
   }) async {
-    _remoteDataSource.ensureAuthenticatedUser(
-      userId,
-    );
+    _remoteDataSource.ensureAuthenticatedUser(userId);
 
     final records = await _remoteDataSource.loadWeek(
       userId: userId,
       weekStart: weekStart,
     );
 
-    final days =
-        <
-          RoutineDay
-        >[];
+    final days = <RoutineDay>[];
 
     for (final record in records) {
-      final dto = RoutineDayDto.fromMap(
-        record,
-      );
+      final dto = RoutineDayDto.fromMap(record);
 
-      final model = RoutineDayMapper.toModel(
-        dto,
-      );
+      final model = RoutineDayMapper.toModel(dto);
 
-      days.add(
-        model,
-      );
+      days.add(model);
     }
 
-    days.sort(
-      (
-        a,
-        b,
-      ) => a.normalizedDate.compareTo(
-        b.normalizedDate,
-      ),
-    );
+    days.sort((a, b) => a.normalizedDate.compareTo(b.normalizedDate));
 
     return days;
+  }
+
+  // ============================================================
+  // REFRESH WEEK FROM REMOTE
+  // ============================================================
+
+  @override
+  Future<List<RoutineDay>> refreshWeekFromRemote({
+    required String userId,
+    required DateTime weekStart,
+  }) {
+    return loadWeek(userId: userId, weekStart: weekStart);
   }
 
   // ============================================================
@@ -72,34 +59,21 @@ class SupabaseRoutineRepository
   // ============================================================
 
   @override
-  Future<
-    RoutineDay?
-  >
-  loadDay({
+  Future<RoutineDay?> loadDay({
     required String userId,
     required DateTime date,
   }) async {
-    _remoteDataSource.ensureAuthenticatedUser(
-      userId,
-    );
+    _remoteDataSource.ensureAuthenticatedUser(userId);
 
-    final record = await _remoteDataSource.getDay(
-      userId: userId,
-      date: date,
-    );
+    final record = await _remoteDataSource.getDay(userId: userId, date: date);
 
-    if (record ==
-        null) {
+    if (record == null) {
       return null;
     }
 
-    final dto = RoutineDayDto.fromMap(
-      record,
-    );
+    final dto = RoutineDayDto.fromMap(record);
 
-    return RoutineDayMapper.toModel(
-      dto,
-    );
+    return RoutineDayMapper.toModel(dto);
   }
 
   // ============================================================
@@ -107,21 +81,13 @@ class SupabaseRoutineRepository
   // ============================================================
 
   @override
-  Future<
-    RoutineDay
-  >
-  saveDay({
+  Future<RoutineDay> saveDay({
     required String userId,
     required RoutineDay day,
   }) async {
-    _remoteDataSource.ensureAuthenticatedUser(
-      userId,
-    );
+    _remoteDataSource.ensureAuthenticatedUser(userId);
 
-    final dto = RoutineDayMapper.toDto(
-      model: day,
-      userId: userId,
-    );
+    final dto = RoutineDayMapper.toDto(model: day, userId: userId);
 
     // ==========================================================
     // IMPORTANTE
@@ -137,22 +103,16 @@ class SupabaseRoutineRepository
     //
     // ==========================================================
 
-    final payload = dto.toMap(
-      includeBlocks: true,
-    );
+    final payload = dto.toMap(includeBlocks: true);
 
     final record = await _remoteDataSource.saveDay(
       userId: userId,
       data: payload,
     );
 
-    final savedDto = RoutineDayDto.fromMap(
-      record,
-    );
+    final savedDto = RoutineDayDto.fromMap(record);
 
-    return RoutineDayMapper.toModel(
-      savedDto,
-    );
+    return RoutineDayMapper.toModel(savedDto);
   }
 
   // ============================================================
@@ -160,21 +120,13 @@ class SupabaseRoutineRepository
   // ============================================================
 
   @override
-  Future<
-    void
-  >
-  deleteDay({
+  Future<void> deleteDay({
     required String userId,
     required String dayId,
   }) async {
-    _remoteDataSource.ensureAuthenticatedUser(
-      userId,
-    );
+    _remoteDataSource.ensureAuthenticatedUser(userId);
 
-    await _remoteDataSource.deleteDay(
-      userId: userId,
-      dayId: dayId,
-    );
+    await _remoteDataSource.deleteDay(userId: userId, dayId: dayId);
   }
 
   // ============================================================
@@ -182,21 +134,13 @@ class SupabaseRoutineRepository
   // ============================================================
 
   @override
-  Future<
-    bool
-  >
-  dayExists({
+  Future<bool> dayExists({
     required String userId,
     required DateTime date,
   }) async {
-    _remoteDataSource.ensureAuthenticatedUser(
-      userId,
-    );
+    _remoteDataSource.ensureAuthenticatedUser(userId);
 
-    return _remoteDataSource.dayExists(
-      userId: userId,
-      date: date,
-    );
+    return _remoteDataSource.dayExists(userId: userId, date: date);
   }
 
   // ============================================================
@@ -204,12 +148,7 @@ class SupabaseRoutineRepository
   // ============================================================
 
   @override
-  Future<
-    void
-  >
-  clearLocalData(
-    String userId,
-  ) async {
+  Future<void> clearLocalData(String userId) async {
     // ==========================================================
     // Este repository trabalha diretamente com o Supabase.
     //

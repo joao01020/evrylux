@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/sync/sync_item.dart';
@@ -87,10 +88,7 @@ class BoardAttachmentRepository {
   // INITIALIZE
   // ============================================================
 
-  Future<
-    void
-  >
-  initialize() {
+  Future<void> initialize() {
     return _localDao.initialize();
   }
 
@@ -101,11 +99,8 @@ class BoardAttachmentRepository {
   User _requireUser() {
     final user = _client.auth.currentUser;
 
-    if (user ==
-        null) {
-      throw StateError(
-        'Usuário não autenticado.',
-      );
+    if (user == null) {
+      throw StateError('Usuário não autenticado.');
     }
 
     return user;
@@ -115,68 +110,123 @@ class BoardAttachmentRepository {
   // LOAD ALL
   // ============================================================
 
-  Future<
-    List<
-      BoardAttachment
-    >
-  >
-  loadAll() async {
+  Future<List<BoardAttachment>> loadAll() async {
     final user = _requireUser();
 
-    return _localDao.getAll(
-      userId: user.id,
-    );
+    return _localDao.getAll(userId: user.id);
   }
 
   // ============================================================
   // LOAD BOARD
   // ============================================================
 
-  Future<
-    List<
-      BoardAttachment
-    >
-  >
-  loadByBoardId(
-    String boardId,
-  ) async {
+  Future<List<BoardAttachment>> loadByBoardId(String boardId) async {
     final user = _requireUser();
 
-    final normalizedBoardId = _normalizeRequired(
-      boardId,
-      fieldName: 'boardId',
-    );
+    final normalizedBoardId = _normalizeRequired(boardId, fieldName: 'boardId');
 
-    return _localDao.getByBoardId(
+    return _localDao.getByBoardId(userId: user.id, boardId: normalizedBoardId);
+  }
+
+  // ============================================================
+  // REALTIME / REMOTE REFRESH
+  // ============================================================
+
+  Future<List<BoardAttachment>> refreshByBoardId(String boardId) async {
+    final user = _requireUser();
+    final normalizedBoardId = _normalizeRequired(boardId, fieldName: 'boardId');
+
+    try {
+      await _syncService?.syncNow(checkConnection: true);
+    } catch (_) {}
+
+    final response = await _client
+        .from(remoteTable)
+        .select()
+        .eq('user_id', user.id)
+        .eq('board_id', normalizedBoardId)
+        .eq('is_deleted', false)
+        .order('created_at');
+
+    final remote = (response as List)
+        .map(
+          (row) =>
+              BoardAttachment.fromMap(Map<String, dynamic>.from(row as Map)),
+        )
+        .toList(growable: false);
+
+    final local = await _localDao.getByBoardId(
       userId: user.id,
       boardId: normalizedBoardId,
     );
+
+    final remoteIds = remote.map((item) => item.id).toSet();
+
+    for (var attachment in remote) {
+      final pending = await _syncQueue.findByEntity(
+        entityType: entityType,
+        entityId: attachment.id,
+      );
+
+      if (pending != null) continue;
+
+      final existing = await _localDao.getById(
+        userId: user.id,
+        id: attachment.id,
+        includeDeleted: true,
+      );
+
+      if (existing != null &&
+          existing.localPath.trim().isNotEmpty &&
+          await _service.exists(existing)) {
+        attachment = attachment.copyWith(localPath: existing.localPath);
+      } else if (attachment.hasRemoteCopy) {
+        try {
+          attachment = await _service.materializeRemoteAttachment(attachment);
+        } catch (error) {
+          debugPrint(
+            '[BOARD ATTACHMENT][REALTIME] '
+            'Falha baixando ${attachment.id}: $error',
+          );
+        }
+      }
+
+      await _localDao.upsert(attachment, syncStatus: SyncStatus.synced);
+    }
+
+    for (final attachment in local) {
+      if (remoteIds.contains(attachment.id)) continue;
+
+      final pending = await _syncQueue.findByEntity(
+        entityType: entityType,
+        entityId: attachment.id,
+      );
+
+      if (pending != null) continue;
+
+      try {
+        await _service.deleteLocal(attachment);
+      } catch (_) {}
+
+      await _localDao.deletePermanently(userId: user.id, id: attachment.id);
+    }
+
+    return _localDao.getByBoardId(userId: user.id, boardId: normalizedBoardId);
   }
 
   // ============================================================
   // LOAD BLOCK
   // ============================================================
 
-  Future<
-    List<
-      BoardAttachment
-    >
-  >
-  loadByBlockId({
+  Future<List<BoardAttachment>> loadByBlockId({
     required String boardId,
     required String blockId,
   }) async {
     final user = _requireUser();
 
-    final normalizedBoardId = _normalizeRequired(
-      boardId,
-      fieldName: 'boardId',
-    );
+    final normalizedBoardId = _normalizeRequired(boardId, fieldName: 'boardId');
 
-    final normalizedBlockId = _normalizeRequired(
-      blockId,
-      fieldName: 'blockId',
-    );
+    final normalizedBlockId = _normalizeRequired(blockId, fieldName: 'blockId');
 
     return _localDao.getByBlockId(
       userId: user.id,
@@ -189,19 +239,13 @@ class BoardAttachmentRepository {
   // GET BY ID
   // ============================================================
 
-  Future<
-    BoardAttachment?
-  >
-  getById(
+  Future<BoardAttachment?> getById(
     String id, {
     bool includeDeleted = false,
   }) async {
     final user = _requireUser();
 
-    final normalizedId = _normalizeRequired(
-      id,
-      fieldName: 'id',
-    );
+    final normalizedId = _normalizeRequired(id, fieldName: 'id');
 
     return _localDao.getById(
       userId: user.id,
@@ -227,10 +271,7 @@ class BoardAttachmentRepository {
   //
   // ============================================================
 
-  Future<
-    BoardAttachment
-  >
-  importAttachment({
+  Future<BoardAttachment> importAttachment({
     required String boardId,
     required String blockId,
     required String sourcePath,
@@ -243,36 +284,21 @@ class BoardAttachmentRepository {
       sourcePath: sourcePath,
     );
 
-    _assertOwner(
-      attachment,
-      user.id,
-    );
+    _assertOwner(attachment, user.id);
 
     try {
-      await _localDao.upsert(
-        attachment,
-        syncStatus: SyncStatus.pendingCreate,
-      );
-    } catch (
-      _
-    ) {
+      await _localDao.upsert(attachment, syncStatus: SyncStatus.pendingCreate);
+    } catch (_) {
       try {
-        await _service.deleteLocal(
-          attachment,
-        );
-      } catch (
-        _
-      ) {
+        await _service.deleteLocal(attachment);
+      } catch (_) {
         // Ignora erro de limpeza.
       }
 
       rethrow;
     }
 
-    await _enqueue(
-      attachment: attachment,
-      operation: SyncOperation.create,
-    );
+    await _enqueue(attachment: attachment, operation: SyncOperation.create);
 
     return attachment;
   }
@@ -294,56 +320,34 @@ class BoardAttachmentRepository {
   // READ TEXT
   // ============================================================
 
-  Future<
-    String
-  >
-  readText(
-    BoardAttachment attachment,
-  ) async {
+  Future<String> readText(BoardAttachment attachment) async {
     final user = _requireUser();
 
-    _assertOwner(
-      attachment,
-      user.id,
-    );
+    _assertOwner(attachment, user.id);
 
-    return _service.readText(
-      attachment,
-    );
+    return _service.readText(attachment);
   }
 
   // ============================================================
   // SAVE TEXT
   // ============================================================
 
-  Future<
-    BoardAttachment
-  >
-  saveText({
+  Future<BoardAttachment> saveText({
     required BoardAttachment attachment,
     required String content,
   }) async {
     final user = _requireUser();
 
-    _assertOwner(
-      attachment,
-      user.id,
-    );
+    _assertOwner(attachment, user.id);
 
     final updated = await _service.writeText(
       attachment: attachment,
       content: content,
     );
 
-    await _localDao.upsert(
-      updated,
-      syncStatus: SyncStatus.pendingUpdate,
-    );
+    await _localDao.upsert(updated, syncStatus: SyncStatus.pendingUpdate);
 
-    await _enqueue(
-      attachment: updated,
-      operation: SyncOperation.update,
-    );
+    await _enqueue(attachment: updated, operation: SyncOperation.update);
 
     return updated;
   }
@@ -352,18 +356,10 @@ class BoardAttachmentRepository {
   // SAVE METADATA
   // ============================================================
 
-  Future<
-    BoardAttachment
-  >
-  saveMetadata(
-    BoardAttachment attachment,
-  ) async {
+  Future<BoardAttachment> saveMetadata(BoardAttachment attachment) async {
     final user = _requireUser();
 
-    _assertOwner(
-      attachment,
-      user.id,
-    );
+    _assertOwner(attachment, user.id);
 
     final existing = await _localDao.getById(
       userId: user.id,
@@ -371,15 +367,11 @@ class BoardAttachmentRepository {
       includeDeleted: true,
     );
 
-    final operation =
-        existing ==
-            null
+    final operation = existing == null
         ? SyncOperation.create
         : SyncOperation.update;
 
-    final status =
-        existing ==
-            null
+    final status = existing == null
         ? SyncStatus.pendingCreate
         : SyncStatus.pendingUpdate;
 
@@ -388,15 +380,9 @@ class BoardAttachmentRepository {
       isDeleted: false,
     );
 
-    await _localDao.upsert(
-      updated,
-      syncStatus: status,
-    );
+    await _localDao.upsert(updated, syncStatus: status);
 
-    await _enqueue(
-      attachment: updated,
-      operation: operation,
-    );
+    await _enqueue(attachment: updated, operation: operation);
 
     return updated;
   }
@@ -405,22 +391,12 @@ class BoardAttachmentRepository {
   // EXISTS LOCAL FILE
   // ============================================================
 
-  Future<
-    bool
-  >
-  localFileExists(
-    BoardAttachment attachment,
-  ) async {
+  Future<bool> localFileExists(BoardAttachment attachment) async {
     final user = _requireUser();
 
-    _assertOwner(
-      attachment,
-      user.id,
-    );
+    _assertOwner(attachment, user.id);
 
-    return _service.exists(
-      attachment,
-    );
+    return _service.exists(attachment);
   }
 
   // ============================================================
@@ -437,18 +413,10 @@ class BoardAttachmentRepository {
   //
   // ============================================================
 
-  Future<
-    void
-  >
-  delete(
-    BoardAttachment attachment,
-  ) async {
+  Future<void> delete(BoardAttachment attachment) async {
     final user = _requireUser();
 
-    _assertOwner(
-      attachment,
-      user.id,
-    );
+    _assertOwner(attachment, user.id);
 
     await _localDao.markDeleted(
       userId: user.id,
@@ -460,28 +428,20 @@ class BoardAttachmentRepository {
       entityType: entityType,
       entityId: attachment.id,
       operation: SyncOperation.delete,
-      payload:
-          <
-            String,
-            dynamic
-          >{
-            'id': attachment.id,
-            'user_id': user.id,
-            'board_id': attachment.boardId,
-            'block_id': attachment.blockId,
-            'file_name': attachment.fileName,
-            'remote_path': attachment.remotePath,
-            'storage_bucket': storageBucket,
-          },
+      payload: <String, dynamic>{
+        'id': attachment.id,
+        'user_id': user.id,
+        'board_id': attachment.boardId,
+        'block_id': attachment.blockId,
+        'file_name': attachment.fileName,
+        'remote_path': attachment.remotePath,
+        'storage_bucket': storageBucket,
+      },
     );
 
     try {
-      await _service.deleteLocal(
-        attachment,
-      );
-    } catch (
-      _
-    ) {
+      await _service.deleteLocal(attachment);
+    } catch (_) {
       // O registro já está marcado para exclusão.
       //
       // Falha ao apagar o arquivo físico não deve desfazer
@@ -495,24 +455,14 @@ class BoardAttachmentRepository {
   // DELETE BY ID
   // ============================================================
 
-  Future<
-    void
-  >
-  deleteById(
-    String id,
-  ) async {
-    final attachment = await getById(
-      id,
-    );
+  Future<void> deleteById(String id) async {
+    final attachment = await getById(id);
 
-    if (attachment ==
-        null) {
+    if (attachment == null) {
       return;
     }
 
-    await delete(
-      attachment,
-    );
+    await delete(attachment);
   }
 
   // ============================================================
@@ -526,18 +476,10 @@ class BoardAttachmentRepository {
   //
   // ============================================================
 
-  Future<
-    BoardAttachment?
-  >
-  restore(
-    String id,
-  ) async {
+  Future<BoardAttachment?> restore(String id) async {
     final user = _requireUser();
 
-    final normalizedId = _normalizeRequired(
-      id,
-      fieldName: 'id',
-    );
+    final normalizedId = _normalizeRequired(id, fieldName: 'id');
 
     final attachment = await _localDao.getById(
       userId: user.id,
@@ -545,8 +487,7 @@ class BoardAttachmentRepository {
       includeDeleted: true,
     );
 
-    if (attachment ==
-        null) {
+    if (attachment == null) {
       return null;
     }
 
@@ -561,10 +502,7 @@ class BoardAttachmentRepository {
       updatedAt: DateTime.now().toUtc(),
     );
 
-    await _enqueue(
-      attachment: restored,
-      operation: SyncOperation.update,
-    );
+    await _enqueue(attachment: restored, operation: SyncOperation.update);
 
     return restored;
   }
@@ -578,22 +516,12 @@ class BoardAttachmentRepository {
   //
   // ============================================================
 
-  Future<
-    void
-  >
-  markSynced({
-    required String id,
-    String? remotePath,
-  }) async {
+  Future<void> markSynced({required String id, String? remotePath}) async {
     final user = _requireUser();
 
-    final normalizedId = _normalizeRequired(
-      id,
-      fieldName: 'id',
-    );
+    final normalizedId = _normalizeRequired(id, fieldName: 'id');
 
-    if (remotePath !=
-        null) {
+    if (remotePath != null) {
       await _localDao.updateRemotePath(
         userId: user.id,
         id: normalizedId,
@@ -620,74 +548,45 @@ class BoardAttachmentRepository {
   //
   // ============================================================
 
-  Future<
-    void
-  >
-  deletePermanently(
-    String id,
-  ) async {
+  Future<void> deletePermanently(String id) async {
     final user = _requireUser();
 
-    final normalizedId = _normalizeRequired(
-      id,
-      fieldName: 'id',
-    );
+    final normalizedId = _normalizeRequired(id, fieldName: 'id');
 
-    await _localDao.deletePermanently(
-      userId: user.id,
-      id: normalizedId,
-    );
+    await _localDao.deletePermanently(userId: user.id, id: normalizedId);
   }
 
   // ============================================================
   // COUNT BOARD
   // ============================================================
 
-  Future<
-    int
-  >
-  countByBoard(
-    String boardId,
-  ) async {
+  Future<int> countByBoard(String boardId) async {
     final user = _requireUser();
 
-    final normalizedBoardId = _normalizeRequired(
-      boardId,
-      fieldName: 'boardId',
-    );
+    final normalizedBoardId = _normalizeRequired(boardId, fieldName: 'boardId');
 
-    return _localDao.countByBoard(
-      userId: user.id,
-      boardId: normalizedBoardId,
-    );
+    return _localDao.countByBoard(userId: user.id, boardId: normalizedBoardId);
   }
 
   // ============================================================
   // QUEUE
   // ============================================================
 
-  Future<
-    void
-  >
-  _enqueue({
+  Future<void> _enqueue({
     required BoardAttachment attachment,
     required SyncOperation operation,
   }) async {
-    final payload =
-        <
-          String,
-          dynamic
-        >{
-          ...attachment.toRemoteMap(),
+    final payload = <String, dynamic>{
+      ...attachment.toRemoteMap(),
 
-          // Este caminho NÃO deve ser salvo no Supabase.
-          //
-          // Ele existe apenas na fila local para que o futuro
-          // handler consiga localizar o arquivo e fazer upload.
-          'local_path': attachment.localPath,
+      // Este caminho NÃO deve ser salvo no Supabase.
+      //
+      // Ele existe apenas na fila local para que o futuro
+      // handler consiga localizar o arquivo e fazer upload.
+      'local_path': attachment.localPath,
 
-          'storage_bucket': storageBucket,
-        };
+      'storage_bucket': storageBucket,
+    };
 
     await _syncQueue.enqueue(
       entityType: entityType,
@@ -703,15 +602,9 @@ class BoardAttachmentRepository {
   // OWNER
   // ============================================================
 
-  void _assertOwner(
-    BoardAttachment attachment,
-    String currentUserId,
-  ) {
-    if (attachment.userId !=
-        currentUserId) {
-      throw StateError(
-        'O anexo não pertence ao usuário autenticado.',
-      );
+  void _assertOwner(BoardAttachment attachment, String currentUserId) {
+    if (attachment.userId != currentUserId) {
+      throw StateError('O anexo não pertence ao usuário autenticado.');
     }
   }
 
@@ -719,10 +612,7 @@ class BoardAttachmentRepository {
   // NORMALIZE
   // ============================================================
 
-  String _normalizeRequired(
-    String value, {
-    required String fieldName,
-  }) {
+  String _normalizeRequired(String value, {required String fieldName}) {
     final normalized = value.trim();
 
     if (normalized.isEmpty) {

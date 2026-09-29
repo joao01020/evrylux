@@ -17,56 +17,34 @@ class BoardAttachmentService {
   final BoardAttachmentStorage _storage;
   final SupabaseClient _client;
 
-  Future<
-    BoardAttachment
-  >
-  importAttachment({
+  Future<BoardAttachment> importAttachment({
     required String boardId,
     required String blockId,
     required String sourcePath,
   }) async {
     final user = _client.auth.currentUser;
 
-    if (user ==
-        null) {
-      throw StateError(
-        'Usuário não autenticado.',
-      );
+    if (user == null) {
+      throw StateError('Usuário não autenticado.');
     }
 
-    final normalizedBoardId = _requireValue(
-      boardId,
-      'boardId',
-    );
+    final normalizedBoardId = _requireValue(boardId, 'boardId');
 
-    final normalizedBlockId = _requireValue(
-      blockId,
-      'blockId',
-    );
+    final normalizedBlockId = _requireValue(blockId, 'blockId');
 
-    final normalizedSourcePath = _requireValue(
-      sourcePath,
-      'sourcePath',
-    );
+    final normalizedSourcePath = _requireValue(sourcePath, 'sourcePath');
 
-    final fileName = _storage.fileNameFromPath(
-      normalizedSourcePath,
-    );
+    final fileName = _storage.fileNameFromPath(normalizedSourcePath);
 
-    final type = _storage.detectType(
-      fileName,
-    );
+    final type = _storage.detectType(fileName);
 
-    if (type ==
-        BoardAttachmentType.unknown) {
+    if (type == BoardAttachmentType.unknown) {
       throw UnsupportedError(
         'Tipo de arquivo ainda não suportado. Use .md ou .txt.',
       );
     }
 
-    final source = File(
-      normalizedSourcePath,
-    );
+    final source = File(normalizedSourcePath);
 
     if (!await source.exists()) {
       throw FileSystemException(
@@ -103,40 +81,46 @@ class BoardAttachmentService {
     );
   }
 
-  Future<
-    String
-  >
-  readText(
+  Future<BoardAttachment> materializeRemoteAttachment(
     BoardAttachment attachment,
-  ) {
-    _assertOwnership(
-      attachment,
+  ) async {
+    _assertOwnership(attachment);
+
+    final remotePath = attachment.remotePath?.trim();
+
+    if (remotePath == null || remotePath.isEmpty) {
+      return attachment;
+    }
+
+    final bytes = await _client.storage
+        .from('board-files')
+        .download(remotePath);
+
+    final file = await _storage.writeBytes(
+      boardId: attachment.boardId,
+      attachmentId: attachment.id,
+      fileName: attachment.fileName,
+      bytes: bytes,
     );
 
-    return _storage.readText(
-      attachment,
-    );
+    return attachment.copyWith(localPath: file.path, sizeBytes: bytes.length);
   }
 
-  Future<
-    BoardAttachment
-  >
-  writeText({
+  Future<String> readText(BoardAttachment attachment) {
+    _assertOwnership(attachment);
+
+    return _storage.readText(attachment);
+  }
+
+  Future<BoardAttachment> writeText({
     required BoardAttachment attachment,
     required String content,
   }) async {
-    _assertOwnership(
-      attachment,
-    );
+    _assertOwnership(attachment);
 
-    await _storage.writeText(
-      attachment: attachment,
-      content: content,
-    );
+    await _storage.writeText(attachment: attachment, content: content);
 
-    final file = File(
-      attachment.localPath,
-    );
+    final file = File(attachment.localPath);
 
     final sizeBytes = await file.length();
 
@@ -146,47 +130,23 @@ class BoardAttachmentService {
     );
   }
 
-  Future<
-    bool
-  >
-  exists(
-    BoardAttachment attachment,
-  ) {
-    _assertOwnership(
-      attachment,
-    );
+  Future<bool> exists(BoardAttachment attachment) {
+    _assertOwnership(attachment);
 
-    return _storage.exists(
-      attachment,
-    );
+    return _storage.exists(attachment);
   }
 
-  Future<
-    void
-  >
-  deleteLocal(
-    BoardAttachment attachment,
-  ) async {
-    _assertOwnership(
-      attachment,
-    );
+  Future<void> deleteLocal(BoardAttachment attachment) async {
+    _assertOwnership(attachment);
 
-    await _storage.deleteAttachmentFiles(
-      attachment,
-    );
+    await _storage.deleteAttachmentFiles(attachment);
   }
 
-  String buildRemotePath(
-    BoardAttachment attachment,
-  ) {
-    _assertOwnership(
-      attachment,
-    );
+  String buildRemotePath(BoardAttachment attachment) {
+    _assertOwnership(attachment);
 
     final safeName = attachment.fileName.trim().replaceAll(
-      RegExp(
-        r'[\\/:*?"<>|]',
-      ),
+      RegExp(r'[\\/:*?"<>|]'),
       '_',
     );
 
@@ -196,30 +156,19 @@ class BoardAttachmentService {
         '$safeName';
   }
 
-  void _assertOwnership(
-    BoardAttachment attachment,
-  ) {
+  void _assertOwnership(BoardAttachment attachment) {
     final user = _client.auth.currentUser;
 
-    if (user ==
-        null) {
-      throw StateError(
-        'Usuário não autenticado.',
-      );
+    if (user == null) {
+      throw StateError('Usuário não autenticado.');
     }
 
-    if (attachment.userId !=
-        user.id) {
-      throw StateError(
-        'O anexo não pertence ao usuário autenticado.',
-      );
+    if (attachment.userId != user.id) {
+      throw StateError('O anexo não pertence ao usuário autenticado.');
     }
   }
 
-  String _requireValue(
-    String value,
-    String fieldName,
-  ) {
+  String _requireValue(String value, String fieldName) {
     final normalized = value.trim();
 
     if (normalized.isEmpty) {
@@ -236,45 +185,16 @@ class BoardAttachmentService {
   String _uuidV4() {
     final random = Random.secure();
 
-    final bytes =
-        List<
-          int
-        >.generate(
-          16,
-          (
-            _,
-          ) => random.nextInt(
-            256,
-          ),
-        );
+    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
 
-    bytes[6] =
-        (bytes[6] &
-            0x0F) |
-        0x40;
-    bytes[8] =
-        (bytes[8] &
-            0x3F) |
-        0x80;
+    bytes[6] = (bytes[6] & 0x0F) | 0x40;
+    bytes[8] = (bytes[8] & 0x3F) | 0x80;
 
-    String hex(
-      int value,
-    ) {
-      return value
-          .toRadixString(
-            16,
-          )
-          .padLeft(
-            2,
-            '0',
-          );
+    String hex(int value) {
+      return value.toRadixString(16).padLeft(2, '0');
     }
 
-    final value = bytes
-        .map(
-          hex,
-        )
-        .join();
+    final value = bytes.map(hex).join();
 
     return '${value.substring(0, 8)}-'
         '${value.substring(8, 12)}-'

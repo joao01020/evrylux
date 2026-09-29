@@ -41,9 +41,7 @@ import 'routine_repository.dart';
 //
 // ============================================================
 
-class RoutineRepositoryImpl
-    implements
-        RoutineRepository {
+class RoutineRepositoryImpl implements RoutineRepository {
   RoutineRepositoryImpl({
     required RoutineLocalDataSource localDataSource,
     RoutineRemoteDataSource? remoteDataSource,
@@ -89,28 +87,15 @@ class RoutineRepositoryImpl
   // ============================================================
 
   @override
-  Future<
-    List<
-      RoutineDay
-    >
-  >
-  loadWeek({
+  Future<List<RoutineDay>> loadWeek({
     required String userId,
     required DateTime weekStart,
   }) async {
-    final normalizedUserId = _validateUserId(
-      userId,
-    );
+    final normalizedUserId = _validateUserId(userId);
 
-    final start = _dateOnly(
-      weekStart,
-    );
+    final start = _dateOnly(weekStart);
 
-    final end = start.add(
-      const Duration(
-        days: 6,
-      ),
-    );
+    final end = start.add(const Duration(days: 6));
 
     // ==========================================================
     // LOCAL FIRST
@@ -122,9 +107,7 @@ class RoutineRepositoryImpl
       weekEnd: end,
     );
 
-    final hasPending = await _hasPendingLocal(
-      normalizedUserId,
-    );
+    final hasPending = await _hasPendingLocal(normalizedUserId);
 
     // ==========================================================
     // CACHE LOCAL DISPONÍVEL
@@ -146,14 +129,9 @@ class RoutineRepositoryImpl
         _syncService.requestSync();
       }
 
-      _log(
-        'LOAD WEEK',
-        'Semana carregada imediatamente do SQLite.',
-      );
+      _log('LOAD WEEK', 'Semana carregada imediatamente do SQLite.');
 
-      return _recordsToModels(
-        localRecords,
-      );
+      return _recordsToModels(localRecords);
     }
 
     // ==========================================================
@@ -171,9 +149,7 @@ class RoutineRepositoryImpl
     if (hasPending) {
       _syncService.requestSync();
 
-      return const <
-        RoutineDay
-      >[];
+      return const <RoutineDay>[];
     }
 
     // ==========================================================
@@ -182,17 +158,11 @@ class RoutineRepositoryImpl
 
     final remote = _remoteDataSource;
 
-    if (remote !=
-        null) {
+    if (remote != null) {
       try {
-        _log(
-          'LOAD WEEK',
-          'Atualizando semana pelo Supabase.',
-        );
+        _log('LOAD WEEK', 'Atualizando semana pelo Supabase.');
 
-        remote.ensureAuthenticatedUser(
-          normalizedUserId,
-        );
+        remote.ensureAuthenticatedUser(normalizedUserId);
 
         final remoteRecords = await remote.loadWeek(
           userId: normalizedUserId,
@@ -206,29 +176,18 @@ class RoutineRepositoryImpl
           rangeEnd: end,
         );
 
-        return _recordsToModels(
-          remoteRecords,
-        );
-      } catch (
-        error,
-        stackTrace
-      ) {
+        return _recordsToModels(remoteRecords);
+      } catch (error, stackTrace) {
         _logError(
           operation: 'LOAD WEEK / SUPABASE',
           error: error,
           stackTrace: stackTrace,
         );
 
-        if (localRecords.isNotEmpty ||
-            fallbackToLocalOnRemoteError) {
-          _log(
-            'LOAD WEEK',
-            'Usando dados locais.',
-          );
+        if (localRecords.isNotEmpty || fallbackToLocalOnRemoteError) {
+          _log('LOAD WEEK', 'Usando dados locais.');
 
-          return _recordsToModels(
-            localRecords,
-          );
+          return _recordsToModels(localRecords);
         }
 
         rethrow;
@@ -239,9 +198,81 @@ class RoutineRepositoryImpl
     // LOCAL ONLY
     // ==========================================================
 
-    return _recordsToModels(
-      localRecords,
-    );
+    return _recordsToModels(localRecords);
+  }
+
+  // ============================================================
+  // REFRESH WEEK FROM REMOTE
+  // ============================================================
+
+  @override
+  Future<List<RoutineDay>> refreshWeekFromRemote({
+    required String userId,
+    required DateTime weekStart,
+  }) async {
+    final normalizedUserId = _validateUserId(userId);
+    final start = _dateOnly(weekStart);
+    final end = start.add(const Duration(days: 6));
+
+    try {
+      await _syncService.syncNow(checkConnection: true);
+    } catch (_) {}
+
+    if (await _hasPendingLocal(normalizedUserId)) {
+      _syncService.requestSync();
+
+      final local = await _localDataSource.loadWeek(
+        userId: normalizedUserId,
+        weekStart: start,
+        weekEnd: end,
+      );
+
+      return _recordsToModels(local);
+    }
+
+    final remote = _remoteDataSource;
+
+    if (remote == null) {
+      final local = await _localDataSource.loadWeek(
+        userId: normalizedUserId,
+        weekStart: start,
+        weekEnd: end,
+      );
+
+      return _recordsToModels(local);
+    }
+
+    try {
+      remote.ensureAuthenticatedUser(normalizedUserId);
+
+      final records = await remote.loadWeek(
+        userId: normalizedUserId,
+        weekStart: start,
+      );
+
+      await _replaceLocalSnapshot(
+        userId: normalizedUserId,
+        remoteRecords: records,
+        rangeStart: start,
+        rangeEnd: end,
+      );
+
+      return _recordsToModels(records);
+    } catch (error, stackTrace) {
+      _logError(
+        operation: 'REFRESH WEEK / SUPABASE',
+        error: error,
+        stackTrace: stackTrace,
+      );
+
+      final local = await _localDataSource.loadWeek(
+        userId: normalizedUserId,
+        weekStart: start,
+        weekEnd: end,
+      );
+
+      return _recordsToModels(local);
+    }
   }
 
   // ============================================================
@@ -249,20 +280,13 @@ class RoutineRepositoryImpl
   // ============================================================
 
   @override
-  Future<
-    RoutineDay?
-  >
-  loadDay({
+  Future<RoutineDay?> loadDay({
     required String userId,
     required DateTime date,
   }) async {
-    final normalizedUserId = _validateUserId(
-      userId,
-    );
+    final normalizedUserId = _validateUserId(userId);
 
-    final normalizedDate = _dateOnly(
-      date,
-    );
+    final normalizedDate = _dateOnly(date);
 
     // ==========================================================
     // LOCAL FIRST
@@ -278,22 +302,14 @@ class RoutineRepositoryImpl
 
     for (final record in localRecords) {
       try {
-        final model = _recordToModel(
-          record,
-        );
+        final model = _recordToModel(record);
 
-        if (_sameDate(
-          model.normalizedDate,
-          normalizedDate,
-        )) {
+        if (_sameDate(model.normalizedDate, normalizedDate)) {
           localModel = model;
 
           break;
         }
-      } catch (
-        error,
-        stackTrace
-      ) {
+      } catch (error, stackTrace) {
         _logError(
           operation: 'LOAD DAY / LOCAL PARSE',
           error: error,
@@ -302,14 +318,11 @@ class RoutineRepositoryImpl
       }
     }
 
-    final hasPending = await _hasPendingLocal(
-      normalizedUserId,
-    );
+    final hasPending = await _hasPendingLocal(normalizedUserId);
 
     // Se o dia existe localmente, ele é devolvido imediatamente.
     // Nenhuma leitura remota deve bloquear conteúdo já disponível.
-    if (localModel !=
-        null) {
+    if (localModel != null) {
       if (hasPending) {
         _syncService.requestSync();
       }
@@ -330,46 +343,33 @@ class RoutineRepositoryImpl
 
     final remote = _remoteDataSource;
 
-    if (remote !=
-        null) {
+    if (remote != null) {
       try {
-        remote.ensureAuthenticatedUser(
-          normalizedUserId,
-        );
+        remote.ensureAuthenticatedUser(normalizedUserId);
 
         final remoteRecord = await remote.getDay(
           userId: normalizedUserId,
           date: normalizedDate,
         );
 
-        if (remoteRecord ==
-            null) {
+        if (remoteRecord == null) {
           return localModel;
         }
 
         await _cacheRemoteRecords(
           userId: normalizedUserId,
-          records: [
-            remoteRecord,
-          ],
+          records: [remoteRecord],
         );
 
-        return _recordToModel(
-          remoteRecord,
-        );
-      } catch (
-        error,
-        stackTrace
-      ) {
+        return _recordToModel(remoteRecord);
+      } catch (error, stackTrace) {
         _logError(
           operation: 'LOAD DAY / SUPABASE',
           error: error,
           stackTrace: stackTrace,
         );
 
-        if (localModel !=
-                null ||
-            fallbackToLocalOnRemoteError) {
+        if (localModel != null || fallbackToLocalOnRemoteError) {
           return localModel;
         }
 
@@ -385,39 +385,23 @@ class RoutineRepositoryImpl
   // ============================================================
 
   @override
-  Future<
-    RoutineDay
-  >
-  saveDay({
+  Future<RoutineDay> saveDay({
     required String userId,
     required RoutineDay day,
   }) async {
-    final normalizedUserId = _validateUserId(
-      userId,
-    );
+    final normalizedUserId = _validateUserId(userId);
 
-    final normalizedDate = _dateOnly(
-      day.normalizedDate,
-    );
+    final normalizedDate = _dateOnly(day.normalizedDate);
 
     // ==========================================================
     // MODEL -> DTO -> MAP
     // ==========================================================
 
-    final dto = RoutineDayMapper.toDto(
-      model: day,
-      userId: normalizedUserId,
-    );
+    final dto = RoutineDayMapper.toDto(model: day, userId: normalizedUserId);
 
-    final localRecord =
-        Map<
-          String,
-          dynamic
-        >.from(
-          dto.toMap(
-            includeBlocks: true,
-          ),
-        );
+    final localRecord = Map<String, dynamic>.from(
+      dto.toMap(includeBlocks: true),
+    );
 
     // ==========================================================
     // ID ESTÁVEL POR DATA
@@ -444,28 +428,17 @@ class RoutineRepositoryImpl
       date: normalizedDate,
     );
 
-    final hasIncomingId =
-        rawId !=
-            null &&
-        rawId.isNotEmpty;
+    final hasIncomingId = rawId != null && rawId.isNotEmpty;
 
-    final dayId = hasIncomingId
-        ? rawId
-        : existingLocalId ??
-              _uuidV4();
+    final dayId = hasIncomingId ? rawId : existingLocalId ?? _uuidV4();
 
-    final existedBeforeSave =
-        hasIncomingId ||
-        existingLocalId !=
-            null;
+    final existedBeforeSave = hasIncomingId || existingLocalId != null;
 
     localRecord['id'] = dayId;
 
     localRecord['user_id'] = normalizedUserId;
 
-    localRecord['date'] = _dateKey(
-      normalizedDate,
-    );
+    localRecord['date'] = _dateKey(normalizedDate);
 
     localRecord['updated_at'] = DateTime.now().toUtc().toIso8601String();
 
@@ -473,49 +446,25 @@ class RoutineRepositoryImpl
     // DEBUG
     // ==========================================================
 
-    _log(
-      'SAVE DAY',
-      'Salvando primeiro no SQLite.',
-    );
+    _log('SAVE DAY', 'Salvando primeiro no SQLite.');
 
-    _log(
-      'SAVE DAY',
-      'userId: $normalizedUserId',
-    );
+    _log('SAVE DAY', 'userId: $normalizedUserId');
 
-    _log(
-      'SAVE DAY',
-      'dayId: $dayId',
-    );
+    _log('SAVE DAY', 'dayId: $dayId');
 
-    _log(
-      'SAVE DAY',
-      'date: $normalizedDate',
-    );
+    _log('SAVE DAY', 'date: $normalizedDate');
 
-    _log(
-      'SAVE DAY',
-      'focus: "${day.focus}"',
-    );
+    _log('SAVE DAY', 'focus: "${day.focus}"');
 
-    _log(
-      'SAVE DAY',
-      'blocks: ${day.blocks.length}',
-    );
+    _log('SAVE DAY', 'blocks: ${day.blocks.length}');
 
-    _log(
-      'SAVE DAY',
-      'existingLocalId: ${existingLocalId ?? "(nenhum)"}',
-    );
+    _log('SAVE DAY', 'existingLocalId: ${existingLocalId ?? "(nenhum)"}');
 
     // ==========================================================
     // 1. LOCAL FIRST
     // ==========================================================
 
-    await _localDataSource.saveDay(
-      userId: normalizedUserId,
-      day: localRecord,
-    );
+    await _localDataSource.saveDay(userId: normalizedUserId, day: localRecord);
 
     // ==========================================================
     // 2. SYNC QUEUE
@@ -532,10 +481,7 @@ class RoutineRepositoryImpl
         ? SyncOperation.update
         : SyncOperation.create;
 
-    _log(
-      'SAVE DAY',
-      'Enfileirando $_entityType/$dayId (${operation.value}).',
-    );
+    _log('SAVE DAY', 'Enfileirando $_entityType/$dayId (${operation.value}).');
 
     try {
       await _syncQueue.enqueue(
@@ -544,10 +490,7 @@ class RoutineRepositoryImpl
         operation: operation,
         payload: localRecord,
       );
-    } catch (
-      error,
-      stackTrace
-    ) {
+    } catch (error, stackTrace) {
       _logError(
         operation: 'SAVE DAY / SYNC QUEUE',
         error: error,
@@ -562,10 +505,7 @@ class RoutineRepositoryImpl
     // Atualiza imediatamente o contador exibido pelo card.
     await _syncService.refreshPendingCount();
 
-    _log(
-      'SAVE DAY',
-      'Fila atualizada. pending=${_syncService.pendingCount}.',
-    );
+    _log('SAVE DAY', 'Fila atualizada. pending=${_syncService.pendingCount}.');
 
     // ==========================================================
     // 3. AUTO SYNC
@@ -573,18 +513,13 @@ class RoutineRepositoryImpl
 
     _syncService.requestSync();
 
-    _log(
-      'SAVE DAY',
-      'Sincronização solicitada.',
-    );
+    _log('SAVE DAY', 'Sincronização solicitada.');
 
     // ==========================================================
     // 4. RETURN LOCAL RESULT
     // ==========================================================
 
-    return _recordToModel(
-      localRecord,
-    );
+    return _recordToModel(localRecord);
   }
 
   // ============================================================
@@ -592,16 +527,11 @@ class RoutineRepositoryImpl
   // ============================================================
 
   @override
-  Future<
-    void
-  >
-  deleteDay({
+  Future<void> deleteDay({
     required String userId,
     required String dayId,
   }) async {
-    final normalizedUserId = _validateUserId(
-      userId,
-    );
+    final normalizedUserId = _validateUserId(userId);
 
     final normalizedDayId = dayId.trim();
 
@@ -633,28 +563,16 @@ class RoutineRepositoryImpl
     //
     // ==========================================================
 
-    _log(
-      'DELETE DAY',
-      'Enfileirando $_entityType/$normalizedDayId (delete).',
-    );
+    _log('DELETE DAY', 'Enfileirando $_entityType/$normalizedDayId (delete).');
 
     try {
       await _syncQueue.enqueue(
         entityType: _entityType,
         entityId: normalizedDayId,
         operation: SyncOperation.delete,
-        payload:
-            <
-              String,
-              dynamic
-            >{
-              'user_id': normalizedUserId,
-            },
+        payload: <String, dynamic>{'user_id': normalizedUserId},
       );
-    } catch (
-      error,
-      stackTrace
-    ) {
+    } catch (error, stackTrace) {
       _logError(
         operation: 'DELETE DAY / SYNC QUEUE',
         error: error,
@@ -679,20 +597,13 @@ class RoutineRepositoryImpl
   // ============================================================
 
   @override
-  Future<
-    bool
-  >
-  dayExists({
+  Future<bool> dayExists({
     required String userId,
     required DateTime date,
   }) async {
-    final normalizedUserId = _validateUserId(
-      userId,
-    );
+    final normalizedUserId = _validateUserId(userId);
 
-    final normalizedDate = _dateOnly(
-      date,
-    );
+    final normalizedDate = _dateOnly(date);
 
     // Offline-first:
     // existência local é suficiente para responder imediatamente.
@@ -704,20 +615,12 @@ class RoutineRepositoryImpl
 
     for (final record in localRecords) {
       try {
-        final model = _recordToModel(
-          record,
-        );
+        final model = _recordToModel(record);
 
-        if (_sameDate(
-          model.normalizedDate,
-          normalizedDate,
-        )) {
+        if (_sameDate(model.normalizedDate, normalizedDate)) {
           return true;
         }
-      } catch (
-        error,
-        stackTrace
-      ) {
+      } catch (error, stackTrace) {
         _logError(
           operation: 'DAY EXISTS / LOCAL PARSE',
           error: error,
@@ -728,32 +631,24 @@ class RoutineRepositoryImpl
 
     // Se não existe localmente e há pendência, não consultamos
     // remoto para evitar resurrectar registro excluído offline.
-    if (await _hasPendingLocal(
-      normalizedUserId,
-    )) {
+    if (await _hasPendingLocal(normalizedUserId)) {
       return false;
     }
 
     final remote = _remoteDataSource;
 
-    if (remote ==
-        null) {
+    if (remote == null) {
       return false;
     }
 
     try {
-      remote.ensureAuthenticatedUser(
-        normalizedUserId,
-      );
+      remote.ensureAuthenticatedUser(normalizedUserId);
 
       return await remote.dayExists(
         userId: normalizedUserId,
         date: normalizedDate,
       );
-    } catch (
-      error,
-      stackTrace
-    ) {
+    } catch (error, stackTrace) {
       _logError(
         operation: 'DAY EXISTS / SUPABASE',
         error: error,
@@ -773,55 +668,33 @@ class RoutineRepositoryImpl
   // ============================================================
 
   @override
-  Future<
-    void
-  >
-  clearLocalData(
-    String userId,
-  ) {
-    final normalizedUserId = _validateUserId(
-      userId,
-    );
+  Future<void> clearLocalData(String userId) {
+    final normalizedUserId = _validateUserId(userId);
 
-    return _localDataSource.clearUser(
-      normalizedUserId,
-    );
+    return _localDataSource.clearUser(normalizedUserId);
   }
 
   // ============================================================
   // CACHE REMOTE RECORDS
   // ============================================================
 
-  Future<
-    void
-  >
-  _cacheRemoteRecords({
+  Future<void> _cacheRemoteRecords({
     required String userId,
-    required List<
-      RoutineRecord
-    >
-    records,
+    required List<RoutineRecord> records,
   }) async {
     final local = _localDataSource;
 
     // Nossa implementação SQLite conhece seed() e consegue
     // marcar snapshot remoto como "synced".
-    if (local
-        is RoutineMemoryDataSource) {
-      await local.seed(
-        userId: userId,
-        days: records,
-      );
+    if (local is RoutineMemoryDataSource) {
+      await local.seed(userId: userId, days: records);
 
       return;
     }
 
     // Compatibilidade com outra implementação da interface.
     for (final record in records) {
-      await local.saveDay(
-        userId: userId,
-        day: record,
-      );
+      await local.saveDay(userId: userId, day: record);
     }
   }
 
@@ -829,26 +702,16 @@ class RoutineRepositoryImpl
   // REPLACE LOCAL SNAPSHOT
   // ============================================================
 
-  Future<
-    void
-  >
-  _replaceLocalSnapshot({
+  Future<void> _replaceLocalSnapshot({
     required String userId,
-    required List<
-      RoutineRecord
-    >
-    remoteRecords,
+    required List<RoutineRecord> remoteRecords,
     required DateTime rangeStart,
     required DateTime rangeEnd,
   }) async {
     final local = _localDataSource;
 
-    if (local
-        is RoutineMemoryDataSource) {
-      await local.seed(
-        userId: userId,
-        days: remoteRecords,
-      );
+    if (local is RoutineMemoryDataSource) {
+      await local.seed(userId: userId, days: remoteRecords);
 
       return;
     }
@@ -856,10 +719,7 @@ class RoutineRepositoryImpl
     // Interface genérica:
     // apenas atualiza os registros recebidos.
     for (final record in remoteRecords) {
-      await local.saveDay(
-        userId: userId,
-        day: record,
-      );
+      await local.saveDay(userId: userId, day: record);
     }
   }
 
@@ -867,19 +727,11 @@ class RoutineRepositoryImpl
   // HAS PENDING LOCAL
   // ============================================================
 
-  Future<
-    bool
-  >
-  _hasPendingLocal(
-    String userId,
-  ) async {
+  Future<bool> _hasPendingLocal(String userId) async {
     final local = _localDataSource;
 
-    if (local
-        is RoutineMemoryDataSource) {
-      final pending = await local.loadUnsynced(
-        userId: userId,
-      );
+    if (local is RoutineMemoryDataSource) {
+      final pending = await local.loadUnsynced(userId: userId);
 
       return pending.isNotEmpty;
     }
@@ -898,16 +750,11 @@ class RoutineRepositoryImpl
   //
   // ============================================================
 
-  Future<
-    String?
-  >
-  _findExistingLocalDayId({
+  Future<String?> _findExistingLocalDayId({
     required String userId,
     required DateTime date,
   }) async {
-    final normalizedDate = _dateOnly(
-      date,
-    );
+    final normalizedDate = _dateOnly(date);
 
     final records = await _localDataSource.loadWeek(
       userId: userId,
@@ -917,57 +764,32 @@ class RoutineRepositoryImpl
 
     for (final record in records) {
       try {
-        final raw =
-            Map<
-              String,
-              dynamic
-            >.from(
-              record,
-            );
+        final raw = Map<String, dynamic>.from(record);
 
         final rawDate = raw['date'];
 
         DateTime? recordDate;
 
-        if (rawDate
-            is DateTime) {
-          recordDate = _dateOnly(
-            rawDate,
-          );
-        } else if (rawDate !=
-            null) {
-          final parsed = DateTime.tryParse(
-            rawDate.toString().trim(),
-          );
+        if (rawDate is DateTime) {
+          recordDate = _dateOnly(rawDate);
+        } else if (rawDate != null) {
+          final parsed = DateTime.tryParse(rawDate.toString().trim());
 
-          if (parsed !=
-              null) {
-            recordDate = _dateOnly(
-              parsed.toLocal(),
-            );
+          if (parsed != null) {
+            recordDate = _dateOnly(parsed.toLocal());
           }
         }
 
-        if (recordDate ==
-                null ||
-            !_sameDate(
-              recordDate,
-              normalizedDate,
-            )) {
+        if (recordDate == null || !_sameDate(recordDate, normalizedDate)) {
           continue;
         }
 
         final id = raw['id']?.toString().trim();
 
-        if (id !=
-                null &&
-            id.isNotEmpty) {
+        if (id != null && id.isNotEmpty) {
           return id;
         }
-      } catch (
-        error,
-        stackTrace
-      ) {
+      } catch (error, stackTrace) {
         _logError(
           operation: 'FIND EXISTING LOCAL DAY ID',
           error: error,
@@ -983,31 +805,13 @@ class RoutineRepositoryImpl
   // RECORDS -> MODELS
   // ============================================================
 
-  List<
-    RoutineDay
-  >
-  _recordsToModels(
-    List<
-      RoutineRecord
-    >
-    records,
-  ) {
-    final models =
-        <
-          RoutineDay
-        >[];
+  List<RoutineDay> _recordsToModels(List<RoutineRecord> records) {
+    final models = <RoutineDay>[];
 
     for (final record in records) {
       try {
-        models.add(
-          _recordToModel(
-            record,
-          ),
-        );
-      } catch (
-        error,
-        stackTrace
-      ) {
+        models.add(_recordToModel(record));
+      } catch (error, stackTrace) {
         _logError(
           operation: 'RECORD -> MODEL',
           error: error,
@@ -1017,12 +821,7 @@ class RoutineRepositoryImpl
     }
 
     models.sort(
-      (
-        first,
-        second,
-      ) => first.normalizedDate.compareTo(
-        second.normalizedDate,
-      ),
+      (first, second) => first.normalizedDate.compareTo(second.normalizedDate),
     );
 
     return models;
@@ -1032,33 +831,18 @@ class RoutineRepositoryImpl
   // RECORD -> MODEL
   // ============================================================
 
-  RoutineDay _recordToModel(
-    RoutineRecord record,
-  ) {
-    final rawRecord =
-        Map<
-          String,
-          dynamic
-        >.from(
-          record,
-        );
+  RoutineDay _recordToModel(RoutineRecord record) {
+    final rawRecord = Map<String, dynamic>.from(record);
 
-    final dto = RoutineDayDto.fromMap(
-      rawRecord,
-    );
+    final dto = RoutineDayDto.fromMap(rawRecord);
 
-    final model = RoutineDayMapper.toModel(
-      dto,
-    );
+    final model = RoutineDayMapper.toModel(dto);
 
     // ==========================================================
     // RESTAURAR TAMANHO PERSONALIZADO DOS BLOCOS
     // ==========================================================
 
-    _restoreBlockDimensionsFromRecord(
-      model: model,
-      record: rawRecord,
-    );
+    _restoreBlockDimensionsFromRecord(model: model, record: rawRecord);
 
     return model;
   }
@@ -1069,47 +853,26 @@ class RoutineRepositoryImpl
 
   void _restoreBlockDimensionsFromRecord({
     required RoutineDay model,
-    required Map<
-      String,
-      dynamic
-    >
-    record,
+    required Map<String, dynamic> record,
   }) {
     final rawBlocks = record['blocks'];
 
-    if (rawBlocks
-        is! List) {
+    if (rawBlocks is! List) {
       return;
     }
 
-    final dimensionsById =
-        <
-          String,
-          Map<
-            String,
-            dynamic
-          >
-        >{};
+    final dimensionsById = <String, Map<String, dynamic>>{};
 
     for (final rawBlock in rawBlocks) {
-      if (rawBlock
-          is! Map) {
+      if (rawBlock is! Map) {
         continue;
       }
 
-      final map =
-          Map<
-            String,
-            dynamic
-          >.from(
-            rawBlock,
-          );
+      final map = Map<String, dynamic>.from(rawBlock);
 
       final id = map['id']?.toString().trim();
 
-      if (id ==
-              null ||
-          id.isEmpty) {
+      if (id == null || id.isEmpty) {
         continue;
       }
 
@@ -1119,26 +882,19 @@ class RoutineRepositoryImpl
     for (final block in model.blocks) {
       final raw = dimensionsById[block.id];
 
-      if (raw ==
-          null) {
+      if (raw == null) {
         continue;
       }
 
-      final width = _nullableDouble(
-        raw['width'],
-      );
+      final width = _nullableDouble(raw['width']);
 
-      final height = _nullableDouble(
-        raw['height'],
-      );
+      final height = _nullableDouble(raw['height']);
 
-      if (width !=
-          null) {
+      if (width != null) {
         block.width = width;
       }
 
-      if (height !=
-          null) {
+      if (height != null) {
         block.height = height;
       }
     }
@@ -1148,31 +904,23 @@ class RoutineRepositoryImpl
   // NULLABLE DOUBLE
   // ============================================================
 
-  double? _nullableDouble(
-    Object? value,
-  ) {
-    if (value ==
-        null) {
+  double? _nullableDouble(Object? value) {
+    if (value == null) {
       return null;
     }
 
-    if (value
-        is num) {
+    if (value is num) {
       return value.toDouble();
     }
 
-    return double.tryParse(
-      value.toString().trim(),
-    );
+    return double.tryParse(value.toString().trim());
   }
 
   // ============================================================
   // VALIDATE USER
   // ============================================================
 
-  String _validateUserId(
-    String userId,
-  ) {
+  String _validateUserId(String userId) {
     final normalized = userId.trim();
 
     if (normalized.isEmpty) {
@@ -1190,37 +938,20 @@ class RoutineRepositoryImpl
   // DATE ONLY
   // ============================================================
 
-  DateTime _dateOnly(
-    DateTime value,
-  ) {
-    return DateTime(
-      value.year,
-      value.month,
-      value.day,
-    );
+  DateTime _dateOnly(DateTime value) {
+    return DateTime(value.year, value.month, value.day);
   }
 
   // ============================================================
   // DATE KEY
   // ============================================================
 
-  String _dateKey(
-    DateTime value,
-  ) {
-    final year = value.year.toString().padLeft(
-      4,
-      '0',
-    );
+  String _dateKey(DateTime value) {
+    final year = value.year.toString().padLeft(4, '0');
 
-    final month = value.month.toString().padLeft(
-      2,
-      '0',
-    );
+    final month = value.month.toString().padLeft(2, '0');
 
-    final day = value.day.toString().padLeft(
-      2,
-      '0',
-    );
+    final day = value.day.toString().padLeft(2, '0');
 
     return '$year-$month-$day';
   }
@@ -1229,16 +960,10 @@ class RoutineRepositoryImpl
   // SAME DATE
   // ============================================================
 
-  bool _sameDate(
-    DateTime first,
-    DateTime second,
-  ) {
-    return first.year ==
-            second.year &&
-        first.month ==
-            second.month &&
-        first.day ==
-            second.day;
+  bool _sameDate(DateTime first, DateTime second) {
+    return first.year == second.year &&
+        first.month == second.month &&
+        first.day == second.day;
   }
 
   // ============================================================
@@ -1254,48 +979,19 @@ class RoutineRepositoryImpl
   String _uuidV4() {
     final random = Random.secure();
 
-    final bytes =
-        List<
-          int
-        >.generate(
-          16,
-          (
-            _,
-          ) => random.nextInt(
-            256,
-          ),
-        );
+    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
 
     // UUID version 4.
-    bytes[6] =
-        (bytes[6] &
-            0x0F) |
-        0x40;
+    bytes[6] = (bytes[6] & 0x0F) | 0x40;
 
     // RFC 4122 variant.
-    bytes[8] =
-        (bytes[8] &
-            0x3F) |
-        0x80;
+    bytes[8] = (bytes[8] & 0x3F) | 0x80;
 
-    String hex(
-      int value,
-    ) {
-      return value
-          .toRadixString(
-            16,
-          )
-          .padLeft(
-            2,
-            '0',
-          );
+    String hex(int value) {
+      return value.toRadixString(16).padLeft(2, '0');
     }
 
-    final value = bytes
-        .map(
-          hex,
-        )
-        .join();
+    final value = bytes.map(hex).join();
 
     return '${value.substring(0, 8)}-'
         '${value.substring(8, 12)}-'
@@ -1308,13 +1004,8 @@ class RoutineRepositoryImpl
   // LOG
   // ============================================================
 
-  void _log(
-    String operation,
-    String message,
-  ) {
-    debugPrint(
-      '[ROUTINE][$operation] $message',
-    );
+  void _log(String operation, String message) {
+    debugPrint('[ROUTINE][$operation] $message');
   }
 
   // ============================================================
@@ -1326,40 +1017,22 @@ class RoutineRepositoryImpl
     required Object error,
     required StackTrace stackTrace,
   }) {
-    debugPrint(
-      '',
-    );
+    debugPrint('');
 
-    debugPrint(
-      '============================================================',
-    );
+    debugPrint('============================================================');
 
-    debugPrint(
-      '[ROUTINE][$operation] ERRO',
-    );
+    debugPrint('[ROUTINE][$operation] ERRO');
 
-    debugPrint(
-      '------------------------------------------------------------',
-    );
+    debugPrint('------------------------------------------------------------');
 
-    debugPrint(
-      '$error',
-    );
+    debugPrint('$error');
 
-    debugPrint(
-      '------------------------------------------------------------',
-    );
+    debugPrint('------------------------------------------------------------');
 
-    debugPrint(
-      '$stackTrace',
-    );
+    debugPrint('$stackTrace');
 
-    debugPrint(
-      '============================================================',
-    );
+    debugPrint('============================================================');
 
-    debugPrint(
-      '',
-    );
+    debugPrint('');
   }
 }
