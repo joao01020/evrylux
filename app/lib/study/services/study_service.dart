@@ -1,46 +1,23 @@
-import '../data/repository/study_repository.dart';
+import '../data/repository/study_repository_contract.dart';
 import '../models/study_model.dart';
 
 class StudyService {
-  final StudyRepository repository;
+  final StudyRepositoryContract repository;
 
-  StudyService({
-    required this.repository,
-  });
+  StudyService({required this.repository});
 
-  Future<
-    List<
-      StudyModel
-    >
-  >
-  getStudies() async {
+  Future<List<StudyModel>> getStudies() async {
     final data = await repository.load();
 
-    return data.entries.map(
-      (
-        entry,
-      ) {
-        return StudyModel(
-          day: entry.key,
-
-          minutes: int.parse(
-            entry.value.toString(),
-          ),
-        );
-      },
-    ).toList();
+    return data.entries.map((entry) {
+      return StudyModel(
+        day: entry.key,
+        minutes: int.parse(entry.value.toString()),
+      );
+    }).toList();
   }
 
-  Future<
-    void
-  >
-  saveStudy(
-    String day,
-    int minutes,
-  ) async {
-    await repository.save(
-      day,
-      minutes,
-    );
+  Future<void> saveStudy(String day, int minutes) async {
+    await repository.save(day, minutes);
   }
 }

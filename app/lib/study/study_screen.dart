@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../app/dependencies/app_dependencies.dart';
+import 'runtime/study_runtime.dart';
 
 import '../widgets/generic/activity_timer.dart';
 import '../widgets/generic/study_calendar.dart';
@@ -8,32 +8,19 @@ import '../widgets/generic/study_calendar.dart';
 import 'widgets/study_header.dart';
 import 'widgets/streak_card.dart';
 
-import 'brain/screen/brain_screen.dart';
-
 import 'services/study_day_service.dart';
 import 'widgets/dialogs/study_day_dialog.dart';
 
-class StudyScreen
-    extends
-        StatefulWidget {
-  const StudyScreen({
-    super.key,
-  });
+class StudyScreen extends StatefulWidget {
+  const StudyScreen({super.key});
 
   @override
-  State<
-    StudyScreen
-  >
-  createState() {
+  State<StudyScreen> createState() {
     return _StudyScreenState();
   }
 }
 
-class _StudyScreenState
-    extends
-        State<
-          StudyScreen
-        > {
+class _StudyScreenState extends State<StudyScreen> {
   // ============================================================
   // CALENDAR
   // ============================================================
@@ -52,13 +39,7 @@ class _StudyScreenState
   // DATAS COM CONTEÚDO
   // ============================================================
 
-  List<
-    DateTime
-  >
-  _contentDates =
-      const <
-        DateTime
-      >[];
+  List<DateTime> _contentDates = const <DateTime>[];
 
   bool _loadingContentDates = false;
 
@@ -74,9 +55,7 @@ class _StudyScreenState
 
     _studyDayService = studyDayService;
 
-    studyController.addListener(
-      refresh,
-    );
+    studyController.addListener(refresh);
 
     studyController.loadStudies();
 
@@ -92,9 +71,7 @@ class _StudyScreenState
       return;
     }
 
-    setState(
-      () {},
-    );
+    setState(() {});
   }
 
   // ============================================================
@@ -103,9 +80,7 @@ class _StudyScreenState
 
   @override
   void dispose() {
-    studyController.removeListener(
-      refresh,
-    );
+    studyController.removeListener(refresh);
 
     super.dispose();
   }
@@ -114,19 +89,13 @@ class _StudyScreenState
   // CÉREBRO
   // ============================================================
 
-  Future<
-    void
-  >
-  openBrain() async {
+  Future<void> openBrain() async {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder:
-            (
-              _,
-            ) {
-              return const BrainScreen();
-            },
+        builder: (_) {
+          return buildBrainDestination();
+        },
       ),
     );
 
@@ -146,9 +115,7 @@ class _StudyScreenState
 
     _studyDayService.invalidateContentDates();
 
-    await _loadContentDates(
-      forceRefresh: true,
-    );
+    await _loadContentDates(forceRefresh: true);
   }
 
   // ============================================================
@@ -161,12 +128,7 @@ class _StudyScreenState
   //
   // ============================================================
 
-  Future<
-    void
-  >
-  _loadContentDates({
-    bool forceRefresh = false,
-  }) async {
+  Future<void> _loadContentDates({bool forceRefresh = false}) async {
     if (_loadingContentDates) {
       return;
     }
@@ -182,22 +144,13 @@ class _StudyScreenState
         return;
       }
 
-      setState(
-        () {
-          _contentDates = dates;
-        },
-      );
-    } catch (
-      error,
-      stackTrace
-    ) {
-      debugPrint(
-        '[STUDY] Erro ao carregar datas com conteúdo: $error',
-      );
+      setState(() {
+        _contentDates = dates;
+      });
+    } catch (error, stackTrace) {
+      debugPrint('[STUDY] Erro ao carregar datas com conteúdo: $error');
 
-      debugPrintStack(
-        stackTrace: stackTrace,
-      );
+      debugPrintStack(stackTrace: stackTrace);
     } finally {
       _loadingContentDates = false;
     }
@@ -219,52 +172,27 @@ class _StudyScreenState
   //
   // ============================================================
 
-  Future<
-    void
-  >
-  _selectDate(
-    DateTime date,
-  ) async {
-    final normalizedDate = DateTime(
-      date.year,
-      date.month,
-      date.day,
-    );
+  Future<void> _selectDate(DateTime date) async {
+    final normalizedDate = DateTime(date.year, date.month, date.day);
 
-    setState(
-      () {
-        _selectedDate = normalizedDate;
-      },
-    );
+    setState(() {
+      _selectedDate = normalizedDate;
+    });
 
-    final index =
-        normalizedDate.weekday -
-        DateTime.monday;
+    final index = normalizedDate.weekday - DateTime.monday;
 
-    if (index >=
-            0 &&
-        index <
-            studyController.days.length) {
-      studyController.selectDay(
-        index,
-      );
+    if (index >= 0 && index < studyController.days.length) {
+      studyController.selectDay(index);
     }
 
-    await _openStudyDayModal(
-      normalizedDate,
-    );
+    await _openStudyDayModal(normalizedDate);
   }
 
   // ============================================================
   // OPEN DAY MODAL
   // ============================================================
 
-  Future<
-    void
-  >
-  _openStudyDayModal(
-    DateTime date,
-  ) async {
+  Future<void> _openStudyDayModal(DateTime date) async {
     if (_openingDay) {
       return;
     }
@@ -272,43 +200,29 @@ class _StudyScreenState
     _openingDay = true;
 
     try {
-      final summary = await _studyDayService.loadDay(
-        date,
-      );
+      final summary = await _studyDayService.loadDay(date);
 
       if (!mounted) {
         return;
       }
 
-      await StudyDayDialog.show(
-        context,
-        summary: summary,
-      );
-    } catch (
-      error,
-      stackTrace
-    ) {
+      await StudyDayDialog.show(context, summary: summary);
+    } catch (error, stackTrace) {
       debugPrint(
         '[STUDY DAY] '
         'Erro carregando conteúdo: '
         '$error',
       );
 
-      debugPrintStack(
-        stackTrace: stackTrace,
-      );
+      debugPrintStack(stackTrace: stackTrace);
 
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Não foi possível carregar os dados deste dia: $error',
-          ),
+          content: Text('Não foi possível carregar os dados deste dia: $error'),
         ),
       );
     } finally {
@@ -320,34 +234,17 @@ class _StudyScreenState
   // COMPLETED DATES
   // ============================================================
 
-  List<
-    DateTime
-  >
-  get _completedDates {
+  List<DateTime> get _completedDates {
     final monday = _startOfCurrentWeek();
 
-    final completedDates =
-        <
-          DateTime
-        >[];
+    final completedDates = <DateTime>[];
 
-    for (
-      var index = 0;
-      index <
-          studyController.completedDays.length;
-      index++
-    ) {
+    for (var index = 0; index < studyController.completedDays.length; index++) {
       if (!studyController.completedDays[index]) {
         continue;
       }
 
-      completedDates.add(
-        monday.add(
-          Duration(
-            days: index,
-          ),
-        ),
-      );
+      completedDates.add(monday.add(Duration(days: index)));
     }
 
     return completedDates;
@@ -360,13 +257,7 @@ class _StudyScreenState
   DateTime _startOfCurrentWeek() {
     final now = _today();
 
-    return now.subtract(
-      Duration(
-        days:
-            now.weekday -
-            DateTime.monday,
-      ),
-    );
+    return now.subtract(Duration(days: now.weekday - DateTime.monday));
   }
 
   // ============================================================
@@ -376,11 +267,7 @@ class _StudyScreenState
   DateTime _today() {
     final now = DateTime.now();
 
-    return DateTime(
-      now.year,
-      now.month,
-      now.day,
-    );
+    return DateTime(now.year, now.month, now.day);
   }
 
   // ============================================================
@@ -394,22 +281,12 @@ class _StudyScreenState
   //
   // ============================================================
 
-  Future<
-    void
-  >
-  saveStudy() async {
+  Future<void> saveStudy() async {
     try {
-      final dayIndex =
-          _selectedDate.weekday -
-          DateTime.monday;
+      final dayIndex = _selectedDate.weekday - DateTime.monday;
 
-      if (dayIndex >=
-              0 &&
-          dayIndex <
-              studyController.days.length) {
-        studyController.selectDay(
-          dayIndex,
-        );
+      if (dayIndex >= 0 && dayIndex < studyController.days.length) {
+        studyController.selectDay(dayIndex);
       }
 
       await studyController.saveStudy();
@@ -418,9 +295,7 @@ class _StudyScreenState
         return;
       }
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             'Estudo salvo em '
@@ -430,21 +305,13 @@ class _StudyScreenState
           ),
         ),
       );
-    } catch (
-      error
-    ) {
+    } catch (error) {
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Não foi possível salvar o estudo: $error',
-          ),
-        ),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Não foi possível salvar o estudo: $error')),
       );
     }
   }
@@ -454,16 +321,12 @@ class _StudyScreenState
   // ============================================================
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(),
 
       body: Padding(
-        padding: const EdgeInsets.all(
-          24,
-        ),
+        padding: const EdgeInsets.all(24),
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -474,21 +337,13 @@ class _StudyScreenState
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Expanded(
-                    child: StudyHeader(),
-                  ),
-                  const SizedBox(
-                    width: 12,
-                  ),
-                  StreakCard(
-                    streak: studyController.streak,
-                  ),
+                  const Expanded(child: StudyHeader()),
+                  const SizedBox(width: 12),
+                  StreakCard(streak: studyController.streak),
                 ],
               ),
 
-              const SizedBox(
-                height: 25,
-              ),
+              const SizedBox(height: 25),
 
               // =================================================
               // CALENDAR
@@ -500,9 +355,7 @@ class _StudyScreenState
                 onDateSelected: _selectDate,
               ),
 
-              const SizedBox(
-                height: 12,
-              ),
+              const SizedBox(height: 12),
 
               // =================================================
               // ATALHOS
@@ -522,9 +375,7 @@ class _StudyScreenState
                 ],
               ),
 
-              const SizedBox(
-                height: 24,
-              ),
+              const SizedBox(height: 24),
 
               // =================================================
               // TIMER
@@ -533,9 +384,7 @@ class _StudyScreenState
                 width: double.infinity,
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: 560,
-                    ),
+                    constraints: const BoxConstraints(maxWidth: 560),
                     child: ActivityTimer(
                       title: 'Tempo estudado',
                       onTimeChanged: studyController.updateTimer,
@@ -545,9 +394,7 @@ class _StudyScreenState
                 ),
               ),
 
-              const SizedBox(
-                height: 16,
-              ),
+              const SizedBox(height: 16),
             ],
           ),
         ),
@@ -564,9 +411,7 @@ class _StudyScreenState
 //
 // ============================================================
 
-class _StudyShortcutButton
-    extends
-        StatelessWidget {
+class _StudyShortcutButton extends StatelessWidget {
   const _StudyShortcutButton({
     required this.tooltip,
     required this.icon,
@@ -580,39 +425,25 @@ class _StudyShortcutButton
   final VoidCallback onTap;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final colorScheme = Theme.of(
-      context,
-    ).colorScheme;
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Tooltip(
       message: tooltip,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(
-          13,
-        ),
+        borderRadius: BorderRadius.circular(13),
         child: Container(
           width: 44,
           height: 44,
           decoration: BoxDecoration(
             color: colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(
-              13,
-            ),
+            borderRadius: BorderRadius.circular(13),
             border: Border.all(
-              color: colorScheme.primary.withValues(
-                alpha: 0.16,
-              ),
+              color: colorScheme.primary.withValues(alpha: 0.16),
             ),
           ),
-          child: Icon(
-            icon,
-            size: 21,
-            color: colorScheme.primary,
-          ),
+          child: Icon(icon, size: 21, color: colorScheme.primary),
         ),
       ),
     );
