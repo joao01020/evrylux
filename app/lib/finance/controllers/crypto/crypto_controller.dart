@@ -3,12 +3,8 @@ import 'package:flutter/foundation.dart';
 import '../../models/crypto/crypto_transaction_model.dart';
 import '../../services/crypto/crypto_service.dart';
 
-class CryptoController
-    extends
-        ChangeNotifier {
-  CryptoController({
-    required this.service,
-  });
+class CryptoController extends ChangeNotifier {
+  CryptoController({required this.service});
 
   // ============================================================
   // SERVICE
@@ -20,10 +16,7 @@ class CryptoController
   // TRANSAÇÕES DA MOEDA ATUAL
   // ============================================================
 
-  List<
-    CryptoTransactionModel
-  >
-  transactions = [];
+  List<CryptoTransactionModel> transactions = [];
 
   // ============================================================
   // MOEDA ATUAL
@@ -53,11 +46,7 @@ class CryptoController
   // PREÇOS DA CARTEIRA
   // ============================================================
 
-  final Map<
-    String,
-    double
-  >
-  _pricesBrl = {
+  final Map<String, double> _pricesBrl = {
     'BTC': 0,
     'ETH': 0,
     'SOL': 0,
@@ -68,26 +57,13 @@ class CryptoController
   // QUANTIDADES DA CARTEIRA
   // ============================================================
 
-  Map<
-    String,
-    double
-  >
-  quantities = {
-    'BTC': 0,
-    'ETH': 0,
-    'SOL': 0,
-    'USDT': 0,
-  };
+  Map<String, double> quantities = {'BTC': 0, 'ETH': 0, 'SOL': 0, 'USDT': 0};
 
   // ============================================================
   // VALORES INVESTIDOS POR MOEDA
   // ============================================================
 
-  Map<
-    String,
-    double
-  >
-  investedBySymbol = {
+  Map<String, double> investedBySymbol = {
     'BTC': 0,
     'ETH': 0,
     'SOL': 0,
@@ -98,11 +74,7 @@ class CryptoController
   // VALORES ATUAIS POR MOEDA
   // ============================================================
 
-  Map<
-    String,
-    double
-  >
-  currentValuesBrl = {
+  Map<String, double> currentValuesBrl = {
     'BTC': 0,
     'ETH': 0,
     'SOL': 0,
@@ -135,77 +107,48 @@ class CryptoController
   // PREÇOS
   // ============================================================
 
-  Map<
-    String,
-    double
-  >
-  get pricesBrl {
-    return Map<
-      String,
-      double
-    >.unmodifiable(
-      _pricesBrl,
-    );
+  Map<String, double> get pricesBrl {
+    return Map<String, double>.unmodifiable(_pricesBrl);
   }
 
   // ============================================================
   // PRICE FOR
   // ============================================================
 
-  double priceFor(
-    String symbol,
-  ) {
-    final normalizedSymbol = _normalizeSymbol(
-      symbol,
-    );
+  double priceFor(String symbol) {
+    final normalizedSymbol = _normalizeSymbol(symbol);
 
-    return _pricesBrl[normalizedSymbol] ??
-        0;
+    return _pricesBrl[normalizedSymbol] ?? 0;
   }
 
   // ============================================================
   // QUANTITY FOR
   // ============================================================
 
-  double quantityFor(
-    String symbol,
-  ) {
-    final normalizedSymbol = _normalizeSymbol(
-      symbol,
-    );
+  double quantityFor(String symbol) {
+    final normalizedSymbol = _normalizeSymbol(symbol);
 
-    return quantities[normalizedSymbol] ??
-        0;
+    return quantities[normalizedSymbol] ?? 0;
   }
 
   // ============================================================
   // INVESTED FOR
   // ============================================================
 
-  double investedFor(
-    String symbol,
-  ) {
-    final normalizedSymbol = _normalizeSymbol(
-      symbol,
-    );
+  double investedFor(String symbol) {
+    final normalizedSymbol = _normalizeSymbol(symbol);
 
-    return investedBySymbol[normalizedSymbol] ??
-        0;
+    return investedBySymbol[normalizedSymbol] ?? 0;
   }
 
   // ============================================================
   // CURRENT VALUE FOR
   // ============================================================
 
-  double currentValueFor(
-    String symbol,
-  ) {
-    final normalizedSymbol = _normalizeSymbol(
-      symbol,
-    );
+  double currentValueFor(String symbol) {
+    final normalizedSymbol = _normalizeSymbol(symbol);
 
-    return currentValuesBrl[normalizedSymbol] ??
-        0;
+    return currentValuesBrl[normalizedSymbol] ?? 0;
   }
 
   // ============================================================
@@ -218,24 +161,14 @@ class CryptoController
   //
   // ============================================================
 
-  double profitLossFor(
-    String symbol,
-  ) {
-    final normalizedSymbol = _normalizeSymbol(
-      symbol,
-    );
+  double profitLossFor(String symbol) {
+    final normalizedSymbol = _normalizeSymbol(symbol);
 
-    final currentValue = currentValueFor(
-      normalizedSymbol,
-    );
+    final currentValue = currentValueFor(normalizedSymbol);
 
-    final investedValue = investedFor(
-      normalizedSymbol,
-    );
+    final investedValue = investedFor(normalizedSymbol);
 
-    final result =
-        currentValue -
-        investedValue;
+    final result = currentValue - investedValue;
 
     if (!result.isFinite) {
       return 0;
@@ -264,31 +197,18 @@ class CryptoController
   //
   // ============================================================
 
-  double profitLossPercentFor(
-    String symbol,
-  ) {
-    final normalizedSymbol = _normalizeSymbol(
-      symbol,
-    );
+  double profitLossPercentFor(String symbol) {
+    final normalizedSymbol = _normalizeSymbol(symbol);
 
-    final investedValue = investedFor(
-      normalizedSymbol,
-    );
+    final investedValue = investedFor(normalizedSymbol);
 
-    if (!investedValue.isFinite ||
-        investedValue <=
-            0) {
+    if (!investedValue.isFinite || investedValue <= 0) {
       return 0;
     }
 
-    final result = profitLossFor(
-      normalizedSymbol,
-    );
+    final result = profitLossFor(normalizedSymbol);
 
-    final percent =
-        (result /
-            investedValue) *
-        100;
+    final percent = (result / investedValue) * 100;
 
     if (!percent.isFinite) {
       return 0;
@@ -301,34 +221,20 @@ class CryptoController
   // AVERAGE PURCHASE PRICE FOR
   // ============================================================
 
-  double averagePurchasePriceFor(
-    String symbol,
-  ) {
-    final normalizedSymbol = _normalizeSymbol(
-      symbol,
-    );
+  double averagePurchasePriceFor(String symbol) {
+    final normalizedSymbol = _normalizeSymbol(symbol);
 
-    final quantityValue = quantityFor(
-      normalizedSymbol,
-    );
+    final quantityValue = quantityFor(normalizedSymbol);
 
-    final investedValue = investedFor(
-      normalizedSymbol,
-    );
+    final investedValue = investedFor(normalizedSymbol);
 
-    if (!quantityValue.isFinite ||
-        quantityValue <=
-            0) {
+    if (!quantityValue.isFinite || quantityValue <= 0) {
       return 0;
     }
 
-    final result =
-        investedValue /
-        quantityValue;
+    final result = investedValue / quantityValue;
 
-    if (!result.isFinite ||
-        result <
-            0) {
+    if (!result.isFinite || result < 0) {
       return 0;
     }
 
@@ -339,64 +245,34 @@ class CryptoController
   // HAS CURRENT PRICE
   // ============================================================
 
-  bool hasPrice(
-    String symbol,
-  ) {
-    return priceFor(
-          symbol,
-        ) >
-        0;
+  bool hasPrice(String symbol) {
+    return priceFor(symbol) > 0;
   }
 
   // ============================================================
   // HAS POSITION
   // ============================================================
 
-  bool hasPosition(
-    String symbol,
-  ) {
-    return quantityFor(
-          symbol,
-        ) >
-        0;
+  bool hasPosition(String symbol) {
+    return quantityFor(symbol) > 0;
   }
 
   // ============================================================
   // GET BY SYMBOL
   // ============================================================
 
-  Future<
-    List<
-      CryptoTransactionModel
-    >
-  >
-  getBySymbol(
-    String symbol,
-  ) async {
-    await load(
-      symbol,
-    );
+  Future<List<CryptoTransactionModel>> getBySymbol(String symbol) async {
+    await load(symbol);
 
-    return List<
-      CryptoTransactionModel
-    >.unmodifiable(
-      transactions,
-    );
+    return List<CryptoTransactionModel>.unmodifiable(transactions);
   }
 
   // ============================================================
   // LOAD
   // ============================================================
 
-  Future<
-    void
-  >
-  load(
-    String symbol,
-  ) async {
-    final normalizedSymbol = _normalizeSymbol(
-      symbol,
-    );
+  Future<void> load(String symbol) async {
+    final normalizedSymbol = _normalizeSymbol(symbol);
 
     if (normalizedSymbol.isEmpty) {
       clearCurrent();
@@ -417,67 +293,105 @@ class CryptoController
       // TRANSAÇÕES
       // ========================================================
 
-      transactions = await service.load(
-        normalizedSymbol,
-      );
+      transactions = await service.load(normalizedSymbol);
 
       // ========================================================
-      // QUANTIDADE
+      // QUANTIDADE / INVESTIDO
+      // ========================================================
+      //
+      // WEB:
+      // O FinanceScreenController já hidratou `quantities`,
+      // `investedBySymbol` e `currentValuesBrl` a partir do
+      // Supabase/finance_data.
+      //
+      // Não podemos recalcular esses valores usando o
+      // LocalStorage do navegador ao abrir o modal, pois um
+      // armazenamento local vazio transformava um saldo remoto
+      // válido em 0.00000000 dentro do CryptoDialog.
+      //
+      // NATIVE:
+      // mantém exatamente o comportamento anterior.
       // ========================================================
 
-      quantity = _safeValue(
-        await service.totalQuantity(
-          normalizedSymbol,
-        ),
-      );
+      if (kIsWeb) {
+        quantity = _safeValue(quantityFor(normalizedSymbol));
 
-      // ========================================================
-      // INVESTIDO
-      // ========================================================
+        invested = _safeValue(investedFor(normalizedSymbol));
 
-      invested = _safeValue(
-        await service.totalInvested(
-          normalizedSymbol,
-        ),
-      );
+        currentPriceBrl = _safeValue(priceFor(normalizedSymbol));
 
-      // ========================================================
-      // PREÇO MÉDIO
-      // ========================================================
+        final storedCurrentValue = _safeValue(
+          currentValueFor(normalizedSymbol),
+        );
 
-      averagePurchasePrice = _safeValue(
-        await service.averagePurchasePrice(
-          normalizedSymbol,
-        ),
-      );
+        final calculatedCurrentValue = quantity > 0 && currentPriceBrl > 0
+            ? quantity * currentPriceBrl
+            : 0.0;
 
-      // ========================================================
-      // PREÇO ATUAL
-      // ========================================================
+        currentValueBrl = storedCurrentValue > 0
+            ? storedCurrentValue
+            : _safeValue(calculatedCurrentValue);
 
-      currentPriceBrl = priceFor(
-        normalizedSymbol,
-      );
+        averagePurchasePrice = quantity > 0 && invested > 0
+            ? invested / quantity
+            : 0.0;
 
-      // ========================================================
-      // VALOR ATUAL
-      // ========================================================
+        profitLossBrl = currentValueBrl - invested;
 
-      await _calculateCurrentSymbol();
+        profitLossPercent = invested > 0
+            ? (profitLossBrl / invested) * 100
+            : 0.0;
 
-      // ========================================================
-      // MAPAS
-      // ========================================================
+        // Reafirma os mesmos valores remotos nos mapas.
+        // O modal pode carregar histórico local, mas não pode
+        // substituir a carteira Web persistida no Supabase.
+        quantities[normalizedSymbol] = quantity;
+        investedBySymbol[normalizedSymbol] = invested;
+        currentValuesBrl[normalizedSymbol] = currentValueBrl;
+      } else {
+        // ======================================================
+        // QUANTIDADE
+        // ======================================================
 
-      quantities[normalizedSymbol] = quantity;
+        quantity = _safeValue(await service.totalQuantity(normalizedSymbol));
 
-      investedBySymbol[normalizedSymbol] = invested;
+        // ======================================================
+        // INVESTIDO
+        // ======================================================
 
-      currentValuesBrl[normalizedSymbol] = currentValueBrl;
-    } catch (
-      error,
-      stackTrace
-    ) {
+        invested = _safeValue(await service.totalInvested(normalizedSymbol));
+
+        // ======================================================
+        // PREÇO MÉDIO
+        // ======================================================
+
+        averagePurchasePrice = _safeValue(
+          await service.averagePurchasePrice(normalizedSymbol),
+        );
+
+        // ======================================================
+        // PREÇO ATUAL
+        // ======================================================
+
+        currentPriceBrl = priceFor(normalizedSymbol);
+
+        // ======================================================
+        // VALOR ATUAL
+        // ======================================================
+
+        await _calculateCurrentSymbol();
+
+        // ======================================================
+        // MAPAS
+        // ======================================================
+
+        quantities[normalizedSymbol] = quantity;
+
+        investedBySymbol[normalizedSymbol] = invested;
+
+        currentValuesBrl[normalizedSymbol] = currentValueBrl;
+      }
+    } catch (error, stackTrace) {
       errorMessage =
           'Não foi possível carregar os dados de '
           '$normalizedSymbol.';
@@ -487,9 +401,7 @@ class CryptoController
         '$error',
       );
 
-      debugPrint(
-        '$stackTrace',
-      );
+      debugPrint('$stackTrace');
 
       rethrow;
     } finally {
@@ -503,32 +415,17 @@ class CryptoController
   // LOAD WITH PRICE
   // ============================================================
 
-  Future<
-    void
-  >
-  loadWithPrice(
-    String symbol, {
-    required double priceBrl,
-  }) async {
-    setPrice(
-      symbol,
-      priceBrl,
-      notify: false,
-    );
+  Future<void> loadWithPrice(String symbol, {required double priceBrl}) async {
+    setPrice(symbol, priceBrl, notify: false);
 
-    await load(
-      symbol,
-    );
+    await load(symbol);
   }
 
   // ============================================================
   // LOAD PORTFOLIO
   // ============================================================
 
-  Future<
-    void
-  >
-  loadPortfolio() async {
+  Future<void> loadPortfolio() async {
     isLoadingPortfolio = true;
 
     errorMessage = null;
@@ -552,37 +449,25 @@ class CryptoController
       // TOTAL INVESTIDO
       // ========================================================
 
-      totalCryptoInvested = _safeValue(
-        await service.totalPortfolioInvested(),
-      );
+      totalCryptoInvested = _safeValue(await service.totalPortfolioInvested());
 
       // ========================================================
       // VALORES ATUAIS
       // ========================================================
 
-      final newValues =
-          <
-            String,
-            double
-          >{};
+      final newValues = <String, double>{};
 
       for (final symbol in service.supportedSymbols) {
-        final price = priceFor(
-          symbol,
-        );
+        final price = priceFor(symbol);
 
-        if (price <=
-            0) {
+        if (price <= 0) {
           newValues[symbol] = 0;
 
           continue;
         }
 
         newValues[symbol] = _safeValue(
-          await service.currentValueBrl(
-            symbol,
-            currentPriceBrl: price,
-          ),
+          await service.currentValueBrl(symbol, currentPriceBrl: price),
         );
       }
 
@@ -593,18 +478,14 @@ class CryptoController
       // ========================================================
 
       cryptoPatrimonyBrl = _safeValue(
-        await service.currentPortfolioValueBrl(
-          _pricesBrl,
-        ),
+        await service.currentPortfolioValueBrl(_pricesBrl),
       );
 
       // ========================================================
       // RESULTADO TOTAL
       // ========================================================
 
-      portfolioProfitLossBrl = await service.portfolioProfitLossBrl(
-        _pricesBrl,
-      );
+      portfolioProfitLossBrl = await service.portfolioProfitLossBrl(_pricesBrl);
 
       portfolioProfitLossPercent = await service.portfolioProfitLossPercent(
         _pricesBrl,
@@ -623,32 +504,19 @@ class CryptoController
       // ========================================================
 
       if (currentSymbol.isNotEmpty) {
-        quantity = quantityFor(
-          currentSymbol,
-        );
+        quantity = quantityFor(currentSymbol);
 
-        invested = investedFor(
-          currentSymbol,
-        );
+        invested = investedFor(currentSymbol);
 
-        currentPriceBrl = priceFor(
-          currentSymbol,
-        );
+        currentPriceBrl = priceFor(currentSymbol);
 
-        currentValueBrl = currentValueFor(
-          currentSymbol,
-        );
+        currentValueBrl = currentValueFor(currentSymbol);
 
-        averagePurchasePrice = averagePurchasePriceFor(
-          currentSymbol,
-        );
+        averagePurchasePrice = averagePurchasePriceFor(currentSymbol);
 
         _calculateProfitLoss();
       }
-    } catch (
-      error,
-      stackTrace
-    ) {
+    } catch (error, stackTrace) {
       errorMessage = 'Não foi possível carregar a carteira de criptomoedas.';
 
       debugPrint(
@@ -657,9 +525,7 @@ class CryptoController
         '$error',
       );
 
-      debugPrint(
-        '$stackTrace',
-      );
+      debugPrint('$stackTrace');
 
       rethrow;
     } finally {
@@ -673,28 +539,17 @@ class CryptoController
   // SET PRICE
   // ============================================================
 
-  void setPrice(
-    String symbol,
-    double priceBrl, {
-    bool notify = true,
-  }) {
-    final normalizedSymbol = _normalizeSymbol(
-      symbol,
-    );
+  void setPrice(String symbol, double priceBrl, {bool notify = true}) {
+    final normalizedSymbol = _normalizeSymbol(symbol);
 
     if (normalizedSymbol.isEmpty) {
       return;
     }
 
-    _pricesBrl[normalizedSymbol] = _safeValue(
-      priceBrl,
-    );
+    _pricesBrl[normalizedSymbol] = _safeValue(priceBrl);
 
-    if (normalizedSymbol ==
-        currentSymbol) {
-      currentPriceBrl =
-          _pricesBrl[normalizedSymbol] ??
-          0;
+    if (normalizedSymbol == currentSymbol) {
+      currentPriceBrl = _pricesBrl[normalizedSymbol] ?? 0;
 
       _calculateCurrentSymbolFromMemory();
     }
@@ -708,32 +563,19 @@ class CryptoController
   // SET PRICES
   // ============================================================
 
-  void setPrices(
-    Map<
-      String,
-      double
-    >
-    prices, {
-    bool notify = true,
-  }) {
+  void setPrices(Map<String, double> prices, {bool notify = true}) {
     for (final entry in prices.entries) {
-      final symbol = _normalizeSymbol(
-        entry.key,
-      );
+      final symbol = _normalizeSymbol(entry.key);
 
       if (symbol.isEmpty) {
         continue;
       }
 
-      _pricesBrl[symbol] = _safeValue(
-        entry.value,
-      );
+      _pricesBrl[symbol] = _safeValue(entry.value);
     }
 
     if (currentSymbol.isNotEmpty) {
-      currentPriceBrl = priceFor(
-        currentSymbol,
-      );
+      currentPriceBrl = priceFor(currentSymbol);
 
       _calculateCurrentSymbolFromMemory();
     }
@@ -749,28 +591,16 @@ class CryptoController
   // ADD
   // ============================================================
 
-  Future<
-    void
-  >
-  add(
-    CryptoTransactionModel transaction,
-  ) async {
+  Future<void> add(CryptoTransactionModel transaction) async {
     errorMessage = null;
 
     try {
-      await service.add(
-        transaction,
-      );
+      await service.add(transaction);
 
-      await load(
-        transaction.symbol,
-      );
+      await load(transaction.symbol);
 
       await loadPortfolio();
-    } catch (
-      error,
-      stackTrace
-    ) {
+    } catch (error, stackTrace) {
       errorMessage = 'Não foi possível adicionar a compra.';
 
       debugPrint(
@@ -778,9 +608,7 @@ class CryptoController
         '$error',
       );
 
-      debugPrint(
-        '$stackTrace',
-      );
+      debugPrint('$stackTrace');
 
       notifyListeners();
 
@@ -792,34 +620,20 @@ class CryptoController
   // UPDATE
   // ============================================================
 
-  Future<
-    void
-  >
-  update(
-    CryptoTransactionModel transaction,
-  ) async {
+  Future<void> update(CryptoTransactionModel transaction) async {
     errorMessage = null;
 
     try {
-      final updated = await service.update(
-        transaction,
-      );
+      final updated = await service.update(transaction);
 
       if (!updated) {
-        throw StateError(
-          'Transação não encontrada.',
-        );
+        throw StateError('Transação não encontrada.');
       }
 
-      await load(
-        transaction.symbol,
-      );
+      await load(transaction.symbol);
 
       await loadPortfolio();
-    } catch (
-      error,
-      stackTrace
-    ) {
+    } catch (error, stackTrace) {
       errorMessage = 'Não foi possível atualizar a compra.';
 
       debugPrint(
@@ -828,9 +642,7 @@ class CryptoController
         '$error',
       );
 
-      debugPrint(
-        '$stackTrace',
-      );
+      debugPrint('$stackTrace');
 
       notifyListeners();
 
@@ -842,36 +654,22 @@ class CryptoController
   // DELETE
   // ============================================================
 
-  Future<
-    void
-  >
-  delete(
-    String id,
-  ) async {
+  Future<void> delete(String id) async {
     errorMessage = null;
 
     try {
-      final deleted = await service.delete(
-        id,
-      );
+      final deleted = await service.delete(id);
 
       if (!deleted) {
-        throw StateError(
-          'Transação não encontrada.',
-        );
+        throw StateError('Transação não encontrada.');
       }
 
       if (currentSymbol.isNotEmpty) {
-        await load(
-          currentSymbol,
-        );
+        await load(currentSymbol);
       }
 
       await loadPortfolio();
-    } catch (
-      error,
-      stackTrace
-    ) {
+    } catch (error, stackTrace) {
       errorMessage = 'Não foi possível excluir a compra.';
 
       debugPrint(
@@ -880,9 +678,7 @@ class CryptoController
         '$error',
       );
 
-      debugPrint(
-        '$stackTrace',
-      );
+      debugPrint('$stackTrace');
 
       notifyListeners();
 
@@ -894,37 +690,27 @@ class CryptoController
   // REFRESH CURRENT
   // ============================================================
 
-  Future<
-    void
-  >
-  refresh() async {
+  Future<void> refresh() async {
     if (currentSymbol.isEmpty) {
       return;
     }
 
     service.invalidateCache();
 
-    await load(
-      currentSymbol,
-    );
+    await load(currentSymbol);
   }
 
   // ============================================================
   // REFRESH ALL
   // ============================================================
 
-  Future<
-    void
-  >
-  refreshAll() async {
+  Future<void> refreshAll() async {
     service.invalidateCache();
 
     await service.refresh();
 
     if (currentSymbol.isNotEmpty) {
-      await load(
-        currentSymbol,
-      );
+      await load(currentSymbol);
     }
 
     await loadPortfolio();
@@ -934,13 +720,8 @@ class CryptoController
   // CALCULATE CURRENT SYMBOL
   // ============================================================
 
-  Future<
-    void
-  >
-  _calculateCurrentSymbol() async {
-    if (currentSymbol.isEmpty ||
-        currentPriceBrl <=
-            0) {
+  Future<void> _calculateCurrentSymbol() async {
+    if (currentSymbol.isEmpty || currentPriceBrl <= 0) {
       currentValueBrl = 0;
 
       profitLossBrl = 0;
@@ -985,13 +766,9 @@ class CryptoController
       return;
     }
 
-    currentValueBrl =
-        quantity *
-        currentPriceBrl;
+    currentValueBrl = quantity * currentPriceBrl;
 
-    if (!currentValueBrl.isFinite ||
-        currentValueBrl <
-            0) {
+    if (!currentValueBrl.isFinite || currentValueBrl < 0) {
       currentValueBrl = 0;
     }
 
@@ -1007,25 +784,19 @@ class CryptoController
   // ============================================================
 
   void _calculateProfitLoss() {
-    profitLossBrl =
-        currentValueBrl -
-        invested;
+    profitLossBrl = currentValueBrl - invested;
 
     if (!profitLossBrl.isFinite) {
       profitLossBrl = 0;
     }
 
-    if (invested <=
-        0) {
+    if (invested <= 0) {
       profitLossPercent = 0;
 
       return;
     }
 
-    profitLossPercent =
-        (profitLossBrl /
-            invested) *
-        100;
+    profitLossPercent = (profitLossBrl / invested) * 100;
 
     if (!profitLossPercent.isFinite) {
       profitLossPercent = 0;
@@ -1042,57 +813,39 @@ class CryptoController
     double investedTotal = 0;
 
     for (final symbol in service.supportedSymbols) {
-      final quantityValue = quantityFor(
-        symbol,
-      );
+      final quantityValue = quantityFor(symbol);
 
-      final priceValue = priceFor(
-        symbol,
-      );
+      final priceValue = priceFor(symbol);
 
-      final currentValue =
-          quantityValue *
-          priceValue;
+      final currentValue = quantityValue * priceValue;
 
-      currentValuesBrl[symbol] =
-          currentValue.isFinite &&
-              currentValue >=
-                  0
+      currentValuesBrl[symbol] = currentValue.isFinite && currentValue >= 0
           ? currentValue
           : 0;
 
-      currentTotal +=
-          currentValuesBrl[symbol] ??
-          0;
+      currentTotal += currentValuesBrl[symbol] ?? 0;
 
-      investedTotal += investedFor(
-        symbol,
-      );
+      investedTotal += investedFor(symbol);
     }
 
     cryptoPatrimonyBrl = currentTotal;
 
     totalCryptoInvested = investedTotal;
 
-    portfolioProfitLossBrl =
-        cryptoPatrimonyBrl -
-        totalCryptoInvested;
+    portfolioProfitLossBrl = cryptoPatrimonyBrl - totalCryptoInvested;
 
     if (!portfolioProfitLossBrl.isFinite) {
       portfolioProfitLossBrl = 0;
     }
 
-    if (totalCryptoInvested <=
-        0) {
+    if (totalCryptoInvested <= 0) {
       portfolioProfitLossPercent = 0;
 
       return;
     }
 
     portfolioProfitLossPercent =
-        (portfolioProfitLossBrl /
-            totalCryptoInvested) *
-        100;
+        (portfolioProfitLossBrl / totalCryptoInvested) * 100;
 
     if (!portfolioProfitLossPercent.isFinite) {
       portfolioProfitLossPercent = 0;
@@ -1104,8 +857,7 @@ class CryptoController
   // ============================================================
 
   void clearError() {
-    if (errorMessage ==
-        null) {
+    if (errorMessage == null) {
       return;
     }
 
@@ -1118,9 +870,7 @@ class CryptoController
   // CLEAR CURRENT
   // ============================================================
 
-  void clearCurrent({
-    bool notify = true,
-  }) {
+  void clearCurrent({bool notify = true}) {
     transactions = [];
 
     quantity = 0;
@@ -1153,41 +903,17 @@ class CryptoController
   // ============================================================
 
   void clear() {
-    clearCurrent(
-      notify: false,
-    );
+    clearCurrent(notify: false);
 
-    quantities = {
-      'BTC': 0,
-      'ETH': 0,
-      'SOL': 0,
-      'USDT': 0,
-    };
+    quantities = {'BTC': 0, 'ETH': 0, 'SOL': 0, 'USDT': 0};
 
-    investedBySymbol = {
-      'BTC': 0,
-      'ETH': 0,
-      'SOL': 0,
-      'USDT': 0,
-    };
+    investedBySymbol = {'BTC': 0, 'ETH': 0, 'SOL': 0, 'USDT': 0};
 
-    currentValuesBrl = {
-      'BTC': 0,
-      'ETH': 0,
-      'SOL': 0,
-      'USDT': 0,
-    };
+    currentValuesBrl = {'BTC': 0, 'ETH': 0, 'SOL': 0, 'USDT': 0};
 
     _pricesBrl
       ..clear()
-      ..addAll(
-        {
-          'BTC': 0,
-          'ETH': 0,
-          'SOL': 0,
-          'USDT': 0,
-        },
-      );
+      ..addAll({'BTC': 0, 'ETH': 0, 'SOL': 0, 'USDT': 0});
 
     totalCryptoInvested = 0;
 
@@ -1208,9 +934,7 @@ class CryptoController
   // NORMALIZE SYMBOL
   // ============================================================
 
-  String _normalizeSymbol(
-    String symbol,
-  ) {
+  String _normalizeSymbol(String symbol) {
     return symbol.trim().toUpperCase();
   }
 
@@ -1218,12 +942,8 @@ class CryptoController
   // SAFE VALUE
   // ============================================================
 
-  double _safeValue(
-    double value,
-  ) {
-    if (!value.isFinite ||
-        value <
-            0) {
+  double _safeValue(double value) {
+    if (!value.isFinite || value < 0) {
       return 0;
     }
 

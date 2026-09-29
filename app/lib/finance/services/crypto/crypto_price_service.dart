@@ -11,197 +11,230 @@ class CryptoPriceService {
   }) : _client = client;
 
   final FinanceCacheStore cacheStore;
-
-  // ============================================================
-  // CLIENT
-  // ============================================================
-
   final http.Client? _client;
 
-  // ============================================================
-  // API
-  // ============================================================
+  static const String _coinGeckoBaseUrl = 'https://api.coingecko.com/api/v3';
 
-  static const String _baseUrl = 'https://api.coingecko.com/api/v3';
+  static const String _coinPaprikaBaseUrl =
+      'https://api.coinpaprika.com/v1/tickers';
 
-  // ============================================================
-  // IDS DA COINGECKO
-  // ============================================================
-  //
-  // A CoinGecko usa IDs, e não símbolos.
-  //
-  // BTC  -> bitcoin
-  // ETH  -> ethereum
-  // SOL  -> solana
-  // USDT -> tether
-  //
-  // ============================================================
-
-  static const Map<
-    String,
-    String
-  >
-  _coinIds = {
+  static const Map<String, String> _coinGeckoIds = <String, String>{
     'BTC': 'bitcoin',
     'ETH': 'ethereum',
     'SOL': 'solana',
     'USDT': 'tether',
   };
 
+  static const Map<String, String> _coinPaprikaIds = <String, String>{
+    'BTC': 'btc-bitcoin',
+    'ETH': 'eth-ethereum',
+    'SOL': 'sol-solana',
+    'USDT': 'usdt-tether',
+  };
+
   // ============================================================
-  // GET ALL PRICES
+  // REFRESH
   // ============================================================
   //
-  // Retorno:
+  // Estratégia resiliente:
   //
-  // {
-  //   'BTC': 620000.00,
-  //   'ETH': 24000.00,
-  //   'SOL': 820.00,
-  //   'USDT': 5.45,
-  // }
+  // 1. Carrega primeiro o último cache válido.
+  // 2. Tenta CoinGecko.
+  // 3. Completa o que faltar pelo CoinPaprika.
+  // 4. Nunca substitui preço válido em cache por zero.
+  // 5. Se a rede falhar, devolve o último cache válido.
+  //
+  // Assim uma falha temporária de API não transforma
+  // o Patrimônio do usuário em R$ 0,00.
   //
   // ============================================================
 
-  Future<
-    Map<
-      String,
-      double
-    >
-  >
-  refreshPricesBrl() async {
-    final client =
-        _client ??
-        http.Client();
+  Future<Map<String, double>> refreshPricesBrl() async {
+    final client = _client ?? http.Client();
+    final shouldCloseClient = _client == null;
 
-    final shouldCloseClient =
-        _client ==
-        null;
+    final cached = _sanitizePrices(await cacheStore.loadPrices());
+
+    final merged = <String, double>{...cached};
+
+    Object? coinGeckoError;
+    Object? coinPaprikaError;
 
     try {
-      final ids = _coinIds.values.join(
-        ',',
-      );
+      final coinGecko = await _fetchCoinGecko(client);
 
-      final uri =
-          Uri.parse(
-            '$_baseUrl/simple/price',
-          ).replace(
-            queryParameters: {
-              'ids': ids,
-              'vs_currencies': 'brl',
-            },
-          );
+      _mergeValid(merged, coinGecko);
+    } catch (error) {
+      coinGeckoError = error;
+    }
 
-      final response = await client
-          .get(
-            uri,
-            headers: const {
-              'Accept': 'application/json',
-            },
-          )
-          .timeout(
-            const Duration(
-              seconds: 10,
-            ),
-          );
+    final missingSymbols = _coinGeckoIds.keys
+        .where((symbol) => !_isValidPrice(merged[symbol]))
+        .toList(growable: false);
 
-      if (response.statusCode !=
-          200) {
-        throw CryptoPriceException(
-          'Erro ao buscar cotações. '
-          'HTTP ${response.statusCode}.',
+    if (missingSymbols.isNotEmpty) {
+      try {
+        final coinPaprika = await _fetchCoinPaprika(
+          client,
+          symbols: missingSymbols,
         );
+
+        _mergeValid(merged, coinPaprika);
+      } catch (error) {
+        coinPaprikaError = error;
+      }
+    }
+
+    final valid = _sanitizePrices(merged);
+
+    if (valid.isNotEmpty) {
+      // Só persiste valores realmente utilizáveis.
+      // Nunca salva mapa zerado por cima do último cache válido.
+      await cacheStore.savePrices(valid);
+
+      return valid;
+    }
+
+    final details = <String>[
+      if (coinGeckoError != null) 'CoinGecko: $coinGeckoError',
+      if (coinPaprikaError != null) 'CoinPaprika: $coinPaprikaError',
+    ].join(' | ');
+
+    throw CryptoPriceException(
+      details.isEmpty
+          ? 'Nenhuma cotação válida foi encontrada.'
+          : 'Não foi possível atualizar as cotações. $details',
+    );
+  }
+
+  // ============================================================
+  // COINGECKO
+  // ============================================================
+
+  Future<Map<String, double>> _fetchCoinGecko(http.Client client) async {
+    final ids = _coinGeckoIds.values.join(',');
+
+    final uri = Uri.parse('$_coinGeckoBaseUrl/simple/price').replace(
+      queryParameters: <String, String>{'ids': ids, 'vs_currencies': 'brl'},
+    );
+
+    final response = await client
+        .get(uri, headers: const <String, String>{'Accept': 'application/json'})
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode != 200) {
+      throw CryptoPriceException('HTTP ${response.statusCode}');
+    }
+
+    final decoded = jsonDecode(response.body);
+
+    if (decoded is! Map) {
+      throw const CryptoPriceException('Resposta inválida.');
+    }
+
+    final prices = <String, double>{};
+
+    for (final entry in _coinGeckoIds.entries) {
+      final coinData = decoded[entry.value];
+
+      if (coinData is! Map) {
+        continue;
       }
 
-      final decoded = jsonDecode(
-        response.body,
-      );
+      final value = _parsePrice(coinData['brl']);
 
-      if (decoded
-          is! Map<
-            String,
-            dynamic
-          >) {
-        throw const CryptoPriceException(
-          'Resposta inválida da API de cotações.',
-        );
+      if (_isValidPrice(value)) {
+        prices[entry.key] = value;
+      }
+    }
+
+    if (prices.isEmpty) {
+      throw const CryptoPriceException('Nenhuma cotação válida retornada.');
+    }
+
+    return prices;
+  }
+
+  // ============================================================
+  // COINPAPRIKA FALLBACK
+  // ============================================================
+
+  Future<Map<String, double>> _fetchCoinPaprika(
+    http.Client client, {
+    required List<String> symbols,
+  }) async {
+    final prices = <String, double>{};
+    Object? lastError;
+
+    for (final symbol in symbols) {
+      final id = _coinPaprikaIds[symbol];
+
+      if (id == null) {
+        continue;
       }
 
-      final prices =
-          <
-            String,
-            double
-          >{};
+      try {
+        final uri = Uri.parse(
+          '$_coinPaprikaBaseUrl/$id',
+        ).replace(queryParameters: const <String, String>{'quotes': 'BRL'});
 
-      for (final entry in _coinIds.entries) {
-        final symbol = entry.key;
+        final response = await client
+            .get(
+              uri,
+              headers: const <String, String>{'Accept': 'application/json'},
+            )
+            .timeout(const Duration(seconds: 8));
 
-        final coinId = entry.value;
-
-        final coinData = decoded[coinId];
-
-        if (coinData
-            is! Map) {
-          prices[symbol] = 0;
-
+        if (response.statusCode != 200) {
+          lastError = CryptoPriceException(
+            '$symbol HTTP ${response.statusCode}',
+          );
           continue;
         }
 
-        final rawPrice = coinData['brl'];
+        final decoded = jsonDecode(response.body);
 
-        prices[symbol] = _parsePrice(
-          rawPrice,
-        );
-      }
+        if (decoded is! Map) {
+          lastError = CryptoPriceException('$symbol resposta inválida');
+          continue;
+        }
 
-      await cacheStore.savePrices(
-        prices,
-      );
+        final quotes = decoded['quotes'];
 
-      return prices;
-    } on CryptoPriceException {
-      rethrow;
-    } on FormatException catch (
-      error
-    ) {
-      throw CryptoPriceException(
-        'Não foi possível interpretar '
-        'a resposta da API: $error',
-      );
-    } catch (
-      error
-    ) {
-      throw CryptoPriceException(
-        'Não foi possível buscar '
-        'as cotações: $error',
-      );
-    } finally {
-      if (shouldCloseClient) {
-        client.close();
+        if (quotes is! Map) {
+          continue;
+        }
+
+        final brl = quotes['BRL'];
+
+        if (brl is! Map) {
+          continue;
+        }
+
+        final value = _parsePrice(brl['price']);
+
+        if (_isValidPrice(value)) {
+          prices[symbol] = value;
+        }
+      } catch (error) {
+        lastError = error;
       }
     }
+
+    if (prices.isEmpty && lastError != null) {
+      throw CryptoPriceException(lastError.toString());
+    }
+
+    return prices;
   }
 
   // ============================================================
-  // GET CACHED PRICES
+  // CACHE
   // ============================================================
 
-  Future<Map<String, double>> getCachedPricesBrl() {
-    return cacheStore.loadPrices();
+  Future<Map<String, double>> getCachedPricesBrl() async {
+    return _sanitizePrices(await cacheStore.loadPrices());
   }
-
-  // ============================================================
-  // GET ALL PRICES
-  // ============================================================
-  //
-  // Caminho compatível:
-  // - usa cache quando existir;
-  // - consulta rede somente quando ainda não há cache.
-  //
-  // Para refresh explícito use refreshPricesBrl().
-  //
-  // ============================================================
 
   Future<Map<String, double>> getPricesBrl() async {
     final cached = await getCachedPricesBrl();
@@ -213,104 +246,85 @@ class CryptoPriceService {
     return refreshPricesBrl();
   }
 
-  // ============================================================
-  // GET PRICE BY SYMBOL
-  // ============================================================
-
-  Future<
-    double
-  >
-  getPriceBrl(
-    String symbol,
-  ) async {
+  Future<double> getPriceBrl(String symbol) async {
     final normalizedSymbol = symbol.trim().toUpperCase();
 
-    if (!_coinIds.containsKey(
-      normalizedSymbol,
-    )) {
+    if (!_coinGeckoIds.containsKey(normalizedSymbol)) {
       throw CryptoPriceException(
-        'Criptomoeda não suportada: '
-        '$normalizedSymbol.',
+        'Criptomoeda não suportada: $normalizedSymbol.',
       );
     }
 
     final prices = await getPricesBrl();
 
-    return prices[normalizedSymbol] ??
-        0;
+    return prices[normalizedSymbol] ?? 0.0;
+  }
+
+  bool supports(String symbol) {
+    return _coinGeckoIds.containsKey(symbol.trim().toUpperCase());
   }
 
   // ============================================================
-  // SUPPORTED SYMBOLS
+  // HELPERS
   // ============================================================
 
-  bool supports(
-    String symbol,
+  static void _mergeValid(
+    Map<String, double> target,
+    Map<String, double> source,
   ) {
-    return _coinIds.containsKey(
-      symbol.trim().toUpperCase(),
-    );
+    for (final entry in source.entries) {
+      if (_isValidPrice(entry.value)) {
+        target[entry.key] = entry.value;
+      }
+    }
   }
 
-  // ============================================================
-  // PARSE PRICE
-  // ============================================================
+  static Map<String, double> _sanitizePrices(Map<String, double> source) {
+    final result = <String, double>{};
 
-  static double _parsePrice(
-    dynamic value,
-  ) {
-    if (value ==
-        null) {
-      return 0;
+    for (final symbol in _coinGeckoIds.keys) {
+      final value = source[symbol];
+
+      if (_isValidPrice(value)) {
+        result[symbol] = value!;
+      }
     }
 
-    if (value
-        is num) {
-      final result = value.toDouble();
+    return result;
+  }
 
-      if (!result.isFinite ||
-          result <
-              0) {
-        return 0;
-      }
+  static bool _isValidPrice(double? value) {
+    return value != null && value.isFinite && value > 0;
+  }
 
-      return result;
+  static double _parsePrice(dynamic value) {
+    if (value == null) {
+      return 0.0;
+    }
+
+    if (value is num) {
+      final parsed = value.toDouble();
+
+      return _isValidPrice(parsed) ? parsed : 0.0;
     }
 
     final parsed = double.tryParse(
-      value.toString().trim().replaceAll(
-        ',',
-        '.',
-      ),
+      value.toString().trim().replaceAll(',', '.'),
     );
 
-    if (parsed ==
-            null ||
-        !parsed.isFinite ||
-        parsed <
-            0) {
-      return 0;
+    if (parsed == null) {
+      return 0.0;
     }
 
-    return parsed;
+    return _isValidPrice(parsed) ? parsed : 0.0;
   }
 }
 
-// ============================================================
-// EXCEPTION
-// ============================================================
-
-class CryptoPriceException
-    implements
-        Exception {
-  const CryptoPriceException(
-    this.message,
-  );
+class CryptoPriceException implements Exception {
+  const CryptoPriceException(this.message);
 
   final String message;
 
   @override
-  String toString() {
-    return message;
-  }
+  String toString() => message;
 }

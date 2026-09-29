@@ -15,8 +15,12 @@ class FinanceRepository implements FinanceRepositoryContract {
     FinanceLocalDataSource? localDataSource,
     required SyncQueue syncQueue,
     SyncService? syncService,
-  }) : _client = client ?? Supabase.instance.client,
-       _localDataSource = localDataSource ?? FinanceLocalDataSource(),
+  }) : _client =
+           client ??
+           Supabase.instance.client,
+       _localDataSource =
+           localDataSource ??
+           FinanceLocalDataSource(),
        _syncQueue = syncQueue,
        _syncService = syncService;
 
@@ -47,8 +51,11 @@ class FinanceRepository implements FinanceRepositoryContract {
   User _requireUser() {
     final user = _client.auth.currentUser;
 
-    if (user == null) {
-      throw StateError('Usuário não autenticado.');
+    if (user ==
+        null) {
+      throw StateError(
+        'Usuário não autenticado.',
+      );
     }
 
     return user;
@@ -67,8 +74,16 @@ class FinanceRepository implements FinanceRepositoryContract {
   //
   // ============================================================
 
-  @override
-  Future<void> save(Map<String, dynamic> data) async {
+  Future<
+    void
+  >
+  save(
+    Map<
+      String,
+      dynamic
+    >
+    data,
+  ) async {
     final user = _requireUser();
 
     if (data.isEmpty) {
@@ -77,7 +92,9 @@ class FinanceRepository implements FinanceRepositoryContract {
       return;
     }
 
-    final normalized = _normalizeLocalData(data);
+    final normalized = _normalizeLocalData(
+      data,
+    );
 
     debugPrint(
       '[FINANCE REPOSITORY] '
@@ -90,7 +107,10 @@ class FinanceRepository implements FinanceRepositoryContract {
       syncStatus: SyncStatus.pendingUpdate,
     );
 
-    final remotePayload = _toRemotePayload(userId: user.id, data: normalized);
+    final remotePayload = _toRemotePayload(
+      userId: user.id,
+      data: normalized,
+    );
 
     await _syncQueue.enqueue(
       entityType: _entityType,
@@ -119,8 +139,13 @@ class FinanceRepository implements FinanceRepositoryContract {
   //
   // ============================================================
 
-  @override
-  Future<Map<String, dynamic>> load() async {
+  Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  load() async {
     final user = _requireUser();
 
     debugPrint(
@@ -128,14 +153,23 @@ class FinanceRepository implements FinanceRepositoryContract {
       'Carregando financeiro...',
     );
 
-    final local = await _localDataSource.load(user.id);
+    final local = await _localDataSource.load(
+      user.id,
+    );
 
-    final localStatus = await _localDataSource.getSyncStatus(user.id);
+    final localStatus = await _localDataSource.getSyncStatus(
+      user.id,
+    );
 
     final hasPendingLocal =
-        localStatus != null && localStatus != SyncStatus.synced;
+        localStatus !=
+            null &&
+        localStatus !=
+            SyncStatus.synced;
 
-    if (local != null && hasPendingLocal) {
+    if (local !=
+            null &&
+        hasPendingLocal) {
       debugPrint(
         '[FINANCE REPOSITORY] '
         'Usando dados locais pendentes.',
@@ -143,25 +177,36 @@ class FinanceRepository implements FinanceRepositoryContract {
 
       _syncService?.requestSync();
 
-      return _normalizeLocalData(local);
+      return _normalizeLocalData(
+        local,
+      );
     }
 
     try {
       final remote = await _client
-          .from(_table)
+          .from(
+            _table,
+          )
           .select()
-          .eq('user_id', user.id)
+          .eq(
+            'user_id',
+            user.id,
+          )
           .maybeSingle();
 
-      if (remote == null) {
-        if (local != null) {
+      if (remote ==
+          null) {
+        if (local !=
+            null) {
           debugPrint(
             '[FINANCE REPOSITORY] '
             'Sem registro remoto. '
             'Usando cache local.',
           );
 
-          return _normalizeLocalData(local);
+          return _normalizeLocalData(
+            local,
+          );
         }
 
         debugPrint(
@@ -172,7 +217,9 @@ class FinanceRepository implements FinanceRepositoryContract {
         return {};
       }
 
-      final remoteData = _fromRemoteRow(remote);
+      final remoteData = _fromRemoteRow(
+        remote,
+      );
 
       await _localDataSource.save(
         userId: user.id,
@@ -187,7 +234,9 @@ class FinanceRepository implements FinanceRepositoryContract {
       );
 
       return remoteData;
-    } on PostgrestException catch (error) {
+    } on PostgrestException catch (
+      error
+    ) {
       debugPrint(
         '[FINANCE REPOSITORY] '
         'Supabase indisponível ao carregar.',
@@ -203,24 +252,32 @@ class FinanceRepository implements FinanceRepositoryContract {
         'Message: ${error.message}',
       );
 
-      if (local != null) {
+      if (local !=
+          null) {
         debugPrint(
           '[FINANCE REPOSITORY] '
           'Retornando cache local.',
         );
 
-        return _normalizeLocalData(local);
+        return _normalizeLocalData(
+          local,
+        );
       }
 
       rethrow;
-    } catch (error) {
+    } catch (
+      error
+    ) {
       debugPrint(
         '[FINANCE REPOSITORY] '
         'Erro ao carregar: $error',
       );
 
-      if (local != null) {
-        return _normalizeLocalData(local);
+      if (local !=
+          null) {
+        return _normalizeLocalData(
+          local,
+        );
       }
 
       rethrow;
@@ -231,20 +288,29 @@ class FinanceRepository implements FinanceRepositoryContract {
   // UPDATE CRYPTO BALANCE
   // ============================================================
 
-  @override
-  Future<void> updateCryptoBalance({
+  Future<
+    void
+  >
+  updateCryptoBalance({
     required String symbol,
     required double value,
   }) async {
-    _validateCryptoValue(value, 'value');
+    _validateCryptoValue(
+      value,
+      'value',
+    );
 
-    final key = _cryptoLocalKey(symbol);
+    final key = _cryptoLocalKey(
+      symbol,
+    );
 
     final data = await load();
 
     data[key] = value;
 
-    await save(data);
+    await save(
+      data,
+    );
 
     debugPrint(
       '[FINANCE REPOSITORY] '
@@ -257,60 +323,95 @@ class FinanceRepository implements FinanceRepositoryContract {
   // UPDATE ALL CRYPTO BALANCES
   // ============================================================
 
-  @override
-  Future<void> updateCryptoBalances({
+  Future<
+    void
+  >
+  updateCryptoBalances({
     double? bitcoin,
     double? ethereum,
     double? solana,
     double? usdt,
   }) async {
-    if (bitcoin != null) {
-      _validateCryptoValue(bitcoin, 'bitcoin');
+    if (bitcoin !=
+        null) {
+      _validateCryptoValue(
+        bitcoin,
+        'bitcoin',
+      );
     }
 
-    if (ethereum != null) {
-      _validateCryptoValue(ethereum, 'ethereum');
+    if (ethereum !=
+        null) {
+      _validateCryptoValue(
+        ethereum,
+        'ethereum',
+      );
     }
 
-    if (solana != null) {
-      _validateCryptoValue(solana, 'solana');
+    if (solana !=
+        null) {
+      _validateCryptoValue(
+        solana,
+        'solana',
+      );
     }
 
-    if (usdt != null) {
-      _validateCryptoValue(usdt, 'usdt');
+    if (usdt !=
+        null) {
+      _validateCryptoValue(
+        usdt,
+        'usdt',
+      );
     }
 
-    if (bitcoin == null && ethereum == null && solana == null && usdt == null) {
+    if (bitcoin ==
+            null &&
+        ethereum ==
+            null &&
+        solana ==
+            null &&
+        usdt ==
+            null) {
       return;
     }
 
     final data = await load();
 
-    if (bitcoin != null) {
+    if (bitcoin !=
+        null) {
       data['bitcoin'] = bitcoin;
     }
 
-    if (ethereum != null) {
+    if (ethereum !=
+        null) {
       data['ethereum'] = ethereum;
     }
 
-    if (solana != null) {
+    if (solana !=
+        null) {
       data['solana'] = solana;
     }
 
-    if (usdt != null) {
+    if (usdt !=
+        null) {
       data['usdt'] = usdt;
     }
 
-    await save(data);
+    await save(
+      data,
+    );
   }
 
   // ============================================================
   // UPDATE PATRIMONY
   // ============================================================
 
-  @override
-  Future<void> updatePatrimony(double value) async {
+  Future<
+    void
+  >
+  updatePatrimony(
+    double value,
+  ) async {
     _validateNonNegativeFinite(
       value,
       'value',
@@ -321,7 +422,9 @@ class FinanceRepository implements FinanceRepositoryContract {
 
     data['patrimony'] = value;
 
-    await save(data);
+    await save(
+      data,
+    );
 
     debugPrint(
       '[FINANCE REPOSITORY] '
@@ -333,8 +436,12 @@ class FinanceRepository implements FinanceRepositoryContract {
   // UPDATE INVESTED
   // ============================================================
 
-  @override
-  Future<void> updateInvested(double value) async {
+  Future<
+    void
+  >
+  updateInvested(
+    double value,
+  ) async {
     _validateNonNegativeFinite(
       value,
       'value',
@@ -345,7 +452,9 @@ class FinanceRepository implements FinanceRepositoryContract {
 
     data['invested'] = value;
 
-    await save(data);
+    await save(
+      data,
+    );
 
     debugPrint(
       '[FINANCE REPOSITORY] '
@@ -364,14 +473,20 @@ class FinanceRepository implements FinanceRepositoryContract {
   //
   // ============================================================
 
-  @override
-  Future<void> clear() async {
+  Future<
+    void
+  >
+  clear() async {
     final user = _requireUser();
 
-    final exists = await _localDataSource.exists(user.id);
+    final exists = await _localDataSource.exists(
+      user.id,
+    );
 
     if (exists) {
-      await _localDataSource.markDeleted(user.id);
+      await _localDataSource.markDeleted(
+        user.id,
+      );
     }
 
     await _syncQueue.enqueue(
@@ -399,31 +514,56 @@ class FinanceRepository implements FinanceRepositoryContract {
   //
   // ============================================================
 
-  @override
-  Future<Map<String, dynamic>> refreshFromRemote() async {
+  Future<
+    Map<
+      String,
+      dynamic
+    >
+  >
+  refreshFromRemote() async {
     final user = _requireUser();
 
-    final localStatus = await _localDataSource.getSyncStatus(user.id);
+    final localStatus = await _localDataSource.getSyncStatus(
+      user.id,
+    );
 
-    if (localStatus != null && localStatus != SyncStatus.synced) {
-      final local = await _localDataSource.load(user.id);
+    if (localStatus !=
+            null &&
+        localStatus !=
+            SyncStatus.synced) {
+      final local = await _localDataSource.load(
+        user.id,
+      );
 
       _syncService?.requestSync();
 
-      return local == null ? {} : _normalizeLocalData(local);
+      return local ==
+              null
+          ? {}
+          : _normalizeLocalData(
+              local,
+            );
     }
 
     final remote = await _client
-        .from(_table)
+        .from(
+          _table,
+        )
         .select()
-        .eq('user_id', user.id)
+        .eq(
+          'user_id',
+          user.id,
+        )
         .maybeSingle();
 
-    if (remote == null) {
+    if (remote ==
+        null) {
       return {};
     }
 
-    final data = _fromRemoteRow(remote);
+    final data = _fromRemoteRow(
+      remote,
+    );
 
     await _localDataSource.save(
       userId: user.id,
@@ -438,68 +578,123 @@ class FinanceRepository implements FinanceRepositoryContract {
   // LOCAL CACHE
   // ============================================================
 
-  @override
-  Future<Map<String, dynamic>?> loadLocal() async {
+  Future<
+    Map<
+      String,
+      dynamic
+    >?
+  >
+  loadLocal() async {
     final user = _requireUser();
 
-    final data = await _localDataSource.load(user.id);
+    final data = await _localDataSource.load(
+      user.id,
+    );
 
-    if (data == null) {
+    if (data ==
+        null) {
       return null;
     }
 
-    return _normalizeLocalData(data);
+    return _normalizeLocalData(
+      data,
+    );
   }
 
-  @override
-  Future<SyncStatus?> getLocalSyncStatus() async {
+  Future<
+    SyncStatus?
+  >
+  getLocalSyncStatus() async {
     final user = _requireUser();
 
-    return _localDataSource.getSyncStatus(user.id);
+    return _localDataSource.getSyncStatus(
+      user.id,
+    );
   }
 
   // ============================================================
   // REMOTE PAYLOAD
   // ============================================================
 
-  Map<String, dynamic> _toRemotePayload({
+  Map<
+    String,
+    dynamic
+  >
+  _toRemotePayload({
     required String userId,
-    required Map<String, dynamic> data,
+    required Map<
+      String,
+      dynamic
+    >
+    data,
   }) {
     return {
       'user_id': userId,
 
-      'patrimony': _double(data['patrimony']),
+      'patrimony': _double(
+        data['patrimony'],
+      ),
 
-      'invested': _double(data['invested']),
+      'invested': _double(
+        data['invested'],
+      ),
 
-      'monthly_goal': _double(data['monthlyGoal']),
+      'monthly_goal': _double(
+        data['monthlyGoal'],
+      ),
 
-      'investment_goal': _double(data['investmentGoal']),
+      'investment_goal': _double(
+        data['investmentGoal'],
+      ),
 
-      'minimum_goal': _double(data['minimumGoal']),
+      'minimum_goal': _double(
+        data['minimumGoal'],
+      ),
 
-      'medium_goal': _double(data['mediumGoal']),
+      'medium_goal': _double(
+        data['mediumGoal'],
+      ),
 
-      'maximum_goal': _double(data['maximumGoal']),
+      'maximum_goal': _double(
+        data['maximumGoal'],
+      ),
 
-      'projection_years': _integer(data['projectionYears'], fallback: 10),
+      'projection_years': _integer(
+        data['projectionYears'],
+        fallback: 10,
+      ),
 
-      'total_invested': _double(data['totalInvested']),
+      'total_invested': _double(
+        data['totalInvested'],
+      ),
 
-      'invested_months': _integer(data['investedMonths']),
+      'invested_months': _integer(
+        data['investedMonths'],
+      ),
 
-      'average_contribution': _double(data['averageContribution']),
+      'average_contribution': _double(
+        data['averageContribution'],
+      ),
 
-      'bitcoin': _double(data['bitcoin']),
+      'bitcoin': _double(
+        data['bitcoin'],
+      ),
 
-      'ethereum': _double(data['ethereum']),
+      'ethereum': _double(
+        data['ethereum'],
+      ),
 
-      'solana': _double(data['solana']),
+      'solana': _double(
+        data['solana'],
+      ),
 
-      'usdt': _double(data['usdt']),
+      'usdt': _double(
+        data['usdt'],
+      ),
 
-      'completed_days': _normalizeCompletedDays(data['completedDays']),
+      'completed_days': _normalizeCompletedDays(
+        data['completedDays'],
+      ),
 
       'selected_day': data['selectedDay']?.toString(),
 
@@ -511,39 +706,82 @@ class FinanceRepository implements FinanceRepositoryContract {
   // REMOTE -> LOCAL
   // ============================================================
 
-  Map<String, dynamic> _fromRemoteRow(Map<String, dynamic> data) {
+  Map<
+    String,
+    dynamic
+  >
+  _fromRemoteRow(
+    Map<
+      String,
+      dynamic
+    >
+    data,
+  ) {
     return {
-      'patrimony': _double(data['patrimony']),
+      'patrimony': _double(
+        data['patrimony'],
+      ),
 
-      'invested': _double(data['invested']),
+      'invested': _double(
+        data['invested'],
+      ),
 
-      'monthlyGoal': _double(data['monthly_goal']),
+      'monthlyGoal': _double(
+        data['monthly_goal'],
+      ),
 
-      'investmentGoal': _double(data['investment_goal']),
+      'investmentGoal': _double(
+        data['investment_goal'],
+      ),
 
-      'minimumGoal': _double(data['minimum_goal']),
+      'minimumGoal': _double(
+        data['minimum_goal'],
+      ),
 
-      'mediumGoal': _double(data['medium_goal']),
+      'mediumGoal': _double(
+        data['medium_goal'],
+      ),
 
-      'maximumGoal': _double(data['maximum_goal']),
+      'maximumGoal': _double(
+        data['maximum_goal'],
+      ),
 
-      'projectionYears': _integer(data['projection_years'], fallback: 10),
+      'projectionYears': _integer(
+        data['projection_years'],
+        fallback: 10,
+      ),
 
-      'totalInvested': _double(data['total_invested']),
+      'totalInvested': _double(
+        data['total_invested'],
+      ),
 
-      'investedMonths': _integer(data['invested_months']),
+      'investedMonths': _integer(
+        data['invested_months'],
+      ),
 
-      'averageContribution': _double(data['average_contribution']),
+      'averageContribution': _double(
+        data['average_contribution'],
+      ),
 
-      'bitcoin': _double(data['bitcoin']),
+      'bitcoin': _double(
+        data['bitcoin'],
+      ),
 
-      'ethereum': _double(data['ethereum']),
+      'ethereum': _double(
+        data['ethereum'],
+      ),
 
-      'solana': _double(data['solana']),
+      'solana': _double(
+        data['solana'],
+      ),
 
-      'usdt': _double(data['usdt']),
+      'usdt': _double(
+        data['usdt'],
+      ),
 
-      'completedDays': _normalizeCompletedDays(data['completed_days']),
+      'completedDays': _normalizeCompletedDays(
+        data['completed_days'],
+      ),
 
       'selectedDay': data['selected_day']?.toString(),
     };
@@ -553,39 +791,82 @@ class FinanceRepository implements FinanceRepositoryContract {
   // NORMALIZE LOCAL DATA
   // ============================================================
 
-  Map<String, dynamic> _normalizeLocalData(Map<String, dynamic> data) {
+  Map<
+    String,
+    dynamic
+  >
+  _normalizeLocalData(
+    Map<
+      String,
+      dynamic
+    >
+    data,
+  ) {
     return {
-      'patrimony': _double(data['patrimony']),
+      'patrimony': _double(
+        data['patrimony'],
+      ),
 
-      'invested': _double(data['invested']),
+      'invested': _double(
+        data['invested'],
+      ),
 
-      'monthlyGoal': _double(data['monthlyGoal']),
+      'monthlyGoal': _double(
+        data['monthlyGoal'],
+      ),
 
-      'investmentGoal': _double(data['investmentGoal']),
+      'investmentGoal': _double(
+        data['investmentGoal'],
+      ),
 
-      'minimumGoal': _double(data['minimumGoal']),
+      'minimumGoal': _double(
+        data['minimumGoal'],
+      ),
 
-      'mediumGoal': _double(data['mediumGoal']),
+      'mediumGoal': _double(
+        data['mediumGoal'],
+      ),
 
-      'maximumGoal': _double(data['maximumGoal']),
+      'maximumGoal': _double(
+        data['maximumGoal'],
+      ),
 
-      'projectionYears': _integer(data['projectionYears'], fallback: 10),
+      'projectionYears': _integer(
+        data['projectionYears'],
+        fallback: 10,
+      ),
 
-      'totalInvested': _double(data['totalInvested']),
+      'totalInvested': _double(
+        data['totalInvested'],
+      ),
 
-      'investedMonths': _integer(data['investedMonths']),
+      'investedMonths': _integer(
+        data['investedMonths'],
+      ),
 
-      'averageContribution': _double(data['averageContribution']),
+      'averageContribution': _double(
+        data['averageContribution'],
+      ),
 
-      'bitcoin': _double(data['bitcoin']),
+      'bitcoin': _double(
+        data['bitcoin'],
+      ),
 
-      'ethereum': _double(data['ethereum']),
+      'ethereum': _double(
+        data['ethereum'],
+      ),
 
-      'solana': _double(data['solana']),
+      'solana': _double(
+        data['solana'],
+      ),
 
-      'usdt': _double(data['usdt']),
+      'usdt': _double(
+        data['usdt'],
+      ),
 
-      'completedDays': _normalizeCompletedDays(data['completedDays']),
+      'completedDays': _normalizeCompletedDays(
+        data['completedDays'],
+      ),
 
       'selectedDay': data['selectedDay']?.toString(),
     };
@@ -595,7 +876,9 @@ class FinanceRepository implements FinanceRepositoryContract {
   // CRYPTO KEY
   // ============================================================
 
-  String _cryptoLocalKey(String symbol) {
+  String _cryptoLocalKey(
+    String symbol,
+  ) {
     switch (symbol.trim().toUpperCase()) {
       case 'BTC':
       case 'BITCOIN':
@@ -626,7 +909,10 @@ class FinanceRepository implements FinanceRepositoryContract {
   // VALIDATION
   // ============================================================
 
-  void _validateCryptoValue(double value, String name) {
+  void _validateCryptoValue(
+    double value,
+    String name,
+  ) {
     _validateNonNegativeFinite(
       value,
       name,
@@ -634,9 +920,19 @@ class FinanceRepository implements FinanceRepositoryContract {
     );
   }
 
-  void _validateNonNegativeFinite(double value, String name, String message) {
-    if (!value.isFinite || value < 0) {
-      throw ArgumentError.value(value, name, message);
+  void _validateNonNegativeFinite(
+    double value,
+    String name,
+    String message,
+  ) {
+    if (!value.isFinite ||
+        value <
+            0) {
+      throw ArgumentError.value(
+        value,
+        name,
+        message,
+      );
     }
   }
 
@@ -644,12 +940,16 @@ class FinanceRepository implements FinanceRepositoryContract {
   // DOUBLE
   // ============================================================
 
-  double _double(dynamic value) {
-    if (value == null) {
+  double _double(
+    dynamic value,
+  ) {
+    if (value ==
+        null) {
       return 0;
     }
 
-    if (value is num) {
+    if (value
+        is num) {
       final result = value.toDouble();
 
       if (!result.isFinite) {
@@ -659,46 +959,90 @@ class FinanceRepository implements FinanceRepositoryContract {
       return result;
     }
 
-    return double.tryParse(value.toString().replaceAll(',', '.')) ?? 0;
+    return double.tryParse(
+          value.toString().replaceAll(
+            ',',
+            '.',
+          ),
+        ) ??
+        0;
   }
 
   // ============================================================
   // INTEGER
   // ============================================================
 
-  int _integer(dynamic value, {int fallback = 0}) {
-    if (value == null) {
+  int _integer(
+    dynamic value, {
+    int fallback = 0,
+  }) {
+    if (value ==
+        null) {
       return fallback;
     }
 
-    if (value is int) {
+    if (value
+        is int) {
       return value;
     }
 
-    if (value is num) {
+    if (value
+        is num) {
       return value.toInt();
     }
 
-    return int.tryParse(value.toString()) ?? fallback;
+    return int.tryParse(
+          value.toString(),
+        ) ??
+        fallback;
   }
 
   // ============================================================
   // COMPLETED DAYS
   // ============================================================
 
-  List<bool> _normalizeCompletedDays(dynamic value) {
-    if (value is! List) {
-      return List<bool>.filled(7, false);
+  List<
+    bool
+  >
+  _normalizeCompletedDays(
+    dynamic value,
+  ) {
+    if (value
+        is! List) {
+      return List<
+        bool
+      >.filled(
+        7,
+        false,
+      );
     }
 
-    final result = value.map<bool>((item) => item == true).toList();
+    final result = value
+        .map<
+          bool
+        >(
+          (
+            item,
+          ) =>
+              item ==
+              true,
+        )
+        .toList();
 
-    if (result.length > 7) {
-      return result.take(7).toList();
+    if (result.length >
+        7) {
+      return result
+          .take(
+            7,
+          )
+          .toList();
     }
 
-    while (result.length < 7) {
-      result.add(false);
+    while (result.length <
+        7) {
+      result.add(
+        false,
+      );
     }
 
     return result;

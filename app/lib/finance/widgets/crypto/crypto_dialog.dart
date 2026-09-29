@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../runtime/finance_runtime.dart';
 
@@ -121,53 +120,15 @@ class _CryptoDialogState extends State<CryptoDialog> {
     });
 
     try {
-      // Web: carregue o histórico remoto sincronizado pelo desktop.
-      // Não use crypto_transactions local do navegador, porque em um
-      // navegador novo esse storage começa vazio.
-      if (kIsWeb) {
-        final user = Supabase.instance.client.auth.currentUser;
+      final result = await cryptoController.getBySymbol(normalizedSymbol);
 
-        if (user == null) {
-          throw StateError('Usuário não autenticado.');
-        }
-
-        final rows = await Supabase.instance.client
-            .from('finance_crypto_transactions')
-            .select('id,symbol,date,quantity,invested')
-            .eq('user_id', user.id)
-            .eq('symbol', normalizedSymbol)
-            .order('date', ascending: false);
-
-        final result = <CryptoTransactionModel>[];
-
-        for (final raw in rows) {
-          try {
-            result.add(
-              CryptoTransactionModel.fromMap(Map<String, dynamic>.from(raw)),
-            );
-          } catch (_) {
-            // Um registro inválido não bloqueia os demais.
-          }
-        }
-
-        if (!mounted) {
-          return;
-        }
-
-        setState(() {
-          transactions = List<CryptoTransactionModel>.unmodifiable(result);
-        });
-      } else {
-        final result = await cryptoController.getBySymbol(normalizedSymbol);
-
-        if (!mounted) {
-          return;
-        }
-
-        setState(() {
-          transactions = List<CryptoTransactionModel>.from(result);
-        });
+      if (!mounted) {
+        return;
       }
+
+      setState(() {
+        transactions = List<CryptoTransactionModel>.from(result);
+      });
     } catch (error, stackTrace) {
       debugPrint('[CRYPTO DIALOG][LOAD] $error');
 
@@ -198,13 +159,19 @@ class _CryptoDialogState extends State<CryptoDialog> {
   double get totalQuantity {
     final controllerValue = cryptoController.quantityFor(normalizedSymbol);
 
-    if (controllerValue.isFinite && controllerValue >= 0) {
+    if (controllerValue.isFinite && controllerValue > 0) {
       return controllerValue;
     }
 
-    return transactions.fold<double>(0, (total, item) {
+    final transactionValue = transactions.fold<double>(0, (total, item) {
       return total + item.quantity;
     });
+
+    if (transactionValue.isFinite && transactionValue > 0) {
+      return transactionValue;
+    }
+
+    return 0;
   }
 
   // ============================================================
@@ -218,13 +185,12 @@ class _CryptoDialogState extends State<CryptoDialog> {
       return controllerValue;
     }
 
-    final historyValue = transactions.fold<double>(
-      0,
-      (total, item) => total + item.invested,
-    );
+    final transactionValue = transactions.fold<double>(0, (total, item) {
+      return total + item.invested;
+    });
 
-    if (historyValue.isFinite && historyValue > 0) {
-      return historyValue;
+    if (transactionValue.isFinite && transactionValue > 0) {
+      return transactionValue;
     }
 
     return 0;
@@ -249,13 +215,19 @@ class _CryptoDialogState extends State<CryptoDialog> {
   // ============================================================
 
   double get currentValue {
-    final value = cryptoController.currentValueFor(normalizedSymbol);
+    final controllerValue = cryptoController.currentValueFor(normalizedSymbol);
 
-    if (!value.isFinite || value < 0) {
+    if (controllerValue.isFinite && controllerValue > 0) {
+      return controllerValue;
+    }
+
+    final calculatedValue = totalQuantity * currentPrice;
+
+    if (!calculatedValue.isFinite || calculatedValue < 0) {
       return 0;
     }
 
-    return value;
+    return calculatedValue;
   }
 
   // ============================================================
@@ -263,13 +235,16 @@ class _CryptoDialogState extends State<CryptoDialog> {
   // ============================================================
 
   double get profitLoss {
-    final value = cryptoController.profitLossFor(normalizedSymbol);
+    final controllerValue = cryptoController.profitLossFor(normalizedSymbol);
 
-    if (!value.isFinite) {
-      return 0;
+    if (controllerValue.isFinite &&
+        (controllerValue != 0 || currentValue == 0)) {
+      return controllerValue;
     }
 
-    return value;
+    final calculatedValue = currentValue - totalInvested;
+
+    return calculatedValue.isFinite ? calculatedValue : 0;
   }
 
   // ============================================================
@@ -277,13 +252,22 @@ class _CryptoDialogState extends State<CryptoDialog> {
   // ============================================================
 
   double get profitLossPercent {
-    final value = cryptoController.profitLossPercentFor(normalizedSymbol);
+    final controllerValue = cryptoController.profitLossPercentFor(
+      normalizedSymbol,
+    );
 
-    if (!value.isFinite) {
+    if (controllerValue.isFinite &&
+        (controllerValue != 0 || totalInvested == 0)) {
+      return controllerValue;
+    }
+
+    if (totalInvested <= 0) {
       return 0;
     }
 
-    return value;
+    final calculatedValue = (profitLoss / totalInvested) * 100;
+
+    return calculatedValue.isFinite ? calculatedValue : 0;
   }
 
   // ============================================================

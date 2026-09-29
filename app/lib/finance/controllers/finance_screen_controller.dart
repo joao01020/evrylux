@@ -592,24 +592,45 @@ class FinanceScreenController {
 
       cryptoPricesLoaded = true;
     } catch (error, stackTrace) {
-      cryptoPricesLoaded = false;
-
       cryptoPriceError = error.toString();
 
-      // Mantém os saldos e demais dados financeiros
-      // funcionando mesmo se a cotação falhar.
-      //
-      // Apenas o valor atual das criptos ficará zerado
-      // até a próxima atualização.
+      // Se a atualização remota falhar, reaplica o último cache válido.
+      // Uma indisponibilidade temporária da API não deve zerar patrimônio.
+      final cachedPrices = await cryptoPriceService.getCachedPricesBrl();
 
-      // ignore: avoid_print
-      print(
-        '[FINANCE][CRYPTO PRICE] '
-        '$error',
-      );
+      if (cachedPrices.isNotEmpty) {
+        cryptoPricesBrl = Map<String, double>.from(cachedPrices);
 
-      // ignore: avoid_print
-      print(stackTrace);
+        cryptoController.setPrices(cryptoPricesBrl, notify: false);
+
+        if (kIsWeb) {
+          _applyWebCryptoPortfolioFromFinanceModel();
+        } else {
+          await cryptoController.loadPortfolio();
+        }
+
+        cryptoPricesLoaded = true;
+
+        // ignore: avoid_print
+        print(
+          '[FINANCE][CRYPTO PRICE] '
+          'rede indisponível; usando último cache válido. '
+          '$error',
+        );
+      } else {
+        cryptoPricesLoaded = false;
+
+        // Mantém os demais dados financeiros disponíveis,
+        // mas sinaliza que não há cotação válida nem em cache.
+        // ignore: avoid_print
+        print(
+          '[FINANCE][CRYPTO PRICE] '
+          '$error',
+        );
+
+        // ignore: avoid_print
+        print(stackTrace);
+      }
     }
   }
 
