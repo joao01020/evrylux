@@ -2,6 +2,33 @@ import 'dart:convert';
 
 import '../../../core/database/app_database.dart';
 
+class FinancePriceCacheSnapshot {
+  const FinancePriceCacheSnapshot({
+    required this.prices,
+    required this.updatedAt,
+  });
+
+  final Map<String, double> prices;
+  final DateTime? updatedAt;
+
+  Duration? age({DateTime? now}) {
+    final timestamp = updatedAt;
+
+    if (timestamp == null) {
+      return null;
+    }
+
+    final reference = (now ?? DateTime.now()).toUtc();
+    final normalized = timestamp.toUtc();
+
+    if (normalized.isAfter(reference)) {
+      return Duration.zero;
+    }
+
+    return reference.difference(normalized);
+  }
+}
+
 class FinanceCacheStore {
   const FinanceCacheStore();
 
@@ -14,35 +41,29 @@ class FinanceCacheStore {
 
     final db = AppDatabase.instance.db;
 
-    db.execute(
-      '''
+    db.execute('''
       CREATE TABLE IF NOT EXISTS $_historyTable (
         user_id TEXT PRIMARY KEY NOT NULL,
         payload TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
-      ''',
-    );
+      ''');
 
-    db.execute(
-      '''
+    db.execute('''
       CREATE TABLE IF NOT EXISTS $_objectiveTable (
         user_id TEXT PRIMARY KEY NOT NULL,
         payload TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
-      ''',
-    );
+      ''');
 
-    db.execute(
-      '''
+    db.execute('''
       CREATE TABLE IF NOT EXISTS $_priceTable (
         cache_key TEXT PRIMARY KEY NOT NULL,
         payload TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
-      ''',
-    );
+      ''');
   }
 
   Future<void> saveHistory(
@@ -72,9 +93,7 @@ class FinanceCacheStore {
     );
   }
 
-  Future<List<Map<String, dynamic>>> loadHistory(
-    String userId,
-  ) async {
+  Future<List<Map<String, dynamic>>> loadHistory(String userId) async {
     await _ensureInitialized();
 
     final rows = AppDatabase.instance.db.select(
@@ -106,18 +125,14 @@ class FinanceCacheStore {
 
       return decoded
           .whereType<Map>()
-          .map(
-            (item) => Map<String, dynamic>.from(item),
-          )
+          .map((item) => Map<String, dynamic>.from(item))
           .toList(growable: false);
     } catch (_) {
       return const <Map<String, dynamic>>[];
     }
   }
 
-  Future<void> clearHistory(
-    String userId,
-  ) async {
+  Future<void> clearHistory(String userId) async {
     await _ensureInitialized();
 
     AppDatabase.instance.db.execute(
@@ -126,10 +141,7 @@ class FinanceCacheStore {
     );
   }
 
-  Future<void> saveObjective(
-    String userId,
-    Map<String, dynamic> data,
-  ) async {
+  Future<void> saveObjective(String userId, Map<String, dynamic> data) async {
     await _ensureInitialized();
 
     AppDatabase.instance.db.execute(
@@ -153,9 +165,7 @@ class FinanceCacheStore {
     );
   }
 
-  Future<Map<String, dynamic>?> loadObjective(
-    String userId,
-  ) async {
+  Future<Map<String, dynamic>?> loadObjective(String userId) async {
     await _ensureInitialized();
 
     final rows = AppDatabase.instance.db.select(
@@ -191,9 +201,7 @@ class FinanceCacheStore {
     }
   }
 
-  Future<void> clearObjective(
-    String userId,
-  ) async {
+  Future<void> clearObjective(String userId) async {
     await _ensureInitialized();
 
     AppDatabase.instance.db.execute(
@@ -203,9 +211,12 @@ class FinanceCacheStore {
   }
 
   Future<void> savePrices(
-    Map<String, double> prices,
-  ) async {
+    Map<String, double> prices, {
+    DateTime? updatedAt,
+  }) async {
     await _ensureInitialized();
+
+    final timestamp = (updatedAt ?? DateTime.now()).toUtc();
 
     AppDatabase.instance.db.execute(
       '''
@@ -220,40 +231,49 @@ class FinanceCacheStore {
         payload = excluded.payload,
         updated_at = excluded.updated_at
       ''',
-      <Object?>[
-        jsonEncode(prices),
-        DateTime.now().toUtc().toIso8601String(),
-      ],
+      <Object?>[jsonEncode(prices), timestamp.toIso8601String()],
     );
   }
 
-  Future<Map<String, double>> loadPrices() async {
+  Future<FinancePriceCacheSnapshot> loadPriceSnapshot() async {
     await _ensureInitialized();
 
-    final rows = AppDatabase.instance.db.select(
-      '''
-      SELECT payload
+    final rows = AppDatabase.instance.db.select('''
+      SELECT payload, updated_at
       FROM $_priceTable
       WHERE cache_key = 'brl'
       LIMIT 1
-      ''',
-    );
+      ''');
 
     if (rows.isEmpty) {
-      return const <String, double>{};
+      return const FinancePriceCacheSnapshot(
+        prices: <String, double>{},
+        updatedAt: null,
+      );
     }
 
     final raw = rows.first['payload']?.toString();
+    final rawUpdatedAt = rows.first['updated_at']?.toString();
+
+    final updatedAt = rawUpdatedAt == null
+        ? null
+        : DateTime.tryParse(rawUpdatedAt)?.toUtc();
 
     if (raw == null || raw.trim().isEmpty) {
-      return const <String, double>{};
+      return FinancePriceCacheSnapshot(
+        prices: const <String, double>{},
+        updatedAt: updatedAt,
+      );
     }
 
     try {
       final decoded = jsonDecode(raw);
 
       if (decoded is! Map) {
-        return const <String, double>{};
+        return FinancePriceCacheSnapshot(
+          prices: const <String, double>{},
+          updatedAt: updatedAt,
+        );
       }
 
       final result = <String, double>{};
@@ -262,13 +282,25 @@ class FinanceCacheStore {
         final value = entry.value;
 
         if (value is num) {
-          result[entry.key.toString()] = value.toDouble();
+          final parsed = value.toDouble();
+
+          if (parsed.isFinite && parsed > 0) {
+            result[entry.key.toString()] = parsed;
+          }
         }
       }
 
-      return result;
+      return FinancePriceCacheSnapshot(prices: result, updatedAt: updatedAt);
     } catch (_) {
-      return const <String, double>{};
+      return FinancePriceCacheSnapshot(
+        prices: const <String, double>{},
+        updatedAt: updatedAt,
+      );
     }
+  }
+
+  Future<Map<String, double>> loadPrices() async {
+    final snapshot = await loadPriceSnapshot();
+    return snapshot.prices;
   }
 }

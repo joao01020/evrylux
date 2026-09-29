@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../../data/cache/finance_cache_store.dart';
+import 'crypto_price_cache_policy.dart';
 
 class CryptoPriceService {
   const CryptoPriceService({
@@ -33,66 +36,126 @@ class CryptoPriceService {
   };
 
   // ============================================================
-  // REFRESH
+  // PUBLIC
   // ============================================================
-  //
-  // Estratégia resiliente:
-  //
-  // 1. Carrega primeiro o último cache válido.
-  // 2. Tenta CoinGecko.
-  // 3. Completa o que faltar pelo CoinPaprika.
-  // 4. Nunca substitui preço válido em cache por zero.
-  // 5. Se a rede falhar, devolve o último cache válido.
-  //
-  // Assim uma falha temporária de API não transforma
-  // o Patrimônio do usuário em R$ 0,00.
-  //
-  // ============================================================
+
+  Future<Map<String, double>> getPricesBrl() async {
+    final snapshot = await getCachedSnapshot();
+    final cached = snapshot.prices;
+
+    final state = CryptoPriceCachePolicy.classify(
+      hasPrices: cached.isNotEmpty,
+      updatedAt: snapshot.updatedAt,
+    );
+
+    switch (state) {
+      case CryptoPriceCacheState.fresh:
+        _logCache(source: 'cache-fresh', snapshot: snapshot);
+        return cached;
+
+      case CryptoPriceCacheState.stale:
+        _logCache(source: 'cache-stale', snapshot: snapshot);
+
+        // Stale-while-revalidate:
+        // entrega a última cotação válida imediatamente e atualiza
+        // em background, sem travar a interface.
+        unawaited(_refreshSilently());
+
+        return cached;
+
+      case CryptoPriceCacheState.expired:
+        if (cached.isNotEmpty) {
+          try {
+            return await refreshPricesBrl();
+          } catch (error) {
+            _log(
+              '[FINANCE][PRICE] refresh falhou; '
+              'usando cache expirado como último valor conhecido. '
+              'error=$error',
+            );
+            return cached;
+          }
+        }
+
+        return refreshPricesBrl();
+
+      case CryptoPriceCacheState.empty:
+        return refreshPricesBrl();
+    }
+  }
 
   Future<Map<String, double>> refreshPricesBrl() async {
     final client = _client ?? http.Client();
     final shouldCloseClient = _client == null;
 
-    final cached = _sanitizePrices(await cacheStore.loadPrices());
-
-    final merged = <String, double>{...cached};
+    final snapshot = await getCachedSnapshot();
+    final merged = <String, double>{...snapshot.prices};
 
     Object? coinGeckoError;
     Object? coinPaprikaError;
 
     try {
-      final coinGecko = await _fetchCoinGecko(client);
+      final prices = await _fetchCoinGecko(client);
 
-      _mergeValid(merged, coinGecko);
+      _mergeValid(merged, prices);
+
+      _logProvider(provider: 'coingecko', prices: prices);
     } catch (error) {
       coinGeckoError = error;
+
+      _log(
+        '[FINANCE][PRICE] provider=coingecko '
+        'status=failed error=$error',
+      );
     }
 
-    final missingSymbols = _coinGeckoIds.keys
+    final missing = _coinGeckoIds.keys
         .where((symbol) => !_isValidPrice(merged[symbol]))
         .toList(growable: false);
 
-    if (missingSymbols.isNotEmpty) {
+    if (missing.isNotEmpty) {
       try {
-        final coinPaprika = await _fetchCoinPaprika(
-          client,
-          symbols: missingSymbols,
-        );
+        final prices = await _fetchCoinPaprika(client, symbols: missing);
 
-        _mergeValid(merged, coinPaprika);
+        _mergeValid(merged, prices);
+
+        _logProvider(provider: 'coinpaprika', prices: prices);
       } catch (error) {
         coinPaprikaError = error;
+
+        _log(
+          '[FINANCE][PRICE] provider=coinpaprika '
+          'status=failed error=$error',
+        );
       }
     }
 
     final valid = _sanitizePrices(merged);
 
     if (valid.isNotEmpty) {
-      // Só persiste valores realmente utilizáveis.
-      // Nunca salva mapa zerado por cima do último cache válido.
-      await cacheStore.savePrices(valid);
+      final now = DateTime.now().toUtc();
+
+      // Proteção contra zero:
+      // somente valores > 0 são persistidos. Uma API quebrada
+      // nunca sobrescreve uma cotação boa por zero.
+      await cacheStore.savePrices(valid, updatedAt: now);
+
+      _log(
+        '[FINANCE][PRICE] cache=updated '
+        'timestamp=${now.toIso8601String()} '
+        'symbols=${valid.keys.join(',')}',
+      );
 
       return valid;
+    }
+
+    if (snapshot.prices.isNotEmpty) {
+      _log(
+        '[FINANCE][PRICE] providers indisponíveis; '
+        'preservando último cache válido.',
+      );
+
+      return snapshot.prices;
     }
 
     final details = <String>[
@@ -107,8 +170,43 @@ class CryptoPriceService {
     );
   }
 
+  Future<FinancePriceCacheSnapshot> getCachedSnapshot() async {
+    final raw = await cacheStore.loadPriceSnapshot();
+
+    return FinancePriceCacheSnapshot(
+      prices: _sanitizePrices(raw.prices),
+      updatedAt: raw.updatedAt,
+    );
+  }
+
+  Future<Map<String, double>> getCachedPricesBrl() async {
+    final snapshot = await getCachedSnapshot();
+    return snapshot.prices;
+  }
+
+  Future<DateTime?> getCachedPricesUpdatedAt() async {
+    final snapshot = await getCachedSnapshot();
+    return snapshot.updatedAt;
+  }
+
+  Future<double> getPriceBrl(String symbol) async {
+    final normalized = symbol.trim().toUpperCase();
+
+    if (!_coinGeckoIds.containsKey(normalized)) {
+      throw CryptoPriceException('Criptomoeda não suportada: $normalized.');
+    }
+
+    final prices = await getPricesBrl();
+
+    return prices[normalized] ?? 0.0;
+  }
+
+  bool supports(String symbol) {
+    return _coinGeckoIds.containsKey(symbol.trim().toUpperCase());
+  }
+
   // ============================================================
-  // COINGECKO
+  // NETWORK
   // ============================================================
 
   Future<Map<String, double>> _fetchCoinGecko(http.Client client) async {
@@ -154,10 +252,6 @@ class CryptoPriceService {
 
     return prices;
   }
-
-  // ============================================================
-  // COINPAPRIKA FALLBACK
-  // ============================================================
 
   Future<Map<String, double>> _fetchCoinPaprika(
     http.Client client, {
@@ -229,44 +323,19 @@ class CryptoPriceService {
   }
 
   // ============================================================
-  // CACHE
+  // INTERNAL
   // ============================================================
 
-  Future<Map<String, double>> getCachedPricesBrl() async {
-    return _sanitizePrices(await cacheStore.loadPrices());
-  }
-
-  Future<Map<String, double>> getPricesBrl() async {
-    final cached = await getCachedPricesBrl();
-
-    if (cached.isNotEmpty) {
-      return cached;
-    }
-
-    return refreshPricesBrl();
-  }
-
-  Future<double> getPriceBrl(String symbol) async {
-    final normalizedSymbol = symbol.trim().toUpperCase();
-
-    if (!_coinGeckoIds.containsKey(normalizedSymbol)) {
-      throw CryptoPriceException(
-        'Criptomoeda não suportada: $normalizedSymbol.',
+  Future<void> _refreshSilently() async {
+    try {
+      await refreshPricesBrl();
+    } catch (error) {
+      _log(
+        '[FINANCE][PRICE] background-refresh=failed '
+        'error=$error',
       );
     }
-
-    final prices = await getPricesBrl();
-
-    return prices[normalizedSymbol] ?? 0.0;
   }
-
-  bool supports(String symbol) {
-    return _coinGeckoIds.containsKey(symbol.trim().toUpperCase());
-  }
-
-  // ============================================================
-  // HELPERS
-  // ============================================================
 
   static void _mergeValid(
     Map<String, double> target,
@@ -317,6 +386,36 @@ class CryptoPriceService {
     }
 
     return _isValidPrice(parsed) ? parsed : 0.0;
+  }
+
+  static void _logProvider({
+    required String provider,
+    required Map<String, double> prices,
+  }) {
+    _log(
+      '[FINANCE][PRICE] provider=$provider '
+      'status=ok symbols=${prices.keys.join(',')}',
+    );
+  }
+
+  static void _logCache({
+    required String source,
+    required FinancePriceCacheSnapshot snapshot,
+  }) {
+    final age = snapshot.age();
+
+    _log(
+      '[FINANCE][PRICE] source=$source '
+      'ageSeconds=${age?.inSeconds ?? -1} '
+      'timestamp=${snapshot.updatedAt?.toIso8601String() ?? 'unknown'} '
+      'symbols=${snapshot.prices.keys.join(',')}',
+    );
+  }
+
+  static void _log(String message) {
+    if (kDebugMode) {
+      debugPrint(message);
+    }
   }
 }
 

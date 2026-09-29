@@ -13,6 +13,7 @@ import '../services/crypto/crypto_price_service.dart';
 import '../services/finance/finance_contribution_service.dart';
 
 import '../services/persistence/finance_persistence_service.dart';
+import '../utils/crypto_value_math.dart';
 
 import '../services/history/finance_history_storage.dart';
 
@@ -198,20 +199,15 @@ class FinanceScreenController {
 
   double get cryptoPatrimony {
     if (kIsWeb) {
-      double quantity(dynamic value) {
-        final parsed = value is num ? value.toDouble() : 0.0;
-        return parsed.isFinite && parsed > 0 ? parsed : 0.0;
-      }
-
-      double price(String symbol) {
-        final parsed = cryptoPricesBrl[symbol] ?? 0.0;
-        return parsed.isFinite && parsed > 0 ? parsed : 0.0;
-      }
-
-      return quantity(model.bitcoin) * price('BTC') +
-          quantity(model.ethereum) * price('ETH') +
-          quantity(model.solana) * price('SOL') +
-          quantity(model.usdt) * price('USDT');
+      return CryptoValueMath.patrimony(
+        quantities: <String, double>{
+          'BTC': CryptoValueMath.positive(model.bitcoin),
+          'ETH': CryptoValueMath.positive(model.ethereum),
+          'SOL': CryptoValueMath.positive(model.solana),
+          'USDT': CryptoValueMath.positive(model.usdt),
+        },
+        prices: cryptoPricesBrl,
+      );
     }
 
     final value = cryptoController.cryptoPatrimonyBrl;
@@ -591,6 +587,17 @@ class FinanceScreenController {
       }
 
       cryptoPricesLoaded = true;
+
+      final updatedAt = await cryptoPriceService.getCachedPricesUpdatedAt();
+
+      debugPrint(
+        '[FINANCE][PORTFOLIO] '
+        'patrimony=$cryptoPatrimony '
+        'priceTimestamp=${updatedAt?.toIso8601String() ?? 'unknown'} '
+        'BTC=${model.bitcoin} price=${cryptoPricesBrl['BTC'] ?? 0} '
+        'SOL=${model.solana} price=${cryptoPricesBrl['SOL'] ?? 0} '
+        'USDT=${model.usdt} price=${cryptoPricesBrl['USDT'] ?? 0}',
+      );
     } catch (error, stackTrace) {
       cryptoPriceError = error.toString();
 
