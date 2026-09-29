@@ -13,27 +13,16 @@ import '../widgets/components/finance_screen_content.dart';
 import '../widgets/progress/investment_progress.dart';
 import '../widgets/timeline/investment_timeline.dart';
 
-class FinanceScreen
-    extends
-        StatefulWidget {
-  const FinanceScreen({
-    super.key,
-  });
+class FinanceScreen extends StatefulWidget {
+  const FinanceScreen({super.key});
 
   @override
-  State<
-    FinanceScreen
-  >
-  createState() {
+  State<FinanceScreen> createState() {
     return _FinanceScreenState();
   }
 }
 
-class _FinanceScreenState
-    extends
-        State<
-          FinanceScreen
-        > {
+class _FinanceScreenState extends State<FinanceScreen> {
   // ============================================================
   // CONTROLLER
   // ============================================================
@@ -60,9 +49,7 @@ class _FinanceScreenState
 
   bool _isRefreshingCryptoPrices = false;
 
-  static const Duration _cryptoRefreshInterval = Duration(
-    minutes: 2,
-  );
+  static const Duration _cryptoRefreshInterval = Duration(minutes: 2);
 
   // ============================================================
   // INIT
@@ -92,10 +79,7 @@ class _FinanceScreenState
   // INITIALIZE
   // ============================================================
 
-  Future<
-    void
-  >
-  _initializeScreen() async {
+  Future<void> _initializeScreen() async {
     await _loadCachedScreen();
 
     if (!mounted) {
@@ -104,9 +88,7 @@ class _FinanceScreenState
 
     _startCryptoRefreshTimer();
 
-    unawaited(
-      _refreshRemoteScreen(),
-    );
+    unawaited(_refreshRemoteScreen());
   }
 
   // ============================================================
@@ -126,23 +108,13 @@ class _FinanceScreenState
   // LOAD CACHED
   // ============================================================
 
-  Future<
-    void
-  >
-  _loadCachedScreen() async {
+  Future<void> _loadCachedScreen() async {
     try {
       await _controller.loadCached();
-    } catch (
-      error,
-      stackTrace
-    ) {
-      debugPrint(
-        '[FINANCE][CACHE LOAD] $error',
-      );
+    } catch (error, stackTrace) {
+      debugPrint('[FINANCE][CACHE LOAD] $error');
 
-      debugPrint(
-        '$stackTrace',
-      );
+      debugPrint('$stackTrace');
     }
 
     _refresh();
@@ -156,23 +128,13 @@ class _FinanceScreenState
   //
   // ============================================================
 
-  Future<
-    void
-  >
-  _refreshRemoteScreen() async {
+  Future<void> _refreshRemoteScreen() async {
     try {
       await _controller.refreshFromRemote();
-    } catch (
-      error,
-      stackTrace
-    ) {
-      debugPrint(
-        '[FINANCE][BACKGROUND REFRESH] $error',
-      );
+    } catch (error, stackTrace) {
+      debugPrint('[FINANCE][BACKGROUND REFRESH] $error');
 
-      debugPrint(
-        '$stackTrace',
-      );
+      debugPrint('$stackTrace');
     }
 
     _refresh();
@@ -187,9 +149,7 @@ class _FinanceScreenState
       return;
     }
 
-    setState(
-      () {},
-    );
+    setState(() {});
   }
 
   // ============================================================
@@ -199,16 +159,9 @@ class _FinanceScreenState
   void _startCryptoRefreshTimer() {
     _cryptoRefreshTimer?.cancel();
 
-    _cryptoRefreshTimer = Timer.periodic(
-      _cryptoRefreshInterval,
-      (
-        _,
-      ) async {
-        await _refreshCryptoPrices(
-          showMessage: false,
-        );
-      },
-    );
+    _cryptoRefreshTimer = Timer.periodic(_cryptoRefreshInterval, (_) async {
+      await _refreshCryptoPrices(showMessage: false);
+    });
   }
 
   // ============================================================
@@ -220,64 +173,33 @@ class _FinanceScreenState
       return;
     }
 
-    setState(
-      () {
-        _showBalances = !_showBalances;
-      },
-    );
+    setState(() {
+      _showBalances = !_showBalances;
+    });
   }
 
   // ============================================================
   // FORMATAR MOEDA
   // ============================================================
 
-  String _formatCurrency(
-    double value,
-  ) {
-    final safeValue = value.isFinite
-        ? value
-        : 0.0;
+  String _formatCurrency(double value) {
+    final safeValue = value.isFinite ? value : 0.0;
 
-    final fixed = safeValue
-        .toStringAsFixed(
-          2,
-        )
-        .split(
-          '.',
-        );
+    final fixed = safeValue.toStringAsFixed(2).split('.');
 
     final integer = fixed.first;
 
-    final cents =
-        fixed.length >
-            1
-        ? fixed[1]
-        : '00';
+    final cents = fixed.length > 1 ? fixed[1] : '00';
 
     final buffer = StringBuffer();
 
-    for (
-      var index = 0;
-      index <
-          integer.length;
-      index++
-    ) {
-      final remaining =
-          integer.length -
-          index;
+    for (var index = 0; index < integer.length; index++) {
+      final remaining = integer.length - index;
 
-      buffer.write(
-        integer[index],
-      );
+      buffer.write(integer[index]);
 
-      if (remaining >
-              1 &&
-          remaining %
-                  3 ==
-              1) {
-        buffer.write(
-          '.',
-        );
+      if (remaining > 1 && remaining % 3 == 1) {
+        buffer.write('.');
       }
     }
 
@@ -288,277 +210,204 @@ class _FinanceScreenState
   // PARSE BRL
   // ============================================================
 
-  double? _parseCurrency(
-    String raw,
-  ) {
-    var value = raw
-        .trim()
-        .replaceAll(
-          'R\$',
-          '',
-        )
-        .replaceAll(
-          ' ',
-          '',
-        );
+  double? _parseCurrency(String raw) {
+    var value = raw.trim().replaceAll('R\$', '').replaceAll(' ', '');
 
     if (value.isEmpty) {
       return null;
     }
 
-    if (value.contains(
-      ',',
-    )) {
-      value = value
-          .replaceAll(
-            '.',
-            '',
-          )
-          .replaceAll(
-            ',',
-            '.',
-          );
+    if (value.contains(',')) {
+      value = value.replaceAll('.', '').replaceAll(',', '.');
     }
 
-    return double.tryParse(
-      value,
-    );
+    return double.tryParse(value);
   }
 
   // ============================================================
   // MODAL - OBJETIVO
   // ============================================================
 
-  Future<
-    void
-  >
-  _openObjectiveModal() async {
-    await showModalBottomSheet<
-      void
-    >(
+  Future<void> _openObjectiveModal() async {
+    await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
-      backgroundColor: Theme.of(
-        context,
-      ).colorScheme.surface,
-      constraints: const BoxConstraints(
-        maxWidth: 660,
-      ),
-      builder:
-          (
-            modalContext,
-          ) {
-            final model = _controller.model;
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      constraints: const BoxConstraints(maxWidth: 660),
+      builder: (modalContext) {
+        final model = _controller.model;
 
-            String objectiveName = _controller.objectiveName;
+        String objectiveName = _controller.objectiveName;
 
-            return StatefulBuilder(
-              builder:
-                  (
-                    context,
-                    setModalState,
-                  ) {
-                    return Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        20,
-                        4,
-                        20,
-                        24 +
-                            MediaQuery.of(
-                              modalContext,
-                            ).viewInsets.bottom,
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                4,
+                20,
+                24 + MediaQuery.of(modalContext).viewInsets.bottom,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _FinanceModalHeader(
+                      icon: Icons.track_changes_rounded,
+                      title: 'Objetivo',
+                      subtitle: 'Defina o patrimônio que você deseja alcançar.',
+                      onClose: () {
+                        Navigator.of(modalContext).pop();
+                      },
+                    ),
+
+                    const SizedBox(height: 22),
+
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 26,
                       ),
-                      child: SingleChildScrollView(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _FinanceModalHeader(
-                              icon: Icons.track_changes_rounded,
-                              title: 'Objetivo',
-                              subtitle: 'Defina o patrimônio que você deseja alcançar.',
-                              onClose: () {
-                                Navigator.of(
-                                  modalContext,
-                                ).pop();
-                              },
-                            ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(
+                          modalContext,
+                        ).colorScheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: Theme.of(
+                            modalContext,
+                          ).colorScheme.outlineVariant,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.track_changes_rounded,
+                            size: 25,
+                            color: Theme.of(modalContext).colorScheme.primary,
+                          ),
 
-                            const SizedBox(
-                              height: 22,
-                            ),
+                          const SizedBox(height: 10),
 
-                            Container(
-                              width: double.infinity,
+                          // ====================================
+                          // NOME
+                          // ====================================
+                          InkWell(
+                            borderRadius: BorderRadius.circular(10),
+                            onTap: () async {
+                              final updatedName = await _editObjectiveName();
+
+                              if (updatedName != null && modalContext.mounted) {
+                                setModalState(() {
+                                  objectiveName = updatedName;
+                                });
+                              }
+                            },
+                            child: Padding(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 18,
-                                vertical: 26,
+                                horizontal: 8,
+                                vertical: 6,
                               ),
-                              decoration: BoxDecoration(
-                                color: Theme.of(
-                                  modalContext,
-                                ).colorScheme.surfaceContainerLow,
-                                borderRadius: BorderRadius.circular(
-                                  18,
-                                ),
-                                border: Border.all(
-                                  color: Theme.of(
-                                    modalContext,
-                                  ).colorScheme.outlineVariant,
-                                ),
-                              ),
-                              child: Column(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
+                                  Flexible(
+                                    child: Text(
+                                      objectiveName,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+
+                                  const SizedBox(width: 7),
+
                                   Icon(
-                                    Icons.track_changes_rounded,
-                                    size: 25,
+                                    Icons.edit_rounded,
+                                    size: 16,
                                     color: Theme.of(
                                       modalContext,
                                     ).colorScheme.primary,
                                   ),
+                                ],
+                              ),
+                            ),
+                          ),
 
-                                  const SizedBox(
-                                    height: 10,
-                                  ),
+                          const SizedBox(height: 8),
 
-                                  // ====================================
-                                  // NOME
-                                  // ====================================
-                                  InkWell(
-                                    borderRadius: BorderRadius.circular(
-                                      10,
-                                    ),
-                                    onTap: () async {
-                                      final updatedName = await _editObjectiveName();
+                          // ====================================
+                          // VALOR
+                          // ====================================
+                          InkWell(
+                            borderRadius: BorderRadius.circular(10),
+                            onTap: () async {
+                              final changed = await _editObjectiveValue();
 
-                                      if (updatedName !=
-                                              null &&
-                                          modalContext.mounted) {
-                                        setModalState(
-                                          () {
-                                            objectiveName = updatedName;
-                                          },
-                                        );
-                                      }
-                                    },
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 6,
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Flexible(
-                                            child: Text(
-                                              objectiveName,
-                                              textAlign: TextAlign.center,
-                                              style: const TextStyle(
-                                                fontSize: 17,
-                                                fontWeight: FontWeight.w800,
-                                              ),
-                                            ),
-                                          ),
-
-                                          const SizedBox(
-                                            width: 7,
-                                          ),
-
-                                          Icon(
-                                            Icons.edit_rounded,
-                                            size: 16,
-                                            color: Theme.of(
-                                              modalContext,
-                                            ).colorScheme.primary,
-                                          ),
-                                        ],
-                                      ),
+                              if (changed && modalContext.mounted) {
+                                setModalState(() {});
+                              }
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 6,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    _showBalances
+                                        ? _formatCurrency(model.investmentGoal)
+                                        : '••••••••',
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      fontSize: 23,
+                                      fontWeight: FontWeight.w900,
                                     ),
                                   ),
 
-                                  const SizedBox(
-                                    height: 8,
-                                  ),
+                                  const SizedBox(width: 8),
 
-                                  // ====================================
-                                  // VALOR
-                                  // ====================================
-                                  InkWell(
-                                    borderRadius: BorderRadius.circular(
-                                      10,
-                                    ),
-                                    onTap: () async {
-                                      final changed = await _editObjectiveValue();
-
-                                      if (changed &&
-                                          modalContext.mounted) {
-                                        setModalState(
-                                          () {},
-                                        );
-                                      }
-                                    },
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 6,
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            _showBalances
-                                                ? _formatCurrency(
-                                                    model.investmentGoal,
-                                                  )
-                                                : '••••••••',
-                                            textAlign: TextAlign.center,
-                                            style: const TextStyle(
-                                              fontSize: 23,
-                                              fontWeight: FontWeight.w900,
-                                            ),
-                                          ),
-
-                                          const SizedBox(
-                                            width: 8,
-                                          ),
-
-                                          Icon(
-                                            Icons.edit_rounded,
-                                            size: 17,
-                                            color: Theme.of(
-                                              modalContext,
-                                            ).colorScheme.primary,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
+                                  Icon(
+                                    Icons.edit_rounded,
+                                    size: 17,
+                                    color: Theme.of(
+                                      modalContext,
+                                    ).colorScheme.primary,
                                   ),
                                 ],
                               ),
                             ),
-
-                            const SizedBox(
-                              height: 12,
-                            ),
-
-                            Text(
-                              'Clique no nome ou no valor para editar.',
-                              style: TextStyle(
-                                color: Theme.of(
-                                  modalContext,
-                                ).colorScheme.onSurfaceVariant,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    );
-                  },
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    Text(
+                      'Clique no nome ou no valor para editar.',
+                      style: TextStyle(
+                        color: Theme.of(
+                          modalContext,
+                        ).colorScheme.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             );
           },
+        );
+      },
     );
   }
 
@@ -566,99 +415,63 @@ class _FinanceScreenState
   // EDITAR NOME
   // ============================================================
 
-  Future<
-    String?
-  >
-  _editObjectiveName() async {
-    final controller = TextEditingController(
-      text: _controller.objectiveName,
-    );
+  Future<String?> _editObjectiveName() async {
+    final controller = TextEditingController(text: _controller.objectiveName);
 
-    final result =
-        await showDialog<
-          String
-        >(
-          context: context,
-          builder:
-              (
-                dialogContext,
-              ) {
-                return AlertDialog(
-                  title: const Text(
-                    'Nome do objetivo',
-                  ),
-                  content: TextField(
-                    controller: controller,
-                    autofocus: true,
-                    maxLength: 60,
-                    textInputAction: TextInputAction.done,
-                    decoration: const InputDecoration(
-                      labelText: 'Nome',
-                      hintText: 'Ex.: Liberdade financeira',
-                      border: OutlineInputBorder(),
-                    ),
-                    onSubmitted:
-                        (
-                          value,
-                        ) {
-                          Navigator.of(
-                            dialogContext,
-                          ).pop(
-                            value,
-                          );
-                        },
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(
-                          dialogContext,
-                        ).pop();
-                      },
-                      child: const Text(
-                        'Cancelar',
-                      ),
-                    ),
-
-                    FilledButton(
-                      onPressed: () {
-                        Navigator.of(
-                          dialogContext,
-                        ).pop(
-                          controller.text,
-                        );
-                      },
-                      child: const Text(
-                        'Salvar',
-                      ),
-                    ),
-                  ],
-                );
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Nome do objetivo'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            maxLength: 60,
+            textInputAction: TextInputAction.done,
+            decoration: const InputDecoration(
+              labelText: 'Nome',
+              hintText: 'Ex.: Liberdade financeira',
+              border: OutlineInputBorder(),
+            ),
+            onSubmitted: (value) {
+              Navigator.of(dialogContext).pop(value);
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
               },
+              child: const Text('Cancelar'),
+            ),
+
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(controller.text);
+              },
+              child: const Text('Salvar'),
+            ),
+          ],
         );
+      },
+    );
 
     controller.dispose();
 
-    if (result ==
-            null ||
-        !mounted) {
+    if (result == null || !mounted) {
       return null;
     }
 
     final normalized = result.trim();
 
     if (normalized.isEmpty) {
-      _actions.showMessage(
-        'Digite um nome para o objetivo.',
-      );
+      _actions.showMessage('Digite um nome para o objetivo.');
 
       return null;
     }
 
     try {
-      final objective = await _controller.updateObjectiveName(
-        normalized,
-      );
+      final objective = await _controller.updateObjectiveName(normalized);
 
       final updatedName = objective.name.trim().isEmpty
           ? normalized
@@ -668,31 +481,18 @@ class _FinanceScreenState
         return updatedName;
       }
 
-      setState(
-        () {},
-      );
+      setState(() {});
 
-      _actions.showMessage(
-        'Nome do objetivo salvo.',
-      );
+      _actions.showMessage('Nome do objetivo salvo.');
 
       return updatedName;
-    } catch (
-      error,
-      stackTrace
-    ) {
-      debugPrint(
-        '[FINANCE][OBJECTIVE][NAME] $error',
-      );
+    } catch (error, stackTrace) {
+      debugPrint('[FINANCE][OBJECTIVE][NAME] $error');
 
-      debugPrint(
-        '$stackTrace',
-      );
+      debugPrint('$stackTrace');
 
       if (mounted) {
-        _actions.showMessage(
-          'Não foi possível salvar o nome do objetivo.',
-        );
+        _actions.showMessage('Não foi possível salvar o nome do objetivo.');
       }
 
       return null;
@@ -703,151 +503,88 @@ class _FinanceScreenState
   // EDITAR VALOR
   // ============================================================
 
-  Future<
-    bool
-  >
-  _editObjectiveValue() async {
+  Future<bool> _editObjectiveValue() async {
     final controller = TextEditingController(
       text: _controller.model.investmentGoal
-          .toStringAsFixed(
-            2,
-          )
-          .replaceAll(
-            '.',
-            ',',
-          ),
+          .toStringAsFixed(2)
+          .replaceAll('.', ','),
     );
 
-    final result =
-        await showDialog<
-          String
-        >(
-          context: context,
-          builder:
-              (
-                dialogContext,
-              ) {
-                return AlertDialog(
-                  title: const Text(
-                    'Valor do objetivo',
-                  ),
-                  content: TextField(
-                    controller: controller,
-                    autofocus: true,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(
-                        RegExp(
-                          r'[0-9.,]',
-                        ),
-                      ),
-                    ],
-                    textInputAction: TextInputAction.done,
-                    decoration: const InputDecoration(
-                      labelText: 'Objetivo final',
-                      prefixText: 'R\$ ',
-                      hintText: '10.000,00',
-                      border: OutlineInputBorder(),
-                    ),
-                    onSubmitted:
-                        (
-                          value,
-                        ) {
-                          Navigator.of(
-                            dialogContext,
-                          ).pop(
-                            value,
-                          );
-                        },
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(
-                          dialogContext,
-                        ).pop();
-                      },
-                      child: const Text(
-                        'Cancelar',
-                      ),
-                    ),
-
-                    FilledButton(
-                      onPressed: () {
-                        Navigator.of(
-                          dialogContext,
-                        ).pop(
-                          controller.text,
-                        );
-                      },
-                      child: const Text(
-                        'Salvar',
-                      ),
-                    ),
-                  ],
-                );
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Valor do objetivo'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+            ],
+            textInputAction: TextInputAction.done,
+            decoration: const InputDecoration(
+              labelText: 'Objetivo final',
+              prefixText: 'R\$ ',
+              hintText: '10.000,00',
+              border: OutlineInputBorder(),
+            ),
+            onSubmitted: (value) {
+              Navigator.of(dialogContext).pop(value);
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
               },
+              child: const Text('Cancelar'),
+            ),
+
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(controller.text);
+              },
+              child: const Text('Salvar'),
+            ),
+          ],
         );
+      },
+    );
 
     controller.dispose();
 
-    if (result ==
-            null ||
-        !mounted) {
+    if (result == null || !mounted) {
       return false;
     }
 
-    final value = _parseCurrency(
-      result,
-    );
+    final value = _parseCurrency(result);
 
-    if (value ==
-            null ||
-        value <=
-            0) {
-      _actions.showMessage(
-        'Digite um valor válido maior que zero.',
-      );
+    if (value == null || value <= 0) {
+      _actions.showMessage('Digite um valor válido maior que zero.');
 
       return false;
     }
 
     try {
-      await _controller.updateObjectiveValue(
-        value,
-      );
+      await _controller.updateObjectiveValue(value);
 
       if (!mounted) {
         return true;
       }
 
-      setState(
-        () {},
-      );
+      setState(() {});
 
-      _actions.showMessage(
-        'Valor do objetivo salvo.',
-      );
+      _actions.showMessage('Valor do objetivo salvo.');
 
       return true;
-    } catch (
-      error,
-      stackTrace
-    ) {
-      debugPrint(
-        '[FINANCE][OBJECTIVE][VALUE] $error',
-      );
+    } catch (error, stackTrace) {
+      debugPrint('[FINANCE][OBJECTIVE][VALUE] $error');
 
-      debugPrint(
-        '$stackTrace',
-      );
+      debugPrint('$stackTrace');
 
       if (mounted) {
-        _actions.showMessage(
-          'Não foi possível salvar o valor do objetivo.',
-        );
+        _actions.showMessage('Não foi possível salvar o valor do objetivo.');
       }
 
       return false;
@@ -870,19 +607,12 @@ class _FinanceScreenState
               : 'Mostrar todos os saldos',
           onPressed: _toggleBalances,
           icon: AnimatedSwitcher(
-            duration: const Duration(
-              milliseconds: 180,
-            ),
+            duration: const Duration(milliseconds: 180),
             child: Icon(
               _showBalances
                   ? Icons.visibility_outlined
                   : Icons.visibility_off_outlined,
-              key:
-                  ValueKey<
-                    bool
-                  >(
-                    _showBalances,
-                  ),
+              key: ValueKey<bool>(_showBalances),
             ),
           ),
         ),
@@ -893,9 +623,7 @@ class _FinanceScreenState
         IconButton(
           tooltip: 'Planejamento',
           onPressed: _actions.openPlanning,
-          icon: const Icon(
-            Icons.tune_outlined,
-          ),
+          icon: const Icon(Icons.tune_outlined),
         ),
 
         // ======================================================
@@ -908,21 +636,15 @@ class _FinanceScreenState
           onPressed: _isRefreshingCryptoPrices
               ? null
               : () {
-                  _refreshCryptoPrices(
-                    showMessage: true,
-                  );
+                  _refreshCryptoPrices(showMessage: true);
                 },
           icon: _isRefreshingCryptoPrices
               ? const SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                  ),
+                  child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Icon(
-                  Icons.refresh_rounded,
-                ),
+              : const Icon(Icons.refresh_rounded),
         ),
       ],
     );
@@ -932,12 +654,7 @@ class _FinanceScreenState
   // REFRESH CRYPTO PRICES
   // ============================================================
 
-  Future<
-    void
-  >
-  _refreshCryptoPrices({
-    bool showMessage = true,
-  }) async {
+  Future<void> _refreshCryptoPrices({bool showMessage = true}) async {
     if (_isRefreshingCryptoPrices) {
       return;
     }
@@ -946,11 +663,9 @@ class _FinanceScreenState
       return;
     }
 
-    setState(
-      () {
-        _isRefreshingCryptoPrices = true;
-      },
-    );
+    setState(() {
+      _isRefreshingCryptoPrices = true;
+    });
 
     try {
       await _controller.refreshCryptoPrices();
@@ -959,46 +674,28 @@ class _FinanceScreenState
         return;
       }
 
-      setState(
-        () {},
-      );
+      setState(() {});
 
       if (showMessage) {
         if (_controller.cryptoPricesLoaded) {
-          _actions.showMessage(
-            'Cotações atualizadas.',
-          );
+          _actions.showMessage('Cotações atualizadas.');
         } else {
-          _actions.showMessage(
-            'Não foi possível atualizar as cotações.',
-          );
+          _actions.showMessage('Não foi possível atualizar as cotações.');
         }
       }
-    } catch (
-      error,
-      stackTrace
-    ) {
-      debugPrint(
-        '[FINANCE][CRYPTO][REFRESH] $error',
-      );
+    } catch (error, stackTrace) {
+      debugPrint('[FINANCE][CRYPTO][REFRESH] $error');
 
-      debugPrint(
-        '$stackTrace',
-      );
+      debugPrint('$stackTrace');
 
-      if (mounted &&
-          showMessage) {
-        _actions.showMessage(
-          'Não foi possível atualizar as cotações.',
-        );
+      if (mounted && showMessage) {
+        _actions.showMessage('Não foi possível atualizar as cotações.');
       }
     } finally {
       if (mounted) {
-        setState(
-          () {
-            _isRefreshingCryptoPrices = false;
-          },
-        );
+        setState(() {
+          _isRefreshingCryptoPrices = false;
+        });
       }
     }
   }
@@ -1007,86 +704,63 @@ class _FinanceScreenState
   // ÚLTIMO APORTE
   // ============================================================
 
-  List<
-    InvestmentHistory
-  >
-  get _latestContribution {
+  List<InvestmentHistory> get _latestContribution {
     if (_controller.history.isEmpty) {
       return [];
     }
 
-    return [
-      _controller.history.last,
-    ];
+    return [_controller.history.last];
   }
 
   // ============================================================
   // MODAL - SUA EVOLUÇÃO
   // ============================================================
 
-  Future<
-    void
-  >
-  _openEvolutionModal() async {
-    await showModalBottomSheet<
-      void
-    >(
+  Future<void> _openEvolutionModal() async {
+    await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
-      backgroundColor: Theme.of(
-        context,
-      ).colorScheme.surface,
-      constraints: const BoxConstraints(
-        maxWidth: 660,
-      ),
-      builder:
-          (
-            modalContext,
-          ) {
-            return Padding(
-              padding: EdgeInsets.fromLTRB(
-                20,
-                4,
-                20,
-                24 +
-                    MediaQuery.of(
-                      modalContext,
-                    ).viewInsets.bottom,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _FinanceModalHeader(
-                      icon: Icons.trending_up_rounded,
-                      title: 'Sua evolução',
-                      subtitle: 'O objetivo cresce enquanto o tempo restante diminui.',
-                      onClose: () {
-                        Navigator.of(
-                          modalContext,
-                        ).pop();
-                      },
-                    ),
-
-                    const SizedBox(
-                      height: 22,
-                    ),
-
-                    InvestmentProgress(
-                      projection: _controller.projection,
-                      showPatrimony: true,
-                      showAverageContribution: true,
-                      showEstimatedTime: true,
-                      showBalances: _showBalances,
-                    ),
-                  ],
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      constraints: const BoxConstraints(maxWidth: 660),
+      builder: (modalContext) {
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            4,
+            20,
+            24 + MediaQuery.of(modalContext).viewInsets.bottom,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _FinanceModalHeader(
+                  icon: Icons.trending_up_rounded,
+                  title: 'Sua evolução',
+                  subtitle:
+                      'O objetivo cresce enquanto o tempo restante diminui.',
+                  onClose: () {
+                    Navigator.of(modalContext).pop();
+                  },
                 ),
-              ),
-            );
-          },
+
+                const SizedBox(height: 22),
+
+                InvestmentProgress(
+                  projection: _controller.projection,
+                  showPatrimony: true,
+                  showAverageContribution: true,
+                  showEstimatedTime: true,
+                  showBalances: _showBalances,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1094,97 +768,70 @@ class _FinanceScreenState
   // MODAL - ÚLTIMO APORTE
   // ============================================================
 
-  Future<
-    void
-  >
-  _openLastContributionModal() async {
-    await showModalBottomSheet<
-      void
-    >(
+  Future<void> _openLastContributionModal() async {
+    await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
-      backgroundColor: Theme.of(
-        context,
-      ).colorScheme.surface,
-      constraints: const BoxConstraints(
-        maxWidth: 660,
-      ),
-      builder:
-          (
-            modalContext,
-          ) {
-            return Padding(
-              padding: EdgeInsets.fromLTRB(
-                20,
-                4,
-                20,
-                24 +
-                    MediaQuery.of(
-                      modalContext,
-                    ).viewInsets.bottom,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _FinanceModalHeader(
-                      icon: Icons.savings_rounded,
-                      title: 'Último aporte',
-                      subtitle: _controller.history.isEmpty
-                          ? 'Nenhum aporte registrado.'
-                          : 'Seu aporte mais recente.',
-                      onClose: () {
-                        Navigator.of(
-                          modalContext,
-                        ).pop();
-                      },
-                    ),
-
-                    const SizedBox(
-                      height: 22,
-                    ),
-
-                    if (_controller.history.isEmpty)
-                      const EmptyLastContribution()
-                    else
-                      InvestmentTimeline(
-                        history: _latestContribution,
-                        showHeader: false,
-                        onDelete: _actions.deleteContribution,
-                        onTap: _actions.showHistoryItem,
-                        showBalances: _showBalances,
-                      ),
-
-                    const SizedBox(
-                      height: 18,
-                    ),
-
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          Navigator.of(
-                            modalContext,
-                          ).pop();
-
-                          _actions.openHistory();
-                        },
-                        icon: const Icon(
-                          Icons.history_rounded,
-                        ),
-                        label: const Text(
-                          'Ver todos os aportes',
-                        ),
-                      ),
-                    ),
-                  ],
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      constraints: const BoxConstraints(maxWidth: 660),
+      builder: (modalContext) {
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            4,
+            20,
+            24 + MediaQuery.of(modalContext).viewInsets.bottom,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _FinanceModalHeader(
+                  icon: Icons.savings_rounded,
+                  title: 'Último aporte',
+                  subtitle: _controller.history.isEmpty
+                      ? 'Nenhum aporte registrado.'
+                      : 'Seu aporte mais recente.',
+                  onClose: () {
+                    Navigator.of(modalContext).pop();
+                  },
                 ),
-              ),
-            );
-          },
+
+                const SizedBox(height: 22),
+
+                if (_controller.history.isEmpty)
+                  const EmptyLastContribution()
+                else
+                  InvestmentTimeline(
+                    history: _latestContribution,
+                    showHeader: false,
+                    onDelete: _actions.deleteContribution,
+                    onTap: _actions.showHistoryItem,
+                    showBalances: _showBalances,
+                  ),
+
+                const SizedBox(height: 18),
+
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.of(modalContext).pop();
+
+                      _actions.openHistory();
+                    },
+                    icon: const Icon(Icons.history_rounded),
+                    label: const Text('Ver todos os aportes'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1194,9 +841,7 @@ class _FinanceScreenState
 
   Widget _buildBody() {
     if (_controller.isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     return FinanceScreenContent(
@@ -1217,46 +862,30 @@ class _FinanceScreenState
       // ========================================================
       // BITCOIN
       // ========================================================
-      bitcoinCurrentValue: cryptoController.currentValueFor(
-        'BTC',
-      ),
+      bitcoinCurrentValue: cryptoController.currentValueFor('BTC'),
 
-      bitcoinProfitPercent: cryptoController.profitLossPercentFor(
-        'BTC',
-      ),
+      bitcoinProfitPercent: cryptoController.profitLossPercentFor('BTC'),
 
       // ========================================================
       // ETHEREUM
       // ========================================================
-      ethereumCurrentValue: cryptoController.currentValueFor(
-        'ETH',
-      ),
+      ethereumCurrentValue: cryptoController.currentValueFor('ETH'),
 
-      ethereumProfitPercent: cryptoController.profitLossPercentFor(
-        'ETH',
-      ),
+      ethereumProfitPercent: cryptoController.profitLossPercentFor('ETH'),
 
       // ========================================================
       // SOLANA
       // ========================================================
-      solanaCurrentValue: cryptoController.currentValueFor(
-        'SOL',
-      ),
+      solanaCurrentValue: cryptoController.currentValueFor('SOL'),
 
-      solanaProfitPercent: cryptoController.profitLossPercentFor(
-        'SOL',
-      ),
+      solanaProfitPercent: cryptoController.profitLossPercentFor('SOL'),
 
       // ========================================================
       // USDT
       // ========================================================
-      usdtCurrentValue: cryptoController.currentValueFor(
-        'USDT',
-      ),
+      usdtCurrentValue: cryptoController.currentValueFor('USDT'),
 
-      usdtProfitPercent: cryptoController.profitLossPercentFor(
-        'USDT',
-      ),
+      usdtProfitPercent: cryptoController.profitLossPercentFor('USDT'),
 
       // ========================================================
       // AÇÕES
@@ -1264,8 +893,6 @@ class _FinanceScreenState
       onPlanning: _actions.openPlanning,
 
       onBalance: _actions.openCryptoBalance,
-
-      onVault: _actions.openVault,
 
       onPatrimony: _actions.editPatrimony,
 
@@ -1297,14 +924,8 @@ class _FinanceScreenState
   // ============================================================
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    return Scaffold(
-      appBar: _buildAppBar(),
-
-      body: _buildBody(),
-    );
+  Widget build(BuildContext context) {
+    return Scaffold(appBar: _buildAppBar(), body: _buildBody());
   }
 }
 
@@ -1312,9 +933,7 @@ class _FinanceScreenState
 // HEADER DOS MODAIS
 // ============================================================
 
-class _FinanceModalHeader
-    extends
-        StatelessWidget {
+class _FinanceModalHeader extends StatelessWidget {
   const _FinanceModalHeader({
     required this.icon,
     required this.title,
@@ -1331,12 +950,8 @@ class _FinanceModalHeader
   final VoidCallback onClose;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final colorScheme = Theme.of(
-      context,
-    ).colorScheme;
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -1346,19 +961,12 @@ class _FinanceModalHeader
           height: 46,
           decoration: BoxDecoration(
             color: colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(
-              14,
-            ),
+            borderRadius: BorderRadius.circular(14),
           ),
-          child: Icon(
-            icon,
-            color: colorScheme.primary,
-          ),
+          child: Icon(icon, color: colorScheme.primary),
         ),
 
-        const SizedBox(
-          width: 12,
-        ),
+        const SizedBox(width: 12),
 
         Expanded(
           child: Column(
@@ -1372,15 +980,11 @@ class _FinanceModalHeader
                 ),
               ),
 
-              const SizedBox(
-                height: 3,
-              ),
+              const SizedBox(height: 3),
 
               Text(
                 subtitle,
-                style: TextStyle(
-                  color: colorScheme.onSurfaceVariant,
-                ),
+                style: TextStyle(color: colorScheme.onSurfaceVariant),
               ),
             ],
           ),
@@ -1389,9 +993,7 @@ class _FinanceModalHeader
         IconButton(
           tooltip: 'Fechar',
           onPressed: onClose,
-          icon: const Icon(
-            Icons.close_rounded,
-          ),
+          icon: const Icon(Icons.close_rounded),
         ),
       ],
     );

@@ -11,9 +11,7 @@ import '../sections/finance_intro.dart';
 import '../sections/finance_section_header.dart';
 import '../sections/finance_summary_section.dart';
 
-class FinanceBody
-    extends
-        StatelessWidget {
+class FinanceBody extends StatelessWidget {
   const FinanceBody({
     super.key,
 
@@ -67,7 +65,6 @@ class FinanceBody
     // ==========================================================
     required this.onBalance,
     required this.onCrypto,
-    required this.onVault,
     required this.onPlanning,
     required this.onContribution,
     required this.onEditPatrimony,
@@ -87,10 +84,7 @@ class FinanceBody
 
   final FinanceProjection projection;
 
-  final List<
-    InvestmentHistory
-  >
-  history;
+  final List<InvestmentHistory> history;
 
   final double patrimony;
 
@@ -152,12 +146,7 @@ class FinanceBody
 
   final VoidCallback onBalance;
 
-  final ValueChanged<
-    String
-  >
-  onCrypto;
-
-  final VoidCallback onVault;
+  final ValueChanged<String> onCrypto;
 
   final VoidCallback onPlanning;
 
@@ -167,15 +156,9 @@ class FinanceBody
 
   final VoidCallback onEditGoal;
 
-  final ValueChanged<
-    InvestmentHistory
-  >
-  onDeleteContribution;
+  final ValueChanged<InvestmentHistory> onDeleteContribution;
 
-  final ValueChanged<
-    InvestmentHistory
-  >
-  onHistoryItemTap;
+  final ValueChanged<InvestmentHistory> onHistoryItemTap;
 
   // ============================================================
   // VISIBILIDADE DOS SALDOS
@@ -187,21 +170,15 @@ class FinanceBody
   // VALORES SEGUROS
   // ============================================================
 
-  double _safeMoney(
-    double value,
-  ) {
-    if (!value.isFinite ||
-        value <
-            0) {
+  double _safeMoney(double value) {
+    if (!value.isFinite || value < 0) {
       return 0;
     }
 
     return value;
   }
 
-  double _safePercent(
-    double value,
-  ) {
+  double _safePercent(double value) {
     if (!value.isFinite) {
       return 0;
     }
@@ -214,16 +191,9 @@ class FinanceBody
   // ============================================================
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        20,
-        20,
-        110,
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 110),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -232,9 +202,7 @@ class FinanceBody
           // ====================================================
           const FinanceIntro(),
 
-          const SizedBox(
-            height: 28,
-          ),
+          const SizedBox(height: 28),
 
           // ====================================================
           // CARTEIRA
@@ -243,76 +211,48 @@ class FinanceBody
             // ==================================================
             // FINANCEIRO
             // ==================================================
-            patrimony: _safeMoney(
-              patrimony,
-            ),
+            patrimony: _safeMoney(patrimony),
 
-            invested: _safeMoney(
-              invested,
-            ),
+            invested: _safeMoney(invested),
 
             // ==================================================
             // QUANTIDADES
             // ==================================================
-            bitcoin: _safeMoney(
-              bitcoin,
-            ),
+            bitcoin: _safeMoney(bitcoin),
 
-            ethereum: _safeMoney(
-              ethereum,
-            ),
+            ethereum: _safeMoney(ethereum),
 
-            solana: _safeMoney(
-              solana,
-            ),
+            solana: _safeMoney(solana),
 
-            usdt: _safeMoney(
-              usdt,
-            ),
+            usdt: _safeMoney(usdt),
 
             // ==================================================
             // BTC
             // ==================================================
-            bitcoinCurrentValue: _safeMoney(
-              bitcoinCurrentValue,
-            ),
+            bitcoinCurrentValue: _safeMoney(bitcoinCurrentValue),
 
-            bitcoinProfitPercent: _safePercent(
-              bitcoinProfitPercent,
-            ),
+            bitcoinProfitPercent: _safePercent(bitcoinProfitPercent),
 
             // ==================================================
             // ETH
             // ==================================================
-            ethereumCurrentValue: _safeMoney(
-              ethereumCurrentValue,
-            ),
+            ethereumCurrentValue: _safeMoney(ethereumCurrentValue),
 
-            ethereumProfitPercent: _safePercent(
-              ethereumProfitPercent,
-            ),
+            ethereumProfitPercent: _safePercent(ethereumProfitPercent),
 
             // ==================================================
             // SOL
             // ==================================================
-            solanaCurrentValue: _safeMoney(
-              solanaCurrentValue,
-            ),
+            solanaCurrentValue: _safeMoney(solanaCurrentValue),
 
-            solanaProfitPercent: _safePercent(
-              solanaProfitPercent,
-            ),
+            solanaProfitPercent: _safePercent(solanaProfitPercent),
 
             // ==================================================
             // USDT
             // ==================================================
-            usdtCurrentValue: _safeMoney(
-              usdtCurrentValue,
-            ),
+            usdtCurrentValue: _safeMoney(usdtCurrentValue),
 
-            usdtProfitPercent: _safePercent(
-              usdtProfitPercent,
-            ),
+            usdtProfitPercent: _safePercent(usdtProfitPercent),
 
             // ==================================================
             // AÇÕES
@@ -320,30 +260,20 @@ class FinanceBody
             onBalance: onBalance,
 
             onBitcoin: () {
-              onCrypto(
-                'BTC',
-              );
+              onCrypto('BTC');
             },
 
             onEthereum: () {
-              onCrypto(
-                'ETH',
-              );
+              onCrypto('ETH');
             },
 
             onSolana: () {
-              onCrypto(
-                'SOL',
-              );
+              onCrypto('SOL');
             },
 
             onUsdt: () {
-              onCrypto(
-                'USDT',
-              );
+              onCrypto('USDT');
             },
-
-            onVault: onVault,
 
             // ==================================================
             // VISIBILIDADE
@@ -351,9 +281,7 @@ class FinanceBody
             showBalances: showBalances,
           ),
 
-          const SizedBox(
-            height: 20,
-          ),
+          const SizedBox(height: 20),
 
           // ====================================================
           // RESUMO FINANCEIRO
@@ -361,21 +289,13 @@ class FinanceBody
           FinanceSummarySection(
             objectiveName: objectiveName,
 
-            investmentGoal: _safeMoney(
-              investmentGoal,
-            ),
+            investmentGoal: _safeMoney(investmentGoal),
 
-            minimumGoal: _safeMoney(
-              minimumGoal,
-            ),
+            minimumGoal: _safeMoney(minimumGoal),
 
-            mediumGoal: _safeMoney(
-              mediumGoal,
-            ),
+            mediumGoal: _safeMoney(mediumGoal),
 
-            maximumGoal: _safeMoney(
-              maximumGoal,
-            ),
+            maximumGoal: _safeMoney(maximumGoal),
 
             onObjectiveTap: onEditGoal,
 
@@ -384,9 +304,7 @@ class FinanceBody
             showBalances: showBalances,
           ),
 
-          const SizedBox(
-            height: 32,
-          ),
+          const SizedBox(height: 32),
 
           // ====================================================
           // SUA EVOLUÇÃO
@@ -396,9 +314,7 @@ class FinanceBody
             subtitle: 'O objetivo cresce enquanto o tempo restante diminui.',
           ),
 
-          const SizedBox(
-            height: 14,
-          ),
+          const SizedBox(height: 14),
 
           InvestmentProgress(
             projection: projection,
@@ -412,9 +328,7 @@ class FinanceBody
             showBalances: showBalances,
           ),
 
-          const SizedBox(
-            height: 32,
-          ),
+          const SizedBox(height: 32),
 
           // ====================================================
           // HISTÓRICO
@@ -424,19 +338,12 @@ class FinanceBody
             subtitle: 'Cada aporte representa um avanço no seu caminho.',
             trailing: FilledButton.icon(
               onPressed: onContribution,
-              icon: const Icon(
-                Icons.add_rounded,
-                size: 18,
-              ),
-              label: const Text(
-                'Aporte',
-              ),
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: const Text('Aporte'),
             ),
           ),
 
-          const SizedBox(
-            height: 14,
-          ),
+          const SizedBox(height: 14),
 
           // ====================================================
           // TIMELINE

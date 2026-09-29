@@ -5,9 +5,7 @@ import '../../models/crypto/crypto_balances.dart';
 import '../sections/finance_intro.dart';
 import '../wallet/wallet_card.dart';
 
-class FinanceScreenContent
-    extends
-        StatelessWidget {
+class FinanceScreenContent extends StatelessWidget {
   const FinanceScreenContent({
     super.key,
 
@@ -48,7 +46,6 @@ class FinanceScreenContent
     // ==========================================================
     required this.onPlanning,
     required this.onBalance,
-    required this.onVault,
     required this.onPatrimony,
     required this.onObjective,
     required this.onCrypto,
@@ -136,18 +133,13 @@ class FinanceScreenContent
 
   final VoidCallback onBalance;
 
-  final VoidCallback onVault;
-
   final VoidCallback onPatrimony;
 
   final VoidCallback onObjective;
 
   final VoidCallback onContribution;
 
-  final ValueChanged<
-    String
-  >
-  onCrypto;
+  final ValueChanged<String> onCrypto;
 
   // ============================================================
   // MODAIS
@@ -168,9 +160,7 @@ class FinanceScreenContent
   // ============================================================
 
   double get safePatrimony {
-    if (!patrimony.isFinite ||
-        patrimony <
-            0) {
+    if (!patrimony.isFinite || patrimony < 0) {
       return 0;
     }
 
@@ -182,16 +172,9 @@ class FinanceScreenContent
   // ============================================================
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        20,
-        20,
-        32,
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -200,9 +183,7 @@ class FinanceScreenContent
           // ====================================================
           const FinanceIntro(),
 
-          const SizedBox(
-            height: 28,
-          ),
+          const SizedBox(height: 28),
 
           // ====================================================
           // CARTEIRA
@@ -213,9 +194,7 @@ class FinanceScreenContent
             // ==================================================
             patrimony: safePatrimony,
 
-            invested: _safeDouble(
-              model.invested,
-            ),
+            invested: _safeDouble(model.invested),
 
             // ==================================================
             // QUANTIDADES
@@ -231,46 +210,30 @@ class FinanceScreenContent
             // ==================================================
             // BTC
             // ==================================================
-            bitcoinCurrentValue: _safeMoney(
-              bitcoinCurrentValue,
-            ),
+            bitcoinCurrentValue: _safeMoney(bitcoinCurrentValue),
 
-            bitcoinProfitPercent: _safePercent(
-              bitcoinProfitPercent,
-            ),
+            bitcoinProfitPercent: _safePercent(bitcoinProfitPercent),
 
             // ==================================================
             // ETH
             // ==================================================
-            ethereumCurrentValue: _safeMoney(
-              ethereumCurrentValue,
-            ),
+            ethereumCurrentValue: _safeMoney(ethereumCurrentValue),
 
-            ethereumProfitPercent: _safePercent(
-              ethereumProfitPercent,
-            ),
+            ethereumProfitPercent: _safePercent(ethereumProfitPercent),
 
             // ==================================================
             // SOL
             // ==================================================
-            solanaCurrentValue: _safeMoney(
-              solanaCurrentValue,
-            ),
+            solanaCurrentValue: _safeMoney(solanaCurrentValue),
 
-            solanaProfitPercent: _safePercent(
-              solanaProfitPercent,
-            ),
+            solanaProfitPercent: _safePercent(solanaProfitPercent),
 
             // ==================================================
             // USDT
             // ==================================================
-            usdtCurrentValue: _safeMoney(
-              usdtCurrentValue,
-            ),
+            usdtCurrentValue: _safeMoney(usdtCurrentValue),
 
-            usdtProfitPercent: _safePercent(
-              usdtProfitPercent,
-            ),
+            usdtProfitPercent: _safePercent(usdtProfitPercent),
 
             // ==================================================
             // ACTIONS
@@ -278,30 +241,20 @@ class FinanceScreenContent
             onBalance: onBalance,
 
             onBitcoin: () {
-              onCrypto(
-                'BTC',
-              );
+              onCrypto('BTC');
             },
 
             onEthereum: () {
-              onCrypto(
-                'ETH',
-              );
+              onCrypto('ETH');
             },
 
             onSolana: () {
-              onCrypto(
-                'SOL',
-              );
+              onCrypto('SOL');
             },
 
             onUsdt: () {
-              onCrypto(
-                'USDT',
-              );
+              onCrypto('USDT');
             },
-
-            onVault: onVault,
 
             // ==================================================
             // VISIBILIDADE
@@ -309,9 +262,7 @@ class FinanceScreenContent
             showBalances: showBalances,
           ),
 
-          const SizedBox(
-            height: 16,
-          ),
+          const SizedBox(height: 16),
 
           // ====================================================
           // ATALHOS
@@ -354,9 +305,7 @@ class FinanceScreenContent
                 tooltip: 'Objetivo',
                 icon: Icons.track_changes_rounded,
                 onTap: () {
-                  _showObjectiveModal(
-                    context,
-                  );
+                  _showObjectiveModal(context);
                 },
               ),
 
@@ -367,17 +316,13 @@ class FinanceScreenContent
                 tooltip: 'Ritmos',
                 icon: Icons.bar_chart_rounded,
                 onTap: () {
-                  _showRhythmsModal(
-                    context,
-                  );
+                  _showRhythmsModal(context);
                 },
               ),
             ],
           ),
 
-          const SizedBox(
-            height: 30,
-          ),
+          const SizedBox(height: 30),
         ],
       ),
     );
@@ -387,15 +332,8 @@ class FinanceScreenContent
   // MODAL - OBJETIVO
   // ============================================================
 
-  Future<
-    void
-  >
-  _showObjectiveModal(
-    BuildContext context,
-  ) async {
-    await showModalBottomSheet<
-      void
-    >(
+  Future<void> _showObjectiveModal(BuildContext context) async {
+    await showModalBottomSheet<void>(
       context: context,
 
       isScrollControlled: true,
@@ -404,91 +342,65 @@ class FinanceScreenContent
 
       showDragHandle: true,
 
-      backgroundColor: Theme.of(
-        context,
-      ).colorScheme.surface,
+      backgroundColor: Theme.of(context).colorScheme.surface,
 
-      constraints: const BoxConstraints(
-        maxWidth: 660,
-      ),
+      constraints: const BoxConstraints(maxWidth: 660),
 
-      builder:
-          (
-            modalContext,
-          ) {
-            return Padding(
-              padding: EdgeInsets.fromLTRB(
-                20,
-                4,
-                20,
-                24 +
-                    MediaQuery.of(
-                      modalContext,
-                    ).viewInsets.bottom,
+      builder: (modalContext) {
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            4,
+            20,
+            24 + MediaQuery.of(modalContext).viewInsets.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ================================================
+              // HEADER
+              // ================================================
+              _FinanceModalHeader(
+                icon: Icons.track_changes_rounded,
+                title: 'Objetivo',
+                subtitle: 'Defina o patrimônio que você deseja alcançar.',
+                onClose: () {
+                  Navigator.of(modalContext).pop();
+                },
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ================================================
-                  // HEADER
-                  // ================================================
-                  _FinanceModalHeader(
-                    icon: Icons.track_changes_rounded,
-                    title: 'Objetivo',
-                    subtitle: 'Defina o patrimônio que você deseja alcançar.',
-                    onClose: () {
-                      Navigator.of(
-                        modalContext,
-                      ).pop();
-                    },
-                  ),
 
-                  const SizedBox(
-                    height: 22,
-                  ),
+              const SizedBox(height: 22),
 
-                  // ================================================
-                  // CARD
-                  // ================================================
-                  _ObjectiveModalCard(
-                    name: objectiveName,
-                    value: _money(
-                      _toDouble(
-                        model.investmentGoal,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(
-                    height: 18,
-                  ),
-
-                  // ================================================
-                  // EDITAR
-                  // ================================================
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: () {
-                        Navigator.of(
-                          modalContext,
-                        ).pop();
-
-                        onObjective();
-                      },
-                      icon: const Icon(
-                        Icons.edit_outlined,
-                      ),
-                      label: const Text(
-                        'Editar objetivo',
-                      ),
-                    ),
-                  ),
-                ],
+              // ================================================
+              // CARD
+              // ================================================
+              _ObjectiveModalCard(
+                name: objectiveName,
+                value: _money(_toDouble(model.investmentGoal)),
               ),
-            );
-          },
+
+              const SizedBox(height: 18),
+
+              // ================================================
+              // EDITAR
+              // ================================================
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () {
+                    Navigator.of(modalContext).pop();
+
+                    onObjective();
+                  },
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('Editar objetivo'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -496,15 +408,8 @@ class FinanceScreenContent
   // MODAL - RITMOS
   // ============================================================
 
-  Future<
-    void
-  >
-  _showRhythmsModal(
-    BuildContext context,
-  ) async {
-    await showModalBottomSheet<
-      void
-    >(
+  Future<void> _showRhythmsModal(BuildContext context) async {
+    await showModalBottomSheet<void>(
       context: context,
 
       isScrollControlled: true,
@@ -513,100 +418,66 @@ class FinanceScreenContent
 
       showDragHandle: true,
 
-      backgroundColor: Theme.of(
-        context,
-      ).colorScheme.surface,
+      backgroundColor: Theme.of(context).colorScheme.surface,
 
-      constraints: const BoxConstraints(
-        maxWidth: 660,
-      ),
+      constraints: const BoxConstraints(maxWidth: 660),
 
-      builder:
-          (
-            modalContext,
-          ) {
-            return Padding(
-              padding: EdgeInsets.fromLTRB(
-                20,
-                4,
-                20,
-                24 +
-                    MediaQuery.of(
-                      modalContext,
-                    ).viewInsets.bottom,
+      builder: (modalContext) {
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            4,
+            20,
+            24 + MediaQuery.of(modalContext).viewInsets.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ================================================
+              // HEADER
+              // ================================================
+              _FinanceModalHeader(
+                icon: Icons.bar_chart_rounded,
+                title: 'Ritmos',
+                subtitle: 'Veja os seus três níveis de aporte planejados.',
+                onClose: () {
+                  Navigator.of(modalContext).pop();
+                },
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ================================================
-                  // HEADER
-                  // ================================================
-                  _FinanceModalHeader(
-                    icon: Icons.bar_chart_rounded,
-                    title: 'Ritmos',
-                    subtitle: 'Veja os seus três níveis de aporte planejados.',
-                    onClose: () {
-                      Navigator.of(
-                        modalContext,
-                      ).pop();
-                    },
-                  ),
 
-                  const SizedBox(
-                    height: 22,
-                  ),
+              const SizedBox(height: 22),
 
-                  // ================================================
-                  // VALORES
-                  // ================================================
-                  _RhythmsModalCard(
-                    minimum: _currency(
-                      _toDouble(
-                        model.minimumGoal,
-                      ),
-                    ),
-                    medium: _currency(
-                      _toDouble(
-                        model.mediumGoal,
-                      ),
-                    ),
-                    maximum: _currency(
-                      _toDouble(
-                        model.maximumGoal,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(
-                    height: 18,
-                  ),
-
-                  // ================================================
-                  // EDITAR PLANEJAMENTO
-                  // ================================================
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: () {
-                        Navigator.of(
-                          modalContext,
-                        ).pop();
-
-                        onPlanning();
-                      },
-                      icon: const Icon(
-                        Icons.tune_rounded,
-                      ),
-                      label: const Text(
-                        'Editar planejamento',
-                      ),
-                    ),
-                  ),
-                ],
+              // ================================================
+              // VALORES
+              // ================================================
+              _RhythmsModalCard(
+                minimum: _currency(_toDouble(model.minimumGoal)),
+                medium: _currency(_toDouble(model.mediumGoal)),
+                maximum: _currency(_toDouble(model.maximumGoal)),
               ),
-            );
-          },
+
+              const SizedBox(height: 18),
+
+              // ================================================
+              // EDITAR PLANEJAMENTO
+              // ================================================
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () {
+                    Navigator.of(modalContext).pop();
+
+                    onPlanning();
+                  },
+                  icon: const Icon(Icons.tune_rounded),
+                  label: const Text('Editar planejamento'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -614,28 +485,20 @@ class FinanceScreenContent
   // MONEY
   // ============================================================
 
-  String _money(
-    double value,
-  ) {
+  String _money(double value) {
     if (!showBalances) {
       return 'R\$ ••••••';
     }
 
-    return _currency(
-      value,
-    );
+    return _currency(value);
   }
 
   // ============================================================
   // SAFE MONEY
   // ============================================================
 
-  double _safeMoney(
-    double value,
-  ) {
-    if (!value.isFinite ||
-        value <
-            0) {
+  double _safeMoney(double value) {
+    if (!value.isFinite || value < 0) {
       return 0;
     }
 
@@ -650,9 +513,7 @@ class FinanceScreenContent
   //
   // ============================================================
 
-  double _safePercent(
-    double value,
-  ) {
+  double _safePercent(double value) {
     if (!value.isFinite) {
       return 0;
     }
@@ -664,16 +525,10 @@ class FinanceScreenContent
   // SAFE DOUBLE
   // ============================================================
 
-  double _safeDouble(
-    dynamic value,
-  ) {
-    final parsed = _toDouble(
-      value,
-    );
+  double _safeDouble(dynamic value) {
+    final parsed = _toDouble(value);
 
-    if (!parsed.isFinite ||
-        parsed <
-            0) {
+    if (!parsed.isFinite || parsed < 0) {
       return 0;
     }
 
@@ -684,95 +539,46 @@ class FinanceScreenContent
   // DOUBLE
   // ============================================================
 
-  double _toDouble(
-    dynamic value,
-  ) {
-    if (value
-        is num) {
+  double _toDouble(dynamic value) {
+    if (value is num) {
       return value.toDouble();
     }
 
-    return double.tryParse(
-          value?.toString() ??
-              '',
-        ) ??
-        0;
+    return double.tryParse(value?.toString() ?? '') ?? 0;
   }
 
   // ============================================================
   // CURRENCY
   // ============================================================
 
-  String _currency(
-    double value,
-  ) {
-    final safeValue = value.isFinite
-        ? value
-        : 0.0;
+  String _currency(double value) {
+    final safeValue = value.isFinite ? value : 0.0;
 
-    final negative =
-        safeValue <
-        0;
+    final negative = safeValue < 0;
 
     final absolute = safeValue.abs();
 
-    final parts = absolute
-        .toStringAsFixed(
-          2,
-        )
-        .split(
-          '.',
-        );
+    final parts = absolute.toStringAsFixed(2).split('.');
 
     final integer = parts.first;
 
-    final decimal =
-        parts.length >
-            1
-        ? parts.last
-        : '00';
+    final decimal = parts.length > 1 ? parts.last : '00';
 
-    final reversed = integer
-        .split(
-          '',
-        )
-        .reversed
-        .toList();
+    final reversed = integer.split('').reversed.toList();
 
     final buffer = StringBuffer();
 
-    for (
-      int index = 0;
-      index <
-          reversed.length;
-      index++
-    ) {
-      if (index >
-              0 &&
-          index %
-                  3 ==
-              0) {
-        buffer.write(
-          '.',
-        );
+    for (int index = 0; index < reversed.length; index++) {
+      if (index > 0 && index % 3 == 0) {
+        buffer.write('.');
       }
 
-      buffer.write(
-        reversed[index],
-      );
+      buffer.write(reversed[index]);
     }
 
-    final formattedInteger = buffer
-        .toString()
-        .split(
-          '',
-        )
-        .reversed
-        .join();
+    final formattedInteger = buffer.toString().split('').reversed.join();
 
-    final sign = negative
-        ? '-'
-        : '';
+    final sign = negative ? '-' : '';
 
     return '${sign}R\$ $formattedInteger,$decimal';
   }
@@ -782,9 +588,7 @@ class FinanceScreenContent
 // BOTÃO DE ATALHO
 // ============================================================
 
-class _FinanceShortcutButton
-    extends
-        StatelessWidget {
+class _FinanceShortcutButton extends StatelessWidget {
   const _FinanceShortcutButton({
     required this.tooltip,
     required this.icon,
@@ -798,39 +602,25 @@ class _FinanceShortcutButton
   final VoidCallback onTap;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final colorScheme = Theme.of(
-      context,
-    ).colorScheme;
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Tooltip(
       message: tooltip,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(
-          13,
-        ),
+        borderRadius: BorderRadius.circular(13),
         child: Container(
           width: 46,
           height: 46,
           decoration: BoxDecoration(
             color: colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(
-              13,
-            ),
+            borderRadius: BorderRadius.circular(13),
             border: Border.all(
-              color: colorScheme.primary.withValues(
-                alpha: 0.16,
-              ),
+              color: colorScheme.primary.withValues(alpha: 0.16),
             ),
           ),
-          child: Icon(
-            icon,
-            size: 22,
-            color: colorScheme.primary,
-          ),
+          child: Icon(icon, size: 22, color: colorScheme.primary),
         ),
       ),
     );
@@ -841,9 +631,7 @@ class _FinanceShortcutButton
 // HEADER DOS MODAIS
 // ============================================================
 
-class _FinanceModalHeader
-    extends
-        StatelessWidget {
+class _FinanceModalHeader extends StatelessWidget {
   const _FinanceModalHeader({
     required this.icon,
     required this.title,
@@ -860,12 +648,8 @@ class _FinanceModalHeader
   final VoidCallback onClose;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final colorScheme = Theme.of(
-      context,
-    ).colorScheme;
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -875,19 +659,12 @@ class _FinanceModalHeader
           height: 46,
           decoration: BoxDecoration(
             color: colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(
-              14,
-            ),
+            borderRadius: BorderRadius.circular(14),
           ),
-          child: Icon(
-            icon,
-            color: colorScheme.primary,
-          ),
+          child: Icon(icon, color: colorScheme.primary),
         ),
 
-        const SizedBox(
-          width: 12,
-        ),
+        const SizedBox(width: 12),
 
         Expanded(
           child: Column(
@@ -901,15 +678,11 @@ class _FinanceModalHeader
                 ),
               ),
 
-              const SizedBox(
-                height: 3,
-              ),
+              const SizedBox(height: 3),
 
               Text(
                 subtitle,
-                style: TextStyle(
-                  color: colorScheme.onSurfaceVariant,
-                ),
+                style: TextStyle(color: colorScheme.onSurfaceVariant),
               ),
             ],
           ),
@@ -918,9 +691,7 @@ class _FinanceModalHeader
         IconButton(
           tooltip: 'Fechar',
           onPressed: onClose,
-          icon: const Icon(
-            Icons.close_rounded,
-          ),
+          icon: const Icon(Icons.close_rounded),
         ),
       ],
     );
@@ -931,39 +702,24 @@ class _FinanceModalHeader
 // CARD - OBJETIVO
 // ============================================================
 
-class _ObjectiveModalCard
-    extends
-        StatelessWidget {
-  const _ObjectiveModalCard({
-    required this.name,
-    required this.value,
-  });
+class _ObjectiveModalCard extends StatelessWidget {
+  const _ObjectiveModalCard({required this.name, required this.value});
 
   final String name;
 
   final String value;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final colorScheme = Theme.of(
-      context,
-    ).colorScheme;
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(
-        18,
-      ),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(
-          18,
-        ),
-        border: Border.all(
-          color: colorScheme.outlineVariant,
-        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: Column(
         children: [
@@ -973,33 +729,21 @@ class _ObjectiveModalCard
             color: colorScheme.primary,
           ),
 
-          const SizedBox(
-            height: 10,
-          ),
+          const SizedBox(height: 10),
 
           Text(
-            name.trim().isEmpty
-                ? 'Objetivo financeiro'
-                : name.trim(),
+            name.trim().isEmpty ? 'Objetivo financeiro' : name.trim(),
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
           ),
 
-          const SizedBox(
-            height: 8,
-          ),
+          const SizedBox(height: 8),
 
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-            ),
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
           ),
         ],
       ),
@@ -1011,9 +755,7 @@ class _ObjectiveModalCard
 // CARD - RITMOS
 // ============================================================
 
-class _RhythmsModalCard
-    extends
-        StatelessWidget {
+class _RhythmsModalCard extends StatelessWidget {
   const _RhythmsModalCard({
     required this.minimum,
     required this.medium,
@@ -1027,9 +769,7 @@ class _RhythmsModalCard
   final String maximum;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Row(
       children: [
         Expanded(
@@ -1040,9 +780,7 @@ class _RhythmsModalCard
           ),
         ),
 
-        const SizedBox(
-          width: 10,
-        ),
+        const SizedBox(width: 10),
 
         Expanded(
           child: _RhythmItem(
@@ -1052,9 +790,7 @@ class _RhythmsModalCard
           ),
         ),
 
-        const SizedBox(
-          width: 10,
-        ),
+        const SizedBox(width: 10),
 
         Expanded(
           child: _RhythmItem(
@@ -1072,9 +808,7 @@ class _RhythmsModalCard
 // ITEM DO RITMO
 // ============================================================
 
-class _RhythmItem
-    extends
-        StatelessWidget {
+class _RhythmItem extends StatelessWidget {
   const _RhythmItem({
     required this.title,
     required this.value,
@@ -1088,58 +822,32 @@ class _RhythmItem
   final IconData icon;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final colorScheme = Theme.of(
-      context,
-    ).colorScheme;
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 16,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 16),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(
-          16,
-        ),
-        border: Border.all(
-          color: colorScheme.outlineVariant,
-        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: Column(
         children: [
-          Icon(
-            icon,
-            size: 22,
-            color: colorScheme.primary,
-          ),
+          Icon(icon, size: 22, color: colorScheme.primary),
 
-          const SizedBox(
-            height: 8,
-          ),
+          const SizedBox(height: 8),
 
-          Text(
-            title,
-            style: const TextStyle(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
 
-          const SizedBox(
-            height: 5,
-          ),
+          const SizedBox(height: 5),
 
           Text(
             value,
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: colorScheme.onSurfaceVariant,
-            ),
+            style: TextStyle(color: colorScheme.onSurfaceVariant),
           ),
         ],
       ),
