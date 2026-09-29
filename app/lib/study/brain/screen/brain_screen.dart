@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../runtime/brain_runtime_dependencies.dart' as dependencies;
 import '../../../brain/visualization/brain_visualization.dart';
@@ -279,6 +280,18 @@ class _BrainScreenState extends State<BrainScreen> {
   bool _showAllSearchResults = false;
 
   // ============================================================
+  // BRAIN REALTIME
+  // ============================================================
+
+  RealtimeChannel? _brainRealtimeChannel;
+
+  Timer? _brainRealtimeRefreshTimer;
+
+  bool _brainRealtimeRefreshRunning = false;
+
+  bool _brainRealtimeRefreshQueued = false;
+
+  // ============================================================
   // INIT
   // ============================================================
 
@@ -363,6 +376,8 @@ class _BrainScreenState extends State<BrainScreen> {
     _experienceController.addListener(_onExperienceChanged);
 
     unawaited(_initialize());
+
+    _startBrainRealtimeSync();
   }
 
   // ============================================================
@@ -389,6 +404,16 @@ class _BrainScreenState extends State<BrainScreen> {
     _searchDebounceTimer?.cancel();
 
     _brainSearchPulseStopTimer?.cancel();
+
+    _brainRealtimeRefreshTimer?.cancel();
+
+    final realtimeChannel = _brainRealtimeChannel;
+
+    if (realtimeChannel != null) {
+      unawaited(Supabase.instance.client.removeChannel(realtimeChannel));
+    }
+
+    _brainRealtimeChannel = null;
 
     // ========================================================
     // LIMPAR ESTADO DA IA
@@ -451,9 +476,7 @@ class _BrainScreenState extends State<BrainScreen> {
     final visualController = _brainVisualController;
 
     if (visualController != null) {
-      visualController.setKnowledgeCount(
-        _controller.notes.length,
-      );
+      visualController.setKnowledgeCount(_controller.notes.length);
     }
 
     _mutateState(() {});

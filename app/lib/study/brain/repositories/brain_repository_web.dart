@@ -679,8 +679,9 @@ class BrainRepository {
     required String noteId,
     required BrainSource source,
   }) async {
-    if (!source.isValid)
+    if (!source.isValid) {
       throw const FormatException('A fonte informada é inválida.');
+    }
     final note = await _requireNote(noteId);
     return _saveSourceNote(
       note.addSource(source).copyWith(updatedAt: DateTime.now()),
@@ -691,8 +692,9 @@ class BrainRepository {
     required String noteId,
     required BrainSource source,
   }) async {
-    if (!source.isValid)
+    if (!source.isValid) {
       throw const FormatException('A fonte informada é inválida.');
+    }
     final note = await _requireNote(noteId);
     return _saveSourceNote(
       note.updateSource(source.touch()).copyWith(updatedAt: DateTime.now()),

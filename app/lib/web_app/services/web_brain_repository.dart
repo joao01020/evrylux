@@ -97,8 +97,9 @@ class WebBrainRepository {
     final cleanTitle = title.trim();
     final cleanDescription = description.trim();
     if (cleanTitle.isEmpty) throw const FormatException('Informe o título.');
-    if (cleanDescription.isEmpty)
+    if (cleanDescription.isEmpty) {
       throw const FormatException('Informe o conteúdo.');
+    }
 
     final concept = BrainConcept(
       id: _uuid.v4(),

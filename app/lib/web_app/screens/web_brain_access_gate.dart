@@ -86,9 +86,7 @@ class _WebBrainAccessGateState extends State<WebBrainAccessGate> {
       final authorized = await _devices.isAuthorized(vaultId: vaultId);
 
       if (authorized) {
-        final hasKey = await _devices.hasLocalMasterKey(
-          vaultId: vaultId,
-        );
+        final hasKey = await _devices.hasLocalMasterKey(vaultId: vaultId);
 
         if (hasKey) {
           // Este é o caminho normal após a primeira aprovação.
@@ -104,9 +102,7 @@ class _WebBrainAccessGateState extends State<WebBrainAccessGate> {
 
         // Pode acontecer logo após a aprovação, antes de o navegador ter
         // consumido o envelope da Master Key.
-        final imported = await _devices.tryImportApprovedKey(
-          vaultId: vaultId,
-        );
+        final imported = await _devices.tryImportApprovedKey(vaultId: vaultId);
 
         if (imported) {
           if (mounted) {
@@ -124,9 +120,7 @@ class _WebBrainAccessGateState extends State<WebBrainAccessGate> {
           setState(() {
             _ready = false;
             _error =
-                'Este navegador continua autorizado, mas a chave local do '
-                'Cérebro não foi encontrada. O acesso não foi revogado e '
-                'nenhuma nova solicitação foi criada.';
+                'Este navegador perdeu a chave local usada para acessar seu Cérebro.';
           });
         }
         return;
@@ -169,9 +163,7 @@ class _WebBrainAccessGateState extends State<WebBrainAccessGate> {
         return;
       }
 
-      final imported = await _devices.tryImportApprovedKey(
-        vaultId: vaultId,
-      );
+      final imported = await _devices.tryImportApprovedKey(vaultId: vaultId);
 
       if (imported) {
         if (mounted) {
@@ -219,9 +211,7 @@ class _WebBrainAccessGateState extends State<WebBrainAccessGate> {
       final hasKey = await _devices.hasLocalMasterKey(vaultId: vaultId);
 
       if (!hasKey) {
-        final imported = await _devices.tryImportApprovedKey(
-          vaultId: vaultId,
-        );
+        final imported = await _devices.tryImportApprovedKey(vaultId: vaultId);
 
         if (!imported) {
           if (mounted) {
@@ -262,9 +252,7 @@ class _WebBrainAccessGateState extends State<WebBrainAccessGate> {
     final fingerprint = _fingerprint.trim();
     if (fingerprint.isEmpty) return;
 
-    await Clipboard.setData(
-      ClipboardData(text: fingerprint),
-    );
+    await Clipboard.setData(ClipboardData(text: fingerprint));
 
     if (!mounted) return;
 
@@ -296,10 +284,7 @@ class _WebBrainAccessGateState extends State<WebBrainAccessGate> {
             child: const Text('Cancelar'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(
-              context,
-              controller.text.trim(),
-            ),
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
             child: const Text('Conectar'),
           ),
         ],
@@ -323,9 +308,7 @@ class _WebBrainAccessGateState extends State<WebBrainAccessGate> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Cérebro'),
-      ),
+      appBar: AppBar(title: const Text('Cérebro')),
       body: Stack(
         children: [
           Center(
@@ -339,10 +322,7 @@ class _WebBrainAccessGateState extends State<WebBrainAccessGate> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
-                          Icons.shield_outlined,
-                          size: 48,
-                        ),
+                        const Icon(Icons.shield_outlined, size: 48),
                         const SizedBox(height: 14),
                         Text(
                           _vaultId == null
@@ -359,9 +339,9 @@ class _WebBrainAccessGateState extends State<WebBrainAccessGate> {
                           _vaultId == null
                               ? 'Informe o Vault ID usado pelo EVRYLUX.'
                               : 'Depois de autorizado, este navegador entra '
-                                  'direto enquanto o acesso continuar ativo. '
-                                  'Um novo fingerprint só será solicitado '
-                                  'se este dispositivo for revogado.',
+                                    'direto enquanto o acesso continuar ativo. '
+                                    'Um novo fingerprint só será solicitado '
+                                    'se este dispositivo for revogado.',
                           textAlign: TextAlign.center,
                         ),
                         if (_fingerprint.isNotEmpty) ...[
@@ -410,12 +390,8 @@ class _WebBrainAccessGateState extends State<WebBrainAccessGate> {
                         else
                           FilledButton.icon(
                             onPressed: _loading ? null : _verifyApproval,
-                            icon: const Icon(
-                              Icons.verified_user_outlined,
-                            ),
-                            label: const Text(
-                              'Já aprovei — verificar',
-                            ),
+                            icon: const Icon(Icons.verified_user_outlined),
+                            label: const Text('Já aprovei — verificar'),
                           ),
                         if (_vaultId != null)
                           TextButton(
@@ -432,9 +408,7 @@ class _WebBrainAccessGateState extends State<WebBrainAccessGate> {
           if (_loading)
             const Positioned.fill(
               child: IgnorePointer(
-                child: Center(
-                  child: CircularProgressIndicator(),
-                ),
+                child: Center(child: CircularProgressIndicator()),
               ),
             ),
         ],
