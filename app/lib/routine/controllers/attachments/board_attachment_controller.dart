@@ -314,6 +314,52 @@ class BoardAttachmentController
     }
   }
 
+  Future<BoardAttachment?> importAttachmentBytes({
+    required String boardId,
+    required String blockId,
+    required String fileName,
+    required List<int> bytes,
+    String? mimeType,
+  }) async {
+    if (_isImporting) {
+      return null;
+    }
+
+    _isImporting = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final attachment = await _repository.importAttachmentBytes(
+        boardId: boardId.trim(),
+        blockId: blockId.trim(),
+        fileName: fileName.trim(),
+        bytes: bytes,
+        mimeType: mimeType,
+      );
+
+      _currentBoardId = boardId.trim();
+      _replace(
+        attachment,
+        notify: false,
+      );
+
+      return attachment;
+    } catch (error, stackTrace) {
+      _setError(
+        message: 'Erro ao importar arquivo.',
+        error: error,
+        stackTrace: stackTrace,
+        notify: false,
+      );
+
+      return null;
+    } finally {
+      _isImporting = false;
+      notifyListeners();
+    }
+  }
+
   // ============================================================
   // READ TEXT
   // ============================================================
