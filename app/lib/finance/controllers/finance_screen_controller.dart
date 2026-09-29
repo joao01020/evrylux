@@ -95,6 +95,13 @@ class FinanceScreenController {
     'USDT': 0,
   };
 
+  Map<String, double> cryptoInvestedBrl = {
+    'BTC': 0,
+    'ETH': 0,
+    'SOL': 0,
+    'USDT': 0,
+  };
+
   bool cryptoPricesLoaded = false;
 
   String? cryptoPriceError;
@@ -250,7 +257,8 @@ class FinanceScreenController {
     };
 
     final values = <String, double>{};
-    var total = 0.0;
+    var currentTotal = 0.0;
+    var investedTotal = 0.0;
 
     for (final entry in quantities.entries) {
       final rawPrice = cryptoPricesBrl[entry.key] ?? 0.0;
@@ -259,82 +267,107 @@ class FinanceScreenController {
           ? entry.value
           : 0.0;
       final currentValue = quantity * price;
-
+      final rawInvested = cryptoInvestedBrl[entry.key] ?? 0.0;
+      final invested = rawInvested.isFinite && rawInvested > 0
+          ? rawInvested
+          : 0.0;
       values[entry.key] = currentValue;
-      total += currentValue;
+      currentTotal += currentValue;
+      investedTotal += invested;
     }
 
-    cryptoController.quantities = quantities;
-    cryptoController.currentValuesBrl = values;
-    cryptoController.cryptoPatrimonyBrl = total;
+    cryptoController.quantities = Map<String, double>.from(quantities);
+    cryptoController.currentValuesBrl = Map<String, double>.from(values);
+    cryptoController.investedBySymbol = Map<String, double>.from(
+      cryptoInvestedBrl,
+    );
+    cryptoController.cryptoPatrimonyBrl = currentTotal;
+    cryptoController.totalCryptoInvested = investedTotal;
+    cryptoController.portfolioProfitLossBrl = currentTotal - investedTotal;
+    cryptoController.portfolioProfitLossPercent = investedTotal > 0
+        ? ((currentTotal - investedTotal) / investedTotal) * 100
+        : 0.0;
+  }
+
+  Future<void> _loadWebCryptoInvestedFromCloud() async {
+    if (!kIsWeb) return;
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    double safe(dynamic value) {
+      final parsed = value is num
+          ? value.toDouble()
+          : double.tryParse(value?.toString() ?? '') ?? 0.0;
+      return (!parsed.isFinite || parsed < 0) ? 0.0 : parsed;
+    }
+
+    try {
+      final row = await Supabase.instance.client
+          .from('finance_data')
+          .select(
+            'bitcoin_invested,ethereum_invested,solana_invested,usdt_invested',
+          )
+          .eq('user_id', user.id)
+          .maybeSingle();
+      if (row == null) return;
+      cryptoInvestedBrl = <String, double>{
+        'BTC': safe(row['bitcoin_invested']),
+        'ETH': safe(row['ethereum_invested']),
+        'SOL': safe(row['solana_invested']),
+        'USDT': safe(row['usdt_invested']),
+      };
+      debugPrint(
+        '[FINANCE][WEB][CRYPTO INVESTED] BTC=${cryptoInvestedBrl['BTC']} ETH=${cryptoInvestedBrl['ETH']} SOL=${cryptoInvestedBrl['SOL']} USDT=${cryptoInvestedBrl['USDT']}',
+      );
+    } catch (error) {
+      debugPrint('[FINANCE][WEB][CRYPTO INVESTED] $error');
+    }
   }
 
   Future<void> _syncNativeCryptoBalancesToFinanceData() async {
     if (kIsWeb) return;
 
     double safe(dynamic value) {
-      final parsed = value is num ? value.toDouble() : 0.0;
+      final parsed = value is num
+          ? value.toDouble()
+          : double.tryParse(value?.toString() ?? '') ?? 0.0;
+
       if (!parsed.isFinite || parsed < 0) return 0.0;
       return parsed;
     }
 
+    // Primeiro reconcilia Cloud <-> armazenamento local.
+    await cryptoController.service.loadAll(forceRefresh: true);
+
+    await cryptoController.loadPortfolio();
+
     final quantities = cryptoController.quantities;
+    final investedBySymbol = cryptoController.investedBySymbol;
 
     final bitcoin = safe(quantities['BTC']);
     final ethereum = safe(quantities['ETH']);
     final solana = safe(quantities['SOL']);
     final usdt = safe(quantities['USDT']);
 
+    final bitcoinInvested = safe(investedBySymbol['BTC']);
+    final ethereumInvested = safe(investedBySymbol['ETH']);
+    final solanaInvested = safe(investedBySymbol['SOL']);
+    final usdtInvested = safe(investedBySymbol['USDT']);
+
     model.bitcoin = bitcoin;
     model.ethereum = ethereum;
     model.solana = solana;
     model.usdt = usdt;
 
-    // Primeiro preserva o fluxo offline-first normal do aplicativo.
     await financeController.saveData();
 
-    // Em seguida faz um backfill remoto explícito das quantidades
-    // consolidadas. Isso evita depender do tempo da SyncQueue para que um
-    // navegador novo consiga reconstruir a carteira.
-    //
-    // Importante: enviamos SOMENTE os campos de cripto. Assim não sobrescreve
-    // planejamento, patrimônio, objetivo ou demais dados financeiros.
-    final user = Supabase.instance.client.auth.currentUser;
-
-    if (user == null) {
-      return;
-    }
-
-    try {
-      await Supabase.instance.client
-          .from('finance_data')
-          .upsert(<String, dynamic>{
-            'user_id': user.id,
-            'bitcoin': bitcoin,
-            'ethereum': ethereum,
-            'solana': solana,
-            'usdt': usdt,
-            'updated_at': DateTime.now().toUtc().toIso8601String(),
-          }, onConflict: 'user_id');
-
-      debugPrint(
-        '[FINANCE][CRYPTO BACKFILL] '
-        'Quantidades publicadas diretamente em finance_data: '
-        'BTC=$bitcoin ETH=$ethereum SOL=$solana USDT=$usdt',
-      );
-    } on PostgrestException catch (error) {
-      // O save offline-first acima já deixou a alteração na fila.
-      // Portanto uma falha remota aqui não perde dados.
-      debugPrint(
-        '[FINANCE][CRYPTO BACKFILL] '
-        'Backfill remoto pendente (${error.code}): ${error.message}',
-      );
-    } catch (error) {
-      debugPrint(
-        '[FINANCE][CRYPTO BACKFILL] '
-        'Backfill remoto pendente: $error',
-      );
-    }
+    debugPrint(
+      '[FINANCE][CRYPTO TWO WAY] '
+      'BTC=$bitcoin invested=$bitcoinInvested | '
+      'ETH=$ethereum invested=$ethereumInvested | '
+      'SOL=$solana invested=$solanaInvested | '
+      'USDT=$usdt invested=$usdtInvested',
+    );
   }
 
   // ==========================================================
@@ -423,6 +456,8 @@ class FinanceScreenController {
         await financeController.loadLocalData();
       }
 
+      await _loadWebCryptoInvestedFromCloud();
+
       final results = await Future.wait<dynamic>(<Future<dynamic>>[
         if (!kIsWeb) _cryptoBalanceService.loadBalances(),
         _persistenceService.loadCachedHistory(),
@@ -483,6 +518,8 @@ class FinanceScreenController {
 
     try {
       await financeController.refreshRemoteData();
+
+      await _loadWebCryptoInvestedFromCloud();
 
       if (kIsWeb) {
         balances = _webBalancesFromFinanceModel();
