@@ -2,9 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-class WalletCard
-    extends
-        StatelessWidget {
+class WalletCard extends StatelessWidget {
   const WalletCard({
     super.key,
 
@@ -46,7 +44,6 @@ class WalletCard
     required this.onEthereum,
     required this.onSolana,
     required this.onUsdt,
-    required this.onVault,
 
     // ==========================================================
     // VISIBILIDADE
@@ -112,8 +109,6 @@ class WalletCard
 
   final VoidCallback onUsdt;
 
-  final VoidCallback onVault;
-
   // ============================================================
   // VISIBILIDADE GLOBAL
   // ============================================================
@@ -125,26 +120,16 @@ class WalletCard
   // ============================================================
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final colorScheme = Theme.of(
-      context,
-    ).colorScheme;
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(
-        18,
-      ),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(
-          16,
-        ),
-        border: Border.all(
-          color: colorScheme.outlineVariant,
-        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -154,69 +139,44 @@ class WalletCard
           // ====================================================
           Row(
             children: [
-              const Icon(
-                Icons.account_balance_wallet_rounded,
-              ),
+              const Icon(Icons.account_balance_wallet_rounded),
 
-              const SizedBox(
-                width: 10,
-              ),
+              const SizedBox(width: 10),
 
               const Expanded(
                 child: Text(
                   'Carteira',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
                 ),
               ),
 
               IconButton(
                 tooltip: 'Bitcoin',
                 onPressed: onBitcoin,
-                icon: const Icon(
-                  Icons.currency_bitcoin,
-                ),
+                icon: const Icon(Icons.currency_bitcoin),
               ),
 
               IconButton(
                 tooltip: 'Ethereum',
                 onPressed: onEthereum,
-                icon: const Icon(
-                  Icons.view_stream_outlined,
-                ),
+                icon: const Icon(Icons.view_stream_outlined),
               ),
 
               IconButton(
                 tooltip: 'Solana',
                 onPressed: onSolana,
-                icon: const Icon(
-                  Icons.adjust_outlined,
-                ),
+                icon: const Icon(Icons.adjust_outlined),
               ),
 
               IconButton(
                 tooltip: 'USDT',
                 onPressed: onUsdt,
-                icon: const Icon(
-                  Icons.currency_exchange_outlined,
-                ),
-              ),
-
-              IconButton(
-                tooltip: 'Cofre',
-                onPressed: onVault,
-                icon: const Icon(
-                  Icons.key_outlined,
-                ),
+                icon: const Icon(Icons.currency_exchange_outlined),
               ),
             ],
           ),
 
-          const SizedBox(
-            height: 20,
-          ),
+          const SizedBox(height: 20),
 
           // ====================================================
           // PATRIMÔNIO / INVESTIDO
@@ -233,9 +193,7 @@ class WalletCard
                 ),
               ),
 
-              const SizedBox(
-                width: 12,
-              ),
+              const SizedBox(width: 12),
 
               Expanded(
                 child: _FinanceValueCard(
@@ -249,23 +207,16 @@ class WalletCard
             ],
           ),
 
-          const SizedBox(
-            height: 20,
-          ),
+          const SizedBox(height: 20),
 
-          Divider(
-            color: colorScheme.outlineVariant,
-          ),
+          Divider(color: colorScheme.outlineVariant),
 
-          const SizedBox(
-            height: 10,
-          ),
+          const SizedBox(height: 10),
 
           // ====================================================
           // BITCOIN
           // ====================================================
-          if (bitcoin >
-              0)
+          if (bitcoin > 0)
             _CryptoLine(
               icon: Icons.currency_bitcoin,
               name: 'Bitcoin',
@@ -280,8 +231,7 @@ class WalletCard
           // ====================================================
           // ETHEREUM
           // ====================================================
-          if (ethereum >
-              0)
+          if (ethereum > 0)
             _CryptoLine(
               icon: Icons.view_stream_outlined,
               name: 'Ethereum',
@@ -296,8 +246,7 @@ class WalletCard
           // ====================================================
           // SOLANA
           // ====================================================
-          if (solana >
-              0)
+          if (solana > 0)
             _CryptoLine(
               icon: Icons.adjust_outlined,
               name: 'Solana',
@@ -312,8 +261,7 @@ class WalletCard
           // ====================================================
           // USDT
           // ====================================================
-          if (usdt >
-              0)
+          if (usdt > 0)
             _CryptoLine(
               icon: Icons.currency_exchange_outlined,
               name: 'Tether',
@@ -328,22 +276,11 @@ class WalletCard
           // ====================================================
           // SEM CRIPTO
           // ====================================================
-          if (bitcoin <=
-                  0 &&
-              ethereum <=
-                  0 &&
-              solana <=
-                  0 &&
-              usdt <=
-                  0)
+          if (bitcoin <= 0 && ethereum <= 0 && solana <= 0 && usdt <= 0)
             TextButton.icon(
               onPressed: onBalance,
-              icon: const Icon(
-                Icons.add_chart_rounded,
-              ),
-              label: const Text(
-                'Adicionar saldo cripto',
-              ),
+              icon: const Icon(Icons.add_chart_rounded),
+              label: const Text('Adicionar saldo cripto'),
             ),
         ],
       ),
@@ -355,9 +292,7 @@ class WalletCard
 // CRYPTO LINE
 // ============================================================
 
-class _CryptoLine
-    extends
-        StatelessWidget {
+class _CryptoLine extends StatelessWidget {
   const _CryptoLine({
     required this.icon,
     required this.name,
@@ -390,28 +325,16 @@ class _CryptoLine
   // ============================================================
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final colorScheme = Theme.of(
-      context,
-    ).colorScheme;
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
-    final safeCurrentValue = currentValue.isFinite
-        ? currentValue
-        : 0.0;
+    final safeCurrentValue = currentValue.isFinite ? currentValue : 0.0;
 
-    final safeProfitPercent = profitPercent.isFinite
-        ? profitPercent
-        : 0.0;
+    final safeProfitPercent = profitPercent.isFinite ? profitPercent : 0.0;
 
-    final isPositive =
-        safeProfitPercent >
-        0;
+    final isPositive = safeProfitPercent > 0;
 
-    final isNegative =
-        safeProfitPercent <
-        0;
+    final isNegative = safeProfitPercent < 0;
 
     final resultColor = isPositive
         ? Colors.green
@@ -420,21 +343,14 @@ class _CryptoLine
         : colorScheme.onSurfaceVariant;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        vertical: 4,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(
-            12,
-          ),
+          borderRadius: BorderRadius.circular(12),
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 6,
-              vertical: 10,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -446,21 +362,13 @@ class _CryptoLine
                   height: 38,
                   decoration: BoxDecoration(
                     color: colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(
-                      11,
-                    ),
+                    borderRadius: BorderRadius.circular(11),
                   ),
                   alignment: Alignment.center,
-                  child: Icon(
-                    icon,
-                    size: 20,
-                    color: colorScheme.primary,
-                  ),
+                  child: Icon(icon, size: 20, color: colorScheme.primary),
                 ),
 
-                const SizedBox(
-                  width: 12,
-                ),
+                const SizedBox(width: 12),
 
                 // =================================================
                 // NOME + QUANTIDADE
@@ -477,9 +385,7 @@ class _CryptoLine
                         ),
                       ),
 
-                      const SizedBox(
-                        height: 3,
-                      ),
+                      const SizedBox(height: 3),
 
                       Text(
                         showBalances
@@ -494,9 +400,7 @@ class _CryptoLine
                   ),
                 ),
 
-                const SizedBox(
-                  width: 12,
-                ),
+                const SizedBox(width: 12),
 
                 // =================================================
                 // VALOR BRL + RESULTADO
@@ -514,9 +418,7 @@ class _CryptoLine
                       fontWeight: FontWeight.w800,
                     ),
 
-                    const SizedBox(
-                      height: 4,
-                    ),
+                    const SizedBox(height: 4),
 
                     // =============================================
                     // %
@@ -539,9 +441,7 @@ class _CryptoLine
                             ),
 
                           Text(
-                            _formatPercent(
-                              safeProfitPercent,
-                            ),
+                            _formatPercent(safeProfitPercent),
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
@@ -572,36 +472,22 @@ class _CryptoLine
   // FORMAT CRYPTO
   // ============================================================
 
-  static String _formatCrypto(
-    double value,
-  ) {
-    if (!value.isFinite ||
-        value <
-            0) {
+  static String _formatCrypto(double value) {
+    if (!value.isFinite || value < 0) {
       return '0.00000000';
     }
 
-    return value.toStringAsFixed(
-      8,
-    );
+    return value.toStringAsFixed(8);
   }
 
   // ============================================================
   // FORMAT PERCENT
   // ============================================================
 
-  static String _formatPercent(
-    double value,
-  ) {
-    final safeValue = value.isFinite
-        ? value
-        : 0.0;
+  static String _formatPercent(double value) {
+    final safeValue = value.isFinite ? value : 0.0;
 
-    final sign =
-        safeValue >
-            0
-        ? '+'
-        : '';
+    final sign = safeValue > 0 ? '+' : '';
 
     return '$sign'
         '${safeValue.toStringAsFixed(2).replaceAll('.', ',')}%';
@@ -622,9 +508,7 @@ class _CryptoLine
 //
 // ============================================================
 
-class _AnimatedMoneyValue
-    extends
-        StatefulWidget {
+class _AnimatedMoneyValue extends StatefulWidget {
   const _AnimatedMoneyValue({
     required this.value,
     required this.showBalances,
@@ -641,19 +525,12 @@ class _AnimatedMoneyValue
   final FontWeight fontWeight;
 
   @override
-  State<
-    _AnimatedMoneyValue
-  >
-  createState() {
+  State<_AnimatedMoneyValue> createState() {
     return _AnimatedMoneyValueState();
   }
 }
 
-class _AnimatedMoneyValueState
-    extends
-        State<
-          _AnimatedMoneyValue
-        > {
+class _AnimatedMoneyValueState extends State<_AnimatedMoneyValue> {
   // ============================================================
   // STATE
   // ============================================================
@@ -667,19 +544,14 @@ class _AnimatedMoneyValueState
   // ============================================================
 
   @override
-  void didUpdateWidget(
-    covariant _AnimatedMoneyValue oldWidget,
-  ) {
-    super.didUpdateWidget(
-      oldWidget,
-    );
+  void didUpdateWidget(covariant _AnimatedMoneyValue oldWidget) {
+    super.didUpdateWidget(oldWidget);
 
     // ==========================================================
     // NÃO ANIMA SE APENAS MOSTRAR/OCULTAR SALDOS
     // ==========================================================
 
-    if (oldWidget.value ==
-        widget.value) {
+    if (oldWidget.value == widget.value) {
       return;
     }
 
@@ -689,28 +561,19 @@ class _AnimatedMoneyValueState
 
     _highlightTimer?.cancel();
 
-    setState(
-      () {
-        _highlight = true;
-      },
-    );
+    setState(() {
+      _highlight = true;
+    });
 
-    _highlightTimer = Timer(
-      const Duration(
-        milliseconds: 900,
-      ),
-      () {
-        if (!mounted) {
-          return;
-        }
+    _highlightTimer = Timer(const Duration(milliseconds: 900), () {
+      if (!mounted) {
+        return;
+      }
 
-        setState(
-          () {
-            _highlight = false;
-          },
-        );
-      },
-    );
+      setState(() {
+        _highlight = false;
+      });
+    });
   }
 
   // ============================================================
@@ -731,34 +594,20 @@ class _AnimatedMoneyValueState
   // ============================================================
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final normalColor = Theme.of(
-      context,
-    ).colorScheme.onSurface;
+  Widget build(BuildContext context) {
+    final normalColor = Theme.of(context).colorScheme.onSurface;
 
-    final text = widget.showBalances
-        ? _currency(
-            widget.value,
-          )
-        : 'R\$ ••••••';
+    final text = widget.showBalances ? _currency(widget.value) : 'R\$ ••••••';
 
     return AnimatedDefaultTextStyle(
-      duration: const Duration(
-        milliseconds: 220,
-      ),
+      duration: const Duration(milliseconds: 220),
       curve: Curves.easeOut,
       style: TextStyle(
         fontSize: widget.fontSize,
         fontWeight: widget.fontWeight,
-        color: _highlight
-            ? Colors.green
-            : normalColor,
+        color: _highlight ? Colors.green : normalColor,
       ),
-      child: Text(
-        text,
-      ),
+      child: Text(text),
     );
   }
 
@@ -766,72 +615,32 @@ class _AnimatedMoneyValueState
   // CURRENCY
   // ============================================================
 
-  static String _currency(
-    double value,
-  ) {
-    final safeValue = value.isFinite
-        ? value
-        : 0.0;
+  static String _currency(double value) {
+    final safeValue = value.isFinite ? value : 0.0;
 
-    final negative =
-        safeValue <
-        0;
+    final negative = safeValue < 0;
 
     final absolute = safeValue.abs();
 
-    final parts = absolute
-        .toStringAsFixed(
-          2,
-        )
-        .split(
-          '.',
-        );
+    final parts = absolute.toStringAsFixed(2).split('.');
 
     final integer = parts.first;
 
-    final decimal =
-        parts.length >
-            1
-        ? parts.last
-        : '00';
+    final decimal = parts.length > 1 ? parts.last : '00';
 
-    final reversed = integer
-        .split(
-          '',
-        )
-        .reversed
-        .toList();
+    final reversed = integer.split('').reversed.toList();
 
     final buffer = StringBuffer();
 
-    for (
-      int index = 0;
-      index <
-          reversed.length;
-      index++
-    ) {
-      if (index >
-              0 &&
-          index %
-                  3 ==
-              0) {
-        buffer.write(
-          '.',
-        );
+    for (int index = 0; index < reversed.length; index++) {
+      if (index > 0 && index % 3 == 0) {
+        buffer.write('.');
       }
 
-      buffer.write(
-        reversed[index],
-      );
+      buffer.write(reversed[index]);
     }
 
-    final formattedInteger = buffer
-        .toString()
-        .split(
-          '',
-        )
-        .reversed
-        .join();
+    final formattedInteger = buffer.toString().split('').reversed.join();
 
     return '${negative ? '-' : ''}'
         'R\$ $formattedInteger,$decimal';
@@ -842,9 +651,7 @@ class _AnimatedMoneyValueState
 // FINANCE VALUE CARD
 // ============================================================
 
-class _FinanceValueCard
-    extends
-        StatelessWidget {
+class _FinanceValueCard extends StatelessWidget {
   const _FinanceValueCard({
     required this.icon,
     required this.title,
@@ -868,41 +675,22 @@ class _FinanceValueCard
   // ============================================================
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(
-        14,
-      ),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Theme.of(
-          context,
-        ).colorScheme.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(
-          14,
-        ),
+        color: Theme.of(context).colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
         children: [
-          Icon(
-            icon,
-          ),
+          Icon(icon),
 
-          const SizedBox(
-            height: 8,
-          ),
+          const SizedBox(height: 8),
 
-          Text(
-            title,
-            style: const TextStyle(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
 
-          const SizedBox(
-            height: 5,
-          ),
+          const SizedBox(height: 5),
 
           if (animateChanges)
             _AnimatedMoneyValue(
@@ -913,14 +701,8 @@ class _FinanceValueCard
             )
           else
             Text(
-              showBalances
-                  ? _currency(
-                      value,
-                    )
-                  : 'R\$ ••••••',
-              style: const TextStyle(
-                fontWeight: FontWeight.w800,
-              ),
+              showBalances ? _currency(value) : 'R\$ ••••••',
+              style: const TextStyle(fontWeight: FontWeight.w800),
             ),
         ],
       ),
@@ -931,72 +713,32 @@ class _FinanceValueCard
   // CURRENCY
   // ============================================================
 
-  static String _currency(
-    double value,
-  ) {
-    final safeValue = value.isFinite
-        ? value
-        : 0.0;
+  static String _currency(double value) {
+    final safeValue = value.isFinite ? value : 0.0;
 
-    final negative =
-        safeValue <
-        0;
+    final negative = safeValue < 0;
 
     final absolute = safeValue.abs();
 
-    final parts = absolute
-        .toStringAsFixed(
-          2,
-        )
-        .split(
-          '.',
-        );
+    final parts = absolute.toStringAsFixed(2).split('.');
 
     final integer = parts.first;
 
-    final decimal =
-        parts.length >
-            1
-        ? parts.last
-        : '00';
+    final decimal = parts.length > 1 ? parts.last : '00';
 
-    final reversed = integer
-        .split(
-          '',
-        )
-        .reversed
-        .toList();
+    final reversed = integer.split('').reversed.toList();
 
     final buffer = StringBuffer();
 
-    for (
-      int index = 0;
-      index <
-          reversed.length;
-      index++
-    ) {
-      if (index >
-              0 &&
-          index %
-                  3 ==
-              0) {
-        buffer.write(
-          '.',
-        );
+    for (int index = 0; index < reversed.length; index++) {
+      if (index > 0 && index % 3 == 0) {
+        buffer.write('.');
       }
 
-      buffer.write(
-        reversed[index],
-      );
+      buffer.write(reversed[index]);
     }
 
-    final formattedInteger = buffer
-        .toString()
-        .split(
-          '',
-        )
-        .reversed
-        .join();
+    final formattedInteger = buffer.toString().split('').reversed.join();
 
     return '${negative ? '-' : ''}'
         'R\$ $formattedInteger,$decimal';
