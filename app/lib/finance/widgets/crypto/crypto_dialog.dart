@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../utils/crypto_value_math.dart';
+
 import '../../runtime/finance_runtime.dart';
 
 import '../../models/crypto/crypto_transaction_model.dart';
@@ -221,7 +223,10 @@ class _CryptoDialogState extends State<CryptoDialog> {
       return controllerValue;
     }
 
-    final calculatedValue = totalQuantity * currentPrice;
+    final calculatedValue = CryptoValueMath.currentValue(
+      quantity: totalQuantity,
+      price: currentPrice,
+    );
 
     if (!calculatedValue.isFinite || calculatedValue < 0) {
       return 0;
