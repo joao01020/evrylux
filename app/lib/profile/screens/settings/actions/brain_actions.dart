@@ -1,25 +1,18 @@
 part of '../../profile_settings_page.dart';
 
-extension _ProfileSettingsBrainActions
-    on
-        _ProfileSettingsPageState {
+extension _ProfileSettingsBrainActions on _ProfileSettingsPageState {
   // ============================================================
   // LOAD BRAIN SETTINGS
   // ============================================================
 
-  Future<
-    void
-  >
-  _loadBrainSettings() async {
+  Future<void> _loadBrainSettings() async {
     if (_loadingBrainSettings) {
       return;
     }
 
-    _updateProfileState(
-      () {
-        _loadingBrainSettings = true;
-      },
-    );
+    _updateProfileState(() {
+      _loadingBrainSettings = true;
+    });
 
     try {
       if (!brainDataModeController.isInitialized) {
@@ -36,22 +29,18 @@ extension _ProfileSettingsBrainActions
         return;
       }
 
-      _updateProfileState(
-        () {
-          _brainCloudMode = brainDataModeController.isCloudMode;
+      _updateProfileState(() {
+        _brainCloudMode = brainDataModeController.isCloudMode;
 
-          _brainVaultId = manifest.vaultId;
+        _brainVaultId = manifest.vaultId;
 
-          _brainKeyVersion = manifest.keyVersion;
+        _brainKeyVersion = manifest.keyVersion;
 
-          _brainMasterKeyAvailable = hasMasterKey;
-        },
-      );
+        _brainMasterKeyAvailable = hasMasterKey;
+      });
 
       await _loadBrainDevices();
-    } catch (
-      error
-    ) {
+    } catch (error) {
       debugPrint(
         '[PROFILE SETTINGS] '
         'Erro carregando configurações do Cérebro: $error',
@@ -61,19 +50,16 @@ extension _ProfileSettingsBrainActions
         return;
       }
 
-      _updateProfileState(
-        () {
-          _message = 'Não foi possível carregar todas as configurações do Cérebro.';
-          _messageIsError = true;
-        },
-      );
+      _updateProfileState(() {
+        _message =
+            'Não foi possível carregar todas as configurações do Cérebro.';
+        _messageIsError = true;
+      });
     } finally {
       if (mounted) {
-        _updateProfileState(
-          () {
-            _loadingBrainSettings = false;
-          },
-        );
+        _updateProfileState(() {
+          _loadingBrainSettings = false;
+        });
       }
     }
   }
@@ -85,37 +71,27 @@ extension _ProfileSettingsBrainActions
   String _brainBackupDefaultFileName() {
     final now = DateTime.now();
 
-    String twoDigits(
-      int value,
-    ) {
-      return value.toString().padLeft(
-        2,
-        '0',
-      );
+    String twoDigits(int value) {
+      return value.toString().padLeft(2, '0');
     }
 
     final date = '${now.year}${twoDigits(now.month)}${twoDigits(now.day)}';
 
-    final time = '${twoDigits(now.hour)}${twoDigits(now.minute)}${twoDigits(now.second)}';
+    final time =
+        '${twoDigits(now.hour)}${twoDigits(now.minute)}${twoDigits(now.second)}';
 
     return 'EVRYLUX_Brain_$date-$time.evbrain';
   }
 
-  Future<
-    void
-  >
-  _exportBrainBackup() async {
-    if (_exportingBrainBackup ||
-        _importingBrainBackup) {
+  Future<void> _exportBrainBackup() async {
+    if (_exportingBrainBackup || _importingBrainBackup) {
       return;
     }
 
-    _updateProfileState(
-      () {
-        _exportingBrainBackup = true;
-        _message = null;
-      },
-    );
+    _updateProfileState(() {
+      _exportingBrainBackup = true;
+      _message = null;
+    });
 
     Directory? temporaryDirectory;
 
@@ -139,13 +115,9 @@ extension _ProfileSettingsBrainActions
         'evrylux_brain_backup_',
       );
 
-      final temporaryFile = File(
-        '${temporaryDirectory.path}/$fileName',
-      );
+      final temporaryFile = File('${temporaryDirectory.path}/$fileName');
 
-      final exported = await brainBackupService.exportToFile(
-        temporaryFile,
-      );
+      final exported = await brainBackupService.exportToFile(temporaryFile);
 
       final backupBytes = await exported.readAsBytes();
 
@@ -155,14 +127,11 @@ extension _ProfileSettingsBrainActions
         bytes: backupBytes,
       );
 
-      if (savedUri ==
-          null) {
+      if (savedUri == null) {
         return;
       }
 
-      final savedLocation =
-          savedUri.scheme ==
-              'file'
+      final savedLocation = savedUri.scheme == 'file'
           ? savedUri.toFilePath()
           : savedUri.toString();
 
@@ -170,17 +139,13 @@ extension _ProfileSettingsBrainActions
         return;
       }
 
-      _updateProfileState(
-        () {
-          _message =
-              'Backup .evbrain exportado com sucesso para:\n'
-              '$savedLocation';
-          _messageIsError = false;
-        },
-      );
-    } catch (
-      error
-    ) {
+      _updateProfileState(() {
+        _message =
+            'Backup .evbrain exportado com sucesso para:\n'
+            '$savedLocation';
+        _messageIsError = false;
+      });
+    } catch (error) {
       debugPrint(
         '[PROFILE SETTINGS] '
         'Erro exportando backup .evbrain: $error',
@@ -190,28 +155,21 @@ extension _ProfileSettingsBrainActions
         return;
       }
 
-      _updateProfileState(
-        () {
-          _message =
-              'Não foi possível exportar o backup .evbrain. '
-              '$error';
-          _messageIsError = true;
-        },
-      );
+      _updateProfileState(() {
+        _message =
+            'Não foi possível exportar o backup .evbrain. '
+            '$error';
+        _messageIsError = true;
+      });
     } finally {
       final directory = temporaryDirectory;
 
-      if (directory !=
-          null) {
+      if (directory != null) {
         try {
           if (await directory.exists()) {
-            await directory.delete(
-              recursive: true,
-            );
+            await directory.delete(recursive: true);
           }
-        } catch (
-          cleanupError
-        ) {
+        } catch (cleanupError) {
           debugPrint(
             '[PROFILE SETTINGS] '
             'Não foi possível remover o backup temporário: '
@@ -221,151 +179,102 @@ extension _ProfileSettingsBrainActions
       }
 
       if (mounted) {
-        _updateProfileState(
-          () {
-            _exportingBrainBackup = false;
-          },
-        );
+        _updateProfileState(() {
+          _exportingBrainBackup = false;
+        });
       }
     }
   }
 
-  Future<
-    bool
-  >
-  _confirmBrainBackupImport({
-    required String fileName,
-  }) async {
-    final confirmed =
-        await showDialog<
-          bool
-        >(
-          context: context,
-          builder:
-              (
-                dialogContext,
-              ) {
-                return AlertDialog(
-                  backgroundColor: _ProfileSettingsPageState._surface,
-                  surfaceTintColor: Colors.transparent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      20,
-                    ),
-                    side: const BorderSide(
-                      color: _ProfileSettingsPageState._border,
-                    ),
+  Future<bool> _confirmBrainBackupImport({required String fileName}) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: _ProfileSettingsPageState._surface,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: _ProfileSettingsPageState._border),
+          ),
+          title: const Row(
+            children: [
+              Icon(
+                Icons.restore_rounded,
+                color: _ProfileSettingsPageState._primaryDark,
+              ),
+              SizedBox(width: 10),
+              Expanded(child: Text('Importar backup .evbrain')),
+            ],
+          ),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  fileName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: _ProfileSettingsPageState._text,
+                    fontWeight: FontWeight.w900,
                   ),
-                  title: const Row(
-                    children: [
-                      Icon(
-                        Icons.restore_rounded,
-                        color: _ProfileSettingsPageState._primaryDark,
-                      ),
-                      SizedBox(
-                        width: 10,
-                      ),
-                      Expanded(
-                        child: Text(
-                          'Importar backup .evbrain',
-                        ),
-                      ),
-                    ],
+                ),
+
+                const SizedBox(height: 10),
+
+                const Text(
+                  'O EVRYLUX validará o arquivo, o Vault ID, a versão '
+                  'da Master Key e cada objeto antes de restaurar.',
+                  style: TextStyle(
+                    color: _ProfileSettingsPageState._muted,
+                    fontSize: 12,
+                    height: 1.45,
                   ),
-                  content: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: 500,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          fileName,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: _ProfileSettingsPageState._text,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
+                ),
 
-                        const SizedBox(
-                          height: 10,
-                        ),
+                const SizedBox(height: 10),
 
-                        const Text(
-                          'O EVRYLUX validará o arquivo, o Vault ID, a versão '
-                          'da Master Key e cada objeto antes de restaurar.',
-                          style: TextStyle(
-                            color: _ProfileSettingsPageState._muted,
-                            fontSize: 12,
-                            height: 1.45,
-                          ),
-                        ),
-
-                        const SizedBox(
-                          height: 10,
-                        ),
-
-                        const Text(
-                          'Objetos locais com versão mais nova não serão '
-                          'substituídos pelo backup.',
-                          style: TextStyle(
-                            color: _ProfileSettingsPageState._primaryDark,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            height: 1.45,
-                          ),
-                        ),
-                      ],
-                    ),
+                const Text(
+                  'Objetos locais com versão mais nova não serão '
+                  'substituídos pelo backup.',
+                  style: TextStyle(
+                    color: _ProfileSettingsPageState._primaryDark,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    height: 1.45,
                   ),
-                  actions: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(
-                          dialogContext,
-                        ).pop(
-                          false,
-                        );
-                      },
-                      child: const Text(
-                        'Cancelar',
-                      ),
-                    ),
-
-                    FilledButton.icon(
-                      onPressed: () {
-                        Navigator.of(
-                          dialogContext,
-                        ).pop(
-                          true,
-                        );
-                      },
-                      icon: const Icon(
-                        Icons.file_open_outlined,
-                        size: 18,
-                      ),
-                      label: const Text(
-                        'Importar',
-                      ),
-                    ),
-                  ],
-                );
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(false);
               },
-        );
+              child: const Text('Cancelar'),
+            ),
 
-    return confirmed ==
-        true;
+            FilledButton.icon(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(true);
+              },
+              icon: const Icon(Icons.file_open_outlined, size: 18),
+              label: const Text('Importar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    return confirmed == true;
   }
 
-  Future<
-    void
-  >
-  _importBrainBackup() async {
-    if (_importingBrainBackup ||
-        _exportingBrainBackup) {
+  Future<void> _importBrainBackup() async {
+    if (_importingBrainBackup || _exportingBrainBackup) {
       return;
     }
 
@@ -382,24 +291,16 @@ extension _ProfileSettingsBrainActions
       final platformFile = await FilePicker.pickFile(
         dialogTitle: 'Selecionar backup do Cérebro',
         type: FileType.custom,
-        allowedExtensions:
-            const <
-              String
-            >[
-              'evbrain',
-            ],
+        allowedExtensions: const <String>['evbrain'],
       );
 
-      if (platformFile ==
-          null) {
+      if (platformFile == null) {
         return;
       }
 
       final path = platformFile.path?.trim();
 
-      if (path ==
-              null ||
-          path.isEmpty) {
+      if (path == null || path.isEmpty) {
         throw StateError(
           'O seletor não forneceu um caminho local para o arquivo.',
         );
@@ -409,23 +310,16 @@ extension _ProfileSettingsBrainActions
         fileName: platformFile.name,
       );
 
-      if (!confirmed ||
-          !mounted) {
+      if (!confirmed || !mounted) {
         return;
       }
 
-      _updateProfileState(
-        () {
-          _importingBrainBackup = true;
-          _message = null;
-        },
-      );
+      _updateProfileState(() {
+        _importingBrainBackup = true;
+        _message = null;
+      });
 
-      final result = await brainBackupService.importFromFile(
-        File(
-          path,
-        ),
-      );
+      final result = await brainBackupService.importFromFile(File(path));
 
       // O backup altera diretamente o Vault físico.
       // Recarregamos o controller global para a UI refletir
@@ -438,21 +332,17 @@ extension _ProfileSettingsBrainActions
         return;
       }
 
-      _updateProfileState(
-        () {
-          final skipped = result.skippedNewerLocal;
+      _updateProfileState(() {
+        final skipped = result.skippedNewerLocal;
 
-          _message =
-              'Backup restaurado com sucesso. '
-              '${result.restored} de ${result.totalInBackup} objetos '
-              'foram restaurados.'
-              '${skipped > 0 ? ' $skipped objeto(s) local(is) mais novo(s) foram preservado(s).' : ''}';
-          _messageIsError = false;
-        },
-      );
-    } catch (
-      error
-    ) {
+        _message =
+            'Backup restaurado com sucesso. '
+            '${result.restored} de ${result.totalInBackup} objetos '
+            'foram restaurados.'
+            '${skipped > 0 ? ' $skipped objeto(s) local(is) mais novo(s) foram preservado(s).' : ''}';
+        _messageIsError = false;
+      });
+    } catch (error) {
       debugPrint(
         '[PROFILE SETTINGS] '
         'Erro importando backup .evbrain: $error',
@@ -462,21 +352,17 @@ extension _ProfileSettingsBrainActions
         return;
       }
 
-      _updateProfileState(
-        () {
-          _message =
-              'Não foi possível importar o backup .evbrain. '
-              '$error';
-          _messageIsError = true;
-        },
-      );
+      _updateProfileState(() {
+        _message =
+            'Não foi possível importar o backup .evbrain. '
+            '$error';
+        _messageIsError = true;
+      });
     } finally {
       if (mounted) {
-        _updateProfileState(
-          () {
-            _importingBrainBackup = false;
-          },
-        );
+        _updateProfileState(() {
+          _importingBrainBackup = false;
+        });
       }
     }
   }
@@ -497,20 +383,15 @@ extension _ProfileSettingsBrainActions
   //
   // ============================================================
 
-  Future<
-    void
-  >
-  _loadBrainDevices() async {
+  Future<void> _loadBrainDevices() async {
     if (_loadingBrainDevices) {
       return;
     }
 
-    _updateProfileState(
-      () {
-        _loadingBrainDevices = true;
-        _brainDevicesError = null;
-      },
-    );
+    _updateProfileState(() {
+      _loadingBrainDevices = true;
+      _brainDevicesError = null;
+    });
 
     try {
       final manifest = await brainVaultService.openVault();
@@ -525,23 +406,14 @@ extension _ProfileSettingsBrainActions
         return;
       }
 
-      _updateProfileState(
-        () {
-          _currentBrainDeviceId = local?.deviceId;
+      _updateProfileState(() {
+        _currentBrainDeviceId = local?.deviceId;
 
-          _brainDevices =
-              List<
-                BrainDeviceRecord
-              >.unmodifiable(
-                devices,
-              );
+        _brainDevices = List<BrainDeviceRecord>.unmodifiable(devices);
 
-          _brainDevicesError = null;
-        },
-      );
-    } catch (
-      error
-    ) {
+        _brainDevicesError = null;
+      });
+    } catch (error) {
       debugPrint(
         '[PROFILE SETTINGS] '
         'Erro carregando dispositivos do Cérebro: $error',
@@ -551,18 +423,206 @@ extension _ProfileSettingsBrainActions
         return;
       }
 
-      _updateProfileState(
-        () {
-          _brainDevicesError = 'Não foi possível carregar os dispositivos do Cérebro.';
-        },
-      );
+      _updateProfileState(() {
+        _brainDevicesError =
+            'Não foi possível carregar os dispositivos do Cérebro.';
+      });
     } finally {
       if (mounted) {
-        _updateProfileState(
-          () {
-            _loadingBrainDevices = false;
-          },
+        _updateProfileState(() {
+          _loadingBrainDevices = false;
+        });
+      }
+    }
+  }
+
+  // ============================================================
+  // ADD / DENY BRAIN DEVICE
+  // ============================================================
+
+  Future<void> _showAddBrainDeviceDialog() async {
+    final authorizedCount = _brainDevices.where((device) => device.isAuthorized).length;
+    const maxDevices = 3;
+    final limitReached = authorizedCount >= maxDevices;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: _ProfileSettingsPageState._surface,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: _ProfileSettingsPageState._border),
+          ),
+          title: Row(
+            children: [
+              Icon(
+                limitReached
+                    ? Icons.devices_other_rounded
+                    : Icons.add_to_home_screen_rounded,
+                color: limitReached
+                    ? _ProfileSettingsPageState._muted
+                    : _ProfileSettingsPageState._primaryDark,
+              ),
+              const SizedBox(width: 10),
+              const Expanded(child: Text('Adicionar dispositivo')),
+            ],
+          ),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$authorizedCount de $maxDevices dispositivos autorizados.',
+                  style: const TextStyle(
+                    color: _ProfileSettingsPageState._text,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  limitReached
+                      ? 'O limite de 3 dispositivos autorizados foi atingido. '
+                          'Revogue um acesso antes de autorizar outro dispositivo.'
+                      : 'No novo dispositivo ou navegador, abra o Cérebro do EVRYLUX '
+                          'e solicite acesso. A solicitação aparecerá aqui como '
+                          'Pendente para você conferir o fingerprint e aprovar.',
+                  style: const TextStyle(
+                    color: _ProfileSettingsPageState._muted,
+                    fontSize: 12,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Entendi'),
+            ),
+          ],
         );
+      },
+    );
+  }
+
+  Future<void> _confirmDenyBrainDevice(BrainDeviceRecord device) async {
+    if (_revokingBrainDeviceId != null || !device.isPending) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: _ProfileSettingsPageState._surface,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: _ProfileSettingsPageState._border),
+          ),
+          title: const Row(
+            children: [
+              Icon(
+                Icons.cancel_outlined,
+                color: _ProfileSettingsPageState._danger,
+              ),
+              SizedBox(width: 10),
+              Expanded(child: Text('Negar solicitação')),
+            ],
+          ),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: Text(
+              'Negar a solicitação de "${device.deviceName}"?\n\n'
+              'Fingerprint: ${device.keyFingerprint}\n\n'
+              'A solicitação pendente será encerrada e deixará de aparecer '
+              'na lista. O dispositivo poderá criar uma nova solicitação no futuro.',
+              style: const TextStyle(
+                color: _ProfileSettingsPageState._muted,
+                height: 1.5,
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: _ProfileSettingsPageState._danger,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              icon: const Icon(Icons.close_rounded, size: 18),
+              label: const Text('Negar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    await _denyBrainDevice(device);
+  }
+
+  Future<void> _denyBrainDevice(BrainDeviceRecord device) async {
+    if (_revokingBrainDeviceId != null || !device.isPending) {
+      return;
+    }
+
+    _updateProfileState(() {
+      _revokingBrainDeviceId = device.deviceId;
+      _message = null;
+    });
+
+    try {
+      final manifest = await brainVaultService.openVault();
+
+      // O RPC de revogação também encerra com segurança uma solicitação
+      // ainda pendente: consome envelopes, limpa recovery_request_id e
+      // marca o registro como revoked.
+      await brainDeviceAuthorizationService.revokeDevice(
+        vaultId: manifest.vaultId,
+        targetDeviceId: device.deviceId,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      _updateProfileState(() {
+        _message = 'Solicitação de "${device.deviceName}" negada.';
+        _messageIsError = false;
+      });
+
+      await _loadBrainDevices();
+    } catch (error) {
+      debugPrint(
+        '[PROFILE SETTINGS] Erro negando dispositivo: $error',
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      _updateProfileState(() {
+        _message = 'Não foi possível negar a solicitação de "${device.deviceName}".';
+        _messageIsError = true;
+      });
+    } finally {
+      if (mounted) {
+        _updateProfileState(() {
+          _revokingBrainDeviceId = null;
+        });
       }
     }
   }
@@ -571,28 +631,18 @@ extension _ProfileSettingsBrainActions
   // CONFIRM REVOKE DEVICE
   // ============================================================
 
-  Future<
-    void
-  >
-  _confirmRevokeBrainDevice(
-    BrainDeviceRecord device,
-  ) async {
-    if (_revokingBrainDeviceId !=
-        null) {
+  Future<void> _confirmRevokeBrainDevice(BrainDeviceRecord device) async {
+    if (_revokingBrainDeviceId != null) {
       return;
     }
 
-    final isCurrentDevice =
-        device.deviceId ==
-        _currentBrainDeviceId;
+    final isCurrentDevice = device.deviceId == _currentBrainDeviceId;
 
     if (isCurrentDevice) {
-      _updateProfileState(
-        () {
-          _message = 'Este dispositivo não pode ser revogado por esta tela.';
-          _messageIsError = true;
-        },
-      );
+      _updateProfileState(() {
+        _message = 'Este dispositivo não pode ser revogado por esta tela.';
+        _messageIsError = true;
+      });
 
       return;
     }
@@ -601,128 +651,84 @@ extension _ProfileSettingsBrainActions
       return;
     }
 
-    final confirmed =
-        await showDialog<
-          bool
-        >(
-          context: context,
-          builder:
-              (
-                dialogContext,
-              ) {
-                return AlertDialog(
-                  backgroundColor: _ProfileSettingsPageState._surface,
-                  surfaceTintColor: Colors.transparent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      20,
-                    ),
-                    side: const BorderSide(
-                      color: _ProfileSettingsPageState._border,
-                    ),
-                  ),
-                  title: const Row(
-                    children: [
-                      Icon(
-                        Icons.phonelink_erase_rounded,
-                        color: _ProfileSettingsPageState._danger,
-                      ),
-                      SizedBox(
-                        width: 10,
-                      ),
-                      Expanded(
-                        child: Text(
-                          'Revogar acesso',
-                        ),
-                      ),
-                    ],
-                  ),
-                  content: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: 440,
-                    ),
-                    child: Text(
-                      'Revogar o acesso de "${device.deviceName}"?\n\n'
-                      'Este dispositivo não poderá mais sincronizar '
-                      'novos dados do Cérebro pela nuvem.\n\n'
-                      'Dados e chaves que já existam localmente nesse '
-                      'computador não podem ser apagados remotamente.',
-                      style: const TextStyle(
-                        color: _ProfileSettingsPageState._muted,
-                        height: 1.5,
-                      ),
-                    ),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(
-                          dialogContext,
-                        ).pop(
-                          false,
-                        );
-                      },
-                      child: const Text(
-                        'Cancelar',
-                      ),
-                    ),
-                    FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: _ProfileSettingsPageState._danger,
-                        foregroundColor: Colors.white,
-                      ),
-                      onPressed: () {
-                        Navigator.of(
-                          dialogContext,
-                        ).pop(
-                          true,
-                        );
-                      },
-                      icon: const Icon(
-                        Icons.block_rounded,
-                        size: 18,
-                      ),
-                      label: const Text(
-                        'Revogar acesso',
-                      ),
-                    ),
-                  ],
-                );
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: _ProfileSettingsPageState._surface,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: _ProfileSettingsPageState._border),
+          ),
+          title: const Row(
+            children: [
+              Icon(
+                Icons.phonelink_erase_rounded,
+                color: _ProfileSettingsPageState._danger,
+              ),
+              SizedBox(width: 10),
+              Expanded(child: Text('Revogar acesso')),
+            ],
+          ),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: Text(
+              'Revogar o acesso de "${device.deviceName}"?\n\n'
+              'Este dispositivo não poderá mais sincronizar '
+              'novos dados do Cérebro pela nuvem.\n\n'
+              'Dados e chaves que já existam localmente nesse '
+              'computador não podem ser apagados remotamente.',
+              style: const TextStyle(
+                color: _ProfileSettingsPageState._muted,
+                height: 1.5,
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(false);
               },
+              child: const Text('Cancelar'),
+            ),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: _ProfileSettingsPageState._danger,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                Navigator.of(dialogContext).pop(true);
+              },
+              icon: const Icon(Icons.block_rounded, size: 18),
+              label: const Text('Revogar acesso'),
+            ),
+          ],
         );
+      },
+    );
 
-    if (confirmed !=
-        true) {
+    if (confirmed != true) {
       return;
     }
 
-    await _revokeBrainDevice(
-      device,
-    );
+    await _revokeBrainDevice(device);
   }
 
   // ============================================================
   // REVOKE DEVICE
   // ============================================================
 
-  Future<
-    void
-  >
-  _revokeBrainDevice(
-    BrainDeviceRecord device,
-  ) async {
-    if (_revokingBrainDeviceId !=
-        null) {
+  Future<void> _revokeBrainDevice(BrainDeviceRecord device) async {
+    if (_revokingBrainDeviceId != null) {
       return;
     }
 
-    _updateProfileState(
-      () {
-        _revokingBrainDeviceId = device.deviceId;
+    _updateProfileState(() {
+      _revokingBrainDeviceId = device.deviceId;
 
-        _message = null;
-      },
-    );
+      _message = null;
+    });
 
     try {
       final manifest = await brainVaultService.openVault();
@@ -736,17 +742,13 @@ extension _ProfileSettingsBrainActions
         return;
       }
 
-      _updateProfileState(
-        () {
-          _message = 'Acesso de "${device.deviceName}" revogado com sucesso.';
-          _messageIsError = false;
-        },
-      );
+      _updateProfileState(() {
+        _message = 'Acesso de "${device.deviceName}" revogado com sucesso.';
+        _messageIsError = false;
+      });
 
       await _loadBrainDevices();
-    } catch (
-      error
-    ) {
+    } catch (error) {
       debugPrint(
         '[PROFILE SETTINGS] '
         'Erro revogando dispositivo: $error',
@@ -756,21 +758,17 @@ extension _ProfileSettingsBrainActions
         return;
       }
 
-      _updateProfileState(
-        () {
-          _message =
-              'Não foi possível revogar o acesso de '
-              '"${device.deviceName}".';
-          _messageIsError = true;
-        },
-      );
+      _updateProfileState(() {
+        _message =
+            'Não foi possível revogar o acesso de '
+            '"${device.deviceName}".';
+        _messageIsError = true;
+      });
     } finally {
       if (mounted) {
-        _updateProfileState(
-          () {
-            _revokingBrainDeviceId = null;
-          },
-        );
+        _updateProfileState(() {
+          _revokingBrainDeviceId = null;
+        });
       }
     }
   }
@@ -788,150 +786,125 @@ extension _ProfileSettingsBrainActions
   //
   // ============================================================
 
-  Future<
-    void
-  >
-  _confirmApproveBrainDevice(
-    BrainDeviceRecord device,
-  ) async {
-    if (_approvingBrainDeviceId !=
-            null ||
-        !device.isPending) {
+  Future<void> _confirmApproveBrainDevice(BrainDeviceRecord device) async {
+    if (_approvingBrainDeviceId != null || !device.isPending) {
+      return;
+    }
+
+    final authorizedCount = _brainDevices.where((item) => item.isAuthorized).length;
+
+    if (authorizedCount >= 3) {
+      _updateProfileState(() {
+        _message =
+            'Limite de 3 dispositivos autorizados atingido. '
+            'Revogue um acesso antes de aprovar outro.';
+        _messageIsError = true;
+      });
+      return;
+    }
+
+    if (device.isRecoveryExpired) {
+      _updateProfileState(() {
+        _message =
+            'Esta solicitação expirou. Negue-a e gere uma nova solicitação no dispositivo.';
+        _messageIsError = true;
+      });
       return;
     }
 
     final fingerprintController = TextEditingController();
 
-    final confirmedFingerprint =
-        await showDialog<
-          String
-        >(
-          context: context,
-          builder:
-              (
-                dialogContext,
-              ) {
-                return AlertDialog(
-                  backgroundColor: _ProfileSettingsPageState._surface,
-                  surfaceTintColor: Colors.transparent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      20,
-                    ),
-                    side: const BorderSide(
-                      color: _ProfileSettingsPageState._border,
-                    ),
+    final confirmedFingerprint = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: _ProfileSettingsPageState._surface,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: _ProfileSettingsPageState._border),
+          ),
+          title: const Row(
+            children: [
+              Icon(
+                Icons.verified_user_outlined,
+                color: _ProfileSettingsPageState._primaryDark,
+              ),
+              SizedBox(width: 10),
+              Expanded(child: Text('Aprovar dispositivo')),
+            ],
+          ),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  device.deviceName,
+                  style: const TextStyle(
+                    color: _ProfileSettingsPageState._text,
+                    fontWeight: FontWeight.w900,
                   ),
-                  title: const Row(
-                    children: [
-                      Icon(
-                        Icons.verified_user_outlined,
-                        color: _ProfileSettingsPageState._primaryDark,
-                      ),
-                      SizedBox(
-                        width: 10,
-                      ),
-                      Expanded(
-                        child: Text(
-                          'Aprovar dispositivo',
-                        ),
-                      ),
-                    ],
+                ),
+
+                const SizedBox(height: 8),
+
+                const Text(
+                  'No NOVO dispositivo, abra Recovery Device e compare '
+                  'o fingerprint mostrado lá. Digite-o abaixo exatamente '
+                  'como aparece antes de aprovar.',
+                  style: TextStyle(
+                    color: _ProfileSettingsPageState._muted,
+                    fontSize: 12,
+                    height: 1.45,
                   ),
-                  content: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: 480,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          device.deviceName,
-                          style: const TextStyle(
-                            color: _ProfileSettingsPageState._text,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
+                ),
 
-                        const SizedBox(
-                          height: 8,
-                        ),
+                const SizedBox(height: 14),
 
-                        const Text(
-                          'No NOVO dispositivo, abra Recovery Device e compare '
-                          'o fingerprint mostrado lá. Digite-o abaixo exatamente '
-                          'como aparece antes de aprovar.',
-                          style: TextStyle(
-                            color: _ProfileSettingsPageState._muted,
-                            fontSize: 12,
-                            height: 1.45,
-                          ),
-                        ),
-
-                        const SizedBox(
-                          height: 14,
-                        ),
-
-                        TextField(
-                          controller: fingerprintController,
-                          autofocus: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Fingerprint do novo dispositivo',
-                            hintText: 'AA:BB:CC:DD:EE:FF:...',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(
-                              Icons.fingerprint_rounded,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                TextField(
+                  controller: fingerprintController,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Fingerprint do novo dispositivo',
+                    hintText: 'AA:BB:CC:DD:EE:FF:...',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.fingerprint_rounded),
                   ),
-                  actions: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(
-                          dialogContext,
-                        ).pop();
-                      },
-                      child: const Text(
-                        'Cancelar',
-                      ),
-                    ),
-
-                    FilledButton.icon(
-                      onPressed: () {
-                        final value = fingerprintController.text.trim();
-
-                        if (value.isEmpty) {
-                          return;
-                        }
-
-                        Navigator.of(
-                          dialogContext,
-                        ).pop(
-                          value,
-                        );
-                      },
-                      icon: const Icon(
-                        Icons.check_rounded,
-                        size: 18,
-                      ),
-                      label: const Text(
-                        'Aprovar',
-                      ),
-                    ),
-                  ],
-                );
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
               },
+              child: const Text('Cancelar'),
+            ),
+
+            FilledButton.icon(
+              onPressed: () {
+                final value = fingerprintController.text.trim();
+
+                if (value.isEmpty) {
+                  return;
+                }
+
+                Navigator.of(dialogContext).pop(value);
+              },
+              icon: const Icon(Icons.check_rounded, size: 18),
+              label: const Text('Aprovar'),
+            ),
+          ],
         );
+      },
+    );
 
     fingerprintController.dispose();
 
-    if (confirmedFingerprint ==
-            null ||
-        confirmedFingerprint.trim().isEmpty) {
+    if (confirmedFingerprint == null || confirmedFingerprint.trim().isEmpty) {
       return;
     }
 
@@ -941,24 +914,18 @@ extension _ProfileSettingsBrainActions
     );
   }
 
-  Future<
-    void
-  >
-  _approveBrainDevice({
+  Future<void> _approveBrainDevice({
     required BrainDeviceRecord device,
     required String expectedFingerprint,
   }) async {
-    if (_approvingBrainDeviceId !=
-        null) {
+    if (_approvingBrainDeviceId != null) {
       return;
     }
 
-    _updateProfileState(
-      () {
-        _approvingBrainDeviceId = device.deviceId;
-        _message = null;
-      },
-    );
+    _updateProfileState(() {
+      _approvingBrainDeviceId = device.deviceId;
+      _message = null;
+    });
 
     try {
       final manifest = await brainVaultService.openVault();
@@ -974,19 +941,15 @@ extension _ProfileSettingsBrainActions
         return;
       }
 
-      _updateProfileState(
-        () {
-          _message =
-              'Dispositivo "${device.deviceName}" aprovado. '
-              'O novo computador já pode concluir a recuperação.';
-          _messageIsError = false;
-        },
-      );
+      _updateProfileState(() {
+        _message =
+            'Dispositivo "${device.deviceName}" aprovado. '
+            'O novo computador já pode concluir a recuperação.';
+        _messageIsError = false;
+      });
 
       await _loadBrainDevices();
-    } catch (
-      error
-    ) {
+    } catch (error) {
       debugPrint(
         '[PROFILE SETTINGS] '
         'Erro aprovando dispositivo: $error',
@@ -996,21 +959,17 @@ extension _ProfileSettingsBrainActions
         return;
       }
 
-      _updateProfileState(
-        () {
-          _message =
-              'Não foi possível aprovar o dispositivo. '
-              'Confira o fingerprint informado. ($error)';
-          _messageIsError = true;
-        },
-      );
+      _updateProfileState(() {
+        _message =
+            'Não foi possível aprovar o dispositivo. '
+            'Confira o fingerprint informado. ($error)';
+        _messageIsError = true;
+      });
     } finally {
       if (mounted) {
-        _updateProfileState(
-          () {
-            _approvingBrainDeviceId = null;
-          },
-        );
+        _updateProfileState(() {
+          _approvingBrainDeviceId = null;
+        });
       }
     }
   }
@@ -1019,148 +978,101 @@ extension _ProfileSettingsBrainActions
   // REQUEST BRAIN RECOVERY
   // ============================================================
 
-  Future<
-    void
-  >
-  _requestBrainRecovery() async {
-    if (_requestingBrainRecovery ||
-        _completingBrainRecovery) {
+  Future<void> _requestBrainRecovery() async {
+    if (_requestingBrainRecovery || _completingBrainRecovery) {
       return;
     }
 
-    final vaultController = TextEditingController(
-      text:
-          _brainVaultId ??
-          '',
-    );
+    final vaultController = TextEditingController(text: _brainVaultId ?? '');
 
-    final vaultId =
-        await showDialog<
-          String
-        >(
-          context: context,
-          builder:
-              (
-                dialogContext,
-              ) {
-                return AlertDialog(
-                  backgroundColor: _ProfileSettingsPageState._surface,
-                  surfaceTintColor: Colors.transparent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      20,
-                    ),
-                    side: const BorderSide(
-                      color: _ProfileSettingsPageState._border,
-                    ),
+    final vaultId = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: _ProfileSettingsPageState._surface,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: _ProfileSettingsPageState._border),
+          ),
+          title: const Row(
+            children: [
+              Icon(
+                Icons.add_to_home_screen_rounded,
+                color: _ProfileSettingsPageState._primaryDark,
+              ),
+              SizedBox(width: 10),
+              Expanded(child: Text('Solicitar recuperação')),
+            ],
+          ),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'No dispositivo que ainda possui acesso ao Cérebro, '
+                  'copie o Vault ID exibido em Perfil > Cérebro > Vault '
+                  'e informe-o aqui.',
+                  style: TextStyle(
+                    color: _ProfileSettingsPageState._muted,
+                    fontSize: 12,
+                    height: 1.45,
                   ),
-                  title: const Row(
-                    children: [
-                      Icon(
-                        Icons.add_to_home_screen_rounded,
-                        color: _ProfileSettingsPageState._primaryDark,
-                      ),
-                      SizedBox(
-                        width: 10,
-                      ),
-                      Expanded(
-                        child: Text(
-                          'Solicitar recuperação',
-                        ),
-                      ),
-                    ],
+                ),
+
+                const SizedBox(height: 14),
+
+                TextField(
+                  controller: vaultController,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Vault ID',
+                    hintText: 'vault_...',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.inventory_2_outlined),
                   ),
-                  content: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: 480,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'No dispositivo que ainda possui acesso ao Cérebro, '
-                          'copie o Vault ID exibido em Perfil > Cérebro > Vault '
-                          'e informe-o aqui.',
-                          style: TextStyle(
-                            color: _ProfileSettingsPageState._muted,
-                            fontSize: 12,
-                            height: 1.45,
-                          ),
-                        ),
-
-                        const SizedBox(
-                          height: 14,
-                        ),
-
-                        TextField(
-                          controller: vaultController,
-                          autofocus: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Vault ID',
-                            hintText: 'vault_...',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(
-                              Icons.inventory_2_outlined,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(
-                          dialogContext,
-                        ).pop();
-                      },
-                      child: const Text(
-                        'Cancelar',
-                      ),
-                    ),
-
-                    FilledButton.icon(
-                      onPressed: () {
-                        final value = vaultController.text.trim();
-
-                        if (value.isEmpty) {
-                          return;
-                        }
-
-                        Navigator.of(
-                          dialogContext,
-                        ).pop(
-                          value,
-                        );
-                      },
-                      icon: const Icon(
-                        Icons.send_rounded,
-                        size: 18,
-                      ),
-                      label: const Text(
-                        'Solicitar',
-                      ),
-                    ),
-                  ],
-                );
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
               },
+              child: const Text('Cancelar'),
+            ),
+
+            FilledButton.icon(
+              onPressed: () {
+                final value = vaultController.text.trim();
+
+                if (value.isEmpty) {
+                  return;
+                }
+
+                Navigator.of(dialogContext).pop(value);
+              },
+              icon: const Icon(Icons.send_rounded, size: 18),
+              label: const Text('Solicitar'),
+            ),
+          ],
         );
+      },
+    );
 
     vaultController.dispose();
 
-    if (vaultId ==
-            null ||
-        vaultId.trim().isEmpty) {
+    if (vaultId == null || vaultId.trim().isEmpty) {
       return;
     }
 
-    _updateProfileState(
-      () {
-        _requestingBrainRecovery = true;
-        _message = null;
-      },
-    );
+    _updateProfileState(() {
+      _requestingBrainRecovery = true;
+      _message = null;
+    });
 
     try {
       final record = await brainRecoveryDeviceService.requestRecovery(
@@ -1172,19 +1084,15 @@ extension _ProfileSettingsBrainActions
         return;
       }
 
-      _updateProfileState(
-        () {
-          _currentBrainDeviceId = record.deviceId;
-          _message =
-              'Solicitação criada. No dispositivo autorizado, procure '
-              '"${record.deviceName}" e aprove somente depois de conferir '
-              'este fingerprint: ${record.keyFingerprint}';
-          _messageIsError = false;
-        },
-      );
-    } catch (
-      error
-    ) {
+      _updateProfileState(() {
+        _currentBrainDeviceId = record.deviceId;
+        _message =
+            'Solicitação criada. No dispositivo autorizado, procure '
+            '"${record.deviceName}" e aprove somente depois de conferir '
+            'este fingerprint: ${record.keyFingerprint}';
+        _messageIsError = false;
+      });
+    } catch (error) {
       debugPrint(
         '[PROFILE SETTINGS] '
         'Erro solicitando Recovery Device: $error',
@@ -1194,19 +1102,15 @@ extension _ProfileSettingsBrainActions
         return;
       }
 
-      _updateProfileState(
-        () {
-          _message = 'Não foi possível solicitar a recuperação. $error';
-          _messageIsError = true;
-        },
-      );
+      _updateProfileState(() {
+        _message = 'Não foi possível solicitar a recuperação. $error';
+        _messageIsError = true;
+      });
     } finally {
       if (mounted) {
-        _updateProfileState(
-          () {
-            _requestingBrainRecovery = false;
-          },
-        );
+        _updateProfileState(() {
+          _requestingBrainRecovery = false;
+        });
       }
     }
   }
@@ -1215,148 +1119,101 @@ extension _ProfileSettingsBrainActions
   // COMPLETE BRAIN RECOVERY
   // ============================================================
 
-  Future<
-    void
-  >
-  _completeBrainRecovery() async {
-    if (_requestingBrainRecovery ||
-        _completingBrainRecovery) {
+  Future<void> _completeBrainRecovery() async {
+    if (_requestingBrainRecovery || _completingBrainRecovery) {
       return;
     }
 
-    final vaultController = TextEditingController(
-      text:
-          _brainVaultId ??
-          '',
-    );
+    final vaultController = TextEditingController(text: _brainVaultId ?? '');
 
-    final vaultId =
-        await showDialog<
-          String
-        >(
-          context: context,
-          builder:
-              (
-                dialogContext,
-              ) {
-                return AlertDialog(
-                  backgroundColor: _ProfileSettingsPageState._surface,
-                  surfaceTintColor: Colors.transparent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      20,
-                    ),
-                    side: const BorderSide(
-                      color: _ProfileSettingsPageState._border,
-                    ),
+    final vaultId = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: _ProfileSettingsPageState._surface,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: _ProfileSettingsPageState._border),
+          ),
+          title: const Row(
+            children: [
+              Icon(
+                Icons.settings_backup_restore_rounded,
+                color: _ProfileSettingsPageState._primaryDark,
+              ),
+              SizedBox(width: 10),
+              Expanded(child: Text('Concluir recuperação')),
+            ],
+          ),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Use o mesmo Vault ID da solicitação. '
+                  'Esta etapa somente funcionará depois que um dispositivo '
+                  'já autorizado aprovar este computador.',
+                  style: TextStyle(
+                    color: _ProfileSettingsPageState._muted,
+                    fontSize: 12,
+                    height: 1.45,
                   ),
-                  title: const Row(
-                    children: [
-                      Icon(
-                        Icons.settings_backup_restore_rounded,
-                        color: _ProfileSettingsPageState._primaryDark,
-                      ),
-                      SizedBox(
-                        width: 10,
-                      ),
-                      Expanded(
-                        child: Text(
-                          'Concluir recuperação',
-                        ),
-                      ),
-                    ],
+                ),
+
+                const SizedBox(height: 14),
+
+                TextField(
+                  controller: vaultController,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Vault ID',
+                    hintText: 'vault_...',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.inventory_2_outlined),
                   ),
-                  content: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: 480,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Use o mesmo Vault ID da solicitação. '
-                          'Esta etapa somente funcionará depois que um dispositivo '
-                          'já autorizado aprovar este computador.',
-                          style: TextStyle(
-                            color: _ProfileSettingsPageState._muted,
-                            fontSize: 12,
-                            height: 1.45,
-                          ),
-                        ),
-
-                        const SizedBox(
-                          height: 14,
-                        ),
-
-                        TextField(
-                          controller: vaultController,
-                          autofocus: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Vault ID',
-                            hintText: 'vault_...',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(
-                              Icons.inventory_2_outlined,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(
-                          dialogContext,
-                        ).pop();
-                      },
-                      child: const Text(
-                        'Cancelar',
-                      ),
-                    ),
-
-                    FilledButton.icon(
-                      onPressed: () {
-                        final value = vaultController.text.trim();
-
-                        if (value.isEmpty) {
-                          return;
-                        }
-
-                        Navigator.of(
-                          dialogContext,
-                        ).pop(
-                          value,
-                        );
-                      },
-                      icon: const Icon(
-                        Icons.lock_open_rounded,
-                        size: 18,
-                      ),
-                      label: const Text(
-                        'Concluir',
-                      ),
-                    ),
-                  ],
-                );
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
               },
+              child: const Text('Cancelar'),
+            ),
+
+            FilledButton.icon(
+              onPressed: () {
+                final value = vaultController.text.trim();
+
+                if (value.isEmpty) {
+                  return;
+                }
+
+                Navigator.of(dialogContext).pop(value);
+              },
+              icon: const Icon(Icons.lock_open_rounded, size: 18),
+              label: const Text('Concluir'),
+            ),
+          ],
         );
+      },
+    );
 
     vaultController.dispose();
 
-    if (vaultId ==
-            null ||
-        vaultId.trim().isEmpty) {
+    if (vaultId == null || vaultId.trim().isEmpty) {
       return;
     }
 
-    _updateProfileState(
-      () {
-        _completingBrainRecovery = true;
-        _message = null;
-      },
-    );
+    _updateProfileState(() {
+      _completingBrainRecovery = true;
+      _message = null;
+    });
 
     try {
       final completed = await brainRecoveryDeviceService.completeRecovery(
@@ -1368,14 +1225,12 @@ extension _ProfileSettingsBrainActions
           return;
         }
 
-        _updateProfileState(
-          () {
-            _message =
-                'A aprovação ainda não chegou. '
-                'Aprove este dispositivo no computador antigo e tente novamente.';
-            _messageIsError = true;
-          },
-        );
+        _updateProfileState(() {
+          _message =
+              'A aprovação ainda não chegou. '
+              'Aprove este dispositivo no computador antigo e tente novamente.';
+          _messageIsError = true;
+        });
 
         return;
       }
@@ -1394,17 +1249,13 @@ extension _ProfileSettingsBrainActions
         return;
       }
 
-      _updateProfileState(
-        () {
-          _message =
-              'Recovery Device concluído. '
-              'A Master Key foi importada localmente e o Vault foi restaurado.';
-          _messageIsError = false;
-        },
-      );
-    } catch (
-      error
-    ) {
+      _updateProfileState(() {
+        _message =
+            'Recovery Device concluído. '
+            'A Master Key foi importada localmente e o Vault foi restaurado.';
+        _messageIsError = false;
+      });
+    } catch (error) {
       debugPrint(
         '[PROFILE SETTINGS] '
         'Erro concluindo Recovery Device: $error',
@@ -1414,19 +1265,15 @@ extension _ProfileSettingsBrainActions
         return;
       }
 
-      _updateProfileState(
-        () {
-          _message = 'Não foi possível concluir a recuperação. $error';
-          _messageIsError = true;
-        },
-      );
+      _updateProfileState(() {
+        _message = 'Não foi possível concluir a recuperação. $error';
+        _messageIsError = true;
+      });
     } finally {
       if (mounted) {
-        _updateProfileState(
-          () {
-            _completingBrainRecovery = false;
-          },
-        );
+        _updateProfileState(() {
+          _completingBrainRecovery = false;
+        });
       }
     }
   }
@@ -1435,9 +1282,7 @@ extension _ProfileSettingsBrainActions
   // BRAIN DEVICE STATUS
   // ============================================================
 
-  String _brainDeviceStatusLabel(
-    BrainDeviceRecord device,
-  ) {
+  String _brainDeviceStatusLabel(BrainDeviceRecord device) {
     if (device.isAuthorized) {
       return 'Autorizado';
     }
@@ -1449,17 +1294,13 @@ extension _ProfileSettingsBrainActions
     return 'Revogado';
   }
 
-  Color _brainDeviceStatusColor(
-    BrainDeviceRecord device,
-  ) {
+  Color _brainDeviceStatusColor(BrainDeviceRecord device) {
     if (device.isAuthorized) {
       return _ProfileSettingsPageState._primaryDark;
     }
 
     if (device.isPending) {
-      return const Color(
-        0xFF9A6700,
-      );
+      return const Color(0xFF9A6700);
     }
 
     return _ProfileSettingsPageState._danger;
@@ -1469,37 +1310,22 @@ extension _ProfileSettingsBrainActions
   // DATE LABEL
   // ============================================================
 
-  String _formatBrainDeviceDate(
-    DateTime? value,
-  ) {
-    if (value ==
-        null) {
+  String _formatBrainDeviceDate(DateTime? value) {
+    if (value == null) {
       return 'sem registro';
     }
 
     final local = value.toLocal();
 
-    final day = local.day.toString().padLeft(
-      2,
-      '0',
-    );
+    final day = local.day.toString().padLeft(2, '0');
 
-    final month = local.month.toString().padLeft(
-      2,
-      '0',
-    );
+    final month = local.month.toString().padLeft(2, '0');
 
     final year = local.year.toString();
 
-    final hour = local.hour.toString().padLeft(
-      2,
-      '0',
-    );
+    final hour = local.hour.toString().padLeft(2, '0');
 
-    final minute = local.minute.toString().padLeft(
-      2,
-      '0',
-    );
+    final minute = local.minute.toString().padLeft(2, '0');
 
     return '$day/$month/$year às $hour:$minute';
   }

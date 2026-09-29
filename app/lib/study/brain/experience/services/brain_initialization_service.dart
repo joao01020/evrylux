@@ -20,8 +20,7 @@ class BrainInitializationResult {
 
   bool get needsBirth => !introSeen;
 
-  bool get needsDataModeChoice =>
-      storedDataMode == null;
+  bool get needsDataModeChoice => storedDataMode == null;
 
   BrainInitializationResult copyWith({
     int? knowledgeCount,
@@ -30,16 +29,11 @@ class BrainInitializationResult {
     bool clearStoredDataMode = false,
   }) {
     return BrainInitializationResult(
-      knowledgeCount:
-          knowledgeCount ??
-          this.knowledgeCount,
-      introSeen:
-          introSeen ??
-          this.introSeen,
+      knowledgeCount: knowledgeCount ?? this.knowledgeCount,
+      introSeen: introSeen ?? this.introSeen,
       storedDataMode: clearStoredDataMode
           ? null
-          : storedDataMode ??
-                this.storedDataMode,
+          : storedDataMode ?? this.storedDataMode,
     );
   }
 }
@@ -68,11 +62,17 @@ class BrainInitializationService {
       await _brainController.initialize();
     }
 
-    final introSeen =
-        await _visualStateStorage.readIntroSeen();
+    var introSeen = await _visualStateStorage.readIntroSeen();
 
-    final storedDataMode =
-        await _dataModeStorage.load();
+    final storedDataMode = await _dataModeStorage.load();
+
+    // Migração segura para contas que já possuíam Cérebro antes da Web.
+    // Se já existe conhecimento persistido, a animação de nascimento não
+    // representa uma conta nova e não deve reaparecer neste navegador.
+    if (!introSeen && _brainController.notes.isNotEmpty) {
+      await _visualStateStorage.writeIntroSeen(true);
+      introSeen = true;
+    }
 
     return BrainInitializationResult(
       knowledgeCount: _brainController.notes.length,
@@ -82,8 +82,6 @@ class BrainInitializationService {
   }
 
   Future<void> markBirthCompleted() async {
-    await _visualStateStorage.writeIntroSeen(
-      true,
-    );
+    await _visualStateStorage.writeIntroSeen(true);
   }
 }

@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../app/dependencies/app_dependencies.dart' as dependencies;
+import '../runtime/brain_runtime_dependencies.dart' as dependencies;
 import '../../../brain/visualization/brain_visualization.dart';
 import '../../../brain/visualization/painters/brain_paths.dart';
 
@@ -113,27 +113,16 @@ part 'brain_screen_parts/brain_screen_models.dart';
 //
 // ============================================================
 
-class BrainScreen
-    extends
-        StatefulWidget {
-  const BrainScreen({
-    super.key,
-  });
+class BrainScreen extends StatefulWidget {
+  const BrainScreen({super.key});
 
   @override
-  State<
-    BrainScreen
-  >
-  createState() {
+  State<BrainScreen> createState() {
     return _BrainScreenState();
   }
 }
 
-class _BrainScreenState
-    extends
-        State<
-          BrainScreen
-        > {
+class _BrainScreenState extends State<BrainScreen> {
   // ============================================================
   // CONTROLLERS
   // ============================================================
@@ -158,7 +147,8 @@ class _BrainScreenState
   //
   // ============================================================
 
-  static const BrainAiIntentDetector _brainAiIntentDetector = BrainAiIntentDetector();
+  static const BrainAiIntentDetector _brainAiIntentDetector =
+      BrainAiIntentDetector();
 
   late final BrainAiOrchestrator _brainAiOrchestrator;
 
@@ -276,9 +266,7 @@ class _BrainScreenState
 
   Timer? _searchDebounceTimer;
 
-  static const Duration _searchDebounceDuration = Duration(
-    milliseconds: 500,
-  );
+  static const Duration _searchDebounceDuration = Duration(milliseconds: 500);
 
   // ==========================================================
   // PARSER / ENGINE
@@ -370,17 +358,11 @@ class _BrainScreenState
       initializationService: initializationService,
     );
 
-    _controller.addListener(
-      _onControllerChanged,
-    );
+    _controller.addListener(_onControllerChanged);
 
-    _experienceController.addListener(
-      _onExperienceChanged,
-    );
+    _experienceController.addListener(_onExperienceChanged);
 
-    unawaited(
-      _initialize(),
-    );
+    unawaited(_initialize());
   }
 
   // ============================================================
@@ -389,13 +371,9 @@ class _BrainScreenState
 
   @override
   void dispose() {
-    _controller.removeListener(
-      _onControllerChanged,
-    );
+    _controller.removeListener(_onControllerChanged);
 
-    _experienceController.removeListener(
-      _onExperienceChanged,
-    );
+    _experienceController.removeListener(_onExperienceChanged);
 
     // ========================================================
     // CANCELAR TIMERS DA PESQUISA
@@ -461,9 +439,24 @@ class _BrainScreenState
   // ============================================================
 
   void _onControllerChanged() {
-    _mutateState(
-      () {},
-    );
+    // O Brain Web carrega os objetos E2EE do Supabase de forma assíncrona.
+    // A experiência visual pode ser criada antes de loadNotes() terminar.
+    //
+    // Se apenas reconstruirmos a tela aqui, o EvolvingBrain continua com o
+    // knowledgeCount antigo (normalmente 0) e o cérebro aparece sem
+    // ramificações mesmo quando _controller.notes já possui conteúdo.
+    //
+    // Portanto, toda mudança real do BrainController reconcilia também o
+    // contador visual com a fonte de verdade já carregada.
+    final visualController = _brainVisualController;
+
+    if (visualController != null) {
+      visualController.setKnowledgeCount(
+        _controller.notes.length,
+      );
+    }
+
+    _mutateState(() {});
   }
 
   // ============================================================
@@ -477,9 +470,7 @@ class _BrainScreenState
 
     _prepareBrainVisualFromExperience();
 
-    _mutateState(
-      () {},
-    );
+    _mutateState(() {});
 
     _scheduleDataModeChoiceIfNeeded();
 
@@ -499,16 +490,12 @@ class _BrainScreenState
   //
   // ============================================================
 
-  void _mutateState(
-    VoidCallback mutation,
-  ) {
+  void _mutateState(VoidCallback mutation) {
     if (!mounted) {
       return;
     }
 
-    setState(
-      mutation,
-    );
+    setState(mutation);
   }
 
   // ============================================================
@@ -516,9 +503,7 @@ class _BrainScreenState
   // ============================================================
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Scaffold(
       // ========================================================
       // APP BAR
@@ -527,22 +512,14 @@ class _BrainScreenState
       // Mantemos a AppBar para preservar o botão de voltar.
       //
       // ========================================================
-      appBar: _buildAppBar(
-        context,
-      ),
+      appBar: _buildAppBar(context),
 
       // ========================================================
       // BODY
       // ========================================================
-      body:
-          _controller.isLoading ||
-              _experienceController.isInitializing
-          ? const Center(
-              child: CircularProgressIndicator(),
-            )
-          : _buildBody(
-              context,
-            ),
+      body: _controller.isLoading || _experienceController.isInitializing
+          ? const Center(child: CircularProgressIndicator())
+          : _buildBody(context),
     );
   }
 }

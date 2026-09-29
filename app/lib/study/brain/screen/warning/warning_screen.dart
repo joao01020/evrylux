@@ -2,32 +2,21 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../../app/dependencies/app_dependencies.dart' as dependencies;
+import '../../runtime/brain_runtime_dependencies.dart' as dependencies;
 
 import '../../models/brain_concept.dart';
 import '../../repositories/brain_repository.dart';
 
-class WarningScreen
-    extends
-        StatefulWidget {
-  const WarningScreen({
-    super.key,
-  });
+class WarningScreen extends StatefulWidget {
+  const WarningScreen({super.key});
 
   @override
-  State<
-    WarningScreen
-  >
-  createState() {
+  State<WarningScreen> createState() {
     return _WarningScreenState();
   }
 }
 
-class _WarningScreenState
-    extends
-        State<
-          WarningScreen
-        > {
+class _WarningScreenState extends State<WarningScreen> {
   final BrainRepository _repository = dependencies.brainRepository;
 
   // ============================================================
@@ -55,10 +44,7 @@ class _WarningScreenState
   //
   // ============================================================
 
-  static List<
-    BrainConcept
-  >?
-  _sessionWarningCache;
+  static List<BrainConcept>? _sessionWarningCache;
 
   // ============================================================
   // STATE
@@ -72,19 +58,10 @@ class _WarningScreenState
 
   String? _errorMessage;
 
-  List<
-    BrainConcept
-  >
-  _items =
-      <
-        BrainConcept
-      >[];
+  List<BrainConcept> _items = <BrainConcept>[];
 
   // Evita chamadas simultâneas ao mesmo carregamento.
-  Future<
-    void
-  >?
-  _loadFuture;
+  Future<void>? _loadFuture;
 
   // ============================================================
   // INIT
@@ -108,33 +85,18 @@ class _WarningScreenState
 
     final cached = _sessionWarningCache;
 
-    if (cached !=
-        null) {
-      _items =
-          List<
-            BrainConcept
-          >.of(
-            cached,
-            growable: false,
-          );
+    if (cached != null) {
+      _items = List<BrainConcept>.of(cached, growable: false);
 
       _isLoading = false;
 
-      WidgetsBinding.instance.addPostFrameCallback(
-        (
-          _,
-        ) {
-          if (!mounted) {
-            return;
-          }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
 
-          unawaited(
-            _load(
-              showBlockingLoader: false,
-            ),
-          );
-        },
-      );
+        unawaited(_load(showBlockingLoader: false));
+      });
 
       return;
     }
@@ -148,31 +110,17 @@ class _WarningScreenState
     if (warmItems.isNotEmpty) {
       _items = warmItems;
 
-      _sessionWarningCache =
-          List<
-            BrainConcept
-          >.of(
-            warmItems,
-            growable: false,
-          );
+      _sessionWarningCache = List<BrainConcept>.of(warmItems, growable: false);
 
       _isLoading = false;
 
-      WidgetsBinding.instance.addPostFrameCallback(
-        (
-          _,
-        ) {
-          if (!mounted) {
-            return;
-          }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
 
-          unawaited(
-            _load(
-              showBlockingLoader: false,
-            ),
-          );
-        },
-      );
+        unawaited(_load(showBlockingLoader: false));
+      });
 
       return;
     }
@@ -181,123 +129,76 @@ class _WarningScreenState
     // 3. PRIMEIRA ABERTURA SEM CACHE
     // ==========================================================
 
-    unawaited(
-      _load(
-        showBlockingLoader: true,
-      ),
-    );
+    unawaited(_load(showBlockingLoader: true));
   }
 
   // ============================================================
   // ATENÇÕES JÁ CARREGADAS NO BRAIN CONTROLLER
   // ============================================================
 
-  List<
-    BrainConcept
-  >
-  _warningsFromLoadedBrain() {
+  List<BrainConcept> _warningsFromLoadedBrain() {
     final notes = dependencies.brainController.notes;
 
     if (notes.isEmpty) {
-      return const <
-        BrainConcept
-      >[];
+      return const <BrainConcept>[];
     }
 
-    final seen =
-        <
-          String
-        >{};
+    final seen = <String>{};
 
-    final result =
-        <
-          BrainConcept
-        >[];
+    final result = <BrainConcept>[];
 
     for (final note in notes) {
       for (final concept in note.concepts) {
-        if (concept.type !=
-            BrainConceptType.warning) {
+        if (concept.type != BrainConceptType.warning) {
           continue;
         }
 
         final id = concept.id.trim();
 
-        if (id.isNotEmpty &&
-            !seen.add(
-              id,
-            )) {
+        if (id.isNotEmpty && !seen.add(id)) {
           continue;
         }
 
-        result.add(
-          concept,
-        );
+        result.add(concept);
       }
     }
 
-    return List<
-      BrainConcept
-    >.of(
-      result,
-      growable: false,
-    );
+    return List<BrainConcept>.of(result, growable: false);
   }
 
   // ============================================================
   // LOAD
   // ============================================================
 
-  Future<
-    void
-  >
-  _load({
-    bool showBlockingLoader = false,
-  }) {
+  Future<void> _load({bool showBlockingLoader = false}) {
     final running = _loadFuture;
 
-    if (running !=
-        null) {
+    if (running != null) {
       return running;
     }
 
-    final future = _performLoad(
-      showBlockingLoader: showBlockingLoader,
-    );
+    final future = _performLoad(showBlockingLoader: showBlockingLoader);
 
     _loadFuture = future;
 
-    return future.whenComplete(
-      () {
-        if (identical(
-          _loadFuture,
-          future,
-        )) {
-          _loadFuture = null;
-        }
-      },
-    );
+    return future.whenComplete(() {
+      if (identical(_loadFuture, future)) {
+        _loadFuture = null;
+      }
+    });
   }
 
-  Future<
-    void
-  >
-  _performLoad({
-    required bool showBlockingLoader,
-  }) async {
+  Future<void> _performLoad({required bool showBlockingLoader}) async {
     if (mounted) {
-      setState(
-        () {
-          if (showBlockingLoader &&
-              _items.isEmpty) {
-            _isLoading = true;
-          } else {
-            _isRefreshing = true;
-          }
+      setState(() {
+        if (showBlockingLoader && _items.isEmpty) {
+          _isLoading = true;
+        } else {
+          _isRefreshing = true;
+        }
 
-          _errorMessage = null;
-        },
-      );
+        _errorMessage = null;
+      });
     }
 
     final stopwatch = Stopwatch()..start();
@@ -319,30 +220,20 @@ class _WarningScreenState
         return;
       }
 
-      final immutableItems =
-          List<
-            BrainConcept
-          >.of(
-            items,
-            growable: false,
-          );
+      final immutableItems = List<BrainConcept>.of(items, growable: false);
 
       _sessionWarningCache = immutableItems;
 
-      setState(
-        () {
-          _items = immutableItems;
+      setState(() {
+        _items = immutableItems;
 
-          _isLoading = false;
+        _isLoading = false;
 
-          _isRefreshing = false;
+        _isRefreshing = false;
 
-          _errorMessage = null;
-        },
-      );
-    } catch (
-      error
-    ) {
+        _errorMessage = null;
+      });
+    } catch (error) {
       stopwatch.stop();
 
       debugPrint(
@@ -354,22 +245,18 @@ class _WarningScreenState
         return;
       }
 
-      setState(
-        () {
-          _isLoading = false;
+      setState(() {
+        _isLoading = false;
 
-          _isRefreshing = false;
+        _isRefreshing = false;
 
-          if (_items.isEmpty) {
-            _errorMessage = error.toString();
-          }
-        },
-      );
+        if (_items.isEmpty) {
+          _errorMessage = error.toString();
+        }
+      });
 
       if (_items.isNotEmpty) {
-        _showMessage(
-          'Não foi possível atualizar as atenções agora.',
-        );
+        _showMessage('Não foi possível atualizar as atenções agora.');
       }
     }
   }
@@ -378,119 +265,74 @@ class _WarningScreenState
   // DELETE
   // ============================================================
 
-  Future<
-    void
-  >
-  _deleteWarning(
-    BrainConcept item,
-  ) async {
+  Future<void> _deleteWarning(BrainConcept item) async {
     if (_isDeleting) {
       return;
     }
 
-    final confirmed =
-        await showDialog<
-          bool
-        >(
-          context: context,
-          builder:
-              (
-                dialogContext,
-              ) {
-                return AlertDialog(
-                  title: const Text(
-                    'Excluir atenção?',
-                  ),
-                  content: Text(
-                    'Deseja excluir "${item.title}"?\n\n'
-                    'A anotação de origem também será apagada do Cérebro e do calendário.',
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(
-                          dialogContext,
-                          false,
-                        );
-                      },
-                      child: const Text(
-                        'Cancelar',
-                      ),
-                    ),
-                    FilledButton(
-                      onPressed: () {
-                        Navigator.pop(
-                          dialogContext,
-                          true,
-                        );
-                      },
-                      child: const Text(
-                        'Excluir',
-                      ),
-                    ),
-                  ],
-                );
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Excluir atenção?'),
+          content: Text(
+            'Deseja excluir "${item.title}"?\n\n'
+            'A anotação de origem também será apagada do Cérebro e do calendário.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, false);
               },
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, true);
+              },
+              child: const Text('Excluir'),
+            ),
+          ],
         );
-
-    if (!mounted ||
-        confirmed !=
-            true) {
-      return;
-    }
-
-    setState(
-      () {
-        _isDeleting = true;
       },
     );
 
+    if (!mounted || confirmed != true) {
+      return;
+    }
+
+    setState(() {
+      _isDeleting = true;
+    });
+
     try {
-      await _repository.deleteConceptAndSourceNote(
-        item.id,
-      );
+      await _repository.deleteConceptAndSourceNote(item.id);
 
       if (!mounted) {
         return;
       }
 
       final updated = _items
-          .where(
-            (
-              current,
-            ) =>
-                current.id !=
-                item.id,
-          )
-          .toList(
-            growable: false,
-          );
+          .where((current) => current.id != item.id)
+          .toList(growable: false);
 
       _sessionWarningCache = updated;
 
-      setState(
-        () {
-          _items = updated;
+      setState(() {
+        _items = updated;
 
-          _isDeleting = false;
-        },
-      );
+        _isDeleting = false;
+      });
 
-      _showMessage(
-        'Atenção e anotação de origem excluídas.',
-      );
-    } catch (
-      error
-    ) {
+      _showMessage('Atenção e anotação de origem excluídas.');
+    } catch (error) {
       if (!mounted) {
         return;
       }
 
-      setState(
-        () {
-          _isDeleting = false;
-        },
-      );
+      setState(() {
+        _isDeleting = false;
+      });
 
       _showMessage(
         'Não foi possível excluir a atenção e a anotação de origem.',
@@ -502,22 +344,12 @@ class _WarningScreenState
   // MESSAGE
   // ============================================================
 
-  void _showMessage(
-    String message,
-  ) {
-    final messenger = ScaffoldMessenger.of(
-      context,
-    );
+  void _showMessage(String message) {
+    final messenger = ScaffoldMessenger.of(context);
 
     messenger.hideCurrentSnackBar();
 
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-        ),
-      ),
-    );
+    messenger.showSnackBar(SnackBar(content: Text(message)));
   }
 
   // ============================================================
@@ -525,66 +357,43 @@ class _WarningScreenState
   // ============================================================
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     final type = BrainConceptType.warning;
 
     return Scaffold(
       appBar: AppBar(
         title: Row(
           children: [
-            Icon(
-              type.icon,
-              color: type.color,
-            ),
-            const SizedBox(
-              width: 10,
-            ),
-            const Text(
-              'Atenções',
-            ),
+            Icon(type.icon, color: type.color),
+            const SizedBox(width: 10),
+            const Text('Atenções'),
           ],
         ),
         actions: [
           if (_isRefreshing)
             const Padding(
-              padding: EdgeInsets.only(
-                right: 4,
-              ),
+              padding: EdgeInsets.only(right: 4),
               child: Center(
                 child: SizedBox(
                   width: 17,
                   height: 17,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 1.8,
-                  ),
+                  child: CircularProgressIndicator(strokeWidth: 1.8),
                 ),
               ),
             ),
           IconButton(
             tooltip: 'Atualizar',
-            onPressed:
-                _isDeleting ||
-                    _isRefreshing
+            onPressed: _isDeleting || _isRefreshing
                 ? null
                 : () {
-                    _load(
-                      showBlockingLoader: false,
-                    );
+                    _load(showBlockingLoader: false);
                   },
-            icon: const Icon(
-              Icons.refresh_rounded,
-            ),
+            icon: const Icon(Icons.refresh_rounded),
           ),
-          const SizedBox(
-            width: 6,
-          ),
+          const SizedBox(width: 6),
         ],
       ),
-      body: _buildBody(
-        context,
-      ),
+      body: _buildBody(context),
     );
   }
 
@@ -592,62 +401,34 @@ class _WarningScreenState
   // BODY
   // ============================================================
 
-  Widget _buildBody(
-    BuildContext context,
-  ) {
-    if (_isLoading &&
-        _items.isEmpty) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+  Widget _buildBody(BuildContext context) {
+    if (_isLoading && _items.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
     }
 
-    if (_errorMessage !=
-            null &&
-        _items.isEmpty) {
-      return _buildError(
-        context,
-      );
+    if (_errorMessage != null && _items.isEmpty) {
+      return _buildError(context);
     }
 
     if (_items.isEmpty) {
-      return _buildEmpty(
-        context,
-      );
+      return _buildEmpty(context);
     }
 
     return RefreshIndicator(
       onRefresh: () {
-        return _load(
-          showBlockingLoader: false,
-        );
+        return _load(showBlockingLoader: false);
       },
       child: ListView.separated(
         physics: const AlwaysScrollableScrollPhysics(),
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        padding: const EdgeInsets.all(
-          18,
-        ),
+        padding: const EdgeInsets.all(18),
         itemCount: _items.length,
-        separatorBuilder:
-            (
-              _,
-              _,
-            ) {
-              return const SizedBox(
-                height: 10,
-              );
-            },
-        itemBuilder:
-            (
-              context,
-              index,
-            ) {
-              return _buildCard(
-                context,
-                _items[index],
-              );
-            },
+        separatorBuilder: (_, _) {
+          return const SizedBox(height: 10);
+        },
+        itemBuilder: (context, index) {
+          return _buildCard(context, _items[index]);
+        },
       ),
     );
   }
@@ -656,17 +437,12 @@ class _WarningScreenState
   // CARD
   // ============================================================
 
-  Widget _buildCard(
-    BuildContext context,
-    BrainConcept item,
-  ) {
+  Widget _buildCard(BuildContext context, BrainConcept item) {
     return RepaintBoundary(
       child: Card(
         margin: EdgeInsets.zero,
         child: Padding(
-          padding: const EdgeInsets.all(
-            16,
-          ),
+          padding: const EdgeInsets.all(16),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -674,50 +450,26 @@ class _WarningScreenState
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: item.color.withValues(
-                    alpha: 0.10,
-                  ),
-                  borderRadius: BorderRadius.circular(
-                    12,
-                  ),
-                  border: Border.all(
-                    color: item.color.withValues(
-                      alpha: 0.25,
-                    ),
-                  ),
+                  color: item.color.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: item.color.withValues(alpha: 0.25)),
                 ),
-                child: Icon(
-                  item.icon,
-                  color: item.color,
-                ),
+                child: Icon(item.icon, color: item.color),
               ),
-              const SizedBox(
-                width: 14,
-              ),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        Text(
-                          item.emoji,
-                          style: const TextStyle(
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(
-                          width: 7,
-                        ),
+                        Text(item.emoji, style: const TextStyle(fontSize: 16)),
+                        const SizedBox(width: 7),
                         Expanded(
                           child: Text(
                             item.title,
-                            style:
-                                Theme.of(
-                                  context,
-                                ).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w700),
                           ),
                         ),
                         IconButton(
@@ -725,28 +477,16 @@ class _WarningScreenState
                           onPressed: _isDeleting
                               ? null
                               : () {
-                                  _deleteWarning(
-                                    item,
-                                  );
+                                  _deleteWarning(item);
                                 },
-                          icon: const Icon(
-                            Icons.delete_outline_rounded,
-                          ),
+                          icon: const Icon(Icons.delete_outline_rounded),
                         ),
                       ],
                     ),
-                    const SizedBox(
-                      height: 8,
-                    ),
-                    SelectableText(
-                      item.description,
-                    ),
-                    const SizedBox(
-                      height: 10,
-                    ),
-                    _buildTag(
-                      item,
-                    ),
+                    const SizedBox(height: 8),
+                    SelectableText(item.description),
+                    const SizedBox(height: 10),
+                    _buildTag(item),
                   ],
                 ),
               ),
@@ -761,26 +501,13 @@ class _WarningScreenState
   // TAG
   // ============================================================
 
-  Widget _buildTag(
-    BrainConcept item,
-  ) {
+  Widget _buildTag(BrainConcept item) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 4,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: item.color.withValues(
-          alpha: 0.08,
-        ),
-        borderRadius: BorderRadius.circular(
-          8,
-        ),
-        border: Border.all(
-          color: item.color.withValues(
-            alpha: 0.16,
-          ),
-        ),
+        color: item.color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: item.color.withValues(alpha: 0.16)),
       ),
       child: Text(
         item.label,
@@ -797,48 +524,30 @@ class _WarningScreenState
   // EMPTY
   // ============================================================
 
-  Widget _buildEmpty(
-    BuildContext context,
-  ) {
+  Widget _buildEmpty(BuildContext context) {
     final type = BrainConceptType.warning;
 
     return RefreshIndicator(
       onRefresh: () {
-        return _load(
-          showBlockingLoader: false,
-        );
+        return _load(showBlockingLoader: false);
       },
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          const SizedBox(
-            height: 140,
-          ),
+          const SizedBox(height: 140),
           Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  type.icon,
-                  size: 54,
-                  color: type.color,
-                ),
-                const SizedBox(
-                  height: 14,
-                ),
+                Icon(type.icon, size: 54, color: type.color),
+                const SizedBox(height: 14),
                 const Text(
                   'Nenhuma atenção salva.',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.w700),
                 ),
-                const SizedBox(
-                  height: 6,
-                ),
+                const SizedBox(height: 6),
                 const Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 24,
-                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 24),
                   child: Text(
                     'Erros comuns, cuidados e detalhes importantes aparecerão aqui.',
                     textAlign: TextAlign.center,
@@ -856,54 +565,32 @@ class _WarningScreenState
   // ERROR
   // ============================================================
 
-  Widget _buildError(
-    BuildContext context,
-  ) {
+  Widget _buildError(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(
-          24,
-        ),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.error_outline,
-              size: 46,
-            ),
-            const SizedBox(
-              height: 12,
-            ),
+            const Icon(Icons.error_outline, size: 46),
+            const SizedBox(height: 12),
             const Text(
               'Não foi possível carregar as atenções.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-              ),
+              style: TextStyle(fontWeight: FontWeight.w700),
             ),
-            const SizedBox(
-              height: 8,
-            ),
+            const SizedBox(height: 8),
             Text(
-              _errorMessage ??
-                  'Erro desconhecido.',
+              _errorMessage ?? 'Erro desconhecido.',
               textAlign: TextAlign.center,
             ),
-            const SizedBox(
-              height: 14,
-            ),
+            const SizedBox(height: 14),
             FilledButton.icon(
               onPressed: () {
-                _load(
-                  showBlockingLoader: true,
-                );
+                _load(showBlockingLoader: true);
               },
-              icon: const Icon(
-                Icons.refresh,
-              ),
-              label: const Text(
-                'Tentar novamente',
-              ),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Tentar novamente'),
             ),
           ],
         ),
