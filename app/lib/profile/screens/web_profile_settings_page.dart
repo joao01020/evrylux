@@ -496,13 +496,6 @@ class _WebProfileSettingsPageState extends State<WebProfileSettingsPage> {
           actionLabel: 'Alterar',
           onTap: _changePassword,
         ),
-        _divider(),
-        _infoRow(
-          icon: Icons.devices_other_rounded,
-          title: 'Sessão Web atual',
-          subtitle:
-              'Esta sessão usa o login atual do Supabase e respeita a autorização do Cérebro.',
-        ),
       ],
     );
   }
