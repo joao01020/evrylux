@@ -35,7 +35,7 @@ import '../widgets/attachments/document_block.dart';
 import '../widgets/attachments/dialogs/document_import_dialog.dart';
 import '../widgets/attachments/dialogs/document_viewer_dialog.dart';
 import '../widgets/calendar/reminder_day_status.dart';
-import '../widgets/calendar/routine_calendar_panel.dart';
+import '../../widgets/generic/study_calendar.dart';
 import '../widgets/comments/board_comment_card.dart';
 import '../widgets/comments/board_comment_editor.dart';
 import '../widgets/comments/board_comment_pin.dart';
@@ -577,6 +577,28 @@ class _RoutineScreenState extends State<RoutineScreen> {
     return _reminderStatusForDate(date).hasReminder;
   }
 
+  // ============================================================
+  // DATAS COM CONTEÚDO NO CALENDÁRIO COMPARTILHADO
+  // ============================================================
+  //
+  // A Rotina usa o mesmo StudyCalendar do módulo Estudar.
+  //
+  // O indicador de "conteúdo" do StudyCalendar representa aqui
+  // a existência de pelo menos um lembrete naquele dia.
+  //
+  // Isso preserva a informação visual útil da Rotina sem manter
+  // um segundo calendário maior e com layout divergente.
+  // ============================================================
+
+  List<DateTime> _routineCalendarContentDates(DateTime weekStart) {
+    final start = DateTime(weekStart.year, weekStart.month, weekStart.day);
+
+    return List<DateTime>.generate(
+      7,
+      (index) => start.add(Duration(days: index)),
+    ).where(_hasReminderForDate).toList(growable: false);
+  }
+
   DateTime _utcToBrasilia(DateTime value) {
     final utc = value.toUtc();
 
@@ -967,18 +989,6 @@ class _RoutineScreenState extends State<RoutineScreen> {
       _routineController.state.weekStart,
       force: true,
     );
-  }
-
-  // ============================================================
-  // EXPANDIR / RECOLHER CALENDÁRIO
-  // ============================================================
-
-  void _toggleCalendarExpanded() {
-    if (!_routineControllerReady) {
-      return;
-    }
-
-    _routineController.toggleCalendarExpanded();
   }
 
   // ============================================================
@@ -1960,23 +1970,32 @@ class _RoutineScreenState extends State<RoutineScreen> {
             : Column(
                 children: [
                   _buildHeader(state),
-                  RoutineCalendarPanel(
-                    state: state,
-                    onPreviousWeek: () {
-                      _loadedCommentDayId = null;
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
+                    child: StudyCalendar(
+                      selectedDate: DateTime(
+                        _routineController.selectedDay.date.year,
+                        _routineController.selectedDay.date.month,
+                        _routineController.selectedDay.date.day,
+                      ),
+                      completedDates: const <DateTime>[],
+                      contentDates: _routineCalendarContentDates(
+                        state.weekStart,
+                      ),
+                      onPreviousWeek: () {
+                        _loadedCommentDayId = null;
 
-                      _goToPreviousWeek();
-                    },
-                    onNextWeek: () {
-                      _loadedCommentDayId = null;
+                        _goToPreviousWeek();
+                      },
+                      onNextWeek: () {
+                        _loadedCommentDayId = null;
 
-                      _goToNextWeek();
-                    },
-                    onSelectDay: (date) {
-                      _selectRoutineDay(date);
-                    },
-                    onToggleExpanded: _toggleCalendarExpanded,
-                    reminderStatusForDate: _reminderStatusForDate,
+                        _goToNextWeek();
+                      },
+                      onDateSelected: (date) {
+                        _selectRoutineDay(date);
+                      },
+                    ),
                   ),
                   if (state.hasError) _buildError(state.errorMessage!),
                   Expanded(

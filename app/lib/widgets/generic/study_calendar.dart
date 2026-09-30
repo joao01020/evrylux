@@ -1,106 +1,76 @@
 import 'package:flutter/material.dart';
 
-class StudyCalendar
-    extends
-        StatefulWidget {
+class StudyCalendar extends StatefulWidget {
   const StudyCalendar({
     super.key,
     required this.selectedDate,
     required this.completedDates,
-    this.contentDates =
-        const <
-          DateTime
-        >[],
+    this.contentDates = const <DateTime>[],
     required this.onDateSelected,
+    this.onPreviousWeek,
+    this.onNextWeek,
   });
 
   final DateTime selectedDate;
 
-  final List<
-    DateTime
-  >
-  completedDates;
+  final List<DateTime> completedDates;
 
   /// Datas que possuem conteúdo/anotações.
   ///
   /// Opcional para manter o calendário genérico e compatível
   /// com outras telas que já usam StudyCalendar.
-  final List<
-    DateTime
-  >
-  contentDates;
+  final List<DateTime> contentDates;
 
-  final ValueChanged<
-    DateTime
-  >
-  onDateSelected;
+  final ValueChanged<DateTime> onDateSelected;
+
+  /// Callback opcional disparado depois que o calendário
+  /// navega para a semana anterior.
+  ///
+  /// O módulo Estudar não precisa fornecer este callback.
+  /// A Rotina usa este hook para manter seu controller e seus
+  /// lembretes sincronizados com a mesma semana exibida.
+  final VoidCallback? onPreviousWeek;
+
+  /// Callback opcional disparado depois que o calendário
+  /// navega para a próxima semana.
+  final VoidCallback? onNextWeek;
 
   @override
-  State<
-    StudyCalendar
-  >
-  createState() {
+  State<StudyCalendar> createState() {
     return _StudyCalendarState();
   }
 }
 
-class _StudyCalendarState
-    extends
-        State<
-          StudyCalendar
-        > {
+class _StudyCalendarState extends State<StudyCalendar> {
   // ============================================================
   // COLORS — TEMA CLARO
   // ============================================================
 
-  static const Color _background = Color(
-    0xFFFFFFFF,
-  );
+  static const Color _background = Color(0xFFFFFFFF);
 
-  static const Color _surface = Color(
-    0xFFF7FAF7,
-  );
+  static const Color _surface = Color(0xFFF7FAF7);
 
-  static const Color _border = Color(
-    0xFFD7E3D9,
-  );
+  static const Color _border = Color(0xFFD7E3D9);
 
-  static const Color _primary = Color(
-    0xFFBCF0B4,
-  );
+  static const Color _primary = Color(0xFFBCF0B4);
 
-  static const Color _primarySoft = Color(
-    0xFF9FDF98,
-  );
+  static const Color _primarySoft = Color(0xFF9FDF98);
 
-  static const Color _primaryDark = Color(
-    0xFF3B6939,
-  );
+  static const Color _primaryDark = Color(0xFF3B6939);
 
-  static const Color _textPrimary = Color(
-    0xFF172019,
-  );
+  static const Color _textPrimary = Color(0xFF172019);
 
-  static const Color _textSecondary = Color(
-    0xFF68746B,
-  );
+  static const Color _textSecondary = Color(0xFF68746B);
 
-  static const Color _textMuted = Color(
-    0xFF9AA39C,
-  );
+  static const Color _textMuted = Color(0xFF9AA39C);
 
-  static const Color _success = Color(
-    0xFF3B6939,
-  );
+  static const Color _success = Color(0xFF3B6939);
 
   // ============================================================
   // DAYS
   // ============================================================
 
-  static const List<
-    String
-  >
-  _weekNames = [
+  static const List<String> _weekNames = [
     'SEG',
     'TER',
     'QUA',
@@ -110,10 +80,7 @@ class _StudyCalendarState
     'DOM',
   ];
 
-  static const List<
-    String
-  >
-  _months = [
+  static const List<String> _months = [
     'Janeiro',
     'Fevereiro',
     'Março',
@@ -142,9 +109,7 @@ class _StudyCalendarState
   void initState() {
     super.initState();
 
-    _weekStart = _startOfWeek(
-      widget.selectedDate,
-    );
+    _weekStart = _startOfWeek(widget.selectedDate);
   }
 
   // ============================================================
@@ -152,25 +117,13 @@ class _StudyCalendarState
   // ============================================================
 
   @override
-  void didUpdateWidget(
-    covariant StudyCalendar oldWidget,
-  ) {
-    super.didUpdateWidget(
-      oldWidget,
-    );
+  void didUpdateWidget(covariant StudyCalendar oldWidget) {
+    super.didUpdateWidget(oldWidget);
 
-    if (!_sameDate(
-      oldWidget.selectedDate,
-      widget.selectedDate,
-    )) {
-      final selectedWeek = _startOfWeek(
-        widget.selectedDate,
-      );
+    if (!_sameDate(oldWidget.selectedDate, widget.selectedDate)) {
+      final selectedWeek = _startOfWeek(widget.selectedDate);
 
-      if (!_sameDate(
-        selectedWeek,
-        _weekStart,
-      )) {
+      if (!_sameDate(selectedWeek, _weekStart)) {
         _weekStart = selectedWeek;
       }
     }
@@ -180,30 +133,16 @@ class _StudyCalendarState
   // WEEK
   // ============================================================
 
-  DateTime _startOfWeek(
-    DateTime date,
-  ) {
-    final normalized = DateTime(
-      date.year,
-      date.month,
-      date.day,
-    );
+  DateTime _startOfWeek(DateTime date) {
+    final normalized = DateTime(date.year, date.month, date.day);
 
     return normalized.subtract(
-      Duration(
-        days:
-            normalized.weekday -
-            DateTime.monday,
-      ),
+      Duration(days: normalized.weekday - DateTime.monday),
     );
   }
 
   DateTime get _weekEnd {
-    return _weekStart.add(
-      const Duration(
-        days: 6,
-      ),
-    );
+    return _weekStart.add(const Duration(days: 6));
   }
 
   // ============================================================
@@ -211,15 +150,11 @@ class _StudyCalendarState
   // ============================================================
 
   void _previousWeek() {
-    setState(
-      () {
-        _weekStart = _weekStart.subtract(
-          const Duration(
-            days: 7,
-          ),
-        );
-      },
-    );
+    setState(() {
+      _weekStart = _weekStart.subtract(const Duration(days: 7));
+    });
+
+    widget.onPreviousWeek?.call();
   }
 
   // ============================================================
@@ -227,15 +162,11 @@ class _StudyCalendarState
   // ============================================================
 
   void _nextWeek() {
-    setState(
-      () {
-        _weekStart = _weekStart.add(
-          const Duration(
-            days: 7,
-          ),
-        );
-      },
-    );
+    setState(() {
+      _weekStart = _weekStart.add(const Duration(days: 7));
+    });
+
+    widget.onNextWeek?.call();
   }
 
   // ============================================================
@@ -243,11 +174,7 @@ class _StudyCalendarState
   // ============================================================
 
   String get _monthTitle {
-    final middle = _weekStart.add(
-      const Duration(
-        days: 3,
-      ),
-    );
+    final middle = _weekStart.add(const Duration(days: 3));
 
     return '${_months[middle.month - 1]} ${middle.year}';
   }
@@ -260,8 +187,7 @@ class _StudyCalendarState
     final start = _weekStart;
     final end = _weekEnd;
 
-    if (start.month ==
-        end.month) {
+    if (start.month == end.month) {
       return '${start.day} - ${end.day} '
           '${_months[start.month - 1].toLowerCase()}';
     }
@@ -272,19 +198,10 @@ class _StudyCalendarState
         '${_shortMonth(end.month)}';
   }
 
-  String _shortMonth(
-    int month,
-  ) {
-    final value =
-        _months[month -
-            1];
+  String _shortMonth(int month) {
+    final value = _months[month - 1];
 
-    return value
-        .substring(
-          0,
-          3,
-        )
-        .toLowerCase();
+    return value.substring(0, 3).toLowerCase();
   }
 
   // ============================================================
@@ -292,32 +209,19 @@ class _StudyCalendarState
   // ============================================================
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.only(
-        bottom: 10,
-      ),
+      padding: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: _background,
-        border: Border.all(
-          color: _border,
-        ),
-        borderRadius: BorderRadius.circular(
-          18,
-        ),
+        border: Border.all(color: _border),
+        borderRadius: BorderRadius.circular(18),
         boxShadow: const [
           BoxShadow(
-            color: Color(
-              0x0D000000,
-            ),
+            color: Color(0x0D000000),
             blurRadius: 12,
-            offset: Offset(
-              0,
-              4,
-            ),
+            offset: Offset(0, 4),
           ),
         ],
       ),
@@ -328,12 +232,7 @@ class _StudyCalendarState
           // HEADER
           // ====================================================
           Padding(
-            padding: const EdgeInsets.fromLTRB(
-              2,
-              9,
-              2,
-              7,
-            ),
+            padding: const EdgeInsets.fromLTRB(2, 9, 2, 7),
             child: _buildHeader(),
           ),
 
@@ -341,9 +240,7 @@ class _StudyCalendarState
           // WEEK ONLY
           // ====================================================
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             child: _buildWeek(),
           ),
         ],
@@ -375,17 +272,13 @@ class _StudyCalendarState
             onPressed: _previousWeek,
           ),
 
-          const SizedBox(
-            width: 14,
-          ),
+          const SizedBox(width: 14),
 
           // ======================================================
           // TITLE
           // ======================================================
           ConstrainedBox(
-            constraints: const BoxConstraints(
-              minWidth: 170,
-            ),
+            constraints: const BoxConstraints(minWidth: 170),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -399,9 +292,7 @@ class _StudyCalendarState
                   ),
                 ),
 
-                const SizedBox(
-                  height: 2,
-                ),
+                const SizedBox(height: 2),
 
                 Text(
                   _weekRange,
@@ -416,9 +307,7 @@ class _StudyCalendarState
             ),
           ),
 
-          const SizedBox(
-            width: 14,
-          ),
+          const SizedBox(width: 14),
 
           // ======================================================
           // NEXT
@@ -445,27 +334,17 @@ class _StudyCalendarState
     return Tooltip(
       message: tooltip,
       child: InkWell(
-        borderRadius: BorderRadius.circular(
-          11,
-        ),
+        borderRadius: BorderRadius.circular(11),
         onTap: onPressed,
         child: Container(
           width: 38,
           height: 38,
           decoration: BoxDecoration(
             color: _surface,
-            borderRadius: BorderRadius.circular(
-              11,
-            ),
-            border: Border.all(
-              color: _border,
-            ),
+            borderRadius: BorderRadius.circular(11),
+            border: Border.all(color: _border),
           ),
-          child: Icon(
-            icon,
-            color: _textPrimary,
-            size: 21,
-          ),
+          child: Icon(icon, color: _textPrimary, size: 21),
         ),
       ),
     );
@@ -476,32 +355,28 @@ class _StudyCalendarState
   // ============================================================
 
   Widget _buildWeek() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: List.generate(
-        7,
-        (
-          index,
-        ) {
-          final date = _weekStart.add(
-            Duration(
-              days: index,
-            ),
-          );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 520;
 
-          return Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 4,
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: List.generate(7, (index) {
+            final date = _weekStart.add(Duration(days: index));
+
+            return Expanded(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: compact ? 2 : 4),
+                child: _buildDayCard(
+                  date: date,
+                  weekDay: _weekNames[index],
+                  compact: compact,
+                ),
               ),
-              child: _buildDayCard(
-                date: date,
-                weekDay: _weekNames[index],
-              ),
-            ),
-          );
-        },
-      ),
+            );
+          }),
+        );
+      },
     );
   }
 
@@ -512,71 +387,41 @@ class _StudyCalendarState
   Widget _buildDayCard({
     required DateTime date,
     required String weekDay,
+    bool compact = false,
   }) {
-    final selected = _sameDate(
-      date,
-      widget.selectedDate,
-    );
+    final selected = _sameDate(date, widget.selectedDate);
 
-    final completed = _isCompleted(
-      date,
-    );
+    final completed = _isCompleted(date);
 
-    final hasContent = _hasContent(
-      date,
-    );
+    final hasContent = _hasContent(date);
 
-    final today = _sameDate(
-      date,
-      DateTime.now(),
-    );
+    final today = _sameDate(date, DateTime.now());
 
     return InkWell(
-      borderRadius: BorderRadius.circular(
-        14,
-      ),
+      borderRadius: BorderRadius.circular(14),
       onTap: () {
-        widget.onDateSelected(
-          DateTime(
-            date.year,
-            date.month,
-            date.day,
-          ),
-        );
+        widget.onDateSelected(DateTime(date.year, date.month, date.day));
       },
       child: AnimatedContainer(
-        duration: const Duration(
-          milliseconds: 180,
-        ),
+        duration: const Duration(milliseconds: 180),
         curve: Curves.easeOut,
-        height: 74,
+        height: compact ? 64 : 74,
         decoration: BoxDecoration(
-          color: selected
-              ? _primary
-              : _surface,
-          borderRadius: BorderRadius.circular(
-            14,
-          ),
+          color: selected ? _primary : _surface,
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: selected
                 ? _primarySoft
                 : today
-                ? _primary.withValues(
-                    alpha: 0.55,
-                  )
+                ? _primary.withValues(alpha: 0.55)
                 : _border,
           ),
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: _primary.withValues(
-                      alpha: 0.18,
-                    ),
+                    color: _primary.withValues(alpha: 0.18),
                     blurRadius: 12,
-                    offset: const Offset(
-                      0,
-                      4,
-                    ),
+                    offset: const Offset(0, 4),
                   ),
                 ]
               : null,
@@ -590,18 +435,14 @@ class _StudyCalendarState
             Text(
               weekDay,
               style: TextStyle(
-                color: selected
-                    ? _primaryDark
-                    : _textSecondary,
-                fontSize: 9,
+                color: selected ? _primaryDark : _textSecondary,
+                fontSize: compact ? 8 : 9,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 0.45,
               ),
             ),
 
-            const SizedBox(
-              height: 4,
-            ),
+            const SizedBox(height: 4),
 
             // ==================================================
             // NUMBER
@@ -609,17 +450,13 @@ class _StudyCalendarState
             Text(
               '${date.day}',
               style: TextStyle(
-                color: selected
-                    ? _primaryDark
-                    : _textPrimary,
-                fontSize: 19,
+                color: selected ? _primaryDark : _textPrimary,
+                fontSize: compact ? 16 : 19,
                 fontWeight: FontWeight.w800,
               ),
             ),
 
-            const SizedBox(
-              height: 6,
-            ),
+            const SizedBox(height: 6),
 
             // ==================================================
             // STATUS
@@ -636,12 +473,8 @@ class _StudyCalendarState
                 // STUDY STATUS
                 // ==============================================
                 Container(
-                  width: completed
-                      ? 6
-                      : 4,
-                  height: completed
-                      ? 6
-                      : 4,
+                  width: completed ? 6 : 4,
+                  height: completed ? 6 : 4,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: completed
@@ -649,19 +482,13 @@ class _StudyCalendarState
                               ? _primaryDark
                               : _success
                         : selected
-                        ? _primaryDark.withValues(
-                            alpha: 0.35,
-                          )
-                        : _textMuted.withValues(
-                            alpha: 0.55,
-                          ),
+                        ? _primaryDark.withValues(alpha: 0.35)
+                        : _textMuted.withValues(alpha: 0.55),
                   ),
                 ),
 
                 if (hasContent) ...[
-                  const SizedBox(
-                    width: 4,
-                  ),
+                  const SizedBox(width: 4),
 
                   // ============================================
                   // CONTENT STATUS
@@ -670,14 +497,10 @@ class _StudyCalendarState
                     width: 7,
                     height: 7,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(
-                        2,
-                      ),
+                      borderRadius: BorderRadius.circular(2),
                       color: selected
                           ? _primaryDark
-                          : _primaryDark.withValues(
-                              alpha: 0.82,
-                            ),
+                          : _primaryDark.withValues(alpha: 0.82),
                     ),
                   ),
                 ],
@@ -693,14 +516,9 @@ class _StudyCalendarState
   // COMPLETED
   // ============================================================
 
-  bool _isCompleted(
-    DateTime date,
-  ) {
+  bool _isCompleted(DateTime date) {
     for (final completed in widget.completedDates) {
-      if (_sameDate(
-        completed,
-        date,
-      )) {
+      if (_sameDate(completed, date)) {
         return true;
       }
     }
@@ -712,14 +530,9 @@ class _StudyCalendarState
   // CONTENT
   // ============================================================
 
-  bool _hasContent(
-    DateTime date,
-  ) {
+  bool _hasContent(DateTime date) {
     for (final contentDate in widget.contentDates) {
-      if (_sameDate(
-        contentDate,
-        date,
-      )) {
+      if (_sameDate(contentDate, date)) {
         return true;
       }
     }
@@ -731,15 +544,9 @@ class _StudyCalendarState
   // SAME DATE
   // ============================================================
 
-  bool _sameDate(
-    DateTime first,
-    DateTime second,
-  ) {
-    return first.year ==
-            second.year &&
-        first.month ==
-            second.month &&
-        first.day ==
-            second.day;
+  bool _sameDate(DateTime first, DateTime second) {
+    return first.year == second.year &&
+        first.month == second.month &&
+        first.day == second.day;
   }
 }
