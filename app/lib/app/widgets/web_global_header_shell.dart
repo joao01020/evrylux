@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -37,6 +38,9 @@ class _WebGlobalHeaderShellState extends State<WebGlobalHeaderShell> {
   late final WebSyncStatusController _syncStatus;
   late final WebUpdateNotificationController _notifications;
 
+  StreamSubscription<AuthState>? _authSubscription;
+
+  bool _authenticated = false;
   bool _isSigningOut = false;
   bool _profileOpen = false;
   bool _notificationsOpen = false;
@@ -52,14 +56,51 @@ class _WebGlobalHeaderShellState extends State<WebGlobalHeaderShell> {
 
     _syncStatus.initialize();
     _notifications.initialize();
-    _loadProfile();
+
+    final auth = Supabase.instance.client.auth;
+
+    _authenticated = auth.currentSession != null;
+    _cachedEmail = auth.currentUser?.email;
+
+    _authSubscription = auth.onAuthStateChange.listen(_handleAuthStateChange);
+
+    if (_authenticated) {
+      unawaited(_loadProfile());
+    }
   }
 
   @override
   void dispose() {
+    _authSubscription?.cancel();
     _notifications.dispose();
     _syncStatus.dispose();
     super.dispose();
+  }
+
+  void _handleAuthStateChange(AuthState state) {
+    final session = state.session;
+    final authenticated = session != null;
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _authenticated = authenticated;
+
+      if (authenticated) {
+        _cachedEmail = session.user.email;
+      } else {
+        _profileOpen = false;
+        _notificationsOpen = false;
+        _displayName = 'Usuário';
+        _cachedEmail = null;
+      }
+    });
+
+    if (authenticated) {
+      unawaited(_loadProfile());
+    }
   }
 
   Future<void> _loadProfile() async {
@@ -154,8 +195,6 @@ class _WebGlobalHeaderShellState extends State<WebGlobalHeaderShell> {
 
   @override
   Widget build(BuildContext context) {
-    final authenticated = Supabase.instance.client.auth.currentSession != null;
-
     return Material(
       color: _background,
       child: Column(
@@ -172,7 +211,7 @@ class _WebGlobalHeaderShellState extends State<WebGlobalHeaderShell> {
               ),
               child: Align(
                 alignment: Alignment.centerRight,
-                child: authenticated
+                child: _authenticated
                     ? Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
