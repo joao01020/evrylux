@@ -61,30 +61,32 @@ class BrainDataModeTransitionService {
     Object? registrationError;
 
     try {
-      var vaultId = await _secureStorage.loadVaultId();
-      vaultId ??= await _deviceService.discoverVaultId();
+      onProgress?.call('Verificando este dispositivo...');
 
-      if (vaultId == null || vaultId.trim().isEmpty) {
-        throw StateError(
-          'Nenhum Vault foi encontrado. Autorize este navegador antes de usar o Brain Cloud.',
-        );
-      }
+      final bootstrap = await _deviceService.bootstrapAccess();
+      device = bootstrap.state.record;
 
-      onProgress?.call('Verificando este navegador...');
-      final state = await _deviceService.registerOrRefresh(vaultId: vaultId);
-      device = state.record;
-
-      if (device.isPending) {
+      if (bootstrap.firstDeviceBootstrap && bootstrap.state.ready) {
         onProgress?.call(
-          'Cloud ativado. Este navegador ainda precisa ser autorizado.',
+          'Cérebro protegido. Este é o primeiro dispositivo confiável.',
         );
-      } else {
+      } else if (device.isPending) {
+        onProgress?.call(
+          'Cloud ativado. Este dispositivo ainda precisa ser autorizado.',
+        );
+      } else if (bootstrap.state.ready) {
         onProgress?.call('Cloud ativado. Cérebro protegido e conectado.');
+      } else {
+        onProgress?.call(
+          'Cloud ativado, mas a chave local ainda não está disponível.',
+        );
       }
     } catch (error) {
       registrationError = error;
+
       onProgress?.call(
-        'Cloud ativado. A conexão será concluída após a autorização.',
+        'Cloud ativado. A conexão será concluída '
+        'quando o acesso estiver disponível.',
       );
     }
 
@@ -92,7 +94,8 @@ class BrainDataModeTransitionService {
       localObjectCount: 0,
       queuedObjectCount: 0,
       device: device,
-      remoteSyncAttempted: device?.isAuthorized ?? false,
+      remoteSyncAttempted:
+          device?.isAuthorized == true && registrationError == null,
       deviceRegistrationError: registrationError,
     );
   }

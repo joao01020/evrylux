@@ -4,7 +4,9 @@ import '../../study/brain/devices/models/brain_device_record.dart';
 import '../../study/brain/devices/security/brain_device_crypto_service.dart';
 import '../../study/brain/devices/security/brain_device_local_secrets.dart';
 import '../../study/brain/devices/services/brain_device_supabase_service.dart';
+import '../../study/brain/security/crypto/brain_secure_random.dart';
 import '../../study/brain/security/models/brain_key_bundle.dart';
+import '../../study/brain/vault/services/brain_vault_id_service.dart';
 import 'web_brain_secure_storage.dart';
 
 class WebBrainDeviceState {
@@ -23,53 +25,123 @@ class WebBrainDeviceState {
   bool get ready => record.isAuthorized && hasMasterKey;
 }
 
+class WebBrainVaultResolution {
+  const WebBrainVaultResolution({
+    required this.vaultId,
+    required this.canBootstrap,
+  });
+
+  final String vaultId;
+  final bool canBootstrap;
+}
+
+class WebBrainBootstrapResult {
+  const WebBrainBootstrapResult({
+    required this.state,
+    required this.firstDeviceBootstrap,
+  });
+
+  final WebBrainDeviceState state;
+  final bool firstDeviceBootstrap;
+
+  bool get ready => state.ready;
+}
+
 /// Identidade/autorização do Cérebro no navegador.
 ///
-/// Regra final:
-/// - autorização NÃO expira localmente por tempo;
-/// - em toda entrada, consulta o backend;
-/// - se o device continuar autorizado, reutiliza a mesma identidade e chave;
-/// - se estiver pending, mantém o mesmo fingerprint;
-/// - se estiver revogado, descarta a identidade revogada e cria uma nova.
+/// Fase 1 multiplataforma:
+/// - Web pode ser o primeiro dispositivo;
+/// - Vault existente nunca recebe nova Master Key automaticamente;
+/// - backend continua sendo a fonte da verdade da autorização;
+/// - Master Key é gerada localmente com CSPRNG;
+/// - devices seguintes continuam pending + envelope.
 class WebBrainDeviceService {
   WebBrainDeviceService({
     SupabaseClient? client,
     WebBrainSecureStorage? storage,
     BrainDeviceCryptoService? crypto,
-  })  : _client = client ?? Supabase.instance.client,
-        storage = storage ?? WebBrainSecureStorage(),
-        _crypto = crypto ?? BrainDeviceCryptoService() {
+    BrainSecureRandom? secureRandom,
+    BrainVaultIdService? vaultIds,
+  }) : _client = client ?? Supabase.instance.client,
+       storage = storage ?? WebBrainSecureStorage(),
+       _crypto = crypto ?? BrainDeviceCryptoService(),
+       _secureRandom = secureRandom ?? BrainSecureRandom(),
+       _vaultIds = vaultIds ?? BrainVaultIdService() {
     _remote = BrainDeviceSupabaseService(client: _client);
   }
 
   final SupabaseClient _client;
   final WebBrainSecureStorage storage;
   final BrainDeviceCryptoService _crypto;
+  final BrainSecureRandom _secureRandom;
+  final BrainVaultIdService _vaultIds;
   late final BrainDeviceSupabaseService _remote;
 
-  Future<String?> discoverVaultId() async {
-    final saved = await storage.loadVaultId();
-    if (saved != null) {
-      return saved;
+  void _requireAuth() {
+    if (_client.auth.currentUser == null) {
+      throw StateError('Usuário não autenticado.');
     }
+  }
 
-    final rows = await _client
-        .from('brain_objects')
-        .select('vault_id')
-        .order('updated_at', ascending: false)
-        .limit(1);
+  Future<String?> discoverVaultId() async {
+    _requireAuth();
 
-    if (rows.isEmpty) {
+    final result = await _client.rpc('discover_brain_vault');
+
+    if (result == null) {
       return null;
     }
 
-    final value = rows.first['vault_id']?.toString().trim() ?? '';
+    final value = result.toString().trim();
+
     if (value.isEmpty) {
       return null;
     }
 
     await storage.saveVaultId(value);
     return value;
+  }
+
+  Future<WebBrainVaultResolution> _claimVault() async {
+    _requireAuth();
+
+    final discovered = await discoverVaultId();
+    final locallySaved = await storage.loadVaultId();
+
+    final proposed =
+        discovered ??
+        locallySaved ??
+        _vaultIds.generateVaultId();
+
+    final result = await _client.rpc(
+      'claim_brain_vault',
+      params: <String, dynamic>{
+        'p_proposed_vault_id': proposed,
+      },
+    );
+
+    if (result is! Map) {
+      throw const FormatException(
+        'Resposta inválida ao resolver o Vault do Cérebro.',
+      );
+    }
+
+    final map = Map<String, dynamic>.from(result);
+    final vaultId = map['vault_id']?.toString().trim() ?? '';
+    final canBootstrap = map['can_bootstrap'] == true;
+
+    if (vaultId.isEmpty) {
+      throw const FormatException(
+        'O backend não retornou um Vault válido para o Cérebro.',
+      );
+    }
+
+    await storage.saveVaultId(vaultId);
+
+    return WebBrainVaultResolution(
+      vaultId: vaultId,
+      canBootstrap: canBootstrap,
+    );
   }
 
   Future<BrainDeviceLocalSecrets> getOrCreateLocalDevice() async {
@@ -92,9 +164,6 @@ class WebBrainDeviceService {
     return storage.containsKeyBundle(vaultId: vaultId);
   }
 
-  /// Apenas verifica o estado remoto.
-  ///
-  /// Não altera identidade/chaves locais em caso de erro de rede.
   Future<bool> isAuthorized({
     required String vaultId,
   }) async {
@@ -110,9 +179,6 @@ class WebBrainDeviceService {
     );
   }
 
-  /// Garante uma solicitação válida para um dispositivo ainda não autorizado.
-  ///
-  /// Pending existente é reutilizado. Revogado gera nova identidade.
   Future<WebBrainDeviceState> registerOrRefresh({
     required String vaultId,
   }) async {
@@ -138,8 +204,6 @@ class WebBrainDeviceService {
         rethrow;
       }
 
-      // Revogação é a única situação em que o navegador perde a identidade
-      // autorizada e deve apresentar um novo fingerprint.
       await storage.deleteKeyBundle(vaultId: cleanVaultId);
       await storage.clearTrustedAccess(vaultId: cleanVaultId);
       await storage.clearDevice();
@@ -166,6 +230,62 @@ class WebBrainDeviceService {
       localSecrets: local,
       record: record,
       hasMasterKey: hasMasterKey,
+    );
+  }
+
+  Future<WebBrainBootstrapResult> bootstrapAccess() async {
+    final resolution = await _claimVault();
+    final vaultId = resolution.vaultId;
+
+    var firstDeviceBootstrap = false;
+
+    if (resolution.canBootstrap) {
+      final hasKey = await storage.containsKeyBundle(vaultId: vaultId);
+
+      if (!hasKey) {
+        final masterKey = _secureRandom.generateMasterKey();
+
+        if (masterKey.length != BrainKeyBundle.masterKeyLengthBytes) {
+          throw StateError(
+            'O gerador seguro retornou uma Master Key com tamanho inválido.',
+          );
+        }
+
+        final bundle = BrainKeyBundle(
+          masterKeyBytes: List<int>.unmodifiable(masterKey),
+          keyVersion: BrainKeyBundle.initialKeyVersion,
+          createdAt: DateTime.now().toUtc(),
+        );
+
+        bundle.validate();
+
+        await storage.saveKeyBundle(
+          vaultId: vaultId,
+          bundle: bundle,
+        );
+
+        firstDeviceBootstrap = true;
+      }
+    }
+
+    var state = await registerOrRefresh(vaultId: vaultId);
+
+    if (state.record.isAuthorized && !state.hasMasterKey) {
+      final imported = await tryImportApprovedKey(vaultId: vaultId);
+
+      if (imported) {
+        state = WebBrainDeviceState(
+          vaultId: state.vaultId,
+          localSecrets: state.localSecrets,
+          record: state.record,
+          hasMasterKey: true,
+        );
+      }
+    }
+
+    return WebBrainBootstrapResult(
+      state: state,
+      firstDeviceBootstrap: firstDeviceBootstrap,
     );
   }
 
