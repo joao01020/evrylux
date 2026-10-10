@@ -46,6 +46,13 @@ else
 fi
 
 echo
+echo "===== Criando .env temporário para o Flutter ====="
+cat > app/.env <<EOF
+SUPABASE_URL=${SUPABASE_URL}
+SUPABASE_PUBLISHABLE_KEY=${SUPABASE_PUBLISHABLE_KEY}
+EOF
+echo
+
 echo "===== Build EVRYLUX Web ====="
 
 chmod +x scripts/build_web.sh
