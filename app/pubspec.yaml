@@ -104,6 +104,5 @@ flutter:
   uses-material-design: true
 
   assets:
-    - .env
     - assets/body_map/
     - assets/images/branding/
