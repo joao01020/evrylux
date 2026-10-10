@@ -4,6 +4,9 @@ import 'package:flutter/services.dart';
 import '../../study/brain/screen/brain_screen.dart';
 import '../services/web_brain_device_service.dart';
 import '../services/web_brain_secure_storage.dart';
+import '../widgets/web_brain_device_management_dialog.dart';
+import '../services/web_brain_recovery_key_service.dart';
+import '../utils/web_brain_recovery_download.dart';
 
 /// Gate Web do Cérebro.
 ///
@@ -34,6 +37,7 @@ class WebBrainAccessGate extends StatefulWidget {
 class _WebBrainAccessGateState extends State<WebBrainAccessGate> {
   late final WebBrainSecureStorage _storage;
   late final WebBrainDeviceService _devices;
+  late final WebBrainRecoveryKeyService _recovery;
 
   bool _loading = true;
   bool _ready = false;
@@ -46,6 +50,7 @@ class _WebBrainAccessGateState extends State<WebBrainAccessGate> {
     super.initState();
     _storage = WebBrainSecureStorage();
     _devices = WebBrainDeviceService(storage: _storage);
+    _recovery = WebBrainRecoveryKeyService(storage: _storage);
     _bootstrap();
   }
 
@@ -58,86 +63,291 @@ class _WebBrainAccessGateState extends State<WebBrainAccessGate> {
     }
 
     try {
-      final vaultId = await _devices.discoverVaultId();
+      final bootstrap = await _devices.bootstrapAccess();
+      final state = bootstrap.state;
 
-      if (vaultId == null) {
+      _vaultId = state.vaultId;
+      _fingerprint = state.localSecrets.keyFingerprint;
+
+      if (state.ready) {
         if (mounted) {
           setState(() {
-            _vaultId = null;
-            _fingerprint = '';
-            _ready = false;
+            _ready = true;
+            _error = null;
           });
         }
+
+        if (bootstrap.firstDeviceBootstrap) {
+          try {
+            final recovery = await _recovery.createOrRotateRecoveryKey(
+              vaultId: state.vaultId,
+            );
+
+            if (mounted) {
+              await _showRecoveryKeyDialog(recovery);
+            }
+          } catch (error) {
+            if (mounted) {
+              ScaffoldMessenger.of(context)
+                ..hideCurrentSnackBar()
+                ..showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Cérebro criado, mas não foi possível gerar a '
+                      'chave de recuperação agora: $error',
+                    ),
+                  ),
+                );
+            }
+          }
+        }
+
         return;
       }
 
-      _vaultId = vaultId;
-
-      final local = await _storage.loadDevice();
-
-      if (local == null) {
-        await _ensurePending(vaultId);
-        return;
-      }
-
-      _fingerprint = local.keyFingerprint;
-
-      // Sempre consulta o servidor. A autorização remota é a fonte da verdade.
-      final authorized = await _devices.isAuthorized(vaultId: vaultId);
-
-      if (authorized) {
-        final hasKey = await _devices.hasLocalMasterKey(vaultId: vaultId);
-
-        if (hasKey) {
-          // Este é o caminho normal após a primeira aprovação.
-          // Nenhum fingerprint é pedido novamente.
-          if (mounted) {
-            setState(() {
-              _ready = true;
-              _error = null;
-            });
-          }
-          return;
-        }
-
-        // Pode acontecer logo após a aprovação, antes de o navegador ter
-        // consumido o envelope da Master Key.
-        final imported = await _devices.tryImportApprovedKey(vaultId: vaultId);
-
-        if (imported) {
-          if (mounted) {
-            setState(() {
-              _ready = true;
-              _error = null;
-            });
-          }
-          return;
-        }
-
-        // O backend diz que este device continua autorizado. Não geramos
-        // fingerprint novo só porque houve uma inconsistência local.
+      if (state.record.isAuthorized) {
         if (mounted) {
           setState(() {
             _ready = false;
             _error =
-                'Este navegador perdeu a chave local usada para acessar seu Cérebro.';
+                'Este navegador está autorizado, mas não possui a chave local '
+                'necessária para abrir seu Cérebro.';
           });
         }
         return;
       }
 
-      // Se não está autorizado, registerOrRefresh diferencia pending de
-      // revogado. Pending reutiliza a identidade. Revogado cria fingerprint
-      // novo, que é exatamente quando queremos pedir autorização novamente.
-      await _ensurePending(vaultId);
+      if (mounted) {
+        setState(() {
+          _ready = false;
+          _error = null;
+        });
+
+        await _showAccessOptionsDialog();
+      }
     } catch (error) {
       if (mounted) {
         setState(() {
           _error =
-              'Não foi possível verificar a autorização do Cérebro. '
+              'Não foi possível preparar o acesso ao Cérebro. '
               'Sua identidade local foi preservada.\n\n$error';
         });
       }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _showRecoveryKeyDialog(
+    WebBrainRecoveryKeyResult recovery,
+  ) async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Guarde sua chave de recuperação'),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Esta chave foi gerada aleatoriamente e permite recuperar '
+                  'seu Cérebro se você perder todos os dispositivos autorizados.',
+                ),
+                const SizedBox(height: 16),
+                SelectableText(
+                  recovery.recoveryKey,
+                  style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'O EVRYLUX não envia esta chave em texto puro ao servidor. '
+                  'Guarde uma cópia fora deste navegador.',
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton.icon(
+              onPressed: () async {
+                await Clipboard.setData(
+                  ClipboardData(text: recovery.recoveryKey),
+                );
+
+                if (!dialogContext.mounted) return;
+
+                ScaffoldMessenger.of(dialogContext)
+                  ..hideCurrentSnackBar()
+                  ..showSnackBar(
+                    const SnackBar(
+                      content: Text('Chave de recuperação copiada.'),
+                    ),
+                  );
+              },
+              icon: const Icon(Icons.copy_rounded),
+              label: const Text('Copiar'),
+            ),
+            TextButton.icon(
+              onPressed: () async {
+                await downloadBrainRecoveryKeyFile(
+                  filename: 'EVRYLUX_RECOVERY_KEY.txt',
+                  content: recovery.toTextFile(),
+                );
+              },
+              icon: const Icon(Icons.download_rounded),
+              label: const Text('Baixar chave'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+              child: const Text('Já guardei'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _showAccessOptionsDialog() async {
+    if (!mounted || _vaultId == null) return;
+
+    final action = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Este dispositivo ainda não tem acesso'),
+          content: const Text(
+            'Você pode aprovar este navegador usando outro dispositivo '
+            'confiável ou recuperar o acesso com sua chave de recuperação.',
+          ),
+          actions: [
+            TextButton.icon(
+              onPressed: () {
+                Navigator.of(dialogContext).pop('device');
+              },
+              icon: const Icon(Icons.devices_rounded),
+              label: const Text('Aprovar usando outro dispositivo'),
+            ),
+            FilledButton.icon(
+              onPressed: () {
+                Navigator.of(dialogContext).pop('recovery');
+              },
+              icon: const Icon(Icons.key_rounded),
+              label: const Text('Usar chave de recuperação'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (action == 'recovery' && mounted) {
+      await _recoverWithRecoveryKey();
+    }
+  }
+
+  Future<void> _recoverWithRecoveryKey() async {
+    final vaultId = _vaultId;
+
+    if (vaultId == null || vaultId.trim().isEmpty) {
+      return;
+    }
+
+    final controller = TextEditingController();
+
+    final recoveryKey = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Chave de recuperação'),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: TextField(
+              controller: controller,
+              autofocus: true,
+              obscureText: true,
+              enableSuggestions: false,
+              autocorrect: false,
+              decoration: const InputDecoration(
+                labelText: 'Recovery Key',
+                hintText: 'Cole aqui a chave que você guardou',
+                border: OutlineInputBorder(),
+              ),
+              onSubmitted: (value) {
+                Navigator.of(dialogContext).pop(value);
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(controller.text);
+              },
+              child: const Text('Recuperar acesso'),
+            ),
+          ],
+        );
+      },
+    );
+
+    controller.dispose();
+
+    if (recoveryKey == null || recoveryKey.trim().isEmpty || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      await _recovery.recoverCurrentDevice(
+        vaultId: vaultId,
+        recoveryKey: recoveryKey,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _ready = true;
+        _error = null;
+      });
+
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Acesso recuperado. Este dispositivo agora é confiável.',
+            ),
+          ),
+        );
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        _ready = false;
+        _error =
+            'Não foi possível recuperar o Cérebro. '
+            'Confira a chave de recuperação e tente novamente.';
+      });
     } finally {
       if (mounted) {
         setState(() {
@@ -248,6 +458,19 @@ class _WebBrainAccessGateState extends State<WebBrainAccessGate> {
     }
   }
 
+  Future<void> _openDeviceManagement() async {
+    final vaultId = _vaultId;
+
+    if (vaultId == null || vaultId.trim().isEmpty) {
+      return;
+    }
+
+    await WebBrainDeviceManagementDialog.show(
+      context,
+      vaultId: vaultId,
+    );
+  }
+
   Future<void> _copyFingerprint() async {
     final fingerprint = _fingerprint.trim();
     if (fingerprint.isEmpty) return;
@@ -304,7 +527,27 @@ class _WebBrainAccessGateState extends State<WebBrainAccessGate> {
   @override
   Widget build(BuildContext context) {
     if (_ready) {
-      return const BrainScreen();
+      return Stack(
+          children: [
+            const BrainScreen(),
+            Positioned(
+              top: 12,
+              right: 12,
+              child: SafeArea(
+                child: Material(
+                  color: Colors.transparent,
+                  child: IconButton(
+                    tooltip: 'Dispositivos do Cérebro',
+                    onPressed: _openDeviceManagement,
+                    icon: const Icon(
+                      Icons.admin_panel_settings_outlined,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
     }
 
     return Scaffold(

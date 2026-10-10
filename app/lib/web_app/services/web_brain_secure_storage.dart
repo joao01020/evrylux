@@ -16,6 +16,7 @@ class WebBrainSecureStorage extends BrainKeyStorage {
   static const _vaultKey = 'evrylux.web.brain.vault_id.v1';
   static const _keyNamespace = 'evrylux.web.brain.master_key.v1';
   static const _trustNamespace = 'evrylux.web.brain.trusted_access.v1';
+  static const _recoveryKeyNamespace = 'evrylux.web.brain.recovery_key.v1';
 
   Future<BrainDeviceLocalSecrets?> loadDevice() async {
     final raw = await _storage.read(key: _deviceKey);
@@ -47,6 +48,53 @@ class WebBrainSecureStorage extends BrainKeyStorage {
 
   String _bundleKey(String vaultId) => '$_keyNamespace.${vaultId.trim()}';
   String _trustKey(String vaultId) => '$_trustNamespace.${vaultId.trim()}';
+
+  String _recoveryKey(String vaultId) =>
+      '$_recoveryKeyNamespace.${vaultId.trim()}';
+
+  Future<void> saveRecoveryKey({
+    required String vaultId,
+    required String recoveryKey,
+  }) async {
+    final cleanVaultId = vaultId.trim();
+    final cleanRecoveryKey = recoveryKey.trim();
+
+    if (cleanVaultId.isEmpty || cleanRecoveryKey.isEmpty) {
+      throw ArgumentError('vaultId/recoveryKey não podem ser vazios.');
+    }
+
+    await _storage.write(
+      key: _recoveryKey(cleanVaultId),
+      value: cleanRecoveryKey,
+    );
+  }
+
+  Future<String?> loadRecoveryKey({
+    required String vaultId,
+  }) async {
+    final cleanVaultId = vaultId.trim();
+
+    if (cleanVaultId.isEmpty) return null;
+
+    final value = await _storage.read(
+      key: _recoveryKey(cleanVaultId),
+    );
+
+    final clean = value?.trim() ?? '';
+    return clean.isEmpty ? null : clean;
+  }
+
+  Future<void> deleteRecoveryKey({
+    required String vaultId,
+  }) async {
+    final cleanVaultId = vaultId.trim();
+
+    if (cleanVaultId.isEmpty) return;
+
+    await _storage.delete(
+      key: _recoveryKey(cleanVaultId),
+    );
+  }
 
   @override
   Future<void> saveKeyBundle({
