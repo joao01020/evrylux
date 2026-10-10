@@ -6,6 +6,10 @@ cd "$REPO_ROOT"
 
 FLUTTER_DIR="$HOME/flutter"
 
+echo "===== COMMIT DO BUILD ====="
+git rev-parse HEAD
+echo
+
 echo "===== Preparando Flutter ====="
 
 if [[ ! -x "$FLUTTER_DIR/bin/flutter" ]]; then
