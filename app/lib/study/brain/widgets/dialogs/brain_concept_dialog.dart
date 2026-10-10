@@ -2,33 +2,20 @@ import 'package:flutter/material.dart';
 
 import '../../models/brain_concept.dart';
 
-class BrainConceptDialog
-    extends
-        StatefulWidget {
-  const BrainConceptDialog({
-    super.key,
-    this.initialConcept,
-    this.initialType,
-  });
+class BrainConceptDialog extends StatefulWidget {
+  const BrainConceptDialog({super.key, this.initialConcept, this.initialType});
 
   final BrainConcept? initialConcept;
 
   final BrainConceptType? initialType;
 
   @override
-  State<
-    BrainConceptDialog
-  >
-  createState() {
+  State<BrainConceptDialog> createState() {
     return _BrainConceptDialogState();
   }
 }
 
-class _BrainConceptDialogState
-    extends
-        State<
-          BrainConceptDialog
-        > {
+class _BrainConceptDialogState extends State<BrainConceptDialog> {
   // ============================================================
   // CONTROLLERS
   // ============================================================
@@ -52,15 +39,11 @@ class _BrainConceptDialogState
     super.initState();
 
     _titleController = TextEditingController(
-      text:
-          widget.initialConcept?.title ??
-          '',
+      text: widget.initialConcept?.title ?? '',
     );
 
     _descriptionController = TextEditingController(
-      text:
-          widget.initialConcept?.description ??
-          '',
+      text: widget.initialConcept?.description ?? '',
     );
 
     _type =
@@ -94,13 +77,7 @@ class _BrainConceptDialogState
     if (title.isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Informe o título.',
-          ),
-        ),
-      );
+      ).showSnackBar(const SnackBar(content: Text('Informe o título.')));
 
       return;
     }
@@ -108,13 +85,7 @@ class _BrainConceptDialogState
     if (description.isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Informe a descrição.',
-          ),
-        ),
-      );
+      ).showSnackBar(const SnackBar(content: Text('Informe a descrição.')));
 
       return;
     }
@@ -205,24 +176,16 @@ class _BrainConceptDialogState
   // ============================================================
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return AlertDialog(
       title: Row(
         children: [
-          Icon(
-            _type.icon,
-            color: _type.color,
-          ),
+          Icon(_type.icon, color: _type.color),
 
-          const SizedBox(
-            width: 10,
-          ),
+          const SizedBox(width: 10),
 
           Text(
-            widget.initialConcept ==
-                    null
+            widget.initialConcept == null
                 ? 'Novo ${_type.label.toLowerCase()}'
                 : 'Editar ${_type.label.toLowerCase()}',
           ),
@@ -250,18 +213,13 @@ class _BrainConceptDialogState
 
                   hintText: _titleHint,
 
-                  prefixIcon: Icon(
-                    _type.icon,
-                    color: _type.color,
-                  ),
+                  prefixIcon: Icon(_type.icon, color: _type.color),
 
                   border: const OutlineInputBorder(),
                 ),
               ),
 
-              const SizedBox(
-                height: 16,
-              ),
+              const SizedBox(height: 16),
 
               // =================================================
               // DESCRIPTION
@@ -284,9 +242,7 @@ class _BrainConceptDialogState
                 ),
               ),
 
-              const SizedBox(
-                height: 24,
-              ),
+              const SizedBox(height: 24),
 
               // =================================================
               // TYPE TITLE
@@ -294,14 +250,10 @@ class _BrainConceptDialogState
               Text(
                 'Tipo de conhecimento',
 
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium,
+                style: Theme.of(context).textTheme.titleMedium,
               ),
 
-              const SizedBox(
-                height: 12,
-              ),
+              const SizedBox(height: 12),
 
               // =================================================
               // TYPES
@@ -312,55 +264,35 @@ class _BrainConceptDialogState
                 runSpacing: 10,
 
                 children: [
-                  _buildTypeChip(
-                    type: BrainConceptType.concept,
-                  ),
+                  _buildTypeChip(type: BrainConceptType.concept),
 
-                  _buildTypeChip(
-                    type: BrainConceptType.question,
-                  ),
+                  _buildTypeChip(type: BrainConceptType.question),
 
-                  _buildTypeChip(
-                    type: BrainConceptType.example,
-                  ),
+                  _buildTypeChip(type: BrainConceptType.example),
 
-                  _buildTypeChip(
-                    type: BrainConceptType.warning,
-                  ),
+                  _buildTypeChip(type: BrainConceptType.warning),
                 ],
               ),
 
-              const SizedBox(
-                height: 18,
-              ),
+              const SizedBox(height: 18),
 
               // =================================================
               // TYPE DESCRIPTION
               // =================================================
               AnimatedContainer(
-                duration: const Duration(
-                  milliseconds: 220,
-                ),
+                duration: const Duration(milliseconds: 220),
 
                 width: double.infinity,
 
-                padding: const EdgeInsets.all(
-                  14,
-                ),
+                padding: const EdgeInsets.all(14),
 
                 decoration: BoxDecoration(
-                  color: _type.color.withValues(
-                    alpha: 0.10,
-                  ),
+                  color: _type.color.withValues(alpha: 0.10),
 
-                  borderRadius: BorderRadius.circular(
-                    12,
-                  ),
+                  borderRadius: BorderRadius.circular(12),
 
                   border: Border.all(
-                    color: _type.color.withValues(
-                      alpha: 0.28,
-                    ),
+                    color: _type.color.withValues(alpha: 0.28),
                   ),
                 ),
 
@@ -368,29 +300,13 @@ class _BrainConceptDialogState
                   crossAxisAlignment: CrossAxisAlignment.start,
 
                   children: [
-                    Text(
-                      _type.emoji,
+                    Text(_type.emoji, style: const TextStyle(fontSize: 22)),
 
-                      style: const TextStyle(
-                        fontSize: 22,
-                      ),
-                    ),
+                    const SizedBox(width: 10),
 
-                    const SizedBox(
-                      width: 10,
-                    ),
+                    Icon(_type.icon, color: _type.color, size: 20),
 
-                    Icon(
-                      _type.icon,
-
-                      color: _type.color,
-
-                      size: 20,
-                    ),
-
-                    const SizedBox(
-                      width: 10,
-                    ),
+                    const SizedBox(width: 10),
 
                     Expanded(
                       child: Column(
@@ -407,24 +323,16 @@ class _BrainConceptDialogState
                             ),
                           ),
 
-                          const SizedBox(
-                            height: 4,
-                          ),
+                          const SizedBox(height: 4),
 
-                          Text(
-                            _type.description,
-                          ),
+                          Text(_type.description),
 
-                          const SizedBox(
-                            height: 6,
-                          ),
+                          const SizedBox(height: 6),
 
                           Text(
                             'Será salvo em: ${_type.folderName}/',
 
-                            style: Theme.of(
-                              context,
-                            ).textTheme.bodySmall,
+                            style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ],
                       ),
@@ -443,26 +351,18 @@ class _BrainConceptDialogState
       actions: [
         TextButton(
           onPressed: () {
-            Navigator.pop(
-              context,
-            );
+            Navigator.pop(context);
           },
 
-          child: const Text(
-            'Cancelar',
-          ),
+          child: const Text('Cancelar'),
         ),
 
         FilledButton.icon(
           onPressed: _save,
 
-          icon: Icon(
-            _type.icon,
-          ),
+          icon: Icon(_type.icon),
 
-          label: const Text(
-            'Salvar',
-          ),
+          label: const Text('Salvar'),
         ),
       ],
     );
@@ -472,34 +372,19 @@ class _BrainConceptDialogState
   // TYPE CHIP
   // ============================================================
 
-  Widget _buildTypeChip({
-    required BrainConceptType type,
-  }) {
-    final selected =
-        _type ==
-        type;
+  Widget _buildTypeChip({required BrainConceptType type}) {
+    final selected = _type == type;
 
     return ChoiceChip(
       selected: selected,
 
-      onSelected:
-          (
-            _,
-          ) {
-            setState(
-              () {
-                _type = type;
-              },
-            );
-          },
+      onSelected: (_) {
+        setState(() {
+          _type = type;
+        });
+      },
 
-      avatar: Text(
-        type.emoji,
-
-        style: const TextStyle(
-          fontSize: 16,
-        ),
-      ),
+      avatar: Text(type.emoji, style: const TextStyle(fontSize: 16)),
 
       label: Row(
         mainAxisSize: MainAxisSize.min,
@@ -510,31 +395,19 @@ class _BrainConceptDialogState
 
             size: 17,
 
-            color: selected
-                ? Colors.white
-                : type.color,
+            color: selected ? Colors.white : type.color,
           ),
 
-          const SizedBox(
-            width: 6,
-          ),
+          const SizedBox(width: 6),
 
-          Text(
-            type.label,
-          ),
+          Text(type.label),
         ],
       ),
 
-      selectedColor: type.color.withValues(
-        alpha: 0.80,
-      ),
+      selectedColor: type.color.withValues(alpha: 0.80),
 
       side: BorderSide(
-        color: selected
-            ? type.color
-            : type.color.withValues(
-                alpha: 0.28,
-              ),
+        color: selected ? type.color : type.color.withValues(alpha: 0.28),
       ),
     );
   }

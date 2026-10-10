@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$REPO_ROOT"
+
+FLUTTER_DIR="$HOME/flutter"
+
+echo "===== Preparando Flutter ====="
+
+if [[ ! -x "$FLUTTER_DIR/bin/flutter" ]]; then
+  git clone \
+    --depth 1 \
+    --branch stable \
+    https://github.com/flutter/flutter.git \
+    "$FLUTTER_DIR"
+fi
+
+export PATH="$FLUTTER_DIR/bin:$PATH"
+
+flutter --version
+
+echo
+echo "===== Dependências ====="
+
+cd "$REPO_ROOT/app"
+
+flutter pub get
+
+echo
+echo "===== Build EVRYLUX Web ====="
+
+chmod +x scripts/build_web.sh
+./scripts/build_web.sh
+
+echo
+echo "===== Build concluído ====="

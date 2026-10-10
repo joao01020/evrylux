@@ -3,218 +3,124 @@ import 'package:flutter/material.dart';
 import '../../models/brain_concept.dart';
 import '../dialogs/brain_concept_dialog.dart';
 
-class BrainConceptsSection
-    extends
-        StatelessWidget {
+class BrainConceptsSection extends StatelessWidget {
   const BrainConceptsSection({
     super.key,
     required this.concepts,
     required this.onChanged,
   });
 
-  final List<
-    BrainConcept
-  >
-  concepts;
+  final List<BrainConcept> concepts;
 
-  final Future<
-    void
-  >
-  Function(
-    List<
-      BrainConcept
-    >
-    concepts,
-  )
-  onChanged;
+  final Future<void> Function(List<BrainConcept> concepts) onChanged;
 
   // =========================================================
   // ADICIONAR
   // =========================================================
 
-  Future<
-    void
-  >
-  _addConcept(
-    BuildContext context,
-  ) async {
-    final concept =
-        await showDialog<
-          BrainConcept
-        >(
-          context: context,
-          builder:
-              (
-                _,
-              ) {
-                return const BrainConceptDialog();
-              },
-        );
+  Future<void> _addConcept(BuildContext context) async {
+    final concept = await showDialog<BrainConcept>(
+      context: context,
+      builder: (_) {
+        return const BrainConceptDialog();
+      },
+    );
 
-    if (concept ==
-        null) {
+    if (concept == null) {
       return;
     }
 
-    final updated = [
-      ...concepts,
-      concept,
-    ];
+    final updated = [...concepts, concept];
 
-    await onChanged(
-      updated,
-    );
+    await onChanged(updated);
   }
 
   // =========================================================
   // EDITAR
   // =========================================================
 
-  Future<
-    void
-  >
-  _editConcept(
-    BuildContext context,
-    BrainConcept concept,
-  ) async {
-    final edited =
-        await showDialog<
-          BrainConcept
-        >(
-          context: context,
-          builder:
-              (
-                _,
-              ) {
-                return BrainConceptDialog(
-                  initialConcept: concept,
-                );
-              },
-        );
+  Future<void> _editConcept(BuildContext context, BrainConcept concept) async {
+    final edited = await showDialog<BrainConcept>(
+      context: context,
+      builder: (_) {
+        return BrainConceptDialog(initialConcept: concept);
+      },
+    );
 
-    if (edited ==
-        null) {
+    if (edited == null) {
       return;
     }
 
-    final updated = concepts.map(
-      (
-        item,
-      ) {
-        if (item.id ==
-            edited.id) {
-          return edited;
-        }
+    final updated = concepts.map((item) {
+      if (item.id == edited.id) {
+        return edited;
+      }
 
-        return item;
-      },
-    ).toList();
+      return item;
+    }).toList();
 
-    await onChanged(
-      updated,
-    );
+    await onChanged(updated);
   }
 
   // =========================================================
   // EXCLUIR
   // =========================================================
 
-  Future<
-    void
-  >
-  _deleteConcept(
+  Future<void> _deleteConcept(
     BuildContext context,
     BrainConcept concept,
   ) async {
-    final confirmed =
-        await showDialog<
-          bool
-        >(
-          context: context,
-          builder:
-              (
-                dialogContext,
-              ) {
-                return AlertDialog(
-                  title: const Text(
-                    'Excluir conhecimento?',
-                  ),
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Excluir conhecimento?'),
 
-                  content: Text(
-                    'Deseja remover "${concept.title}"?',
-                  ),
+          content: Text('Deseja remover "${concept.title}"?'),
 
-                  actions: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(
-                          dialogContext,
-                          false,
-                        );
-                      },
-                      child: const Text(
-                        'Cancelar',
-                      ),
-                    ),
-
-                    FilledButton.icon(
-                      onPressed: () {
-                        Navigator.pop(
-                          dialogContext,
-                          true,
-                        );
-                      },
-                      icon: const Icon(
-                        Icons.delete_outline,
-                      ),
-                      label: const Text(
-                        'Excluir',
-                      ),
-                    ),
-                  ],
-                );
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, false);
               },
-        );
+              child: const Text('Cancelar'),
+            ),
 
-    if (confirmed !=
-        true) {
+            FilledButton.icon(
+              onPressed: () {
+                Navigator.pop(dialogContext, true);
+              },
+              icon: const Icon(Icons.delete_outline),
+              label: const Text('Excluir'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) {
       return;
     }
 
-    final updated = concepts.where(
-      (
-        item,
-      ) {
-        return item.id !=
-            concept.id;
-      },
-    ).toList();
+    final updated = concepts.where((item) {
+      return item.id != concept.id;
+    }).toList();
 
-    await onChanged(
-      updated,
-    );
+    await onChanged(updated);
   }
 
   // =========================================================
   // CARD
   // =========================================================
 
-  Widget _buildConceptCard(
-    BuildContext context,
-    BrainConcept concept,
-  ) {
+  Widget _buildConceptCard(BuildContext context, BrainConcept concept) {
     final color = concept.color;
 
     return Card(
-      margin: const EdgeInsets.only(
-        bottom: 12,
-      ),
+      margin: const EdgeInsets.only(bottom: 12),
 
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 8,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
 
         // ===================================================
         // ICON
@@ -225,30 +131,14 @@ class BrainConceptsSection
           height: 44,
 
           decoration: BoxDecoration(
-            color: color.withValues(
-              alpha: 0.10,
-            ),
+            color: color.withValues(alpha: 0.10),
 
-            borderRadius: BorderRadius.circular(
-              12,
-            ),
+            borderRadius: BorderRadius.circular(12),
 
-            border: Border.all(
-              color: color.withValues(
-                alpha: 0.28,
-              ),
-            ),
+            border: Border.all(color: color.withValues(alpha: 0.28)),
           ),
 
-          child: Center(
-            child: Icon(
-              concept.icon,
-
-              color: color,
-
-              size: 22,
-            ),
-          ),
+          child: Center(child: Icon(concept.icon, color: color, size: 22)),
         ),
 
         // ===================================================
@@ -256,17 +146,9 @@ class BrainConceptsSection
         // ===================================================
         title: Row(
           children: [
-            Text(
-              concept.emoji,
+            Text(concept.emoji, style: const TextStyle(fontSize: 16)),
 
-              style: const TextStyle(
-                fontSize: 16,
-              ),
-            ),
-
-            const SizedBox(
-              width: 7,
-            ),
+            const SizedBox(width: 7),
 
             Expanded(
               child: Text(
@@ -276,9 +158,7 @@ class BrainConceptsSection
 
                 overflow: TextOverflow.ellipsis,
 
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -291,9 +171,7 @@ class BrainConceptsSection
           crossAxisAlignment: CrossAxisAlignment.start,
 
           children: [
-            const SizedBox(
-              height: 6,
-            ),
+            const SizedBox(height: 6),
 
             Text(
               concept.description,
@@ -303,9 +181,7 @@ class BrainConceptsSection
               overflow: TextOverflow.ellipsis,
             ),
 
-            const SizedBox(
-              height: 8,
-            ),
+            const SizedBox(height: 8),
 
             Wrap(
               spacing: 8,
@@ -314,38 +190,19 @@ class BrainConceptsSection
 
               children: [
                 Chip(
-                  avatar: Icon(
-                    concept.icon,
+                  avatar: Icon(concept.icon, size: 16, color: color),
 
-                    size: 16,
+                  label: Text(concept.label),
 
-                    color: color,
-                  ),
+                  side: BorderSide(color: color.withValues(alpha: 0.30)),
 
-                  label: Text(
-                    concept.label,
-                  ),
-
-                  side: BorderSide(
-                    color: color.withValues(
-                      alpha: 0.30,
-                    ),
-                  ),
-
-                  backgroundColor: color.withValues(
-                    alpha: 0.08,
-                  ),
+                  backgroundColor: color.withValues(alpha: 0.08),
                 ),
 
                 Chip(
-                  avatar: const Icon(
-                    Icons.folder_outlined,
-                    size: 16,
-                  ),
+                  avatar: const Icon(Icons.folder_outlined, size: 16),
 
-                  label: Text(
-                    '${concept.folderName}/',
-                  ),
+                  label: Text('${concept.folderName}/'),
                 ),
               ],
             ),
@@ -355,80 +212,53 @@ class BrainConceptsSection
         // ===================================================
         // MENU
         // ===================================================
-        trailing:
-            PopupMenuButton<
-              String
-            >(
-              tooltip: 'Opções',
+        trailing: PopupMenuButton<String>(
+          tooltip: 'Opções',
 
-              onSelected:
-                  (
-                    value,
-                  ) async {
-                    switch (value) {
-                      case 'edit':
-                        await _editConcept(
-                          context,
-                          concept,
-                        );
-                        break;
+          onSelected: (value) async {
+            switch (value) {
+              case 'edit':
+                await _editConcept(context, concept);
+                break;
 
-                      case 'delete':
-                        await _deleteConcept(
-                          context,
-                          concept,
-                        );
-                        break;
-                    }
-                  },
+              case 'delete':
+                await _deleteConcept(context, concept);
+                break;
+            }
+          },
 
-              itemBuilder:
-                  (
-                    _,
-                  ) {
-                    return const [
-                      PopupMenuItem(
-                        value: 'edit',
+          itemBuilder: (_) {
+            return const [
+              PopupMenuItem(
+                value: 'edit',
 
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.edit_outlined,
-                            ),
+                child: Row(
+                  children: [
+                    Icon(Icons.edit_outlined),
 
-                            SizedBox(
-                              width: 12,
-                            ),
+                    SizedBox(width: 12),
 
-                            Text(
-                              'Editar',
-                            ),
-                          ],
-                        ),
-                      ),
+                    Text('Editar'),
+                  ],
+                ),
+              ),
 
-                      PopupMenuItem(
-                        value: 'delete',
+              PopupMenuItem(
+                value: 'delete',
 
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.delete_outline,
-                            ),
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_outline),
 
-                            SizedBox(
-                              width: 12,
-                            ),
+                    SizedBox(width: 12),
 
-                            Text(
-                              'Excluir',
-                            ),
-                          ],
-                        ),
-                      ),
-                    ];
-                  },
-            ),
+                    Text('Excluir'),
+                  ],
+                ),
+              ),
+            ];
+          },
+        ),
       ),
     );
   }
@@ -437,47 +267,30 @@ class BrainConceptsSection
   // EMPTY
   // =========================================================
 
-  Widget _buildEmptyState(
-    BuildContext context,
-  ) {
+  Widget _buildEmptyState(BuildContext context) {
     return Container(
       width: double.infinity,
 
-      padding: const EdgeInsets.all(
-        24,
-      ),
+      padding: const EdgeInsets.all(24),
 
       decoration: BoxDecoration(
-        color: Theme.of(
-          context,
-        ).colorScheme.surfaceContainerHighest,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
 
-        borderRadius: BorderRadius.circular(
-          16,
-        ),
+        borderRadius: BorderRadius.circular(16),
       ),
 
       child: const Column(
         children: [
-          Icon(
-            Icons.psychology_outlined,
-            size: 46,
-          ),
+          Icon(Icons.psychology_outlined, size: 46),
 
-          SizedBox(
-            height: 12,
-          ),
+          SizedBox(height: 12),
 
           Text(
             'Nenhum conhecimento cadastrado.',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontWeight: FontWeight.bold),
           ),
 
-          SizedBox(
-            height: 8,
-          ),
+          SizedBox(height: 8),
 
           Text(
             'Transforme sua anotação em conceitos, perguntas, exemplos ou atenções.',
@@ -493,74 +306,47 @@ class BrainConceptsSection
   // =========================================================
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
 
       children: [
-        const Divider(
-          height: 40,
-        ),
+        const Divider(height: 40),
 
         Row(
           children: [
-            const Icon(
-              Icons.psychology_alt_outlined,
-            ),
+            const Icon(Icons.psychology_alt_outlined),
 
-            const SizedBox(
-              width: 8,
-            ),
+            const SizedBox(width: 8),
 
             Text(
               'Conhecimentos',
 
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge,
+              style: Theme.of(context).textTheme.titleLarge,
             ),
 
             const Spacer(),
 
             FilledButton.icon(
               onPressed: () async {
-                await _addConcept(
-                  context,
-                );
+                await _addConcept(context);
               },
 
-              icon: const Icon(
-                Icons.add,
-              ),
+              icon: const Icon(Icons.add),
 
-              label: const Text(
-                'Adicionar',
-              ),
+              label: const Text('Adicionar'),
             ),
           ],
         ),
 
-        const SizedBox(
-          height: 20,
-        ),
+        const SizedBox(height: 20),
 
         if (concepts.isEmpty)
-          _buildEmptyState(
-            context,
-          )
+          _buildEmptyState(context)
         else
-          ...concepts.map(
-            (
-              concept,
-            ) {
-              return _buildConceptCard(
-                context,
-                concept,
-              );
-            },
-          ),
+          ...concepts.map((concept) {
+            return _buildConceptCard(context, concept);
+          }),
       ],
     );
   }

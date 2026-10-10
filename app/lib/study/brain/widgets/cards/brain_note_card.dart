@@ -46,42 +46,22 @@ class BrainNoteCard extends StatelessWidget {
   // ============================================================
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final preview = _buildPreview(
-      note.content,
-    );
+  Widget build(BuildContext context) {
+    final preview = _buildPreview(note.content);
 
     return Card(
-      color: isSelected
-          ? Theme.of(
-              context,
-            ).colorScheme.primaryContainer
-          : null,
+      color: isSelected ? Theme.of(context).colorScheme.primaryContainer : null,
       child: ListTile(
         onTap: onOpen,
-        leading: const Icon(
-          Icons.description_outlined,
-        ),
-        title: Text(
-          note.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
+        leading: const Icon(Icons.description_outlined),
+        title: Text(note.title, maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: preview.isEmpty
             ? null
-            : Text(
-                preview,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
+            : Text(preview, maxLines: 2, overflow: TextOverflow.ellipsis),
         trailing: IconButton(
           tooltip: 'Excluir',
           onPressed: onDelete,
-          icon: const Icon(
-            Icons.delete_outline,
-          ),
+          icon: const Icon(Icons.delete_outline),
         ),
       ),
     );
@@ -91,17 +71,8 @@ class BrainNoteCard extends StatelessWidget {
   // CONTENT PREVIEW
   // ============================================================
 
-  String _buildPreview(
-    String content,
-  ) {
-    final normalized = content
-        .replaceAll(
-          RegExp(
-            r'\s+',
-          ),
-          ' ',
-        )
-        .trim();
+  String _buildPreview(String content) {
+    final normalized = content.replaceAll(RegExp(r'\s+'), ' ').trim();
 
     if (normalized.isEmpty) {
       return '';

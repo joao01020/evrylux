@@ -7,6 +7,7 @@ import '../../models/brain_concept.dart';
 import '../../models/brain_file.dart';
 import '../../sections/brain_editor_section.dart';
 import '../../source/widgets/brain_sources_section.dart';
+import '../../widgets/brain_rich_content.dart';
 
 // ============================================================
 // BRAIN NOTE SCREEN
@@ -434,97 +435,14 @@ class _BrainNoteScreenState extends State<BrainNoteScreen> {
   }
 
   Widget _buildSearchAwareContent(BuildContext context, BrainFile note) {
-    final style = Theme.of(
-      context,
-    ).textTheme.bodyLarge?.copyWith(fontSize: 16, height: 1.65);
-
     if (_activeSearchTerms.isEmpty) {
       _syncSearchMatchKeys(0);
-
-      return SelectableText(note.content, style: style);
+    } else {
+      final matches = _searchMatches(note.content);
+      _syncSearchMatchKeys(matches.length);
     }
 
-    final matches = _searchMatches(note.content);
-
-    _syncSearchMatchKeys(matches.length);
-
-    if (matches.isEmpty) {
-      return SelectableText(note.content, style: style);
-    }
-
-    final colorScheme = Theme.of(context).colorScheme;
-
-    final normalHighlightStyle =
-        style?.copyWith(
-          backgroundColor: colorScheme.primaryContainer.withValues(alpha: 0.62),
-          color: colorScheme.onPrimaryContainer,
-          fontWeight: FontWeight.w600,
-        ) ??
-        TextStyle(
-          backgroundColor: colorScheme.primaryContainer.withValues(alpha: 0.62),
-          color: colorScheme.onPrimaryContainer,
-          fontWeight: FontWeight.w600,
-        );
-
-    final activeHighlightStyle =
-        style?.copyWith(
-          backgroundColor: colorScheme.primaryContainer,
-          color: colorScheme.onPrimaryContainer,
-          fontWeight: FontWeight.w800,
-          decoration: TextDecoration.underline,
-          decorationThickness: 2,
-        ) ??
-        TextStyle(
-          backgroundColor: colorScheme.primaryContainer,
-          color: colorScheme.onPrimaryContainer,
-          fontWeight: FontWeight.w800,
-          decoration: TextDecoration.underline,
-          decorationThickness: 2,
-        );
-
-    final children = <Widget>[];
-    var cursor = 0;
-
-    for (var index = 0; index < matches.length; index++) {
-      final match = matches[index];
-
-      if (match.start > cursor) {
-        children.add(
-          SelectableText(
-            note.content.substring(cursor, match.start),
-            style: style,
-          ),
-        );
-      }
-
-      final matchedText = note.content.substring(match.start, match.end);
-
-      final isActive = index == _activeSearchMatchIndex;
-
-      children.add(
-        Container(
-          key: _searchMatchKeys[index],
-          alignment: Alignment.centerLeft,
-          child: SelectableText(
-            matchedText,
-            style: isActive ? activeHighlightStyle : normalHighlightStyle,
-          ),
-        ),
-      );
-
-      cursor = match.end;
-    }
-
-    if (cursor < note.content.length) {
-      children.add(
-        SelectableText(note.content.substring(cursor), style: style),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: children,
-    );
+    return BrainRichContent(content: note.content);
   }
 
   Widget _buildSearchNavigator(BuildContext context) {
