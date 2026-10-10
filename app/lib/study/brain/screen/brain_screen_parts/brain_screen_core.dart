@@ -18,42 +18,35 @@ extension _BrainScreenCore on _BrainScreenState {
   // ============================================================
 
   Future<void> _initialize() async {
-    // ========================================================
-    // TWO-WAY CLOUD SYNC
-    // ========================================================
-    //
-    // Web -> brain_objects -> Desktop
-    // Desktop -> SyncQueue -> brain_objects -> Web
-    //
-    // No nativo fazemos pull antes de consumir o Vault local.
-    // No Web o repository já consulta brain_objects diretamente.
-    //
-    // BrainController é global; se já estava inicializado, recarregamos
-    // explicitamente para não manter um snapshot antigo em memória.
-    // ========================================================
+    try {
+      // Cloud -> Vault antes da leitura local.
+      await dependencies.syncBrainBeforeLoad();
 
-    await dependencies.syncBrainBeforeLoad();
+      // Se o controller global já existia, atualiza o snapshot.
+      if (_controller.isInitialized) {
+        await _controller.loadNotes();
+      }
 
-    if (_controller.isInitialized) {
-      await _controller.loadNotes();
+      // Inicialização da experiência.
+      await _experienceController.initialize();
+
+      if (!mounted) {
+        return;
+      }
+
+      _prepareBrainVisualFromExperience();
+      _scheduleDataModeChoiceIfNeeded();
+      _showExperienceErrorIfNeeded();
+    } catch (error, stackTrace) {
+      debugPrint('[BRAIN SCREEN] Falha na inicialização: $error');
+      debugPrint('$stackTrace');
+    } finally {
+      if (mounted) {
+        _mutateState(() {
+          _initializingBrainScreen = false;
+        });
+      }
     }
-
-    await _experienceController.initialize();
-
-    if (!mounted) {
-      return;
-    }
-
-    // O listener normalmente já executou estes passos durante as
-    // transições de fase. Chamamos novamente como reconciliação
-    // idempotente para cobrir qualquer conclusão sem mudança visual.
-    _prepareBrainVisualFromExperience();
-
-    _scheduleDataModeChoiceIfNeeded();
-
-    _showExperienceErrorIfNeeded();
-
-    _mutateState(() {});
   }
 
   // ============================================================
