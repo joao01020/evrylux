@@ -198,6 +198,9 @@ class _BrainScreenState extends State<BrainScreen> {
 
   bool _experienceErrorShown = false;
 
+  // Um único gate visual para toda a entrada no Cérebro.
+  bool _initializingBrainScreen = true;
+
   // ============================================================
   // PESQUISA
   // ============================================================
@@ -540,9 +543,7 @@ class _BrainScreenState extends State<BrainScreen> {
       // ========================================================
       // BODY
       // ========================================================
-      body: _controller.isLoading || _experienceController.isInitializing
-          ? const Center(child: CircularProgressIndicator())
-          : _buildBody(context),
+      body: _buildBody(context),
     );
   }
 }
