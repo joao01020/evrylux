@@ -24,3 +24,5 @@ README.md
 # Backup local antes da Fase 2
 app_backup_antes_phase2
 node_modules/
+
+.evrylux-backups/

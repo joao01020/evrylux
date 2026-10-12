@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../trails/brain_trail_panel.dart';
 
 import '../../runtime/brain_runtime_dependencies.dart' as dependencies;
 
@@ -586,6 +587,90 @@ class _BrainNoteScreenState extends State<BrainNoteScreen> {
     return _controller.selectedNote ?? widget.note;
   }
 
+  Future<void> _openTrailNote(BrainFile note) async {
+    if (note.path == _currentNote.path) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => BrainNoteScreen(note: note)),
+    );
+    if (mounted) await _controller.openNote(widget.note);
+  }
+
+  Future<BrainFile?> _createTrailConcept() async {
+    // Uses the existing BrainController's Concept + Save pipeline and Vault.
+    final titleController = TextEditingController();
+    final contentController = TextEditingController();
+    final values = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Novo conceito na Trilha'),
+        content: SizedBox(
+          width: 480,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleController,
+                autofocus: true,
+                decoration: const InputDecoration(labelText: 'Título'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: contentController,
+                maxLines: 5,
+                decoration: const InputDecoration(
+                  labelText: 'O que você aprendeu?',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Salvar conceito'),
+          ),
+        ],
+      ),
+    );
+    final title = titleController.text.trim();
+    final content = contentController.text.trim();
+    titleController.dispose();
+    contentController.dispose();
+    if (values != true) return null;
+    if (title.isEmpty || content.isEmpty) {
+      _showMessage('Preencha o título e o conteúdo.');
+      return null;
+    }
+    final original = _currentNote;
+    _controller.createNewNote();
+    _controller.topicController.text = 'Sem tema';
+    _controller.titleController.text = title;
+    _controller.contentController.text = content;
+    try {
+      await _controller.addConcept(
+        BrainConcept(
+          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          title: title,
+          description: content,
+          type: BrainConceptType.concept,
+        ),
+      );
+      final saved = await _controller.saveNote();
+      if (!saved) {
+        _showMessage(_controller.errorMessage ?? 'Erro ao salvar conceito.');
+        return null;
+      }
+      return _controller.selectedNote;
+    } finally {
+      // Restore the original note in the shared controller after creating.
+      await _controller.openNote(original);
+    }
+  }
+
   // ============================================================
   // EDIT
   // ============================================================
@@ -799,7 +884,19 @@ class _BrainNoteScreenState extends State<BrainNoteScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: _buildBody(context),
+      body: Row(
+        children: [
+          if (!_isOpening && _openError == null && !_isEditing)
+            BrainTrailPanel(
+              currentId: widget.note.path,
+              notes: _controller.notes,
+              ownerId: _controller.currentUserId,
+              onOpen: _openTrailNote,
+              onCreateChild: _createTrailConcept,
+            ),
+          Expanded(child: _buildBody(context)),
+        ],
+      ),
     );
   }
 
