@@ -26,6 +26,9 @@ import '../models/board_block.dart';
 import '../models/check_item.dart';
 import '../models/comments/board_comment.dart';
 import '../models/routine_day.dart';
+import '../tabs/models/routine_board_tab.dart';
+import '../tabs/services/routine_board_tab_service.dart';
+import '../tabs/widgets/routine_board_tab_bar.dart';
 import '../widgets/blocks/content_block.dart';
 import '../widgets/blocks/mind_map/mind_map_block.dart';
 import '../widgets/blocks/note_block.dart';
@@ -206,9 +209,27 @@ class _RoutineScreenState extends State<RoutineScreen> {
   // LOUSA EXPANDIDA
   // ============================================================
 
-  /// Expande a mesma lousa dentro da tela atual.
-  /// Nenhuma janela externa é criada.
-  bool _boardExpanded = false;
+  /// A Rotina abre diretamente com a lousa em tela cheia.
+  /// O modo recolhido continua disponível pelo botão sobre a lousa.
+  bool _boardExpanded = true;
+
+  /// O calendário fica oculto no modo de lousa expandida e é exibido
+  /// somente quando o usuário tocar no botão de calendário.
+  bool _showExpandedCalendar = false;
+
+  // ============================================================
+  // ABAS DA LOUSA
+  // ============================================================
+  //
+  // As abas funcionam como páginas da mesma lousa do dia.
+  // Os blocos continuam no fluxo normal da Rotina; somente a
+  // organização bloco -> aba é persistida em routine_board_tabs.
+  // ============================================================
+
+  List<RoutineBoardTab> _boardTabs = const <RoutineBoardTab>[];
+  String? _activeBoardTabId;
+  String? _loadedBoardTabsDateKey;
+  String? _loadingBoardTabsDateKey;
 
   // ============================================================
   // LARGURA ATIVA DA LOUSA
@@ -283,6 +304,8 @@ class _RoutineScreenState extends State<RoutineScreen> {
         _routineController.state.weekStart,
         force: true,
       );
+
+      await _loadBoardTabsForSelectedDay(force: true);
 
       if (!mounted) {
         return;
@@ -524,6 +547,8 @@ class _RoutineScreenState extends State<RoutineScreen> {
     _loadCommentsForSelectedDay();
 
     _loadBoardAttachmentsForSelectedDay();
+
+    _loadBoardTabsForSelectedDay();
   }
 
   void _refreshBoard() {
@@ -1483,10 +1508,14 @@ class _RoutineScreenState extends State<RoutineScreen> {
     _commentController.disableCommentMode();
 
     _loadedAttachmentBoardId = null;
+    _loadedBoardTabsDateKey = null;
+    _activeBoardTabId = null;
 
     _routineController.selectDay(date);
 
     await _loadBoardAttachmentsForSelectedDay(force: true);
+
+    await _loadBoardTabsForSelectedDay(force: true);
 
     // Recarrega os comentários ao trocar manualmente o dia.
     await _reloadCommentsForSelectedDay();
@@ -2168,86 +2197,55 @@ class _RoutineScreenState extends State<RoutineScreen> {
 
               const SizedBox(height: 12),
 
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Container(
-                  width: boardWidth,
-                  height: boardHeight,
-                  decoration: BoxDecoration(
-                    color: _surface,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: _border),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(18),
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        const Positioned.fill(
-                          child: CustomPaint(painter: _GridPainter()),
-                        ),
+              _buildBoardTabs(day),
 
-                        if (day.blocks.isEmpty)
-                          Positioned.fill(
-                            child: _EmptyBoard(onAddBlock: _addBlock),
-                          ),
+              const SizedBox(height: 4),
 
-                        for (final block in day.blocks)
-                          _positionedBlock(
-                            day: day,
-                            block: block,
-                            boardWidth: boardWidth,
-                            boardHeight: boardHeight,
-                          ),
-
-                        ..._buildCommentLayer(
-                          day: day,
-                          boardWidth: boardWidth,
-                          boardHeight: boardHeight,
-                        ),
-
-                        // Botão exatamente no canto superior direito da lousa.
-                        Positioned(
-                          top: 12,
-                          right: 12,
-                          child: Tooltip(
-                            message: 'Expandir lousa',
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                onTap: _expandBoard,
-                                borderRadius: BorderRadius.circular(12),
-                                child: Container(
-                                  width: 40,
-                                  height: 40,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF1F7F2),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: const Color(0xFFC7DFC9),
-                                    ),
-                                    boxShadow: const [
-                                      BoxShadow(
-                                        color: Color(0x14000000),
-                                        blurRadius: 8,
-                                        offset: Offset(0, 3),
-                                      ),
-                                    ],
-                                  ),
-                                  child: const Icon(
-                                    Icons.open_in_full_rounded,
-                                    color: _primary,
-                                    size: 19,
-                                  ),
-                                ),
-                              ),
+              Stack(
+                children: [
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Container(
+                      width: boardWidth,
+                      height: boardHeight,
+                      decoration: BoxDecoration(
+                        color: _surface,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: _border),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            const Positioned.fill(
+                              child: CustomPaint(painter: _GridPainter()),
                             ),
-                          ),
+
+                            if (_visibleBlocksForActiveTab(day).isEmpty)
+                              Positioned.fill(
+                                child: _EmptyBoard(onAddBlock: _addBlock),
+                              ),
+
+                            for (final block in _visibleBlocksForActiveTab(day))
+                              _positionedBlock(
+                                day: day,
+                                block: block,
+                                boardWidth: boardWidth,
+                                boardHeight: boardHeight,
+                              ),
+
+                            ..._buildCommentLayer(
+                              day: day,
+                              boardWidth: boardWidth,
+                              boardHeight: boardHeight,
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
             ],
           ),
@@ -2257,27 +2255,414 @@ class _RoutineScreenState extends State<RoutineScreen> {
   }
 
   // ============================================================
-  // EXPANDIR / RECOLHER LOUSA
+  // ABAS DA LOUSA
   // ============================================================
 
-  void _expandBoard() {
-    if (!mounted) {
-      return;
+  RoutineBoardTabService get _boardTabService =>
+      RoutineBoardTabService(client: Supabase.instance.client);
+
+  List<RoutineBoardTab> _tabsForDay(RoutineDay day) {
+    if (_loadedBoardTabsDateKey == _dateKey(day.date) &&
+        _boardTabs.isNotEmpty) {
+      return _boardTabs;
     }
 
-    setState(() {
-      _boardExpanded = true;
-    });
+    return <RoutineBoardTab>[RoutineBoardTab.localDefault()];
   }
 
-  void _collapseBoard() {
+  RoutineBoardTab _activeTabForDay(RoutineDay day) {
+    final tabs = _tabsForDay(day);
+    final activeId = _activeBoardTabId;
+
+    if (activeId != null) {
+      for (final tab in tabs) {
+        if (tab.id == activeId) {
+          return tab;
+        }
+      }
+    }
+
+    return tabs.first;
+  }
+
+  List<BoardBlock> _visibleBlocksForActiveTab(RoutineDay day) {
+    final tabs = _tabsForDay(day);
+    final activeTab = _activeTabForDay(day);
+
+    // Enquanto as abas ainda não carregaram, preserva o comportamento
+    // antigo: todos os blocos permanecem visíveis.
+    if (_loadedBoardTabsDateKey != _dateKey(day.date)) {
+      return List<BoardBlock>.from(day.blocks);
+    }
+
+    final mappedIds = <String>{};
+    for (final tab in tabs) {
+      mappedIds.addAll(tab.blockIds);
+    }
+
+    final activeIds = activeTab.blockIds.toSet();
+
+    return day.blocks.where((block) {
+      if (activeTab.isDefault) {
+        // Blocos antigos, criados antes do recurso de abas, pertencem
+        // visualmente à aba padrão até serem associados explicitamente.
+        return activeIds.contains(block.id) || !mappedIds.contains(block.id);
+      }
+
+      return activeIds.contains(block.id);
+    }).toList();
+  }
+
+  RoutineDay _boardLayoutDay(RoutineDay day) {
+    return day.copyWith(blocks: _visibleBlocksForActiveTab(day));
+  }
+
+  Future<void> _loadBoardTabsForSelectedDay({bool force = false}) async {
+    if (!_routineControllerReady) {
+      return;
+    }
+
+    final day = _routineController.selectedDay;
+    final key = _dateKey(day.date);
+
+    if (_loadingBoardTabsDateKey == key) {
+      return;
+    }
+
+    if (!force && _loadedBoardTabsDateKey == key) {
+      return;
+    }
+
+    _loadingBoardTabsDateKey = key;
+
+    try {
+      final tabs = await _boardTabService.loadOrCreateDefault(day.date);
+
+      if (!mounted ||
+          !_routineControllerReady ||
+          _dateKey(_routineController.selectedDay.date) != key) {
+        return;
+      }
+
+      final previousActive = _activeBoardTabId;
+      final stillExists =
+          previousActive != null && tabs.any((tab) => tab.id == previousActive);
+
+      setState(() {
+        _boardTabs = tabs;
+        _loadedBoardTabsDateKey = key;
+        _activeBoardTabId = stillExists ? previousActive : tabs.first.id;
+      });
+    } catch (error, stackTrace) {
+      debugPrint('[ROUTINE][TABS] Falha ao carregar abas: $error');
+      debugPrintStack(stackTrace: stackTrace);
+
+      // A Rotina continua utilizável mesmo antes da migration ser aplicada.
+      if (mounted && _dateKey(_routineController.selectedDay.date) == key) {
+        setState(() {
+          _boardTabs = const <RoutineBoardTab>[];
+          _loadedBoardTabsDateKey = null;
+          _activeBoardTabId = null;
+        });
+      }
+    } finally {
+      if (_loadingBoardTabsDateKey == key) {
+        _loadingBoardTabsDateKey = null;
+      }
+    }
+  }
+
+  Widget _buildBoardTabs(RoutineDay day, {bool expanded = false}) {
+    final key = _dateKey(day.date);
+
+    if (_loadedBoardTabsDateKey != key && _loadingBoardTabsDateKey != key) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _loadBoardTabsForSelectedDay();
+        }
+      });
+    }
+
+    final tabs = _tabsForDay(day);
+
+    return RoutineBoardTabBar(
+      tabs: tabs,
+      activeTabId: _activeBoardTabId,
+      expanded: expanded,
+      onSelect: (tab) {
+        if (!mounted) {
+          return;
+        }
+
+        setState(() {
+          _activeBoardTabId = tab.id;
+        });
+      },
+      onCreate: () {
+        _createBoardTab(day);
+      },
+      onRename: (tab) {
+        _renameBoardTab(day, tab);
+      },
+      onRenameInline: (tab, value) async {
+        await _renameBoardTab(day, tab, value: value);
+      },
+      onDelete: (tab) {
+        _deleteBoardTab(day, tab);
+      },
+    );
+  }
+
+  Future<void> _createBoardTab(RoutineDay day) async {
+    if (_loadedBoardTabsDateKey != _dateKey(day.date)) {
+      await _loadBoardTabsForSelectedDay(force: true);
+    }
+
     if (!mounted) {
       return;
     }
 
-    setState(() {
-      _boardExpanded = false;
-    });
+    final value = await RoutineTextEditor.show(
+      context,
+      title: 'Nova aba da lousa',
+      hint: 'Ex.: Trabalho, Estudos, Projeto X...',
+      maxLines: 1,
+    );
+
+    if (!mounted || value == null || value.trim().isEmpty) {
+      return;
+    }
+
+    try {
+      final tab = await _boardTabService.createTab(
+        date: day.date,
+        name: value,
+        sortOrder: _boardTabs.length,
+      );
+
+      if (!mounted ||
+          _dateKey(_routineController.selectedDay.date) != _dateKey(day.date)) {
+        return;
+      }
+
+      setState(() {
+        _boardTabs = <RoutineBoardTab>[..._boardTabs, tab];
+        _loadedBoardTabsDateKey = _dateKey(day.date);
+        _activeBoardTabId = tab.id;
+      });
+    } catch (error) {
+      _showBoardTabError('Não foi possível criar a aba: $error');
+    }
+  }
+
+  Future<void> _renameBoardTab(
+    RoutineDay day,
+    RoutineBoardTab tab, {
+    String? value,
+  }) async {
+    final resolvedValue =
+        value ??
+        await RoutineTextEditor.show(
+          context,
+          title: 'Renomear aba',
+          hint: 'Nome da aba',
+          initialValue: tab.name,
+          maxLines: 1,
+        );
+
+    if (!mounted || resolvedValue == null || resolvedValue.trim().isEmpty) {
+      return;
+    }
+
+    final renamed = tab.copyWith(name: resolvedValue.trim());
+
+    try {
+      await _boardTabService.saveTab(date: day.date, tab: renamed);
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _boardTabs = _boardTabs
+            .map((current) => current.id == tab.id ? renamed : current)
+            .toList();
+      });
+    } catch (error) {
+      _showBoardTabError('Não foi possível renomear a aba: $error');
+    }
+  }
+
+  Future<void> _deleteBoardTab(RoutineDay day, RoutineBoardTab tab) async {
+    if (tab.isDefault) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Fechar esta aba?'),
+          content: Text(
+            tab.blockIds.isEmpty
+                ? 'A aba "${tab.name}" será removida.'
+                : 'Os ${tab.blockIds.length} bloco(s) desta aba serão movidos para a aba Lousa.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Fechar aba'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted || confirmed != true) {
+      return;
+    }
+
+    RoutineBoardTab? defaultTab;
+    for (final current in _boardTabs) {
+      if (current.isDefault) {
+        defaultTab = current;
+        break;
+      }
+    }
+
+    if (defaultTab == null) {
+      _showBoardTabError('A aba principal da lousa não foi encontrada.');
+      return;
+    }
+
+    final mergedIds = <String>{
+      ...defaultTab.blockIds,
+      ...tab.blockIds,
+    }.toList();
+
+    final updatedDefault = defaultTab.copyWith(blockIds: mergedIds);
+
+    try {
+      await _boardTabService.saveTab(date: day.date, tab: updatedDefault);
+      await _boardTabService.deleteTab(tab);
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _boardTabs = _boardTabs
+            .where((current) => current.id != tab.id)
+            .map(
+              (current) =>
+                  current.id == updatedDefault.id ? updatedDefault : current,
+            )
+            .toList();
+        _activeBoardTabId = updatedDefault.id;
+      });
+    } catch (error) {
+      _showBoardTabError('Não foi possível fechar a aba: $error');
+    }
+  }
+
+  Future<void> _assignBlockToActiveTab(String blockId) async {
+    if (!_routineControllerReady) {
+      return;
+    }
+
+    final day = _routineController.selectedDay;
+    final key = _dateKey(day.date);
+
+    if (_loadedBoardTabsDateKey != key) {
+      await _loadBoardTabsForSelectedDay(force: true);
+    }
+
+    if (_loadedBoardTabsDateKey != key || _boardTabs.isEmpty) {
+      return;
+    }
+
+    final activeTab = _activeTabForDay(day);
+    final updated = <RoutineBoardTab>[];
+
+    for (final tab in _boardTabs) {
+      final ids = tab.blockIds.where((id) => id != blockId).toList();
+      if (tab.id == activeTab.id) {
+        ids.add(blockId);
+      }
+      updated.add(tab.copyWith(blockIds: ids));
+    }
+
+    if (mounted) {
+      setState(() {
+        _boardTabs = updated;
+      });
+    }
+
+    try {
+      await _boardTabService.saveTabs(date: day.date, tabs: updated);
+    } catch (error) {
+      _showBoardTabError(
+        'Bloco criado, mas a aba não pôde ser sincronizada: $error',
+      );
+    }
+  }
+
+  Future<void> _removeBlockFromTabs(String blockId) async {
+    if (!_routineControllerReady || _boardTabs.isEmpty) {
+      return;
+    }
+
+    final day = _routineController.selectedDay;
+    final updated = _boardTabs
+        .map(
+          (tab) => tab.copyWith(
+            blockIds: tab.blockIds.where((id) => id != blockId).toList(),
+          ),
+        )
+        .toList();
+
+    if (mounted) {
+      setState(() {
+        _boardTabs = updated;
+      });
+    }
+
+    try {
+      await _boardTabService.saveTabs(date: day.date, tabs: updated);
+    } catch (error) {
+      debugPrint('[ROUTINE][TABS] Falha ao remover bloco das abas: $error');
+    }
+  }
+
+  void _duplicateBlockInActiveTab(RoutineDay day, BoardBlock block) {
+    final before = day.blocks.map((item) => item.id).toSet();
+
+    _boardController.duplicateBlock(day, block);
+
+    _notifyRoutineMutation();
+
+    for (final candidate in day.blocks.reversed) {
+      if (!before.contains(candidate.id)) {
+        _assignBlockToActiveTab(candidate.id);
+        break;
+      }
+    }
+  }
+
+  void _showBoardTabError(String message) {
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(behavior: SnackBarBehavior.floating, content: Text(message)),
+      );
   }
 
   // ============================================================
@@ -2297,20 +2682,12 @@ class _RoutineScreenState extends State<RoutineScreen> {
           ),
           child: Row(
             children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE8F5EC),
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                child: const Icon(
-                  Icons.dashboard_customize_outlined,
-                  color: _primary,
-                  size: 20,
-                ),
+              _RoundIconButton(
+                icon: Icons.arrow_back_rounded,
+                tooltip: 'Voltar',
+                onTap: () => Navigator.maybePop(context),
               ),
-              const SizedBox(width: 11),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -2384,7 +2761,33 @@ class _RoutineScreenState extends State<RoutineScreen> {
               ),
 
               const SizedBox(width: 8),
+              IconButton(
+                tooltip: _showExpandedCalendar
+                    ? 'Ocultar calendário'
+                    : 'Mostrar calendário',
+                onPressed: () {
+                  if (!mounted) {
+                    return;
+                  }
 
+                  setState(() {
+                    _showExpandedCalendar = !_showExpandedCalendar;
+                  });
+                },
+                style: IconButton.styleFrom(
+                  foregroundColor: _primary,
+                  backgroundColor: _showExpandedCalendar
+                      ? const Color(0xFFE8F5EC)
+                      : const Color(0xFFF6F8F6),
+                  side: BorderSide(
+                    color: _showExpandedCalendar
+                        ? const Color(0xFFA9DEA5)
+                        : _border,
+                  ),
+                ),
+                icon: const Icon(Icons.calendar_month_rounded, size: 19),
+              ),
+              const SizedBox(width: 8),
               FilledButton.icon(
                 onPressed: _addBlock,
                 style: FilledButton.styleFrom(
@@ -2394,20 +2797,38 @@ class _RoutineScreenState extends State<RoutineScreen> {
                 icon: const Icon(Icons.add_rounded, size: 18),
                 label: const Text('Bloco'),
               ),
-              const SizedBox(width: 8),
-              IconButton(
-                tooltip: 'Recolher lousa',
-                onPressed: _collapseBoard,
-                style: IconButton.styleFrom(
-                  foregroundColor: _primary,
-                  backgroundColor: const Color(0xFFE8F5EC),
-                  side: const BorderSide(color: Color(0xFFC7DFC9)),
-                ),
-                icon: const Icon(Icons.close_fullscreen_rounded, size: 19),
-              ),
             ],
           ),
         ),
+
+        if (_showExpandedCalendar)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 10, 24, 6),
+            child: StudyCalendar(
+              selectedDate: DateTime(
+                day.date.year,
+                day.date.month,
+                day.date.day,
+              ),
+              completedDates: const <DateTime>[],
+              contentDates: _routineCalendarContentDates(
+                _routineController.state.weekStart,
+              ),
+              onPreviousWeek: () {
+                _loadedCommentDayId = null;
+                _goToPreviousWeek();
+              },
+              onNextWeek: () {
+                _loadedCommentDayId = null;
+                _goToNextWeek();
+              },
+              onDateSelected: (date) {
+                _selectRoutineDay(date);
+              },
+            ),
+          ),
+
+        _buildBoardTabs(day, expanded: true),
 
         Expanded(
           child: LayoutBuilder(
@@ -2457,45 +2878,51 @@ class _RoutineScreenState extends State<RoutineScreen> {
 
               return SingleChildScrollView(
                 padding: const EdgeInsets.all(12),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Container(
-                    width: boardWidth,
-                    height: boardHeight,
-                    decoration: BoxDecoration(
-                      color: _surface,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: _border),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(18),
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          const Positioned.fill(
-                            child: CustomPaint(painter: _GridPainter()),
-                          ),
-                          if (day.blocks.isEmpty)
-                            Positioned.fill(
-                              child: _EmptyBoard(onAddBlock: _addBlock),
-                            ),
-                          for (final block in day.blocks)
-                            _positionedBlock(
-                              day: day,
-                              block: block,
-                              boardWidth: boardWidth,
-                              boardHeight: boardHeight,
-                            ),
+                child: Stack(
+                  children: [
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Container(
+                        width: boardWidth,
+                        height: boardHeight,
+                        decoration: BoxDecoration(
+                          color: _surface,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: _border),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(18),
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              const Positioned.fill(
+                                child: CustomPaint(painter: _GridPainter()),
+                              ),
+                              if (_visibleBlocksForActiveTab(day).isEmpty)
+                                Positioned.fill(
+                                  child: _EmptyBoard(onAddBlock: _addBlock),
+                                ),
+                              for (final block in _visibleBlocksForActiveTab(
+                                day,
+                              ))
+                                _positionedBlock(
+                                  day: day,
+                                  block: block,
+                                  boardWidth: boardWidth,
+                                  boardHeight: boardHeight,
+                                ),
 
-                          ..._buildCommentLayer(
-                            day: day,
-                            boardWidth: boardWidth,
-                            boardHeight: boardHeight,
+                              ..._buildCommentLayer(
+                                day: day,
+                                boardWidth: boardWidth,
+                                boardHeight: boardHeight,
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
               );
             },
@@ -2755,9 +3182,7 @@ class _RoutineScreenState extends State<RoutineScreen> {
         onResizeEnd: isMindMap ? _finishMindMapResize : null,
         onEdit: () => _editBlock(block),
         onDuplicate: () {
-          _boardController.duplicateBlock(day, block);
-
-          _notifyRoutineMutation();
+          _duplicateBlockInActiveTab(day, block);
         },
         onReminder: () => _createReminderForBlock(block),
         onDelete: () => _deleteBlock(day, block),
@@ -2867,7 +3292,7 @@ class _RoutineScreenState extends State<RoutineScreen> {
   // ============================================================
 
   void _positionNewBlockInFreeArea(BoardBlock block) {
-    final day = _routineController.selectedDay;
+    final day = _boardLayoutDay(_routineController.selectedDay);
 
     final boardWidth = _activeBoardWidth > 0 ? _activeBoardWidth : 390.0;
 
@@ -2925,6 +3350,8 @@ class _RoutineScreenState extends State<RoutineScreen> {
 
       _routineController.addBlock(block);
 
+      await _assignBlockToActiveTab(block.id);
+
       _loadedAttachmentBoardId = boardId;
 
       return;
@@ -2944,6 +3371,8 @@ class _RoutineScreenState extends State<RoutineScreen> {
       _positionNewBlockInFreeArea(block);
 
       _routineController.addBlock(block);
+
+      await _assignBlockToActiveTab(block.id);
       return;
     }
 
@@ -2971,6 +3400,8 @@ class _RoutineScreenState extends State<RoutineScreen> {
     _positionNewBlockInFreeArea(block);
 
     _routineController.addBlock(block);
+
+    await _assignBlockToActiveTab(block.id);
   }
 
   Future<void> _editBlock(BoardBlock block) async {
@@ -3208,6 +3639,8 @@ class _RoutineScreenState extends State<RoutineScreen> {
       }
 
       _boardController.removeBlock(day, block.id);
+
+      await _removeBlockFromTabs(block.id);
 
       _notifyRoutineMutation();
     }
