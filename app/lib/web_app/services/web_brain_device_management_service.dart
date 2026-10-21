@@ -33,17 +33,13 @@ class WebBrainDeviceManagementService {
     final local = await _storage.loadDevice();
 
     if (local == null) {
-      throw StateError(
-        'Identidade local deste navegador não está disponível.',
-      );
+      throw StateError('Identidade local deste navegador não está disponível.');
     }
 
     return local.deviceId;
   }
 
-  Future<List<BrainDeviceRecord>> listDevices({
-    required String vaultId,
-  }) async {
+  Future<List<BrainDeviceRecord>> listDevices({required String vaultId}) async {
     _requireAuth();
 
     final cleanVaultId = vaultId.trim();
@@ -55,16 +51,13 @@ class WebBrainDeviceManagementService {
     final local = await _storage.loadDevice();
 
     if (local == null) {
-      throw StateError(
-        'Identidade local deste navegador não está disponível.',
-      );
+      throw StateError('Identidade local deste navegador não está disponível.');
     }
 
     final authorized = await _remote.isAuthorized(
       vaultId: cleanVaultId,
       deviceId: local.deviceId,
-      authorizationSecretBase64:
-          local.authorizationSecretBase64,
+      authorizationSecretBase64: local.authorizationSecretBase64,
     );
 
     if (!authorized) {
@@ -76,11 +69,113 @@ class WebBrainDeviceManagementService {
     final devices = await _remote.listDevices(
       vaultId: cleanVaultId,
       requesterDeviceId: local.deviceId,
-      requesterAuthorizationSecretBase64:
-          local.authorizationSecretBase64,
+      requesterAuthorizationSecretBase64: local.authorizationSecretBase64,
     );
 
     return List<BrainDeviceRecord>.unmodifiable(devices);
+  }
+
+  Future<Map<String, String>> listCustomNames({required String vaultId}) async {
+    _requireAuth();
+
+    final cleanVaultId = vaultId.trim();
+
+    if (cleanVaultId.isEmpty) {
+      throw ArgumentError('vaultId não pode ser vazio.');
+    }
+
+    final local = await _storage.loadDevice();
+
+    if (local == null) {
+      throw StateError('Identidade local deste navegador não está disponível.');
+    }
+
+    try {
+      final result = await _client.rpc(
+        'list_brain_device_custom_names',
+        params: <String, dynamic>{
+          'p_vault_id': cleanVaultId,
+          'p_requester_device_id': local.deviceId,
+          'p_requester_secret': local.authorizationSecretBase64,
+        },
+      );
+
+      if (result is! List) {
+        return const <String, String>{};
+      }
+
+      final names = <String, String>{};
+
+      for (final raw in result) {
+        if (raw is! Map) {
+          continue;
+        }
+
+        final row = Map<String, dynamic>.from(raw);
+        final deviceId = row['device_id']?.toString().trim() ?? '';
+        final customName = row['custom_name']?.toString().trim() ?? '';
+
+        if (deviceId.isNotEmpty && customName.isNotEmpty) {
+          names[deviceId] = customName;
+        }
+      }
+
+      return Map<String, String>.unmodifiable(names);
+    } on PostgrestException {
+      return const <String, String>{};
+    }
+  }
+
+  Future<String> renameDevice({
+    required String vaultId,
+    required String targetDeviceId,
+    required String newName,
+  }) async {
+    _requireAuth();
+
+    final cleanVaultId = vaultId.trim();
+    final cleanTarget = targetDeviceId.trim();
+    final cleanName = newName.trim();
+
+    if (cleanVaultId.isEmpty ||
+        cleanTarget.isEmpty ||
+        cleanName.length < 2 ||
+        cleanName.length > 80) {
+      throw ArgumentError('Dados inválidos para renomear o dispositivo.');
+    }
+
+    final local = await _storage.loadDevice();
+
+    if (local == null) {
+      throw StateError('Identidade local deste navegador não está disponível.');
+    }
+
+    final authorized = await _remote.isAuthorized(
+      vaultId: cleanVaultId,
+      deviceId: local.deviceId,
+      authorizationSecretBase64: local.authorizationSecretBase64,
+    );
+
+    if (!authorized) {
+      throw StateError(
+        'Este navegador não está autorizado a renomear dispositivos.',
+      );
+    }
+
+    final result = await _client.rpc(
+      'rename_brain_device',
+      params: <String, dynamic>{
+        'p_vault_id': cleanVaultId,
+        'p_requester_device_id': local.deviceId,
+        'p_requester_secret': local.authorizationSecretBase64,
+        'p_target_device_id': cleanTarget,
+        'p_device_name': cleanName,
+      },
+    );
+
+    final saved = result?.toString().trim() ?? '';
+
+    return saved.isEmpty ? cleanName : saved;
   }
 
   Future<void> approvePendingDevice({
@@ -94,30 +189,23 @@ class WebBrainDeviceManagementService {
     final expected = expectedFingerprint.trim().toUpperCase();
 
     if (cleanVaultId.isEmpty || expected.isEmpty) {
-      throw ArgumentError(
-        'Vault e fingerprint precisam ser informados.',
-      );
+      throw ArgumentError('Vault e fingerprint precisam ser informados.');
     }
 
     final local = await _storage.loadDevice();
 
     if (local == null) {
-      throw StateError(
-        'Identidade local deste navegador não está disponível.',
-      );
+      throw StateError('Identidade local deste navegador não está disponível.');
     }
 
     if (local.deviceId == target.deviceId) {
-      throw StateError(
-        'Um dispositivo não pode aprovar a si mesmo.',
-      );
+      throw StateError('Um dispositivo não pode aprovar a si mesmo.');
     }
 
     final authorized = await _remote.isAuthorized(
       vaultId: cleanVaultId,
       deviceId: local.deviceId,
-      authorizationSecretBase64:
-          local.authorizationSecretBase64,
+      authorizationSecretBase64: local.authorizationSecretBase64,
     );
 
     if (!authorized) {
@@ -129,8 +217,7 @@ class WebBrainDeviceManagementService {
     final freshTarget = await _remote.getDevice(
       vaultId: cleanVaultId,
       requesterDeviceId: local.deviceId,
-      requesterAuthorizationSecretBase64:
-          local.authorizationSecretBase64,
+      requesterAuthorizationSecretBase64: local.authorizationSecretBase64,
       targetDeviceId: target.deviceId,
     );
 
@@ -139,9 +226,7 @@ class WebBrainDeviceManagementService {
     }
 
     if (!freshTarget.isPending) {
-      throw StateError(
-        'Este dispositivo não está mais pendente.',
-      );
+      throw StateError('Este dispositivo não está mais pendente.');
     }
 
     if (freshTarget.isRecoveryExpired) {
@@ -160,9 +245,7 @@ class WebBrainDeviceManagementService {
     }
 
     final computed = await _crypto.fingerprintPublicKey(
-      base64Url.decode(
-        base64Url.normalize(freshTarget.publicKeyBase64),
-      ),
+      base64Url.decode(base64Url.normalize(freshTarget.publicKeyBase64)),
     );
 
     if (computed.toUpperCase() != stored) {
@@ -171,19 +254,14 @@ class WebBrainDeviceManagementService {
       );
     }
 
-    final requestId =
-        freshTarget.recoveryRequestId?.trim() ?? '';
+    final requestId = freshTarget.recoveryRequestId?.trim() ?? '';
     final expiresAt = freshTarget.recoveryExpiresAt;
 
     if (requestId.isEmpty || expiresAt == null) {
-      throw StateError(
-        'A solicitação pendente não possui binding válido.',
-      );
+      throw StateError('A solicitação pendente não possui binding válido.');
     }
 
-    final bundle = await _storage.loadKeyBundle(
-      vaultId: cleanVaultId,
-    );
+    final bundle = await _storage.loadKeyBundle(vaultId: cleanVaultId);
 
     if (bundle == null) {
       throw StateError(
@@ -208,8 +286,7 @@ class WebBrainDeviceManagementService {
     await _remote.approveDevice(
       vaultId: cleanVaultId,
       approverDeviceId: local.deviceId,
-      approverAuthorizationSecretBase64:
-          local.authorizationSecretBase64,
+      approverAuthorizationSecretBase64: local.authorizationSecretBase64,
       targetDeviceId: freshTarget.deviceId,
       envelope: envelope,
     );
@@ -230,15 +307,11 @@ class WebBrainDeviceManagementService {
     final local = await _storage.loadDevice();
 
     if (local == null) {
-      throw StateError(
-        'Identidade local deste navegador não está disponível.',
-      );
+      throw StateError('Identidade local deste navegador não está disponível.');
     }
 
     if (local.deviceId == target.deviceId) {
-      throw StateError(
-        'Este dispositivo não pode ser revogado por esta tela.',
-      );
+      throw StateError('Este dispositivo não pode ser revogado por esta tela.');
     }
 
     if (target.isRevoked) {
@@ -248,8 +321,7 @@ class WebBrainDeviceManagementService {
     final authorized = await _remote.isAuthorized(
       vaultId: cleanVaultId,
       deviceId: local.deviceId,
-      authorizationSecretBase64:
-          local.authorizationSecretBase64,
+      authorizationSecretBase64: local.authorizationSecretBase64,
     );
 
     if (!authorized) {
@@ -261,8 +333,7 @@ class WebBrainDeviceManagementService {
     await _remote.revokeDevice(
       vaultId: cleanVaultId,
       approverDeviceId: local.deviceId,
-      approverAuthorizationSecretBase64:
-          local.authorizationSecretBase64,
+      approverAuthorizationSecretBase64: local.authorizationSecretBase64,
       targetDeviceId: target.deviceId,
     );
   }

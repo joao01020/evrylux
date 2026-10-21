@@ -599,10 +599,16 @@ extension _ProfileSettingsBrainActions on _ProfileSettingsPageState {
         return;
       }
 
+      final deviceLimitReached = error.toString().contains(
+        'brain_device_limit_reached',
+      );
+
       _updateProfileState(() {
-        _message =
-            'Não foi possível recuperar o Cérebro com esse arquivo. '
-            'Confira o .evkey e a senha.';
+        _message = deviceLimitReached
+            ? 'Limite de 6 dispositivos autorizados atingido. '
+                  'Revogue um dispositivo antes de usar a chave de recuperação.'
+            : 'Não foi possível recuperar o Cérebro com esse arquivo. '
+                  'Confira o .evkey e a senha.';
         _messageIsError = true;
       });
     } finally {
@@ -1291,7 +1297,7 @@ extension _ProfileSettingsBrainActions on _ProfileSettingsPageState {
     final authorizedCount = _brainDevices
         .where((device) => device.isAuthorized)
         .length;
-    const maxDevices = 3;
+    const maxDevices = 6;
     final limitReached = authorizedCount >= maxDevices;
 
     await showDialog<void>(
@@ -1334,7 +1340,7 @@ extension _ProfileSettingsBrainActions on _ProfileSettingsPageState {
                 const SizedBox(height: 12),
                 Text(
                   limitReached
-                      ? 'O limite de 3 dispositivos autorizados foi atingido. '
+                      ? 'O limite de 6 dispositivos autorizados foi atingido. '
                             'Revogue um acesso antes de autorizar outro dispositivo.'
                       : 'No novo dispositivo ou navegador, abra o Cérebro do EVRYLUX '
                             'e solicite acesso. A solicitação aparecerá aqui como '
@@ -1645,10 +1651,10 @@ extension _ProfileSettingsBrainActions on _ProfileSettingsPageState {
         .where((item) => item.isAuthorized)
         .length;
 
-    if (authorizedCount >= 3) {
+    if (authorizedCount >= 6) {
       _updateProfileState(() {
         _message =
-            'Limite de 3 dispositivos autorizados atingido. '
+            'Limite de 6 dispositivos autorizados atingido. '
             'Revogue um acesso antes de aprovar outro.';
         _messageIsError = true;
       });

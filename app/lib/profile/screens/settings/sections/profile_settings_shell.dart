@@ -154,7 +154,7 @@ extension _ProfileSettingsShell on _ProfileSettingsPageState {
 
               IconButton(
                 tooltip: limitReached
-                    ? 'Limite de 3 dispositivos atingido'
+                    ? 'Limite de 6 dispositivos atingido'
                     : 'Adicionar dispositivo',
                 onPressed: _loadingBrainDevices
                     ? null
@@ -225,7 +225,7 @@ extension _ProfileSettingsShell on _ProfileSettingsPageState {
     return _brainDevices.where((device) => device.isAuthorized).length;
   }
 
-  static const int _brainAuthorizedDeviceLimit = 3;
+  static const int _brainAuthorizedDeviceLimit = 6;
 
   // ============================================================
   // BRAIN DEVICE ROW
@@ -296,7 +296,7 @@ extension _ProfileSettingsShell on _ProfileSettingsPageState {
                 device.isRecoveryExpired
                     ? 'Expirado'
                     : limitReached
-                    ? 'Limite 3/3'
+                    ? 'Limite 6/6'
                     : 'Aprovar',
               ),
             ),

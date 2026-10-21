@@ -492,11 +492,17 @@ class _WebBrainAccessGateState extends State<WebBrainAccessGate> {
     } catch (error) {
       if (!mounted) return;
 
+      final deviceLimitReached = error.toString().contains(
+        'brain_device_limit_reached',
+      );
+
       setState(() {
         _ready = false;
-        _error =
-            'Não foi possível recuperar o Cérebro com esse .evkey. '
-            'Confira o arquivo e a senha.';
+        _error = deviceLimitReached
+            ? 'Limite de 6 dispositivos autorizados atingido. '
+                  'Revogue um dispositivo antes de usar a chave de recuperação.'
+            : 'Não foi possível recuperar o Cérebro com esse .evkey. '
+                  'Confira o arquivo e a senha.';
       });
     } finally {
       if (mounted) {
@@ -641,14 +647,20 @@ class _WebBrainAccessGateState extends State<WebBrainAccessGate> {
             ),
           ),
         );
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
+
+      final deviceLimitReached = error.toString().contains(
+        'brain_device_limit_reached',
+      );
 
       setState(() {
         _ready = false;
-        _error =
-            'Não foi possível recuperar o Cérebro. '
-            'Confira a chave de recuperação e tente novamente.';
+        _error = deviceLimitReached
+            ? 'Limite de 6 dispositivos autorizados atingido. '
+                  'Revogue um dispositivo antes de recuperar o acesso.'
+            : 'Não foi possível recuperar o Cérebro. '
+                  'Confira a chave de recuperação e tente novamente.';
       });
     } finally {
       if (mounted) {
