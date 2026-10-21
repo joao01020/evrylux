@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -9,6 +10,9 @@ import '../../core/constants/app_info.dart';
 
 import '../../app/dependencies/app_dependencies.dart';
 import '../../study/brain/devices/models/brain_device_record.dart';
+import '../../study/brain/security/keys/brain_key_service.dart';
+import '../../study/brain/security/recovery/brain_recovery_file_authorization_service.dart';
+import '../../study/brain/security/recovery/brain_recovery_platform_access.dart';
 import '../../study/brain/settings/storage/brain_local_path_storage.dart';
 import '../security/devices/models/account_device.dart';
 import '../data/profile_repository.dart';
@@ -127,6 +131,8 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   bool _importingBrainBackup = false;
 
   bool _exportingBrainBackup = false;
+
+  bool _importingBrainRecoveryKey = false;
 
   // ============================================================
   // BRAIN SETTINGS

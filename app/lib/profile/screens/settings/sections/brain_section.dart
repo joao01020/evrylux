@@ -17,6 +17,12 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
 
         _buildBrainVaultSection(),
 
+        if (_currentBrainDeviceCanExportRecoveryKey()) ...[
+          const Divider(height: 1, color: _ProfileSettingsPageState._border),
+
+          _buildBrainRecoveryKeyExportSection(),
+        ],
+
         // --------------------------------------------------------
         // CLOUD
         // --------------------------------------------------------
@@ -932,6 +938,95 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
   }
 
   // ============================================================
+  // RECOVERY KEY EXPORT
+  // ============================================================
+
+  Widget _buildBrainRecoveryKeyExportSection() {
+    return Padding(
+      padding: const EdgeInsets.all(14),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 520;
+
+          final details = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Chave de recuperação',
+                style: TextStyle(
+                  color: _ProfileSettingsPageState._text,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 2),
+              const Text(
+                'Baixe uma cópia protegida da chave deste Cérebro. '
+                'Ela só aparece em dispositivos autorizados.',
+                style: TextStyle(
+                  color: _ProfileSettingsPageState._muted,
+                  fontSize: 11,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          );
+
+          final action = FilledButton.tonalIcon(
+            onPressed: _exportBrainRecoveryKey,
+            icon: const Icon(Icons.download_outlined, size: 17),
+            label: const Text('Baixar chave'),
+          );
+
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Row(
+                  children: [
+                    Icon(
+                      Icons.key_rounded,
+                      size: 20,
+                      color: _ProfileSettingsPageState._primaryDark,
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Recuperação',
+                        style: TextStyle(
+                          color: _ProfileSettingsPageState._text,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                details,
+                const SizedBox(height: 12),
+                Align(alignment: Alignment.centerLeft, child: action),
+              ],
+            );
+          }
+
+          return Row(
+            children: [
+              const Icon(
+                Icons.key_rounded,
+                size: 20,
+                color: _ProfileSettingsPageState._primaryDark,
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: details),
+              const SizedBox(width: 12),
+              action,
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  // ============================================================
   // BRAIN BACKUP
   // ============================================================
 
@@ -1365,37 +1460,70 @@ extension _ProfileSettingsBrainSection on _ProfileSettingsPageState {
 
           const SizedBox(width: 12),
 
-          if (!alreadyHasAccess) ...[
-            OutlinedButton.icon(
-              onPressed: _requestingBrainRecovery || _completingBrainRecovery
-                  ? null
-                  : _requestBrainRecovery,
-              icon: _requestingBrainRecovery
-                  ? const SizedBox(
-                      width: 15,
-                      height: 15,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.add_to_home_screen_rounded, size: 17),
-              label: const Text('Solicitar'),
-            ),
-
-            const SizedBox(width: 8),
-
-            FilledButton.tonalIcon(
-              onPressed: _requestingBrainRecovery || _completingBrainRecovery
-                  ? null
-                  : _completeBrainRecovery,
-              icon: _completingBrainRecovery
-                  ? const SizedBox(
-                      width: 15,
-                      height: 15,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.lock_open_rounded, size: 17),
-              label: const Text('Concluir'),
-            ),
-          ] else
+          if (!alreadyHasAccess)
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 410),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.end,
+                children: [
+                  if (!kIsWeb)
+                    OutlinedButton.icon(
+                      onPressed:
+                          _requestingBrainRecovery ||
+                              _completingBrainRecovery ||
+                              _importingBrainRecoveryKey
+                          ? null
+                          : _importBrainRecoveryKeyFile,
+                      icon: _importingBrainRecoveryKey
+                          ? const SizedBox(
+                              width: 15,
+                              height: 15,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.key_rounded, size: 17),
+                      label: const Text('Usar .evkey'),
+                    ),
+                  OutlinedButton.icon(
+                    onPressed:
+                        _requestingBrainRecovery ||
+                            _completingBrainRecovery ||
+                            _importingBrainRecoveryKey
+                        ? null
+                        : _requestBrainRecovery,
+                    icon: _requestingBrainRecovery
+                        ? const SizedBox(
+                            width: 15,
+                            height: 15,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(
+                            Icons.add_to_home_screen_rounded,
+                            size: 17,
+                          ),
+                    label: const Text('Solicitar'),
+                  ),
+                  FilledButton.tonalIcon(
+                    onPressed:
+                        _requestingBrainRecovery ||
+                            _completingBrainRecovery ||
+                            _importingBrainRecoveryKey
+                        ? null
+                        : _completeBrainRecovery,
+                    icon: _completingBrainRecovery
+                        ? const SizedBox(
+                            width: 15,
+                            height: 15,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.lock_open_rounded, size: 17),
+                    label: const Text('Concluir'),
+                  ),
+                ],
+              ),
+            )
+          else
             const _PhaseBadge(text: 'Protegido'),
         ],
       ),

@@ -1,12 +1,13 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../study/brain/screen/brain_screen.dart';
+import '../../study/brain/security/keys/brain_key_service.dart';
 import '../services/web_brain_device_service.dart';
 import '../services/web_brain_secure_storage.dart';
 import '../widgets/web_brain_device_management_dialog.dart';
 import '../services/web_brain_recovery_key_service.dart';
-import '../utils/web_brain_recovery_download.dart';
 
 /// Gate Web do Cérebro.
 ///
@@ -199,13 +200,10 @@ class _WebBrainAccessGateState extends State<WebBrainAccessGate> {
             ),
             TextButton.icon(
               onPressed: () async {
-                await downloadBrainRecoveryKeyFile(
-                  filename: 'EVRYLUX_RECOVERY_KEY.txt',
-                  content: recovery.toTextFile(),
-                );
+                await _downloadRecoveryFile(vaultId: recovery.vaultId);
               },
               icon: const Icon(Icons.download_rounded),
-              label: const Text('Baixar chave'),
+              label: const Text('Baixar .evkey'),
             ),
             FilledButton(
               onPressed: () {
@@ -217,6 +215,296 @@ class _WebBrainAccessGateState extends State<WebBrainAccessGate> {
         );
       },
     );
+  }
+
+  Future<String?> _askRecoveryFilePassword({
+    required String title,
+    required bool confirm,
+  }) async {
+    final passwordController = TextEditingController();
+    final confirmationController = TextEditingController();
+
+    try {
+      return await showDialog<String>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          var obscure = true;
+          var errorText = '';
+
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              void submit() {
+                final password = passwordController.text;
+
+                if (password.isEmpty) {
+                  setDialogState(() {
+                    errorText = 'Informe a senha do arquivo .evkey.';
+                  });
+                  return;
+                }
+
+                if (confirm &&
+                    password.length <
+                        BrainKeyService.minimumRecoveryPasswordLength) {
+                  setDialogState(() {
+                    errorText =
+                        'Use pelo menos '
+                        '${BrainKeyService.minimumRecoveryPasswordLength} '
+                        'caracteres.';
+                  });
+                  return;
+                }
+
+                if (confirm && password != confirmationController.text) {
+                  setDialogState(() {
+                    errorText = 'As senhas não coincidem.';
+                  });
+                  return;
+                }
+
+                Navigator.of(dialogContext).pop(password);
+              }
+
+              return AlertDialog(
+                title: Text(title),
+                content: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 520),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: passwordController,
+                        autofocus: true,
+                        obscureText: obscure,
+                        enableSuggestions: false,
+                        autocorrect: false,
+                        decoration: InputDecoration(
+                          labelText: confirm
+                              ? 'Senha de proteção'
+                              : 'Senha do arquivo',
+                          border: const OutlineInputBorder(),
+                          suffixIcon: IconButton(
+                            onPressed: () {
+                              setDialogState(() {
+                                obscure = !obscure;
+                              });
+                            },
+                            icon: Icon(
+                              obscure
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (confirm) ...[
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: confirmationController,
+                          obscureText: obscure,
+                          enableSuggestions: false,
+                          autocorrect: false,
+                          onSubmitted: (_) => submit(),
+                          decoration: const InputDecoration(
+                            labelText: 'Confirmar senha',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ],
+                      if (errorText.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            errorText,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.error,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop();
+                    },
+                    child: const Text('Cancelar'),
+                  ),
+                  FilledButton(
+                    onPressed: submit,
+                    child: Text(confirm ? 'Criar arquivo' : 'Recuperar'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+    } finally {
+      passwordController.dispose();
+      confirmationController.dispose();
+    }
+  }
+
+  Future<void> _downloadRecoveryFile({required String vaultId}) async {
+    final password = await _askRecoveryFilePassword(
+      title: 'Proteger chave de recuperação',
+      confirm: true,
+    );
+
+    if (password == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final bytes = await _recovery.exportRecoveryFile(
+        vaultId: vaultId,
+        password: password,
+      );
+
+      await FilePicker.saveFile(
+        dialogTitle: 'Salvar chave de recuperação',
+        fileName: 'EVRYLUX_Brain_Recovery.evkey',
+        bytes: bytes,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Arquivo .evkey criado. Guarde-o junto da senha em local seguro.',
+            ),
+          ),
+        );
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _error =
+            'Não foi possível criar o arquivo .evkey. '
+            'Tente novamente neste dispositivo autorizado.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _recoverWithRecoveryFile() async {
+    final selected = await FilePicker.pickFile(
+      type: FileType.custom,
+      allowedExtensions: const <String>['evkey'],
+    );
+
+    if (selected == null || !mounted) {
+      return;
+    }
+
+    final bytes = await selected.readAsBytes();
+
+    if (bytes.isEmpty) {
+      setState(() {
+        _error = 'Não foi possível ler o arquivo .evkey selecionado.';
+      });
+      return;
+    }
+
+    final password = await _askRecoveryFilePassword(
+      title: 'Usar chave de recuperação',
+      confirm: false,
+    );
+
+    if (password == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final package = await _recovery.decodeRecoveryFile(
+        packageBytes: bytes,
+        password: password,
+      );
+
+      final currentVault = _vaultId?.trim() ?? '';
+
+      if (currentVault.isNotEmpty && currentVault != package.vaultId) {
+        throw StateError('O arquivo .evkey pertence a outro Vault.');
+      }
+
+      await _storage.saveVaultId(package.vaultId);
+
+      final pending = await _devices.registerOrRefresh(
+        vaultId: package.vaultId,
+      );
+
+      _vaultId = package.vaultId;
+      _fingerprint = pending.localSecrets.keyFingerprint;
+
+      await _recovery.authorizeCurrentDeviceWithRecoveryFile(package: package);
+
+      final refreshed = await _devices.registerOrRefresh(
+        vaultId: package.vaultId,
+      );
+
+      if (!refreshed.ready) {
+        throw StateError(
+          'A recuperação terminou, mas o navegador ainda não ficou pronto.',
+        );
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _ready = true;
+        _error = null;
+      });
+
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Cérebro recuperado. Este navegador agora está autorizado.',
+            ),
+          ),
+        );
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _ready = false;
+        _error =
+            'Não foi possível recuperar o Cérebro com esse .evkey. '
+            'Confira o arquivo e a senha.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
+    }
   }
 
   Future<void> _showAccessOptionsDialog() async {
@@ -289,6 +577,13 @@ class _WebBrainAccessGateState extends State<WebBrainAccessGate> {
             ),
           ),
           actions: [
+            TextButton.icon(
+              onPressed: () {
+                Navigator.of(dialogContext).pop('__EVKEY_FILE__');
+              },
+              icon: const Icon(Icons.upload_file_rounded),
+              label: const Text('Usar arquivo .evkey'),
+            ),
             TextButton(
               onPressed: () {
                 Navigator.of(dialogContext).pop();
@@ -307,6 +602,13 @@ class _WebBrainAccessGateState extends State<WebBrainAccessGate> {
     );
 
     controller.dispose();
+
+    if (recoveryKey == '__EVKEY_FILE__') {
+      if (mounted) {
+        await _recoverWithRecoveryFile();
+      }
+      return;
+    }
 
     if (recoveryKey == null || recoveryKey.trim().isEmpty || !mounted) {
       return;
@@ -465,10 +767,7 @@ class _WebBrainAccessGateState extends State<WebBrainAccessGate> {
       return;
     }
 
-    await WebBrainDeviceManagementDialog.show(
-      context,
-      vaultId: vaultId,
-    );
+    await WebBrainDeviceManagementDialog.show(context, vaultId: vaultId);
   }
 
   Future<void> _copyFingerprint() async {
@@ -528,26 +827,24 @@ class _WebBrainAccessGateState extends State<WebBrainAccessGate> {
   Widget build(BuildContext context) {
     if (_ready) {
       return Stack(
-          children: [
-            const BrainScreen(),
-            Positioned(
-              top: 12,
-              right: 12,
-              child: SafeArea(
-                child: Material(
-                  color: Colors.transparent,
-                  child: IconButton(
-                    tooltip: 'Dispositivos do Cérebro',
-                    onPressed: _openDeviceManagement,
-                    icon: const Icon(
-                      Icons.admin_panel_settings_outlined,
-                    ),
-                  ),
+        children: [
+          const BrainScreen(),
+          Positioned(
+            top: 12,
+            right: 12,
+            child: SafeArea(
+              child: Material(
+                color: Colors.transparent,
+                child: IconButton(
+                  tooltip: 'Dispositivos do Cérebro',
+                  onPressed: _openDeviceManagement,
+                  icon: const Icon(Icons.admin_panel_settings_outlined),
                 ),
               ),
             ),
-          ],
-        );
+          ),
+        ],
+      );
     }
 
     return Scaffold(
@@ -636,6 +933,16 @@ class _WebBrainAccessGateState extends State<WebBrainAccessGate> {
                             icon: const Icon(Icons.verified_user_outlined),
                             label: const Text('Já aprovei — verificar'),
                           ),
+                        if (_vaultId != null) ...[
+                          const SizedBox(height: 8),
+                          OutlinedButton.icon(
+                            onPressed: _loading
+                                ? null
+                                : _recoverWithRecoveryFile,
+                            icon: const Icon(Icons.upload_file_rounded),
+                            label: const Text('Usar arquivo .evkey'),
+                          ),
+                        ],
                         if (_vaultId != null)
                           TextButton(
                             onPressed: _loading ? null : _informVault,

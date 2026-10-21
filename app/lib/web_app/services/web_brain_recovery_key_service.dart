@@ -6,6 +6,8 @@ import 'package:cryptography/cryptography.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../study/brain/security/models/brain_key_bundle.dart';
+import '../../study/brain/security/keys/brain_key_service.dart';
+import '../../study/brain/security/recovery/brain_recovery_file_authorization_service.dart';
 import 'web_brain_secure_storage.dart';
 
 class WebBrainRecoveryKeyResult {
@@ -63,8 +65,7 @@ class _BrainRecoveryPackage {
     final vaultId = map['vault_id']?.toString().trim() ?? '';
     final recoveryVersion =
         int.tryParse(map['recovery_version']?.toString() ?? '') ?? 0;
-    final keyVersion =
-        int.tryParse(map['key_version']?.toString() ?? '') ?? 0;
+    final keyVersion = int.tryParse(map['key_version']?.toString() ?? '') ?? 0;
 
     if (vaultId.isEmpty || recoveryVersion <= 0 || keyVersion <= 0) {
       throw const FormatException(
@@ -127,16 +128,12 @@ class WebBrainRecoveryKeyService {
   final Cipher _cipher;
   final Random _random;
 
-  Future<bool> hasRecoveryPackage({
-    required String vaultId,
-  }) async {
+  Future<bool> hasRecoveryPackage({required String vaultId}) async {
     _requireAuth();
 
     final result = await _client.rpc(
       'brain_recovery_package_exists',
-      params: <String, dynamic>{
-        'p_vault_id': _requiredVault(vaultId),
-      },
+      params: <String, dynamic>{'p_vault_id': _requiredVault(vaultId)},
     );
 
     return result == true;
@@ -151,9 +148,7 @@ class WebBrainRecoveryKeyService {
     final local = await _storage.loadDevice();
 
     if (local == null) {
-      throw StateError(
-        'Identidade local do dispositivo não está disponível.',
-      );
+      throw StateError('Identidade local do dispositivo não está disponível.');
     }
 
     final authorized = await _client.rpc(
@@ -206,10 +201,7 @@ class WebBrainRecoveryKeyService {
       secretKey: wrappingKey,
       nonce: nonce,
       aad: utf8.encode(
-        _aad(
-          vaultId: cleanVaultId,
-          keyVersion: bundle.keyVersion,
-        ),
+        _aad(vaultId: cleanVaultId, keyVersion: bundle.keyVersion),
       ),
     );
 
@@ -234,8 +226,9 @@ class WebBrainRecoveryKeyService {
       },
     );
 
-    final encodedRecoveryKey =
-        base64UrlEncode(recoveryKeyBytes).replaceAll('=', '');
+    final encodedRecoveryKey = base64UrlEncode(
+      recoveryKeyBytes,
+    ).replaceAll('=', '');
 
     await _storage.saveRecoveryKey(
       vaultId: cleanVaultId,
@@ -250,12 +243,81 @@ class WebBrainRecoveryKeyService {
     );
   }
 
-  Future<String?> loadLocalRecoveryKey({
+  Future<String?> loadLocalRecoveryKey({required String vaultId}) {
+    return _storage.loadRecoveryKey(vaultId: _requiredVault(vaultId));
+  }
+
+  Future<Uint8List> exportRecoveryFile({
     required String vaultId,
-  }) {
-    return _storage.loadRecoveryKey(
-      vaultId: _requiredVault(vaultId),
+    required String password,
+  }) async {
+    _requireAuth();
+
+    final cleanVaultId = _requiredVault(vaultId);
+    final local = await _storage.loadDevice();
+
+    if (local == null) {
+      throw StateError('Identidade local do navegador não está disponível.');
+    }
+
+    final keyService = BrainKeyService(storage: _storage);
+
+    final bundle = await keyService.requireKeyBundle(vaultId: cleanVaultId);
+
+    await BrainRecoveryFileAuthorizationService(
+      client: _client,
+    ).registerVerifier(
+      vaultId: cleanVaultId,
+      keyVersion: bundle.keyVersion,
+      masterKeyBytes: bundle.masterKeyBytes,
+      deviceId: local.deviceId,
+      authorizationSecretBase64: local.authorizationSecretBase64,
     );
+
+    return keyService.exportRecoveryKeyPackage(
+      vaultId: cleanVaultId,
+      password: password,
+    );
+  }
+
+  Future<BrainRecoveryKeyPackageData> decodeRecoveryFile({
+    required List<int> packageBytes,
+    required String password,
+  }) {
+    return BrainKeyService(
+      storage: _storage,
+    ).decodeRecoveryKeyPackage(packageBytes: packageBytes, password: password);
+  }
+
+  Future<void> authorizeCurrentDeviceWithRecoveryFile({
+    required BrainRecoveryKeyPackageData package,
+  }) async {
+    _requireAuth();
+
+    final local = await _storage.loadDevice();
+
+    if (local == null) {
+      throw StateError('Este navegador ainda não possui identidade local.');
+    }
+
+    await BrainRecoveryFileAuthorizationService(
+      client: _client,
+    ).authorizeCurrentDevice(
+      vaultId: package.vaultId,
+      keyVersion: package.keyVersion,
+      masterKeyBytes: package.masterKeyBytes,
+      deviceId: local.deviceId,
+      authorizationSecretBase64: local.authorizationSecretBase64,
+    );
+
+    await BrainKeyService(storage: _storage).importMasterKeyBytes(
+      vaultId: package.vaultId,
+      keyVersion: package.keyVersion,
+      masterKeyBytes: package.masterKeyBytes,
+      createdAt: package.keyCreatedAt,
+    );
+
+    await _storage.saveVaultId(package.vaultId);
   }
 
   /// FASE 3
@@ -337,16 +399,11 @@ class WebBrainRecoveryKeyService {
         ),
         secretKey: wrappingKey,
         aad: utf8.encode(
-          _aad(
-            vaultId: cleanVaultId,
-            keyVersion: package.keyVersion,
-          ),
+          _aad(vaultId: cleanVaultId, keyVersion: package.keyVersion),
         ),
       );
     } on SecretBoxAuthenticationError {
-      throw StateError(
-        'A chave de recuperação informada é inválida.',
-      );
+      throw StateError('A chave de recuperação informada é inválida.');
     }
 
     final decoded = jsonDecode(utf8.decode(clear));
@@ -380,9 +437,7 @@ class WebBrainRecoveryKeyService {
       );
     }
 
-    final masterKey = base64Url.decode(
-      base64Url.normalize(masterKeyRaw),
-    );
+    final masterKey = base64Url.decode(base64Url.normalize(masterKeyRaw));
 
     if (masterKey.length != BrainKeyBundle.masterKeyLengthBytes) {
       throw const FormatException(
@@ -406,9 +461,7 @@ class WebBrainRecoveryKeyService {
     );
 
     if (authorized != true) {
-      throw StateError(
-        'O backend não autorizou este dispositivo.',
-      );
+      throw StateError('O backend não autorizou este dispositivo.');
     }
 
     final bundle = BrainKeyBundle(
@@ -419,15 +472,11 @@ class WebBrainRecoveryKeyService {
 
     bundle.validate();
 
-    await _storage.saveKeyBundle(
-      vaultId: cleanVaultId,
-      bundle: bundle,
-    );
+    await _storage.saveKeyBundle(vaultId: cleanVaultId, bundle: bundle);
 
     await _storage.saveRecoveryKey(
       vaultId: cleanVaultId,
-      recoveryKey:
-          base64UrlEncode(recoveryKeyBytes).replaceAll('=', ''),
+      recoveryKey: base64UrlEncode(recoveryKeyBytes).replaceAll('=', ''),
     );
   }
 
@@ -437,18 +486,10 @@ class WebBrainRecoveryKeyService {
     required String vaultId,
     required int keyVersion,
   }) {
-    return Hkdf(
-      hmac: Hmac.sha256(),
-      outputLength: 32,
-    ).deriveKey(
+    return Hkdf(hmac: Hmac.sha256(), outputLength: 32).deriveKey(
       secretKey: SecretKey(recoveryKeyBytes),
       nonce: salt,
-      info: utf8.encode(
-        _kdfInfo(
-          vaultId: vaultId,
-          keyVersion: keyVersion,
-        ),
-      ),
+      info: utf8.encode(_kdfInfo(vaultId: vaultId, keyVersion: keyVersion)),
     );
   }
 
@@ -457,9 +498,7 @@ class WebBrainRecoveryKeyService {
     required List<int> recoveryKeyBytes,
   }) async {
     final proof = await Hmac.sha256().calculateMac(
-      utf8.encode(
-        'EVRYLUX_BRAIN_RECOVERY_PROOF_V1|$vaultId',
-      ),
+      utf8.encode('EVRYLUX_BRAIN_RECOVERY_PROOF_V1|$vaultId'),
       secretKey: SecretKey(recoveryKeyBytes),
     );
 
@@ -478,19 +517,13 @@ class WebBrainRecoveryKeyService {
     late final List<int> bytes;
 
     try {
-      bytes = base64Url.decode(
-        base64Url.normalize(clean),
-      );
+      bytes = base64Url.decode(base64Url.normalize(clean));
     } on FormatException {
-      throw StateError(
-        'O formato da chave de recuperação é inválido.',
-      );
+      throw StateError('O formato da chave de recuperação é inválido.');
     }
 
     if (bytes.length != recoveryKeyLengthBytes) {
-      throw StateError(
-        'A chave de recuperação possui tamanho inválido.',
-      );
+      throw StateError('A chave de recuperação possui tamanho inválido.');
     }
 
     return List<int>.unmodifiable(bytes);
@@ -514,18 +547,11 @@ class WebBrainRecoveryKeyService {
 
   Uint8List _randomBytes(int length) {
     return Uint8List.fromList(
-      List<int>.generate(
-        length,
-        (_) => _random.nextInt(256),
-        growable: false,
-      ),
+      List<int>.generate(length, (_) => _random.nextInt(256), growable: false),
     );
   }
 
-  String _kdfInfo({
-    required String vaultId,
-    required int keyVersion,
-  }) {
+  String _kdfInfo({required String vaultId, required int keyVersion}) {
     return [
       'EVRYLUX_BRAIN_RECOVERY_WRAP_V1',
       vaultId,
@@ -534,10 +560,7 @@ class WebBrainRecoveryKeyService {
     ].join('|');
   }
 
-  String _aad({
-    required String vaultId,
-    required int keyVersion,
-  }) {
+  String _aad({required String vaultId, required int keyVersion}) {
     return [
       'EVRYLUX_BRAIN_RECOVERY_PACKAGE_V1',
       vaultId,

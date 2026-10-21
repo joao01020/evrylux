@@ -65,6 +65,556 @@ extension _ProfileSettingsBrainActions on _ProfileSettingsPageState {
   }
 
   // ============================================================
+  // RECOVERY KEY EXPORT — AUTHORIZED DEVICE ONLY
+  // ============================================================
+
+  bool _currentBrainDeviceCanExportRecoveryKey() {
+    final currentDeviceId = _currentBrainDeviceId?.trim() ?? '';
+
+    if (currentDeviceId.isEmpty ||
+        !_brainCloudMode ||
+        !_brainMasterKeyAvailable ||
+        _brainVaultId == null ||
+        _brainVaultId!.trim().isEmpty) {
+      return false;
+    }
+
+    for (final device in _brainDevices) {
+      if (device.deviceId == currentDeviceId) {
+        return device.isAuthorized;
+      }
+    }
+
+    return false;
+  }
+
+  String _brainRecoveryKeyDefaultFileName() {
+    final now = DateTime.now();
+
+    String twoDigits(int value) {
+      return value.toString().padLeft(2, '0');
+    }
+
+    final date = '${now.year}${twoDigits(now.month)}${twoDigits(now.day)}';
+
+    final time =
+        '${twoDigits(now.hour)}${twoDigits(now.minute)}${twoDigits(now.second)}';
+
+    return 'EVRYLUX_Brain_Recovery_$date-$time.evkey';
+  }
+
+  Future<String?> _requestBrainRecoveryKeyPassword() async {
+    final passwordController = TextEditingController();
+    final confirmationController = TextEditingController();
+
+    try {
+      return await showDialog<String>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          var obscurePassword = true;
+          var errorText = '';
+
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              void submit() {
+                final password = passwordController.text;
+                final confirmation = confirmationController.text;
+
+                if (password.length <
+                    BrainKeyService.minimumRecoveryPasswordLength) {
+                  setDialogState(() {
+                    errorText =
+                        'Use pelo menos '
+                        '${BrainKeyService.minimumRecoveryPasswordLength} '
+                        'caracteres.';
+                  });
+                  return;
+                }
+
+                if (password != confirmation) {
+                  setDialogState(() {
+                    errorText = 'As senhas não coincidem.';
+                  });
+                  return;
+                }
+
+                Navigator.of(dialogContext).pop(password);
+              }
+
+              return AlertDialog(
+                backgroundColor: _ProfileSettingsPageState._surface,
+                surfaceTintColor: Colors.transparent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  side: const BorderSide(
+                    color: _ProfileSettingsPageState._border,
+                  ),
+                ),
+                title: const Row(
+                  children: [
+                    Icon(
+                      Icons.key_rounded,
+                      color: _ProfileSettingsPageState._primaryDark,
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(child: Text('Baixar chave de recuperação')),
+                  ],
+                ),
+                content: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 480),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Crie uma senha para proteger o arquivo .evkey. '
+                        'A chave principal nunca será salva em texto puro.',
+                        style: TextStyle(
+                          color: _ProfileSettingsPageState._muted,
+                          fontSize: 12,
+                          height: 1.45,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: passwordController,
+                        obscureText: obscurePassword,
+                        enableSuggestions: false,
+                        autocorrect: false,
+                        decoration: InputDecoration(
+                          labelText: 'Senha de proteção',
+                          hintText: 'Mínimo de 12 caracteres',
+                          suffixIcon: IconButton(
+                            tooltip: obscurePassword
+                                ? 'Mostrar senha'
+                                : 'Ocultar senha',
+                            onPressed: () {
+                              setDialogState(() {
+                                obscurePassword = !obscurePassword;
+                              });
+                            },
+                            icon: Icon(
+                              obscurePassword
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: confirmationController,
+                        obscureText: obscurePassword,
+                        enableSuggestions: false,
+                        autocorrect: false,
+                        onSubmitted: (_) {
+                          submit();
+                        },
+                        decoration: const InputDecoration(
+                          labelText: 'Confirmar senha',
+                        ),
+                      ),
+                      if (errorText.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Text(
+                          errorText,
+                          style: const TextStyle(
+                            color: _ProfileSettingsPageState._danger,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 14),
+                      const Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.warning_amber_rounded,
+                            size: 18,
+                            color: _ProfileSettingsPageState._primaryDark,
+                          ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Guarde o arquivo e essa senha separadamente. '
+                              'Quem tiver os dois poderá recuperar o acesso '
+                              'ao seu Cérebro.',
+                              style: TextStyle(
+                                color: _ProfileSettingsPageState._text,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop();
+                    },
+                    child: const Text('Cancelar'),
+                  ),
+                  FilledButton.icon(
+                    onPressed: submit,
+                    icon: const Icon(Icons.download_outlined, size: 18),
+                    label: const Text('Baixar'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+    } finally {
+      passwordController.dispose();
+      confirmationController.dispose();
+    }
+  }
+
+  Future<void> _exportBrainRecoveryKey() async {
+    if (!_currentBrainDeviceCanExportRecoveryKey()) {
+      if (!mounted) {
+        return;
+      }
+
+      _updateProfileState(() {
+        _message =
+            'A chave de recuperação só pode ser baixada em um '
+            'dispositivo autorizado que possua a chave principal.';
+        _messageIsError = true;
+      });
+
+      return;
+    }
+
+    final password = await _requestBrainRecoveryKeyPassword();
+
+    if (password == null || !mounted) {
+      return;
+    }
+
+    try {
+      final vaultId = _brainVaultId!.trim();
+      final keyService = createBrainRecoveryKeyService();
+      final localDevice = await loadBrainRecoveryLocalDevice();
+
+      if (localDevice == null) {
+        throw StateError(
+          'Identidade segura deste dispositivo não está disponível.',
+        );
+      }
+
+      final bundle = await keyService.requireKeyBundle(vaultId: vaultId);
+
+      await BrainRecoveryFileAuthorizationService().registerVerifier(
+        vaultId: vaultId,
+        keyVersion: bundle.keyVersion,
+        masterKeyBytes: bundle.masterKeyBytes,
+        deviceId: localDevice.deviceId,
+        authorizationSecretBase64: localDevice.authorizationSecretBase64,
+      );
+
+      final bytes = await keyService.exportRecoveryKeyPackage(
+        vaultId: vaultId,
+        password: password,
+      );
+
+      final fileName = _brainRecoveryKeyDefaultFileName();
+
+      final savedUri = await FilePicker.saveFile(
+        dialogTitle: 'Salvar chave de recuperação do Cérebro',
+        fileName: fileName,
+        bytes: bytes,
+      );
+
+      if (savedUri == null || !mounted) {
+        return;
+      }
+
+      final savedLocation = savedUri.scheme == 'file'
+          ? savedUri.toFilePath()
+          : savedUri.toString();
+
+      _updateProfileState(() {
+        _message =
+            'Chave de recuperação protegida exportada com sucesso.'
+            '${savedLocation.isEmpty ? '' : '\n$savedLocation'}';
+        _messageIsError = false;
+      });
+    } catch (error) {
+      // Nunca registrar senha, bytes da chave ou conteúdo do .evkey.
+      debugPrint(
+        '[PROFILE SETTINGS] '
+        'Falha ao exportar chave de recuperação: '
+        '${error.runtimeType}',
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      _updateProfileState(() {
+        _message =
+            'Não foi possível exportar a chave de recuperação. '
+            'Atualize o status do Cérebro e tente novamente.';
+        _messageIsError = true;
+      });
+    }
+  }
+
+  Future<String?> _requestBrainRecoveryImportPassword() async {
+    final controller = TextEditingController();
+
+    try {
+      return await showDialog<String>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          var obscure = true;
+          var errorText = '';
+
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              void submit() {
+                final value = controller.text;
+
+                if (value.isEmpty) {
+                  setDialogState(() {
+                    errorText = 'Informe a senha do arquivo .evkey.';
+                  });
+                  return;
+                }
+
+                Navigator.of(dialogContext).pop(value);
+              }
+
+              return AlertDialog(
+                backgroundColor: _ProfileSettingsPageState._surface,
+                surfaceTintColor: Colors.transparent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  side: const BorderSide(
+                    color: _ProfileSettingsPageState._border,
+                  ),
+                ),
+                title: const Row(
+                  children: [
+                    Icon(
+                      Icons.key_rounded,
+                      color: _ProfileSettingsPageState._primaryDark,
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(child: Text('Usar chave de recuperação')),
+                  ],
+                ),
+                content: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 480),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Digite a senha que você definiu ao baixar '
+                        'o arquivo .evkey.',
+                        style: TextStyle(
+                          color: _ProfileSettingsPageState._muted,
+                          fontSize: 12,
+                          height: 1.45,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: controller,
+                        autofocus: true,
+                        obscureText: obscure,
+                        enableSuggestions: false,
+                        autocorrect: false,
+                        onSubmitted: (_) => submit(),
+                        decoration: InputDecoration(
+                          labelText: 'Senha do arquivo',
+                          border: const OutlineInputBorder(),
+                          suffixIcon: IconButton(
+                            tooltip: obscure
+                                ? 'Mostrar senha'
+                                : 'Ocultar senha',
+                            onPressed: () {
+                              setDialogState(() {
+                                obscure = !obscure;
+                              });
+                            },
+                            icon: Icon(
+                              obscure
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (errorText.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Text(
+                          errorText,
+                          style: const TextStyle(
+                            color: _ProfileSettingsPageState._danger,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop();
+                    },
+                    child: const Text('Cancelar'),
+                  ),
+                  FilledButton.icon(
+                    onPressed: submit,
+                    icon: const Icon(Icons.lock_open_rounded, size: 18),
+                    label: const Text('Recuperar'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+    } finally {
+      controller.dispose();
+    }
+  }
+
+  Future<void> _importBrainRecoveryKeyFile() async {
+    if (kIsWeb || _importingBrainRecoveryKey) {
+      return;
+    }
+
+    final selected = await FilePicker.pickFile(
+      type: FileType.custom,
+      allowedExtensions: const <String>['evkey'],
+    );
+
+    if (selected == null || !mounted) {
+      return;
+    }
+
+    final bytes = await selected.readAsBytes();
+
+    if (bytes.isEmpty || !mounted) {
+      _updateProfileState(() {
+        _message = 'Não foi possível ler o arquivo .evkey selecionado.';
+        _messageIsError = true;
+      });
+      return;
+    }
+
+    final password = await _requestBrainRecoveryImportPassword();
+
+    if (password == null || !mounted) {
+      return;
+    }
+
+    _updateProfileState(() {
+      _importingBrainRecoveryKey = true;
+      _message = null;
+    });
+
+    try {
+      final keyService = createBrainRecoveryKeyService();
+
+      final package = await keyService.decodeRecoveryKeyPackage(
+        packageBytes: bytes,
+        password: password,
+      );
+
+      await brainRecoveryDeviceService.requestRecovery(
+        vaultId: package.vaultId,
+        deviceName: brainDeviceName(),
+      );
+
+      final localDevice = await loadBrainRecoveryLocalDevice();
+
+      if (localDevice == null) {
+        throw StateError(
+          'Identidade segura deste dispositivo não está disponível.',
+        );
+      }
+
+      await BrainRecoveryFileAuthorizationService().authorizeCurrentDevice(
+        vaultId: package.vaultId,
+        keyVersion: package.keyVersion,
+        masterKeyBytes: package.masterKeyBytes,
+        deviceId: localDevice.deviceId,
+        authorizationSecretBase64: localDevice.authorizationSecretBase64,
+      );
+
+      await keyService.importMasterKeyBytes(
+        vaultId: package.vaultId,
+        keyVersion: package.keyVersion,
+        masterKeyBytes: package.masterKeyBytes,
+        createdAt: package.keyCreatedAt,
+      );
+
+      final currentManifest = await brainVaultService.loadLocalManifest();
+
+      if (currentManifest == null) {
+        await brainVaultService.createVault(vaultId: package.vaultId);
+      } else if (currentManifest.vaultId != package.vaultId) {
+        throw StateError('Este dispositivo já possui outro Vault local.');
+      } else {
+        await brainVaultService.openVault();
+      }
+
+      await brainDataModeController.useCloudMode();
+      await brainE2eeSyncCoordinator.pullNow();
+      await _loadBrainSettings();
+
+      if (!mounted) {
+        return;
+      }
+
+      _updateProfileState(() {
+        _message =
+            'Cérebro recuperado com o arquivo .evkey. '
+            'Este dispositivo agora está autorizado.';
+        _messageIsError = false;
+      });
+    } catch (error) {
+      debugPrint(
+        '[PROFILE SETTINGS] Falha ao importar .evkey: '
+        '${error.runtimeType}',
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      _updateProfileState(() {
+        _message =
+            'Não foi possível recuperar o Cérebro com esse arquivo. '
+            'Confira o .evkey e a senha.';
+        _messageIsError = true;
+      });
+    } finally {
+      if (mounted) {
+        _updateProfileState(() {
+          _importingBrainRecoveryKey = false;
+        });
+      }
+    }
+  }
+
+  // ============================================================
   // BRAIN BACKUP — FILE PICKER / IMPORT / EXPORT
   // ============================================================
 
