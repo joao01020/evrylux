@@ -221,6 +221,14 @@ class BrainRepository {
       }
     }
 
+    // Nunca transformar uma edição com ID conhecido em nova anotação.
+    if (cleanId.isNotEmpty && previousNote == null) {
+      throw StateError(
+        'A anotação original não foi encontrada. '
+        'Salvamento cancelado para evitar duplicação.',
+      );
+    }
+
     final now = DateTime.now().toLocal();
 
     final notePath = previousNote?.path.trim().isNotEmpty == true
@@ -253,6 +261,7 @@ class BrainRepository {
     final encryptedObject = await store.saveNote(
       note,
       legacyRemoteId: legacyRemoteId,
+      requireExisting: cleanId.isNotEmpty && note.path.startsWith('vault://'),
     );
 
     await _brainSyncQueueService?.enqueueObject(encryptedObject);
@@ -1443,39 +1452,55 @@ class BrainRepository {
 
   Future<BrainFile?> _findVaultNoteByAnyId(String id) async {
     final cleanId = id.trim();
-
-    if (cleanId.isEmpty) {
-      return null;
-    }
+    if (cleanId.isEmpty) return null;
 
     final store = _requireNoteVaultStore();
-
     final direct = await store.getNoteByPath(cleanId);
+    if (direct != null) return direct;
 
-    if (direct != null) {
-      return direct;
+    final notes = await store.loadNotes();
+    final matches = notes.where((note) => note.path.trim() == cleanId).toList();
+    // A lista de notas é apenas leitura. Nunca criar uma nota a partir dela.
+    // O Vault deve confirmar o objeto pelo path antes de persistir alterações.
+    debugPrint(
+      '[BRAIN IDENTITY] Consulta pelo path: ${matches.length} correspondencia(s) entre ${notes.length} notas',
+    );
+    if (matches.length > 1) {
+      throw StateError(
+        'Mais de um objeto possui a identidade desta anotação. Edição bloqueada para evitar perda de dados.',
+      );
+    }
+    if (matches.length == 1) {
+      final verified = await store.getNoteByPath(matches.single.path);
+      if (verified == null) {
+        throw StateError(
+          'A nota aparece na lista, mas não foi encontrada no índice do Vault. Edição cancelada para proteger o conteúdo.',
+        );
+      }
+      return verified;
     }
 
     final userId = currentUserId?.trim();
-
-    final notes = await store.loadNotes();
-
     if (userId != null && userId.isNotEmpty) {
-      for (final note in notes) {
-        final generatedRemoteId = _remoteNoteId(
-          userId: userId,
-          localPath: note.path,
-        );
-
-        if (generatedRemoteId == cleanId) {
-          return note;
-        }
+      final remoteMatches = notes
+          .where(
+            (note) =>
+                _remoteNoteId(userId: userId, localPath: note.path) == cleanId,
+          )
+          .toList();
+      if (remoteMatches.length > 1) {
+        throw StateError('Identificador remoto ambíguo. Edição cancelada.');
+      }
+      if (remoteMatches.length == 1) {
+        final verified = await store.getNoteByPath(remoteMatches.single.path);
+        if (verified != null) return verified;
       }
     }
-
+    debugPrint(
+      '[BRAIN IDENTITY] ID da anotação não encontrado entre notas ativas do Vault.',
+    );
     return null;
   }
-
   // ============================================================
   // SAVE ENCRYPTED NOTE AND VERIFY
   // ============================================================

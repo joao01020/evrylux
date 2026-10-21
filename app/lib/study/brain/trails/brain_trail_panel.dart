@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../models/brain_file.dart';
-import 'brain_trail_store.dart';
+import 'controllers/brain_trail_controller.dart';
+import 'models/brain_trail.dart';
+import 'models/brain_trail_node.dart';
 
 /// A Trilha é uma visualização de notas reais; não cria pastas ou cópias.
 class BrainTrailPanel extends StatefulWidget {
@@ -25,11 +27,8 @@ class BrainTrailPanel extends StatefulWidget {
 }
 
 class _BrainTrailPanelState extends State<BrainTrailPanel> {
-  final _store = BrainTrailStore();
-  Map<String, dynamic>? _trail;
-  bool _loading = true;
+  final _controller = BrainTrailController();
   bool _collapsed = false;
-  String? _error;
   final Set<String> _folded = <String>{};
   String? _hoveredNode;
 
@@ -38,10 +37,31 @@ class _BrainTrailPanelState extends State<BrainTrailPanel> {
   static const _indent = 22.0;
   static const _minimumNodeContentWidth = 148.0;
 
+  BrainTrail? get _trail => _controller.trail;
+  bool get _loading => _controller.loading;
+  String? get _error => _controller.error;
+
   @override
   void initState() {
     super.initState();
+    _controller.addListener(_onControllerChanged);
     _load();
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_onControllerChanged);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onControllerChanged() {
+    if (!mounted) return;
+    setState(() {
+      if (_controller.trail == null) {
+        _folded.clear();
+      }
+    });
   }
 
   @override
@@ -68,50 +88,11 @@ class _BrainTrailPanelState extends State<BrainTrailPanel> {
       .where((id) => id.trim().isNotEmpty)
       .toSet();
 
-  Future<void> _load() async {
-    if (!mounted) return;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final trails = await _store.load();
-      Map<String, dynamic>? found;
-      for (final trail in trails) {
-        if ((trail['nodes'] as List).any(
-          (node) => node['object_id'] == widget.currentId,
-        )) {
-          found = trail;
-          break;
-        }
-      }
-      if (found != null) {
-        found = await _store.pruneMissingObjects(found, _existingNoteIds());
-        // Se a limpeza removeu o vínculo da nota atual por algum motivo,
-        // tratamos como trilha ausente para não exibir estado quebrado.
-        final stillContainsCurrent = (found['nodes'] as List).any(
-          (node) => node['object_id'] == widget.currentId,
-        );
-        if (!stillContainsCurrent) {
-          found = null;
-        }
-      }
-      if (!mounted) return;
-      setState(() {
-        _trail = found;
-        if (found == null) {
-          _folded.clear();
-        }
-      });
-    } catch (e) {
-      if (mounted) {
-        setState(() => _error = '$e');
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _loading = false);
-      }
-    }
+  Future<void> _load() {
+    return _controller.loadForObject(
+      objectId: widget.currentId,
+      existingObjectIds: _existingNoteIds(),
+    );
   }
 
   BrainFile? _note(String id) {
@@ -166,52 +147,43 @@ class _BrainTrailPanelState extends State<BrainTrailPanel> {
     final name = await _askName('Criar Trilha', _noteTitle(widget.currentId));
     if (name == null || name.isEmpty) return;
     try {
-      final trail = await _store.create(widget.currentId, name, widget.ownerId);
-      if (mounted) {
-        setState(() => _trail = trail);
-      }
+      await _controller.createTrail(
+        rootObjectId: widget.currentId,
+        name: name,
+        ownerId: widget.ownerId,
+      );
     } catch (e) {
       _notify('Não foi possível criar Trilha: $e');
     }
   }
 
   Future<void> _renameTrail() async {
-    if (_trail == null) return;
-    final name = await _askName('Renomear Trilha', '${_trail!['name']}');
+    final trail = _trail;
+    if (trail == null) return;
+    final name = await _askName('Renomear Trilha', trail.name);
     if (name == null || name.isEmpty) return;
     try {
-      final result = await _store.updateTrail(_trail!, name: name);
-      if (mounted) {
-        setState(() => _trail = result);
-      }
+      await _controller.renameTrail(name);
     } catch (e) {
       _notify('Não foi possível renomear Trilha: $e');
     }
   }
 
-  Future<void> _renameNode(Map<String, dynamic> node) async {
+  Future<void> _renameNode(BrainTrailNode node) async {
     final name = await _askName(
       'Renomear na Trilha',
-      (node['display_name'] as String?) ??
-          _noteTitle(node['object_id'] as String),
+      node.displayName ?? _noteTitle(node.objectId),
     );
     if (name == null) return;
     try {
-      final result = await _store.renameNode(
-        _trail!,
-        node['id'] as String,
-        name,
-      );
-      if (mounted) {
-        setState(() => _trail = result);
-      }
+      await _controller.renameNode(node, name);
     } catch (e) {
       _notify('Não foi possível renomear tópico: $e');
     }
   }
 
-  Future<void> _removeNode(Map<String, dynamic> node) async {
-    if (node['parent_node_id'] == null) {
+  Future<void> _removeNode(BrainTrailNode node) async {
+    if (node.isRoot) {
       _notify('A nota raiz não pode ser desvinculada.');
       return;
     }
@@ -237,24 +209,19 @@ class _BrainTrailPanelState extends State<BrainTrailPanel> {
     );
     if (ok != true) return;
     try {
-      final result = await _store.removeBranch(_trail!, node['id'] as String);
-      if (mounted) {
-        setState(() => _trail = result);
-      }
+      await _controller.removeBranch(node);
     } catch (e) {
       _notify('Não foi possível desvincular: $e');
     }
   }
 
   Future<void> _add(String parentId, {required bool existing}) async {
-    if (_trail == null) return;
+    final trail = _trail;
+    if (trail == null) return;
     BrainFile? selected;
     if (existing) {
-      final current = _trail!['nodes'] as List;
       final candidates = widget.notes
-          .where(
-            (note) => !current.any((node) => node['object_id'] == note.path),
-          )
+          .where((note) => !trail.containsObject(note.path))
           .toList();
       selected = await showDialog<BrainFile>(
         context: context,
@@ -310,38 +277,27 @@ class _BrainTrailPanelState extends State<BrainTrailPanel> {
     }
     if (selected == null) return;
     try {
-      final result = await _store.addNode(_trail!, parentId, selected.path);
+      await _controller.addNode(
+        parentNodeId: parentId,
+        objectId: selected.path,
+      );
       if (mounted) {
-        setState(() {
-          _trail = result;
-          _folded.remove(parentId);
-        });
+        setState(() => _folded.remove(parentId));
       }
     } catch (e) {
       _notify('Não foi possível adicionar: $e');
     }
   }
 
-  List<Map<String, dynamic>> _nodes() => (_trail!['nodes'] as List)
-      .map((node) => Map<String, dynamic>.from(node as Map))
-      .toList();
+  List<BrainTrailNode> _nodes() => _trail?.nodes ?? const <BrainTrailNode>[];
 
-  List<Map<String, dynamic>> _children(
-    List<Map<String, dynamic>> nodes,
-    String? parent,
-  ) {
-    final result = nodes
-        .where((node) => node['parent_node_id'] == parent)
-        .toList();
-    result.sort(
-      (a, b) => ((a['position'] as num?)?.toInt() ?? 0).compareTo(
-        (b['position'] as num?)?.toInt() ?? 0,
-      ),
-    );
+  List<BrainTrailNode> _children(List<BrainTrailNode> nodes, String? parent) {
+    final result = nodes.where((node) => node.parentNodeId == parent).toList();
+    result.sort((a, b) => a.position.compareTo(b.position));
     return result;
   }
 
-  Widget _nodeAction(Map<String, dynamic> node, {bool prominent = false}) {
+  Widget _nodeAction(BrainTrailNode node, {bool prominent = false}) {
     return PopupMenuButton<String>(
       tooltip: 'Opções do tópico',
       padding: EdgeInsets.zero,
@@ -351,7 +307,7 @@ class _BrainTrailPanelState extends State<BrainTrailPanel> {
         size: prominent ? 23 : 19,
       ),
       onSelected: (action) {
-        final id = node['id'] as String;
+        final id = node.id;
         switch (action) {
           case 'new':
             _add(id, existing: false);
@@ -393,7 +349,7 @@ class _BrainTrailPanelState extends State<BrainTrailPanel> {
             title: Text('Renomear'),
           ),
         ),
-        if (node['parent_node_id'] != null)
+        if (!node.isRoot)
           const PopupMenuItem(
             value: 'remove',
             child: ListTile(
@@ -407,16 +363,16 @@ class _BrainTrailPanelState extends State<BrainTrailPanel> {
   }
 
   Widget _nodeRow(
-    Map<String, dynamic> node,
-    List<Map<String, dynamic>> all,
+    BrainTrailNode node,
+    List<BrainTrailNode> all,
     List<bool> ancestors,
     bool isLast,
     Set<String> visited,
   ) {
-    final key = node['id'] as String;
+    final key = node.id;
     if (ancestors.length > 32 || !visited.add(key))
       return const SizedBox.shrink();
-    final objectId = node['object_id'] as String;
+    final objectId = node.objectId;
     final note = _note(objectId);
     if (note == null) {
       return const SizedBox.shrink();
@@ -424,13 +380,13 @@ class _BrainTrailPanelState extends State<BrainTrailPanel> {
     final children = _children(
       all,
       key,
-    ).where((child) => _note(child['object_id'] as String) != null).toList();
-    final isRoot = node['parent_node_id'] == null;
+    ).where((child) => _note(child.objectId) != null).toList();
+    final isRoot = node.isRoot;
     final expandable = children.isNotEmpty;
     final open = !_folded.contains(key);
     final active = widget.currentId == objectId;
     final hovered = _hoveredNode == key;
-    final displayName = (node['display_name'] as String?)?.trim();
+    final displayName = node.displayName?.trim();
     final text = displayName == null || displayName.isEmpty
         ? note.title
         : displayName;
@@ -635,11 +591,7 @@ class _BrainTrailPanelState extends State<BrainTrailPanel> {
                       : LayoutBuilder(
                           builder: (context, constraints) {
                             final all = _nodes()
-                                .where(
-                                  (node) =>
-                                      _note(node['object_id'] as String) !=
-                                      null,
-                                )
+                                .where((node) => _note(node.objectId) != null)
                                 .toList();
                             final roots = _children(all, null);
                             int maxDepth = 0;
@@ -650,7 +602,7 @@ class _BrainTrailPanelState extends State<BrainTrailPanel> {
                             ) {
                               if (depth > 32) return;
                               for (final node in _children(all, parent)) {
-                                final id = node['id'] as String;
+                                final id = node.id;
                                 if (visited.contains(id)) continue;
                                 if (depth > maxDepth) maxDepth = depth;
                                 measure(id, depth + 1, {...visited, id});
@@ -667,7 +619,7 @@ class _BrainTrailPanelState extends State<BrainTrailPanel> {
                               padding: const EdgeInsets.fromLTRB(9, 4, 10, 20),
                               children: [
                                 Text(
-                                  '${_trail!['name']}',
+                                  _trail!.name,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(

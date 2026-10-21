@@ -513,6 +513,7 @@ class BrainNoteVaultStore {
   Future<BrainVaultObject> saveNote(
     BrainFile note, {
     String? legacyRemoteId,
+    bool requireExisting = false,
   }) async {
     await _ensureIndexLoaded();
 
@@ -525,6 +526,12 @@ class BrainNoteVaultStore {
     // ==========================================================
 
     if (existing == null) {
+      if (requireExisting) {
+        throw StateError(
+          'O objeto da anotação original não foi localizado no Vault. '
+          'Edição cancelada para evitar duplicação.',
+        );
+      }
       final created = await _vaultService.createObject(
         type: BrainVaultObjectType.note,
         data: data,
@@ -623,11 +630,30 @@ class BrainNoteVaultStore {
 
     await _ensureIndexLoaded();
 
-    final objectId = _pathToObjectId[cleanPath];
+    var objectId = _pathToObjectId[cleanPath];
 
+    // Recuperação somente do índice em memória, sem criar objetos.
+    // Exige correspondência única com uma nota ativa já decodificada.
     if (objectId == null || objectId.isEmpty) {
-      return null;
+      final matches = _noteByObjectId.entries
+          .where(
+            (entry) =>
+                entry.value.path.trim() == cleanPath &&
+                _objectById[entry.key] != null &&
+                !_objectById[entry.key]!.isDeleted,
+          )
+          .toList();
+      if (matches.length > 1) {
+        throw StateError(
+          'Há objetos concorrentes para a mesma identidade de nota no Vault.',
+        );
+      }
+      if (matches.length == 1) {
+        objectId = matches.single.key;
+        _pathToObjectId[cleanPath] = objectId;
+      }
     }
+    if (objectId == null || objectId.isEmpty) return null;
 
     final object = _objectById[objectId];
 

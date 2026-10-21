@@ -11,6 +11,7 @@ import '../profile/security/devices/services/account_device_identity_service.dar
 import '../profile/security/devices/services/account_device_presence_service.dart';
 import '../welcome/welcome_screen_web.dart';
 import 'widgets/web_global_header_shell.dart';
+import '../web_app/publications/brain_public_publication_screen.dart';
 
 final AccountDeviceIdentityService _webAccountDeviceIdentityService =
     AccountDeviceIdentityService();
@@ -94,6 +95,8 @@ class EvryluxWebApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isPublic = Uri.base.path == '/p' || Uri.base.path == '/p/';
+    final publicId = Uri.base.queryParameters['id'];
     return _WebAccountPresenceBridge(
       child: MaterialApp(
         title: 'EVRYLUX',
@@ -107,18 +110,21 @@ class EvryluxWebApp extends StatelessWidget {
         ],
         supportedLocales: const [Locale('pt', 'BR'), Locale('en')],
         builder: (context, child) {
+          if (isPublic) return child ?? const SizedBox.shrink();
           return WebGlobalHeaderShell(
             navigatorKey: webNavigatorKey,
             child: child ?? const SizedBox.shrink(),
           );
         },
-        home: AuthGate(
-          prepareUser: _prepareWebUser,
-          onUserChanged: _onWebUserChanged,
-          authenticatedBuilder: (context, user) {
-            return const WebWelcomeScreen();
-          },
-        ),
+        home: isPublic
+            ? BrainPublicPublicationScreen(publicationId: publicId)
+            : AuthGate(
+                prepareUser: _prepareWebUser,
+                onUserChanged: _onWebUserChanged,
+                authenticatedBuilder: (context, user) {
+                  return const WebWelcomeScreen();
+                },
+              ),
       ),
     );
   }

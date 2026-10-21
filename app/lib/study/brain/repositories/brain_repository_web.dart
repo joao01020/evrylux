@@ -261,6 +261,159 @@ class BrainRepository {
     return note.copyWith(concepts: merged);
   }
 
+  // ============================================================
+  // NOTA LÓGICA MAIS RECENTE
+  // ============================================================
+  //
+  // O Vault usa objectId como identidade física, mas o Brain ainda
+  // mantém legacy_path como identidade lógica da nota para controllers
+  // e telas antigas.
+  //
+  // Em instalações que passaram por migrações/sincronizações antigas
+  // pode existir mais de um BrainVaultObject apontando para o mesmo
+  // legacy_path. Nessa situação:
+  //
+  // - a busca podia receber a versão mais nova;
+  // - getNote() podia devolver a primeira versão encontrada por objectId;
+  // - abrir o resultado mostrava conteúdo antigo.
+  //
+  // Toda leitura Web passa agora a escolher deterministicamente a
+  // versão lógica mais recente da nota.
+  // ============================================================
+
+  bool _isNewerNoteCandidate({
+    required _DecodedWebObject candidateObject,
+    required BrainFile candidateNote,
+    required _DecodedWebObject currentObject,
+    required BrainFile currentNote,
+  }) {
+    final noteUpdatedComparison = candidateNote.updatedAt.compareTo(
+      currentNote.updatedAt,
+    );
+
+    if (noteUpdatedComparison != 0) {
+      return noteUpdatedComparison > 0;
+    }
+
+    final objectVersionComparison = candidateObject
+        .object
+        .header
+        .objectVersion
+        .value
+        .compareTo(currentObject.object.header.objectVersion.value);
+
+    if (objectVersionComparison != 0) {
+      return objectVersionComparison > 0;
+    }
+
+    final headerUpdatedComparison = candidateObject.object.header.updatedAt
+        .compareTo(currentObject.object.header.updatedAt);
+
+    if (headerUpdatedComparison != 0) {
+      return headerUpdatedComparison > 0;
+    }
+
+    // Desempate estável para evitar depender da ordem retornada pelo banco.
+    return candidateObject.object.header.objectId.compareTo(
+          currentObject.object.header.objectId,
+        ) >
+        0;
+  }
+
+  ({_DecodedWebObject object, BrainFile note})? _latestMatchingNote({
+    required List<_DecodedWebObject> objects,
+    required String id,
+    Map<String, List<BrainConcept>>? conceptsByNote,
+  }) {
+    final clean = id.trim();
+
+    if (clean.isEmpty) {
+      return null;
+    }
+
+    ({_DecodedWebObject object, BrainFile note})? latest;
+
+    for (final item in objects) {
+      if (item.type != BrainVaultObjectType.note) {
+        continue;
+      }
+
+      try {
+        var note = _fileMapper.fromVaultData(item.data);
+
+        if (conceptsByNote != null) {
+          note = _hydrateNoteConcepts(note, conceptsByNote);
+        }
+
+        final matches =
+            note.path.trim() == clean ||
+            item.object.header.objectId.trim() == clean;
+
+        if (!matches) {
+          continue;
+        }
+
+        if (latest == null ||
+            _isNewerNoteCandidate(
+              candidateObject: item,
+              candidateNote: note,
+              currentObject: latest.object,
+              currentNote: latest.note,
+            )) {
+          latest = (object: item, note: note);
+        }
+      } catch (_) {
+        // Objeto inválido não impede a procura pela versão válida.
+      }
+    }
+
+    return latest;
+  }
+
+  List<({_DecodedWebObject object, BrainFile note})> _latestLogicalNotes({
+    required List<_DecodedWebObject> objects,
+    required Map<String, List<BrainConcept>> conceptsByNote,
+  }) {
+    final byLogicalPath =
+        <String, ({_DecodedWebObject object, BrainFile note})>{};
+
+    for (final item in objects) {
+      if (item.type != BrainVaultObjectType.note) {
+        continue;
+      }
+
+      try {
+        final note = _hydrateNoteConcepts(
+          _fileMapper.fromVaultData(item.data),
+          conceptsByNote,
+        );
+
+        final logicalPath = note.path.trim();
+
+        // Payloads antigos sem path não devem colidir entre si.
+        final key = logicalPath.isEmpty
+            ? 'object:${item.object.header.objectId}'
+            : 'path:$logicalPath';
+
+        final current = byLogicalPath[key];
+
+        if (current == null ||
+            _isNewerNoteCandidate(
+              candidateObject: item,
+              candidateNote: note,
+              currentObject: current.object,
+              currentNote: current.note,
+            )) {
+          byLogicalPath[key] = (object: item, note: note);
+        }
+      } catch (_) {
+        // Uma nota inválida não bloqueia as demais.
+      }
+    }
+
+    return byLogicalPath.values.toList(growable: false);
+  }
+
   List<BrainFile> _orphanConceptSearchNotes({
     required List<_DecodedWebObject> objects,
     required Iterable<BrainFile> hydratedNotes,
@@ -332,18 +485,17 @@ class BrainRepository {
   Future<List<Map<String, dynamic>>> loadNotes() async {
     final objects = await _loadObjects();
     final conceptsByNote = _conceptsBySourceNote(objects);
-    final notes = <BrainFile>[];
 
-    for (final item in objects) {
-      if (item.type != BrainVaultObjectType.note) continue;
+    // Uma única nota lógica pode ter mais de um objeto físico legado.
+    // A lista pública expõe somente a versão mais recente de cada path.
+    final latestLogicalNotes = _latestLogicalNotes(
+      objects: objects,
+      conceptsByNote: conceptsByNote,
+    );
 
-      try {
-        final note = _fileMapper.fromVaultData(item.data);
-        notes.add(_hydrateNoteConcepts(note, conceptsByNote));
-      } catch (_) {
-        // Uma nota inválida não bloqueia o restante do Brain.
-      }
-    }
+    final notes = latestLogicalNotes
+        .map((item) => item.note)
+        .toList(growable: true);
 
     // A busca principal usa somente BrainController.notes. Portanto,
     // conhecimentos standalone sem source_note_path precisam entrar nessa
@@ -362,29 +514,25 @@ class BrainRepository {
 
   Future<Map<String, dynamic>?> getNote(String id) async {
     final clean = id.trim();
-    if (clean.isEmpty) return null;
+
+    if (clean.isEmpty) {
+      return null;
+    }
 
     final objects = await _loadObjects();
     final conceptsByNote = _conceptsBySourceNote(objects);
 
-    for (final item in objects) {
-      if (item.type != BrainVaultObjectType.note) continue;
+    final latest = _latestMatchingNote(
+      objects: objects,
+      id: clean,
+      conceptsByNote: conceptsByNote,
+    );
 
-      try {
-        final note = _hydrateNoteConcepts(
-          _fileMapper.fromVaultData(item.data),
-          conceptsByNote,
-        );
-
-        if (note.path.trim() == clean || item.object.header.objectId == clean) {
-          return _noteToRow(note);
-        }
-      } catch (_) {
-        // Continua procurando outra nota válida.
-      }
+    if (latest == null) {
+      return null;
     }
 
-    return null;
+    return _noteToRow(latest.note);
   }
 
   Future<Map<String, dynamic>> saveNote({
@@ -405,19 +553,22 @@ class BrainRepository {
     _DecodedWebObject? previousObject;
     BrainFile? previousNote;
     final cleanId = id?.trim() ?? '';
+
     if (cleanId.isNotEmpty) {
       final objects = await _loadObjects();
-      for (final item in objects) {
-        if (item.type != BrainVaultObjectType.note) continue;
-        try {
-          final note = _fileMapper.fromVaultData(item.data);
-          if (note.path == cleanId || item.object.header.objectId == cleanId) {
-            previousObject = item;
-            previousNote = note;
-            break;
-          }
-        } catch (_) {}
-      }
+      final latest = _latestMatchingNote(objects: objects, id: cleanId);
+
+      previousObject = latest?.object;
+      previousNote = latest?.note;
+    }
+
+    // Um ID informado significa edição, nunca criação implícita.
+    if (cleanId.isNotEmpty &&
+        (previousNote == null || previousObject == null)) {
+      throw StateError(
+        'A anotação original não foi encontrada no Vault Web. '
+        'Salvamento cancelado para evitar uma cópia duplicada.',
+      );
     }
 
     final now = DateTime.now().toLocal();
@@ -443,16 +594,48 @@ class BrainRepository {
 
   Future<void> deleteNote(String id) async {
     final clean = id.trim();
+
+    if (clean.isEmpty) {
+      return;
+    }
+
     final objects = await _loadObjects();
+
+    // Se o caller passou objectId, removemos exatamente aquele objeto.
     for (final item in objects) {
-      if (item.type != BrainVaultObjectType.note) continue;
+      if (item.type != BrainVaultObjectType.note) {
+        continue;
+      }
+
+      if (item.object.header.objectId.trim() == clean) {
+        await _deleteObject(item.object);
+        return;
+      }
+    }
+
+    // Se o caller passou o path lógico, tombstonamos TODAS as cópias
+    // físicas daquele path. Isso impede uma versão legada antiga de
+    // reaparecer depois que a versão mais nova for excluída.
+    final matches = <_DecodedWebObject>[];
+
+    for (final item in objects) {
+      if (item.type != BrainVaultObjectType.note) {
+        continue;
+      }
+
       try {
         final note = _fileMapper.fromVaultData(item.data);
-        if (note.path == clean || item.object.header.objectId == clean) {
-          await _deleteObject(item.object);
-          return;
+
+        if (note.path.trim() == clean) {
+          matches.add(item);
         }
-      } catch (_) {}
+      } catch (_) {
+        // Ignora objeto inválido.
+      }
+    }
+
+    for (final item in matches) {
+      await _deleteObject(item.object);
     }
   }
 
@@ -722,4 +905,59 @@ class BrainRepository {
 
   Future<List<Map<String, dynamic>>> loadRemoteNotes() => loadNotes();
   Future<void> migrateLegacyPlaintextIfNeeded() async {}
+
+  /// Metadados genéricos criptografados (ex.: Trilhas e recibos de importação).
+  /// Nunca são gravados em tabelas públicas nem em armazenamento plaintext.
+  Future<List<Map<String, dynamic>>> loadImportMetadata(String model) async {
+    final objects = await _loadObjects();
+    return objects
+        .where(
+          (item) =>
+              item.type == BrainVaultObjectType.generic &&
+              item.data['model'] == model,
+        )
+        .map(
+          (item) => <String, dynamic>{
+            ...item.data,
+            '_vault_object_id': item.object.header.objectId,
+          },
+        )
+        .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>> saveImportMetadata(
+    Map<String, dynamic> metadata, {
+    String? vaultObjectId,
+  }) async {
+    final model = metadata['model'];
+    if (model is! String || model.trim().isEmpty) {
+      throw const FormatException('Modelo de metadados inválido.');
+    }
+    BrainVaultObject? previous;
+    if (vaultObjectId != null) {
+      final objects = await _loadObjects();
+      for (final item in objects) {
+        if (item.object.header.objectId == vaultObjectId &&
+            item.type == BrainVaultObjectType.generic &&
+            item.data['model'] == model) {
+          previous = item.object;
+          break;
+        }
+      }
+      if (previous == null) {
+        throw StateError('Objeto E2EE de metadados não encontrado.');
+      }
+    }
+    final data = Map<String, dynamic>.from(metadata)
+      ..remove('_vault_object_id');
+    final saved = await _writeLogical(
+      type: BrainVaultObjectType.generic,
+      data: data,
+      previous: previous,
+    );
+    return <String, dynamic>{
+      ...data,
+      '_vault_object_id': saved.header.objectId,
+    };
+  }
 }

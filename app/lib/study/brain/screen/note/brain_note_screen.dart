@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../sharing/brain_sharing_dialog.dart';
 import '../../trails/brain_trail_panel.dart';
 
 import '../../runtime/brain_runtime_dependencies.dart' as dependencies;
@@ -855,6 +856,18 @@ class _BrainNoteScreenState extends State<BrainNoteScreen> {
       appBar: AppBar(
         title: Text(_isEditing ? 'Editar anotação' : 'Anotação'),
         actions: [
+          if (!_isOpening && _openError == null && !_isEditing)
+            IconButton(
+              tooltip: 'Compartilhar conhecimento',
+              icon: const Icon(Icons.share_outlined),
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (_) => BrainSharingDialog(
+                  note: _currentNote,
+                  notes: _controller.notes,
+                ),
+              ),
+            ),
           if (!_isOpening && _openError == null && !_isEditing)
             IconButton(
               tooltip: 'Editar',

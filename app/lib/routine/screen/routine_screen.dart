@@ -2689,113 +2689,102 @@ class _RoutineScreenState extends State<RoutineScreen> {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'LOUSA',
-                      style: TextStyle(
-                        color: _text,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.3,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _expandedBoardDate(day.date),
-                      style: const TextStyle(color: _muted, fontSize: 11),
-                    ),
-                  ],
-                ),
-              ),
-              OutlinedButton.icon(
-                onPressed: _routineController.state.saving
-                    ? null
-                    : _routineController.saveSelectedDay,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: _text,
-                  side: const BorderSide(color: _border),
-                ),
-                icon: _routineController.state.saving
-                    ? const SizedBox(
-                        width: 15,
-                        height: 15,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: _primary,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: _routineController.state.saving
+                            ? null
+                            : _routineController.saveSelectedDay,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: _text,
+                          side: const BorderSide(color: _border),
                         ),
-                      )
-                    : const Icon(Icons.cloud_done_outlined, size: 18),
-                label: Text(
-                  _routineController.state.saving ? 'Salvando' : 'Salvar',
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                tooltip: _hasReminderForDate(day.date)
-                    ? 'Ver lembretes deste dia'
-                    : 'Nenhum lembrete programado',
-                onPressed: () {
-                  _showRemindersForDay(day.date);
-                },
-                style: IconButton.styleFrom(
-                  foregroundColor: _hasReminderForDate(day.date)
-                      ? _primary
-                      : _muted,
-                  backgroundColor: _hasReminderForDate(day.date)
-                      ? const Color(0xFFE8F5EC)
-                      : const Color(0xFFF6F8F6),
-                  side: BorderSide(
-                    color: _hasReminderForDate(day.date)
-                        ? const Color(0xFFA9DEA5)
-                        : _border,
+                        icon: _routineController.state.saving
+                            ? const SizedBox(
+                                width: 15,
+                                height: 15,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: _primary,
+                                ),
+                              )
+                            : const Icon(Icons.cloud_done_outlined, size: 18),
+                        label: Text(
+                          _routineController.state.saving ? 'Salvando' : 'Salvar',
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        tooltip: _hasReminderForDate(day.date)
+                            ? 'Ver lembretes deste dia'
+                            : 'Nenhum lembrete programado',
+                        onPressed: () {
+                          _showRemindersForDay(day.date);
+                        },
+                        style: IconButton.styleFrom(
+                          foregroundColor: _hasReminderForDate(day.date)
+                              ? _primary
+                              : _muted,
+                          backgroundColor: _hasReminderForDate(day.date)
+                              ? const Color(0xFFE8F5EC)
+                              : const Color(0xFFF6F8F6),
+                          side: BorderSide(
+                            color: _hasReminderForDate(day.date)
+                                ? const Color(0xFFA9DEA5)
+                                : _border,
+                          ),
+                        ),
+                        icon: Icon(
+                          _hasReminderForDate(day.date)
+                              ? Icons.notifications_active_rounded
+                              : Icons.notifications_none_rounded,
+                          size: 19,
+                        ),
+                      ),
+
+                      const SizedBox(width: 8),
+                      IconButton(
+                        tooltip: _showExpandedCalendar
+                            ? 'Ocultar calendário'
+                            : 'Mostrar calendário',
+                        onPressed: () {
+                          if (!mounted) {
+                            return;
+                          }
+
+                          setState(() {
+                            _showExpandedCalendar = !_showExpandedCalendar;
+                          });
+                        },
+                        style: IconButton.styleFrom(
+                          foregroundColor: _primary,
+                          backgroundColor: _showExpandedCalendar
+                              ? const Color(0xFFE8F5EC)
+                              : const Color(0xFFF6F8F6),
+                          side: BorderSide(
+                            color: _showExpandedCalendar
+                                ? const Color(0xFFA9DEA5)
+                                : _border,
+                          ),
+                        ),
+                        icon: const Icon(Icons.calendar_month_rounded, size: 19),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton.icon(
+                        onPressed: _addBlock,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _primary,
+                          foregroundColor: Colors.white,
+                        ),
+                        icon: const Icon(Icons.add_rounded, size: 18),
+                        label: const Text('Bloco'),
+                      ),
+                    ],
                   ),
                 ),
-                icon: Icon(
-                  _hasReminderForDate(day.date)
-                      ? Icons.notifications_active_rounded
-                      : Icons.notifications_none_rounded,
-                  size: 19,
-                ),
-              ),
-
-              const SizedBox(width: 8),
-              IconButton(
-                tooltip: _showExpandedCalendar
-                    ? 'Ocultar calendário'
-                    : 'Mostrar calendário',
-                onPressed: () {
-                  if (!mounted) {
-                    return;
-                  }
-
-                  setState(() {
-                    _showExpandedCalendar = !_showExpandedCalendar;
-                  });
-                },
-                style: IconButton.styleFrom(
-                  foregroundColor: _primary,
-                  backgroundColor: _showExpandedCalendar
-                      ? const Color(0xFFE8F5EC)
-                      : const Color(0xFFF6F8F6),
-                  side: BorderSide(
-                    color: _showExpandedCalendar
-                        ? const Color(0xFFA9DEA5)
-                        : _border,
-                  ),
-                ),
-                icon: const Icon(Icons.calendar_month_rounded, size: 19),
-              ),
-              const SizedBox(width: 8),
-              FilledButton.icon(
-                onPressed: _addBlock,
-                style: FilledButton.styleFrom(
-                  backgroundColor: _primary,
-                  foregroundColor: Colors.white,
-                ),
-                icon: const Icon(Icons.add_rounded, size: 18),
-                label: const Text('Bloco'),
               ),
             ],
           ),
