@@ -162,7 +162,12 @@ class BrainFileVaultMapper {
 
     final content = _parseString(data['content']);
 
-    final path = _parseString(data['legacy_path']);
+    // O writer nativo atual usa `path`, enquanto objetos Web/legados
+    // podem usar `legacy_path`. A leitura precisa aceitar os dois formatos.
+    final currentPath = _parseString(data['path']).trim();
+    final legacyPath = _parseString(data['legacy_path']).trim();
+
+    final path = currentPath.isNotEmpty ? currentPath : legacyPath;
 
     final createdAt = _parseRequiredDate(
       data['created_at'],
@@ -201,10 +206,35 @@ class BrainFileVaultMapper {
   // ============================================================
 
   void _validateModel(Map<String, dynamic> data) {
-    final model = _parseString(data['model']);
+    final model = _parseString(data['model']).trim();
+
+    // ==========================================================
+    // CURRENT NATIVE NOTE FORMAT
+    // ==========================================================
+    //
+    // BrainNoteVaultStore (Linux/Desktop) grava atualmente:
+    //
+    //   model: brain_note
+    //   path: vault://...
+    //
+    // Esse formato não possui model_version e é válido.
+    //
+    // O Web anteriormente aceitava apenas `brain_file`, então
+    // descartava silenciosamente as atualizações vindas do app.
+    // ==========================================================
+
+    if (model == 'brain_note') {
+      return;
+    }
+
+    // ==========================================================
+    // WEB / LEGACY BRAIN FILE FORMAT
+    // ==========================================================
 
     if (model != 'brain_file') {
-      throw FormatException('Payload não representa BrainFile: $model');
+      throw FormatException(
+        'Payload não representa uma nota Brain compatível: $model',
+      );
     }
 
     final version = _parseInt(
