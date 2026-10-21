@@ -256,7 +256,7 @@ class _WebProfileSettingsPageState extends State<WebProfileSettingsPage> {
       var customNames = const <String, String>{};
       String? devicesError;
 
-      if (authorized && localDevice != null) {
+      if (authorized) {
         try {
           devices = await _brainDeviceManagementService.listDevices(
             vaultId: cleanVaultId,
